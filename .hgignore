@@ -1,0 +1,14 @@
+syntax: glob
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.pyg
+*.pyc
+
+sequential_laminates/homogenization.pdf
+sequential_laminates/IsotropicFit/results/
+sequential_laminates/IsotropicFit/config/
+sequential_laminates/IsotropicFit/jobs/
+sequential_laminates/IsotropicFit/plot.r
