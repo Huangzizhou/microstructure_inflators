@@ -31,13 +31,9 @@ function materialScan(Ne, Nv, vrange)
     parfor EBi = 1:size(Erange, 2)
         EB = Erange(EBi);
         for vA = vrange
-            lamA = lambda(EA, vA);
-            muA  = mu(EA, vA);
-            kA   = kappa(EA, vA);
+            [lamA, muA, kA] = deal(lambda(EA, vA), mu(EA, vA), kappa(EA, vA));
             for vB = vrange
-                lamB = lambda(EB, vB);
-                muB  = mu(EB, vB);
-                kB   = kappa(EB, vB);
+                [lamB, muB, kB] = deal(lambda(EB, vB), mu(EB, vB), kappa(EB, vB));
                 % Check material pair. We can't have A == B because EB > EA.
                 if ((kA > kB) || (muA > muB))
                     continue;
@@ -50,7 +46,7 @@ function materialScan(Ne, Nv, vrange)
                         parsave(outname, AStars, params, EA, vA, EB, vB, p); 
                     catch err
                         disp(sprintf('Error homogenizing (lamA, muA, lamB, muB) = (%f, %f, %f, %f)', ...
-                                     lambda(EA, vA), mu(EA, vA), lambda(EB, vB), mu(EB, vB)));
+                                     lamA, muA, lamB, muB));
                         disp(err.message);
                     end
                 end

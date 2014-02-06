@@ -1,0 +1,170 @@
+\documentclass[10pt]{article}
+
+\usepackage[latin1]{inputenc}
+\usepackage{amsmath, amssymb, amsfonts, amsthm}
+\usepackage{upgreek}
+\usepackage{amsthm}
+\usepackage{fullpage}
+\usepackage{graphicx}
+\usepackage{cancel}
+\usepackage{subfigure}
+\usepackage{mathrsfs}
+\usepackage{outlines}
+\usepackage[font={sf,it}, labelfont={sf,bf}, labelsep=space, belowskip=5pt]{caption}
+\usepackage{hyperref}
+\usepackage{minted}
+\usepackage{titling}
+
+\usepackage{fancyhdr}
+\usepackage[title]{appendix}
+
+\DeclareMathOperator{\sgn}{sgn}
+
+\pagestyle{fancy}
+\headheight 24pt
+\headsep    12pt
+\lhead{Material Property Design}
+\rhead{\today}
+\fancyfoot[C]{} % hide the default page number at the bottom
+\lfoot{}
+\rfoot{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand\footrulewidth{0.4pt}
+\providecommand{\abs}[1]{\lvert#1\rvert}
+\providecommand{\norm}[1]{\lVert#1\rVert}
+\providecommand{\dx}{\, \mathrm{d}x}
+% \providecommand{\vint}[2]{\int_{#1} \! #2 \, \mathrm{d}x}
+% \providecommand{\sint}[2]{\int_{\partial #1} \! #2 \, \mathrm{d}A}
+\renewcommand{\div}{\nabla \cdot}
+\providecommand{\shape}{\Omega(p)}
+\providecommand{\mesh}{\mathcal{M}}
+\providecommand{\boundary}{\partial \shape}
+\providecommand{\vint}[1]{\int_{\shape} \! #1 \, \mathrm{d}x}
+\providecommand{\sint}[1]{\int_{\boundary} \! #1 \, \mathrm{d}A}
+\providecommand{\pder}[2]{\frac{\partial #1}{\partial #2}}
+\providecommand{\tder}[2]{\frac{\mathrm{d} #1}{\mathrm{d} #2}}
+\providecommand{\evalat}[2]{\left.#1\right|_{#2}}
+\newcommand{\defeq}{\vcentcolon=}
+\newtheorem{lemma}{Lemma}
+
+\makeatletter
+\usepackage{mathtools}
+\newcases{mycases}{\quad}{%
+  \hfil$\m@th\displaystyle{##}$}{$\m@th\displaystyle{##}$\hfil}{\lbrace}{.}
+\makeatother
+
+\setlength{\droptitle}{-50pt}
+\title{Approach to Material Property Design}
+\author{}
+% Move date up over where author would be...
+\date{\vspace{-24pt} \today}
+
+% BEGIN DOCUMENT
+\begin{document}
+\maketitle
+We outline the basic approach and tools needed to achieve spatially varying
+material properties on a single material printer via periodic, patterned
+microstructures. We assume for now that we are given a coarse volume mesh,
+$\mesh_c$, and that each element has been assigned an elasticity tensor or
+material parameters. Ideally, each of these tensors lies in the space of
+homogenized tensors spanned by our chosen patterns (this could be enforced by
+the tool/optimization used to assign material properties). Our goal is to create
+a fine-scale volume mesh, $\mesh_f$, filled with the printer's single,
+homogeneous material so that the homogenized behavior of $\mesh_f \cap e$
+approximates $e$'s input elasticity tensor for all volume elements $e \in
+\mesh_c$.
+\section{Overview}
+ The general approach is as follows:
+\begin{enumerate}
+    \setcounter{enumi}{-1}
+    \item Read in the target material properties, $m_e$, for each $e \in
+        \mesh_c$. These could be in the form of
+        \label{step:read}
+        \begin{enumerate}
+            \item ``painted'' elasticity tensors from a library we know our
+                patterns can approximate;
+            \item elasticity tensors fit to object deformation measurements (e.g.
+                  Matusik's ``shoe paper'', \cite{Bickel2010}); or
+            \item elasticity tensors optimizing some objective (minimum
+                  compliance, desired deformation, desired force
+                  feedback).
+        \end{enumerate}
+    \item Fit pattern parameters. For each element $e \in \mesh_c$, invert the
+        pattern parameters $\to$ material properties map to find parameters,
+        $p_e$, for the periodic pattern closest to achieving the desired
+        properties.
+        \label{step:fit}
+        \begin{enumerate}
+            \item Use a precomputed pattern parameter to material properties
+                lookup table built for our patterns to interpolate an
+                approximate inverse. This table could be built by sampling an
+                ``$\epsilon \to 0$'' formula, e.g. for sequential laminates
+                \cite{allaire2002shape}, or by numerical homogenization \`a la
+                \cite{Kharevych2009}.
+            \item If we have an explicit ``$\epsilon \to 0$'' formula, run some
+                iterations of Newton's method to improve the inverse.
+        \end{enumerate}
+        Notice that here we are taking advantage of Theorem 2.1.2 from
+        \cite{allaire2002shape} to work pointwise; it says that a homogenized
+        material field is valid/achievable if and only if its tensor value at
+        every point is an elasticity tensor obtained by periodic homogenization.
+    \item Generate a printable, fine-scale mesh, $\mesh_f$. Because patterns
+        need to ``connect'' across coarse element boundaries, we cannot operate
+        on each coarse element in isolation.
+        \label{step:mesh}
+        \begin{enumerate}
+            \item Choose a length-scale, $\epsilon$ (periodic cell size), based
+                on printer resolution and printability concerns (thin features,
+                etc.).
+            \item Subdivide each $e \in \mesh_c$ into cells of this size,
+                filling each with a mesh of the periodic pattern specified by
+                $p_e$.
+            \item Stitch together the meshes (see Section \ref{sec:connect}).
+        \end{enumerate}
+    \item Fabricate $\mesh_f$.
+    \label{step:fabricate}
+\end{enumerate}
+
+\section{Validation}
+Each stage of the pipeline will introduce errors, and it will be important to
+measure and analyze them individually.
+
+From this writeup's perspective, step \ref{step:read} gives us the ground truth:
+the final, fabricated object better behave like a FEM simulation of $\mesh_c$.
+However, if/when the scope of our project expands to include
+compliance/deformation optimization or object duplication, we will need to see
+how much this simulation differs from the desired result.
+
+Step \ref{step:fit}'s error can be measured accurately if we have a formula
+that maps pattern parameters to homogenized material properties. For the class
+of sequential laminates, we have just that: e.g. (2.67) and (2.151) in
+\cite{allaire2002shape}. However, if we instead only have a lookup table,
+measuring the error is impossible; we do not know the material properties
+corresponding to our interpolated guess of pattern parameters. Worse, if our
+desired material properties are far from the entries in the lookup table, we do
+not know if that is because the lookup table is incomplete or the material is
+not achievable.
+
+Step \ref{step:mesh} unfortunately accumulates two errors: one is .
+
+Step \ref{step:fabricate} introduces another likely large error: unpredictable
+variations in the 3D printer's material properties. Unfortunately, there's not
+much we can do here. Hopefully the error will be small enough that we can make
+qualitative comparisons to the ground-truth simulation of $\mesh_c$ and only
+present quantitative comparisons in the evaluation of $\mesh_f$ (step
+\ref{step:mesh}).
+
+\section{Search for Patterns}
+
+\section{Connecting the Patterns}
+\label{sec:connect}
+
+\section{Concerns}
+The homogenization theory is all for linear elasticity. If we want to design
+large-scale deformation behavior we will probably have.
+
+\bibliographystyle{plain}
+\bibliography{References}
+
+\end{document}
+
