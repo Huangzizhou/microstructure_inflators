@@ -12,8 +12,12 @@ class MaterialTest(unittest.TestCase):
         self.tensor_file = "./tmp_tensor"
         tensors,params = self.generate_test_data();
         savemat(self.tensor_file, {
-            "A_star":tensors,
-            "params":params });
+            "AStars":tensors,
+            "params":params,
+            "EA": 1.0,
+            "EB": 2.0,
+            "vA": 0.3,
+            "vB": 0.3});
 
     def tearDown(self):
         os.remove(self.tensor_file + ".mat");
