@@ -1,11 +1,15 @@
 from csv import DictReader
 from mako.template import Template
 from mako.runtime import Context
+import os.path
 from subprocess import check_call
+import sys
 
 class ggplot:
     def __init__(self):
-        self.template = Template(filename="ggplot.mako");
+        src_dir = sys.path[0]
+        self.template = Template(
+                filename=os.path.join(src_dir, "ggplot.mako"));
         self.r_script = "";
 
     def set_data(self, csv_file):
@@ -60,6 +64,7 @@ class ggplot:
                 x=x, y=y, text=text, hjust=hjust, vjust=vjust);
 
     def plot(self, r_file):
+        print(r_file);
         with open(r_file, 'w') as fout:
             fout.write(self.r_script);
         command = "Rscript {}".format(r_file);
