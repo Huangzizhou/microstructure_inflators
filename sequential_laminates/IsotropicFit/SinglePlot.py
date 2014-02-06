@@ -8,7 +8,7 @@ import os.path
 from math import pi
 from subprocess import check_call
 from timethis import timethis
-from ColumnRanges import extract_column_ranges
+from ggplot import ggplot
 
 TMP_DIR = "/tmp/";
 EPS = 1e-3;

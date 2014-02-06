@@ -5,13 +5,12 @@ from subprocess import check_call
 
 class ggplot:
     def __init__(self):
-        self.template = Template(filename="plot.mako");
+        self.template = Template(filename="ggplot.mako");
         self.r_script = "";
 
     def set_data(self, csv_file):
         self.r_script += self.template.get_def("header").render(
                 csv_file=csv_file);
-        self.__load_csv_file(csv_file);
 
     def filter_data(self, col_name, min_val, max_val):
         self.r_script += self.template.get_def("filter_data").render(
@@ -39,7 +38,7 @@ class ggplot:
         self.r_script += self.template.get_def("histogram").render(
                 w_col = w_col, num_bins = num_bins);
 
-    def set_range(self, x_min, x_max, y_min, y_max):
+    def set_range(self, x_min=None, x_max=None, y_min=None, y_max=None):
         self.r_script += self.template.get_def("set_range").render(
                 x_col_min = x_min, x_col_max = x_max,
                 y_col_min = y_min, y_col_max = y_max);
@@ -60,24 +59,10 @@ class ggplot:
         self.r_script += self.template.get_def("draw_text").render(
                 x=x, y=y, text=text, hjust=hjust, vjust=vjust);
 
-    def plot(self):
-        r_file = "plot.r";
+    def plot(self, r_file):
         with open(r_file, 'w') as fout:
             fout.write(self.r_script);
         command = "Rscript {}".format(r_file);
         check_call(command.split());
 
-    def get_col(self, col_name):
-        return self.data[col_name];
-
-    def __load_csv_file(self, csv_file):
-        with open(csv_file, 'r') as fin:
-            reader = DictReader(fin);
-            self.data = {};
-            for field in reader.fieldnames:
-                self.data[field] = [];
-
-            for row in reader:
-                for key in row:
-                    self.data[key].append(row[key]);
 
