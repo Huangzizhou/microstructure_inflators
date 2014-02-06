@@ -9,6 +9,7 @@ syntax: glob
 
 sequential_laminates/homogenization.pdf
 sequential_laminates/IsotropicFit/results/
+sequential_laminates/results/
 sequential_laminates/IsotropicFit/config/
 sequential_laminates/IsotropicFit/jobs/
 sequential_laminates/IsotropicFit/plot.r

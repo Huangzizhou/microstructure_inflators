@@ -49,8 +49,12 @@ p <- p + geom_histogram(aes(x=${w_col}), binwidth=bin_width);
 
 
 <%def name="set_range()">
+% if x_col_min is not None and x_col_max is not None:
 p <- p + xlim(${x_col_min}, ${x_col_max});
+% endif
+% if y_col_min is not None and y_col_max is not None:
 p <- p + ylim(${y_col_min}, ${y_col_max});
+% endif
 </%def>
 
 <%def name="facet_grid()">

@@ -16,11 +16,6 @@ class Material2D(Material):
         self.error = np.sqrt(err).reshape((-1,1));
         self.__normalize_error();
         maxidx = np.argmax(self.error)
-        print('max error idx: %i' % maxidx);
-        print('max error: %f' % np.max(self.error));
-        print(self.__lame_lambda[maxidx, 0]);
-        print(self.__lame_mu[maxidx, 0]);
-
 
     def __get_coeff_matrix(self):
         return np.array([
