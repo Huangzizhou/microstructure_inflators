@@ -211,6 +211,69 @@ slices intersect to form a deformed lattice structure (or, if you prefer, a
 matrix of polyhedral void regions). The size of these planes is not immediately
 clear, nor is how they will intersect with neighboring coarse elements' planes.
 
+\section{Circumventing ``Stitching'' Patterns}
+\label{sec:procedual_pattern}
+In general, the desired material tensor field (output of step 0) is a smooth
+function over the domain.  We can approximate this field either by an
+element-wise constant field, which is the approached assumed in Section
+\ref{sec:gen_connect}, or by an element-wise tri-linear field.  The first
+approach would introduce sharp discontinuities around element boundaries, thus
+the need to stitch the microstructure from neighbor elements together.
+On the other hand, the second approach does not have such discontinuities since
+element-wise tri-linear field is continous.
+
+The difficulty of having an element-wise tri-linear material tensor field is
+that it is not clear how to ``tile'' patterns.  In the setting of sequantial
+laminates, there are at least two ways of doing this.  Both approaches generate
+a mesh that is locally made of sequantial laminates almost everywhere.
+
+\subsection{Laminate tracing}
+It is common in visualization to trace streamlines according to a vector field.
+In particular, the streamline direction accurately represents the vector
+directions at each point in the domain.  For sequential laminates of rank $p$, we have
+$p$ layers of lamination, where for each layer the pattern parameters consist of
+a lamination direction and a material ratio, both are smooth fields over the
+domain.  This
+allows us to trace out each laminate slice one by one, where the thickness of
+the slice remains constant and the density of the laminates (how closely packed one
+slice is from another slice) is determined by the material ratio.
+
+\begin{figure}[t]
+\centering
+\includegraphics[height=0.3\textwidth]{images/streamlines}
+\includegraphics[height=0.3\textwidth]{images/hole_packing}
+\caption{Left: It is easy to trace streamlines from a given vector field.  The
+density of the streamlines can be directly controled.
+Right: The lamination directions can be traced.  They forms a set of
+streamlines, where we can procedually insert holes at their intersetions.}
+\label{fig:hole_packing}
+\end{figure}
+
+\subsection{Hole packing}
+Hole packing is similar to laminate tracing, but perhaps easier to generate.  Sequential
+laminates of rank $p$ (with $p\ge3$ in $\mathbb{R}^3$) have the property that it
+partitions the domain into small disconnected voids.  (Let's ignore printability
+for now.)  So instead of trying to lay out slices of laminates, one can
+think in terms of where to place those holes.  The material parameters ($p$
+lamination directions and $p$ material ratios) uniquely determine the shape of
+the hole at each point up to scale.   We just need to know where to place those
+holes such that that the resulting microstructure is sequantial laminates.
+
+The hole packing algorithm uses the streamlines traced along the lamination
+directions (i.e. streamlines are orthogonal to each laminate slice).  Since
+there are $p$ sets of streamlines, the stream lines form a grid (more precisely
+a network).  In 2D, two
+sets of non-parallel streamlines always intersect.  In 3D, since the material
+property is a smooth field, we can generate sets of streamlines such that they
+do intersect.  The hole packing algorithm put a hole whenever two stream
+lines intersect. The shape of the hole is determined by the lamination
+directions, and the size of the hole is determined by the local material ratios.
+This approach is illustrated in Figure \ref{fig:hole_packing}.  The resulting
+microstructure (the complement of the holes) is almost a sequential laminate
+everywhere.  Only at locations where a streamline begins or ends, the
+microstructure is locally different from sequential laminates.
+
+
 \section{Printability}
 Not only do we need to choose the periodic cell size large enough that the
 printer can resolve the patterns' details without violating any design rules,
@@ -219,6 +282,9 @@ application. In the single material case, the patterns comprise solid and void
 regions (as opposed to solid regions of distinct materials for multi-material
 printing). To allow support material removal, these voids must all have a path
 to the object's exterior.
+
+The printibility concerns could be avoided when printing with multi-material
+printers, where one can replace void with a very weak material.
 
 \section{Simulating and Meshing the Microstructure}
 For simulation alone, it will probably be easiest to implement the composite
