@@ -71,7 +71,7 @@ homogenized tensors spanned by our chosen patterns (this could be enforced by
 the tool/optimization used to assign material properties). Our goal is to create
 a fine-scale volume mesh, $\mesh_f$, filled with the printer's single,
 homogeneous material so that the homogenized behavior of $\mesh_f \cap e$
-approximates $e$'s input elasticity tensor for all volume elements $e \in
+approximates $e$'s input elasticity tensor for all coarse volume elements $e \in
 \mesh_c$.
 \section{Overview}
  The general approach is as follows:
@@ -159,7 +159,7 @@ second type of error is in how the cells connect. Theorem 2.1.2 of
 elasticity tensors pointwise is only valid in the limit as the periodic cell
 shrinks to zero. It does not tell us how to connect finite-sized cells or even
 say that it is possible. This stitching will be one of the key challenges
-(Section \ref{sec:connect}).
+(Section \ref{sec:gen_connect}).
 
 Step \ref{step:fabricate} introduces another, probably quite large error: unpredictable
 variations in the 3D printer's material properties. Unfortunately, there's not
@@ -265,12 +265,14 @@ consider the case were one material is void (Section 2.3.4 of
 
 \section{Miscellaneous Concerns}
 \begin{itemize}
-    \item The homogenization theory is all for linear elasticity. If we want to
-        design large-scale deformation behavior we will probably have.
+    \item The homogenization theory is built around linear elasticity. If we want to
+        design large-scale deformation behavior, we will probably have to
+        consider a non-linear version (if possible).
 
     \item What material will be used to coat the object? It is likely that
-        printing the skin will cause rigidity and prevent all the deformation
-        behavior our internal microstructures are designed to support.
+        printing the skin will introduce rigidity that prevents all the
+        deformation behavior our internal microstructures are designed to
+        support.
 \end{itemize}
 
 \bibliographystyle{plain}
