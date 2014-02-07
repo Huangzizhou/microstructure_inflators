@@ -8,7 +8,7 @@ There are mainly two independent modules:
 {\it Input:} An array of material tensors.
 
 {\it Output:} An array of pattern parameters (and fitting errors).  A bound for
-all possible material properties that can be generated using a given type of patterns.
+all possible material properties that can be generated with a given type of patterns.
 
 {\it Validation:} If homogenization has closed formula, we should validate it
 with simulation.
@@ -19,9 +19,8 @@ Approach 1: look up table.
 \begin{itemize}
 \item For microstructure with closed formula of homogenized material properties,
 sample the space of all possible pattern parameter combinations.
-\item For microstructure without closed formula of homogenized material
-properties, use representative volume method to find it out.  I.e. For all
-possible pattern parameters, generate a
+\item For microstructure without closed formula, use representative volume
+method to find it out.  I.e. For all possible pattern parameters, generate a
 cube made of microstructures, simulate it either on a very fine mesh, or use
 Mesh-free techniques, or use \cite{Kharevych2009} to obtain the homogenized
 material property.
