@@ -366,12 +366,17 @@ tensors are on the tets, interpolating to per-vertex pattern parameters
 introduces a quantitative error even if could give qualitatively better
 behavior. Note that for the isosurface extrusion approach to discrete laminate
 synthesis, the direction parameters must live on the elements. Finally,
-per-coarse-vertex parameters \textbf{do not} get around warping microstructures
+per-coarse-vertex parameters do not get around warping microstructures
 in Section \ref{sec:general_periodic} since we still use piecewise-constant
 patterns on the fine cells to assign the fine cell geometry. It just replaces
 the interpolation step mentioned there with a new one where each fine cell
 differs from its neighbors in a trilinear way (as opposed to a scheme that
 could be tuned and localized to the coarse boundary).
+
+% Note: we don't have a theory about interpolated material parameters
+% corresponding to an interpolated elasticity tensors/behavior, so it's best to
+% use interpolation as a tool for pattern transition locally around transition
+% faces instead of everywhere.
 
 \section{Printability}
 Not only do we need to choose the periodic cell size large enough that the
