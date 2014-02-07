@@ -1,13 +1,19 @@
 \section{Implementation}
-This section summarizes the all sections above in terms of work.
+This section summarizes the all sections above in terms of work needed.  This
+would be a giant to-do list.
 
-\subsection{Software}
-The software would consist two independent modules:
+There are mainly two independent modules:
 \begin{description}
 \item{\bf Convert arbitrary material tensor into pattern parameters}\\
 {\it Input:} An array of material tensors.
 
-{\it Output:} An array of pattern parameters (and fitting errors).\\
+{\it Output:} An array of pattern parameters (and fitting errors).  A bound for
+all possible material properties that can be generated using a given type of patterns.
+
+{\it Validation:} If homogenization has closed formula, we should validate it
+with simulation.
+
+{\it Physical experiments:}  Validate homogenization formula on simple patterns.\\
 
 Approach 1: look up table.
 \begin{itemize}
@@ -19,24 +25,57 @@ possible pattern parameters, generate a
 cube made of microstructures, simulate it either on a very fine mesh, or use
 Mesh-free techniques, or use \cite{Kharevych2009} to obtain the homogenized
 material property.
-\item For each sampled pattern parameter, compute the homogenized material
-tensor.
+\item Compute the homogenized material properties for each pattern parameter.
 \item Build a table that support fast lookup with material tensor as key.  If
 the tensor is not in the table, return the closest entry using a reasonable
 measure.
 \end{itemize}
 
 Approach 2: optimization of material parameters.
-
-
+\begin{itemize}
+\item For microstructure with closed formula, using optimization to find the
+best fit pattern parameter.
+\end{itemize}
 
 \item{\bf Generate microstructure geometry}\\
 {\it Input:} An array of pattern parameters.
 
 {\it Output:} Microstructure mesh
 
+{\it Validation:} Simulate the resulting microstructure to see if its behaviors
+are expected.
 
+{\it Physical experiments:} Validate generated patterns in experiments.
+
+Approach 1: tile pattern for each element and stitch.
+\begin{itemize}
+\item Write code to generate regular tiled patch for each element.
+\item Write code to stitch patches together without significantly effect the material
+properties.
+\item Verify stitching does not introduce artifacts globally.
+\end{itemize}
+
+Approach 2: tracing dual graph and pack holes.
+\begin{itemize}
+\item Implement or borrow code for streamline tracing.  Make sure streamlines
+form a network.
+\item Write code to procedurally generate holes at each stream line
+intersection.
+\item Verify the resulting mesh is a valid microstructure.
+\end{itemize}
 \end{description}
 
-\subsection{Experiments}
-Due to the slow turn around time, we have to plan ahead.
+
+
+There is also work involved in generating results and validations.
+\begin{itemize}
+\item Mesh-free 3D simulation.
+\item Material property painting program.  It would be handy to generate
+inputs.
+\item Code for computing homogenized material property from
+\cite{Kharevych2009}.  This would be helpful to generate material tensor from
+load specification and deformation field.
+\end{itemize}
+
+
+
