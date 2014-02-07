@@ -254,7 +254,7 @@ them until they either come too close or stray too far.
 
 \subsubsection{Trace ``Dual'' Directions}
 \label{sec:dual_trace}
-Second, we could places holes along a different lamination direction curve: dual
+Second, we could place holes along a different lamination direction curve: dual
 edges of the lamination lattice. Notice that the voids/regions of weak material
 in Figure \ref{fig:sequential_laminate} are all identical polygonal regions. In
 general, sequential laminates generate a repeating grid of polyhedral holes. If
@@ -280,8 +280,8 @@ is needed to the one above.
 \label{sec:isosurface}
 Finally, we could take a more global approach analogous to crossfield-guided
 parametrization: we could fit isosurface normals (isoline normals in
-$2D$) of a scalar field, $f_i$ to each lamination direction, $e_i$, by solving
-Poisson equation. In energy form, this is:
+$2D$) of a scalar field, $f_i$, to each lamination direction, $e_i$, by solving
+the Poisson equation. In energy form, this is:
 $$
 \min_{f_i} \sum_{i=1}^p \sum_{c \in \mesh_c} \norm{\nabla f_i - e_i(c)}^2.
 $$
@@ -292,7 +292,7 @@ analogous to setting period jumps in Mixed Integer Quadrangulation.
 
 Since each lamination direction is a unit vector, evenly
 spaced isovalues will correspond to nearly evenly spaced isosurfaces.
-Once a spacing is chosen, these isosurfaces can be converted into lamination
+Once a spacing is chosen, these isosurfaces can be extruded into lamination
 slices with width depending on $\theta_i(x)$ (an interpolant of $\theta_i(e)$).
 
 Notice that that Poisson solve effectively projects out the divergence-free
@@ -301,7 +301,7 @@ will not be able to accurately synthesize the laminate.
 
 \subsubsection{Registration of Lamination Directions}
 \label{sec:registration}
-In $3D$, there will be $p \ge 3$ of direction vectors in arbitrary
+In $3D$, there will be $p \ge 3$ direction vectors in arbitrary
 (non-orthogonal) orientation at each element. For all of these synthesis
 approaches, it is important that we know which vectors are meant to connect to
 which across elements. The material fitting algorithm assigns a label $e_i$ to
@@ -345,27 +345,33 @@ Although piecewise constant pattern parameters (and thus material tensors) are
 simpler to use in computation, it is an unnecessary restriction when designing
 microstructures.  After all, the target material properties are a smooth function
 of the domain. Instead of piecewise constant, a piecewise trilinear
-interpolation of the pattern parameters does not only simplify the tracing-based
+interpolation of the pattern parameters not only simplifies the tracing-based
 sequential laminate synthesis approaches described in Sections
 \ref{sec:direction_trace} and \ref{sec:dual_trace}, it also circumvents the need
 of connecting microstructures between neighboring cells (Section
 \ref{sec:general_periodic}).  This is because the lamination directions are
 continuous across cell borders.  Furthermore, piecewise trilinear representation
 could give a more accurate representation of the pattern parameters with fewer
-elements. If the input pattern parameters are per-element quantity, a
+elements. If the input pattern parameters are a per-element quantity, a
 per-vertex quantity can always be obtained by interpolation.
 
 Counterpoint:
-The ground-truth, input elasticity tensors live on the elements, and so our
-pipeline first converts them into material properties that live on the elements.
+The ground-truth, input elasticity tensors live on elements, and so our pipeline
+first converts them into material properties that live on the elements.
 Interpolating to per-vertex values is a somewhat arbitrary, mesh-dependent
-approach to smoothing, though it does simplify the tracing-based
-approaches. A smoothing/fitting technique on the original per-element data can
-be made more accurate/smooth as needed. Furthermore, since our ground truth
-elasticity tensors are on the tets, interpolating to per-vertex pattern
-parameters introduces an error even if gives a nicer behavior. Note that for the
-isosurface extraction approach to discrete laminate synthesis, the direction
-parameters must live on the elements.
+approach to smoothing, though it does simplify the tracing-based approaches. A
+smoothing/fitting technique on the original per-element data can be made more
+accurate/smooth if needed. Furthermore, since our ground truth elasticity
+tensors are on the tets, interpolating to per-vertex pattern parameters
+introduces a quantitative error even if could give qualitatively better
+behavior. Note that for the isosurface extrusion approach to discrete laminate
+synthesis, the direction parameters must live on the elements. Finally,
+per-coarse-vertex parameters \textbf{do not} get around warping microstructures
+in Section \ref{sec:general_periodic} since we still use piecewise-constant
+patterns on the fine cells to assign the fine cell geometry. It just replaces
+the interpolation step mentioned there with a new one where each fine cell
+differs from its neighbors in a trilinear way (as opposed to a scheme that
+could be tuned and localized to the coarse boundary).
 
 \section{Printability}
 Not only do we need to choose the periodic cell size large enough that the
@@ -380,11 +386,13 @@ The printibility concerns could be avoided when printing with multi-material
 printers, where one can replace void with a very weak material.
 
 \section{Search for Patterns}
-As described above, it will be desirable to have periodic patterns that are
-parametrized smoothly. Ideally these patterns will also have an analytic formula
-for their homogenized elasticity tensors/material properties,
-but we may be able to get away with the numerical coarsening +
-look-up-table-only fitting approach.
+It will be desirable to have periodic patterns that are
+parametrized smoothly to allow stitching. Ideally these patterns will have
+an analytic formula for their homogenized elasticity tensors/material
+properties, but we may be able to get away with the numerical coarsening +
+look-up-table-only fitting approach. It would also be nice if there are
+well-defined direction parameters (as is the case with sequential laminates) to
+enable the tracing/isosurface extrusion approaches.
 
 Even more importantly, the pattern we choose must have good coverage of the
 range of desired material properties. We discuss this in the next section.
@@ -393,10 +401,9 @@ range of desired material properties. We discuss this in the next section.
 The most important preliminary experiment is to test that we
 can achieve a useful range of material properties with a single material
 printer. The best tool we have for this is currently the sequential laminate
-\cite{allaire2002shape}. This is a pattern for which several closed formulas
-exist for homogenized elasticity tensors. Perhaps other patterns can achieve a
-wider range of materials, but we would need to develop our own machinery to
-analyze them.
+\cite{allaire2002shape}, since this gives us several closed formulas for
+homogenized elasticity tensors. Perhaps other patterns can achieve a wider range
+of materials, but we would need to develop our own machinery to analyze them.
 
 So far we have looked only at the space of approximately isotropic homogenized
 tensors achieved by rank $1, 2, $ and $3$ sequential laminates of two
