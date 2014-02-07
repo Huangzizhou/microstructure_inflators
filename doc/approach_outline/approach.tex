@@ -218,9 +218,9 @@ boundary conditions (Figure \ref{fig:interpolate}).
     \label{fig:interpolate}
 \end{figure}
 
-% Notice that here we are interpolating the
-% pattern parameters to transition between material properties instead of
-% interpolating the elasticity tensors.
+Of course, it can happen that there is still a large jump in material parameters
+after smoothing. This will lead to patterns that either cannot connect or that
+are highly distorted. We will need to evaluate what happens here.
 
 \subsection{Sequential Laminates}
 Another approach is specific to the sequential laminate patterns, for which the
@@ -242,16 +242,15 @@ lamination ``slices'' of material (see Figure \ref{fig:sequential_laminate}).
 \label{sec:direction_trace}
 First, we could lay down slices perpendicularly to smooth lamination direction
 curves fit to the direction vectors sitting on each element $e \in \mesh_c$.
-There will be $p \ge 3$ of these vectors in arbitrary (non-orthogonal)
-orientation at each element, so we choose a pairing of vectors that minimizes
-the total direction deviation of all $p$. These lamination direction curves
+These lamination direction curves
 specify the line orthogonal to which thin planar slices of the material must be
 added. We can also interpolate along each curve its associated $\theta$
 parameter to determine the width of each slice. It is not immediately clear how
 to choose the depth and height of each slice, nor how it will intersect with
 neighboring planes. Also, it will be necessary to have many nearly uniformly
-spaced lamination curves passing through each coarse element, and keeping them
-uniformly spaced is problematic.
+spaced lamination curves passing through each coarse element. We can attempt
+this by seeding curves a specified distance away from existing ones and tracing
+them until they either come too close or stray too far.
 
 \subsubsection{Trace ``Dual'' Directions}
 \label{sec:dual_trace}
@@ -267,7 +266,9 @@ directions. This operation is well defined in $2D$ for $p = 2$ laminate
 directions and will yield something like Figure \ref{fig:hole_place}. For higher
 $p$, it is more difficult to define. Also, for higher dimension it will be
 difficult to ensure the lines intersect properly. Finally, it is important the
-curves are of roughly uniform density, which will be difficult to achieve.
+curves are of roughly uniform density, so a similar seeding and tracing strategy
+is needed to the one above.
+
 \begin{figure}[h!]
     \centering
 \includegraphics[height=0.3\textwidth]{images/hole_packing}
@@ -286,13 +287,39 @@ $$
 $$
 This will require a global labeling of lamination directions so that $e_i(c)$, the
 $i^\text{th}$ direction on element $c$, is consistent with the $i^\text{th}$
-direction of neighboring elements. This is analogous to setting period jumps in
-Mixed Integer Quadrangulation.
+direction of neighboring elements (see Section \ref{sec:registration}). This is
+analogous to setting period jumps in Mixed Integer Quadrangulation.
 
 Since each lamination direction is a unit vector, evenly
 spaced isovalues will correspond to nearly evenly spaced isosurfaces.
 Once a spacing is chosen, these isosurfaces can be converted into lamination
 slices with width depending on $\theta_i(x)$ (an interpolant of $\theta_i(e)$).
+
+Notice that that Poisson solve effectively projects out the divergence-free
+component of $e_i(c)$. If the direction fields have high curl, this approach
+will not be able to accurately synthesize the laminate.
+
+\subsubsection{Registration of Lamination Directions}
+\label{sec:registration}
+In $3D$, there will be $p \ge 3$ of direction vectors in arbitrary
+(non-orthogonal) orientation at each element. For all of these synthesis
+approaches, it is important that we know which vectors are meant to connect to
+which across elements. The material fitting algorithm assigns a label $e_i$ to
+each direction, but our discrete laminate pattern is invariant to this labeling;
+the lamination operation is a union of the slices and order does not matter.
+(Beware that the formulas in \cite{allaire2002shape} are order-dependent and we
+must figure out why). Since swapping the labeling of the $e_i$ yields the same
+synthesized pattern at each point, we should compute the optimal matching of
+labels between elements to minimize total direction deviations. This matching is
+done either locally when tracing between a single pair of elements or globally
+at the start (as needed for the isosurface synthesis approach). This ensures
+that the pattern we synthesize changes minimally as it interpolates between
+elements.
+
+Even worse, for isotropic materials, the homogenized elasticity tensor is
+invariant to a global rotation of the pattern. Thus, for the isotropic tensors,
+we should solve for a rotation minimizing its deviation from its neighbors to
+ensure the smoothest possible transitions.
 
 \subsection{Mesh Generation}
 The procedure chosen for generating/connecting patterns must be
@@ -307,24 +334,16 @@ in Sections \ref{sec:direction_trace}, \ref{sec:dual_trace}, and
 \ref{sec:isosurface}.
 
 \subsection{Alternate Field Representation}
-James suggested the tracing-based sequential laminate synthesis approaches
+The tracing-based sequential laminate synthesis approaches
 described in Sections \ref{sec:direction_trace} and \ref{sec:dual_trace} may be
-simplified by using a slightly different formulation where all quantities
-(including target elasticity tensors) are stored on the vertices instead of on
-the elements. This is because the lamination directions are then continuous,
-piecewise linear vector fields. Also, the interpolation stage for synthesizing
-general periodic patterns (Section \ref{sec:general_periodic}) would be
-unnecessary since the pattern parameters would already be continuous.
-
-However, storing input elasticity tensors on the vertices is undesirable because
-the resulting piecewise linear tensor field is a nonphysical interpolation of
-the vertex quantities. In general, it makes sense to interpolate pattern
-parameters and possibly material parameters, but certainly not elasticity
-tensors for anisotropic materials. Moreover, our existing simulation would not
-accept this input. If the advantages for synthesis are compelling enough,
-perhaps a mixture of these representations could be used, storing the
-interpolatable quantities (thetas, angles) on the vertices while leaving the
-elasticity tensors on the elements.
+simplified by using a slightly different formulation where material parameters
+are stored on the vertices instead of on the elements. This is because the
+lamination directions are then continuous, piecewise linear vector fields. Also,
+the interpolation stage for synthesizing general periodic patterns (Section
+\ref{sec:general_periodic}) would be unnecessary since the pattern parameters
+would already be continuous. For these tracing approaches, we could interpolate
+the per-element material parameters onto the vertices so that they specify a
+continuous field.
 
 \section{Printability}
 Not only do we need to choose the periodic cell size large enough that the
