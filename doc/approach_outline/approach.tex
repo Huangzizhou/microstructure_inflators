@@ -321,6 +321,13 @@ invariant to a global rotation of the pattern. Thus, for the isotropic tensors,
 we should solve for a rotation minimizing its deviation from its neighbors to
 ensure the smoothest possible transitions.
 
+However, it is important to note that the input, thus the ground truth,
+explicitly label lamination directions with $e_i$'s.  Apart from isotropic
+material case, the directions of lamination are well defined.  The only reason
+for discarding the $e_i$ labeling, and thus justify the extra computation cost,
+is if the labeling of $e_i$ could be inconsistent from point to point even for
+non-isotropic target material.  This remains to be verified.
+
 \subsection{Mesh Generation}
 The procedure chosen for generating/connecting patterns must be
 extended to stitch meshes together. E.g., for the general periodic pattern
@@ -333,17 +340,20 @@ A procedural mesh generation must be defined for the procedures suggested
 in Sections \ref{sec:direction_trace}, \ref{sec:dual_trace}, and
 \ref{sec:isosurface}.
 
-\subsection{Alternate Field Representation}
-The tracing-based sequential laminate synthesis approaches
-described in Sections \ref{sec:direction_trace} and \ref{sec:dual_trace} may be
-simplified by using a slightly different formulation where material parameters
-are stored on the vertices instead of on the elements. This is because the
-lamination directions are then continuous, piecewise linear vector fields. Also,
-the interpolation stage for synthesizing general periodic patterns (Section
-\ref{sec:general_periodic}) would be unnecessary since the pattern parameters
-would already be continuous. For these tracing approaches, we could interpolate
-the per-element material parameters onto the vertices so that they specify a
-continuous field.
+\subsection{Vertex Field Representation}
+Although piecewise constant pattern parameter (and thus material tensor) is
+simpler to use in computation, it is an unnecessary restriction when designing
+microstructures.  After all, the target material properties are smooth function
+of the domain. Instead of piecewise constant, a piecewise trilinear
+interpolation of the pattern parameters does not only simplify the tracing-based
+sequential laminate synthesis approaches described in Sections
+\ref{sec:direction_trace} and \ref{sec:dual_trace}, it also circumvents the need
+of connecting microstructures between neighboring cells (Section
+\ref{sec:general_periodic}).  This is because the lamination directions are
+continuous across cell borders.  Furthermore, piecewise trilinear representation
+could give a more accurate representation of the pattern parameters with fewer
+elements.  If the input pattern parameters are per-element quantity, a
+per-vertex quantity can always be obtained by interpolation.
 
 \section{Printability}
 Not only do we need to choose the periodic cell size large enough that the
