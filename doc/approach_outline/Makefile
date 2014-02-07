@@ -4,7 +4,7 @@ all: view
 view: $(NAME).pdf
 	skim-load $(NAME).pdf
 
-$(NAME).pdf: $(NAME).tex $(NAME).bbl
+$(NAME).pdf: $(NAME).tex $(NAME).bbl examples.tex
 	pdflatex -shell-escape $(NAME)
 
 $(NAME).bbl: references.bib
