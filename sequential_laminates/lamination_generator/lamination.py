@@ -26,8 +26,8 @@ class LaminationGenerator:
             layers.append(layer);
         self.__laminates = np.vstack(layers);
 
-    def triangulate(self, output_file, max_triangle_area):
-        basename, ext = os.path.splitext(output_file);
+    def triangulate(self):
+        basename, ext = os.path.splitext(self.output_file);
         poly_file = basename + ".poly";
         num_vertices = len(self.__laminates);
         num_laminates = num_vertices / 4;
@@ -45,8 +45,7 @@ class LaminationGenerator:
                 fout.write("{} {} {}\n".format(i, 4*i+3, 4*i  ));
             fout.write("0\n");
 
-        command = "triangle -qpa{:.12f} {}".format(max_triangle_area, poly_file);
-        print(command);
+        command = "triangle -qpa{:.12f} {}".format(self.max_area, poly_file);
         check_call(command.split());
         self.__poke_holes(basename, ext);
 
@@ -138,14 +137,21 @@ class LaminationGenerator:
         return np.vstack((left, right));
 
     def __parse_config_file(self, config_file):
+        basename, ext = os.path.splitext(config_file);
+        path, name = os.path.split(basename);
         with open(config_file, 'r') as fin:
             lamination_spec = json.load(fin);
 
         self.__num_layers = len(lamination_spec["laminates"]);
+        self.__max_area = lamination_spec["max_area"];
+        self.__output_file = lamination_spec["output"];
         self.__centers = [];
         self.__angles = [];
         self.__scales = [];
         self.__ratios = [];
+
+        if not os.path.isabs(self.__output_file):
+            self.__output_file = os.path.join(path, self.__output_file);
 
         for spec in lamination_spec["laminates"]:
             self.__centers.append(spec["center"]);
@@ -219,13 +225,19 @@ class LaminationGenerator:
     def height(self):
         return self.__height;
 
+    @property
+    def output_file(self):
+        return self.__output_file;
+
+    @property
+    def max_area(self):
+        return self.__max_area;
+
 def parse_args():
     parser = argparse.ArgumentParser(
             description="Generate rank-p lamination triangular mesh");
     parser.add_argument("config_file",\
             help="Configure specifying lamination parameters");
-    parser.add_argument("-o", "--output", help="Output mesh file",
-            required=True);
     args = parser.parse_args();
     return args;
 
@@ -233,7 +245,7 @@ def main():
     args = parse_args();
     lam_gen = LaminationGenerator(args.config_file, 5, 5);
     lam_gen.generate_laminates();
-    lam_gen.triangulate(args.output, 0.00008);
+    lam_gen.triangulate();
 
 if __name__ == "__main__":
     main();

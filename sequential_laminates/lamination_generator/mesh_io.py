@@ -5,7 +5,7 @@ import PyMesh
 
 def load_mesh(filename):
     factory = PyMesh.MeshFactory();
-    factory.load_file(filename);
+    factory.load_file(str(filename));
     return Mesh(factory.create());
 
 def form_mesh(vertices, faces, voxels=np.array([])):
@@ -32,7 +32,7 @@ def save_mesh_raw(filename, vertices, faces, voxels=np.zeros((0,4))):
     num_vertex_per_face = faces.shape[1];
     num_vertex_per_voxel = voxels.shape[1];
 
-    writer = PyMesh.MeshWriter.create_writer(filename);
+    writer = PyMesh.MeshWriter.create_writer(str(filename));
     writer.write(
             vertices.ravel(order="C"),
             faces.ravel(order="C"),
@@ -42,7 +42,7 @@ def save_mesh_raw(filename, vertices, faces, voxels=np.zeros((0,4))):
             num_vertex_per_voxel);
 
 def save_mesh(filename, mesh, *attributes):
-    writer = PyMesh.MeshWriter.create_writer(filename);
+    writer = PyMesh.MeshWriter.create_writer(str(filename));
     for attr in attributes:
         if not mesh.has_attribute(attr):
             raise KeyError("Attribute {} is not found in mesh".format(attr));
