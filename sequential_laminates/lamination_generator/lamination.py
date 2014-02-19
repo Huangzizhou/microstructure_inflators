@@ -13,14 +13,21 @@ class LaminationGenerator:
     def __init__(self, config_file, width, height):
         self.__width = width;
         self.__height = height;
-        self.__plate_thickness = 0.025;
+        self.__boundary_plate_thickness = 0.025;
         self.__parse_config_file(config_file);
 
     def generate_laminates(self):
         num_laminates = self.__num_layers;
         layers = [];
-        layers.append(self.__generate_top_bottom_plates());
-        layers.append(self.__generate_left_right_plates());
+
+        if self.single_material:
+            # Always add boundary plates to get clear boundaries.
+            # Note triangles on boundary plates might be removed as holes.
+            layers.append(self.__generate_left_right_plates());
+            layers.append(self.__generate_top_bottom_plates());
+        else:
+            layers.append(self.__generate_boundary_box());
+
         for i in range(num_laminates):
             layer = self.__generate_layer(i);
             layers.append(layer);
@@ -45,16 +52,22 @@ class LaminationGenerator:
                 fout.write("{} {} {}\n".format(i, 4*i+3, 4*i  ));
             fout.write("0\n");
 
-        command = "triangle -qpa{:.12f} {}".format(self.max_area, poly_file);
+        command = "triangle -qpa{:.12f} {}".format(self.max_triangle_area, poly_file);
         check_call(command.split());
-        self.__poke_holes(basename, ext);
 
-    def __poke_holes(self, basename, ext):
         node_file = basename + ".1.node";
         out_file = basename + ext;
         command = "meshconvert.py {} {}".format(node_file, out_file);
         check_call(command.split());
+
+        if self.single_material:
+            self.__poke_holes(out_file);
+        else:
+            self.__trim_to_boundary(out_file);
+
+    def __poke_holes(self, out_file):
         self.__mesh = load_mesh(out_file);
+        assert(self.__mesh.vertex_per_face == 3);
         vertices = self.__mesh.vertices;
         faces = self.__mesh.faces;
         face_centers = (
@@ -65,9 +78,38 @@ class LaminationGenerator:
         for i in range(self.__num_layers):
             is_not_hole_i = [not self.__is_hole(p, i) for p in face_centers];
             is_not_hole = np.logical_or(is_not_hole, is_not_hole_i);
-        on_top_bottom_plates = [self.__on_top_bottom_plates(p) for p in face_centers];
-        is_not_hole = np.logical_or(is_not_hole, on_top_bottom_plates);
+
+        if self.with_top_bottom_plates:
+            on_top_bottom_plates = [self.__on_top_bottom_plates(p) for p in face_centers];
+            is_not_hole = np.logical_or(is_not_hole, on_top_bottom_plates);
+        if self.with_left_right_plates:
+            on_left_right_plates = [self.__on_left_right_plates(p) for p in face_centers];
+            is_not_hole = np.logical_or(is_not_hole, on_left_right_plates);
+
         faces = faces[is_not_hole];
+        vertices, faces = collapse_short_edges(vertices, faces, 0.0005);
+        vertices, faces, voxel = remove_isolated_vertices(vertices, faces);
+        save_mesh_raw(out_file, vertices, faces);
+
+    def __trim_to_boundary(self, out_file):
+        self.__mesh = load_mesh(out_file);
+        assert(self.__mesh.vertex_per_face == 3);
+        vertices = self.__mesh.vertices;
+        faces = self.__mesh.faces;
+        face_centers = (
+                vertices[faces[:, 0]] +
+                vertices[faces[:, 1]] +
+                vertices[faces[:, 2]]) / 3.0;
+
+        half_width = self.width * 0.5;
+        half_height = self.height * 0.5;
+        is_inside = np.ones(len(faces), dtype=bool);
+        is_inside = np.logical_and(is_inside, face_centers[:,0] <  half_width);
+        is_inside = np.logical_and(is_inside, face_centers[:,0] > -half_width);
+        is_inside = np.logical_and(is_inside, face_centers[:,1] <  half_height);
+        is_inside = np.logical_and(is_inside, face_centers[:,1] > -half_height);
+
+        faces = faces[is_inside];
         vertices, faces = collapse_short_edges(vertices, faces, 0.0005);
         vertices, faces, voxel = remove_isolated_vertices(vertices, faces);
         save_mesh_raw(out_file, vertices, faces);
@@ -101,7 +143,7 @@ class LaminationGenerator:
         return np.vstack(corners);
 
     def __generate_top_bottom_plates(self):
-        thickness = self.__plate_thickness;
+        thickness = self.__boundary_plate_thickness;
         x = self.width / 2.0;
         y = self.height / 2.0;
         top = np.array([
@@ -119,7 +161,7 @@ class LaminationGenerator:
         return np.vstack((top, bottom));
 
     def __generate_left_right_plates(self):
-        thickness = self.__plate_thickness;
+        thickness = self.__boundary_plate_thickness;
         x = self.width / 2.0;
         y = self.height / 2.0 - 0.1;
         right = np.array([
@@ -136,14 +178,40 @@ class LaminationGenerator:
             [x-thickness,  y]]);
         return np.vstack((left, right));
 
+    def __generate_boundary_box(self):
+        x = self.width / 2.0;
+        y = self.height / 2.0;
+        box = np.array([
+            [-x,-y],
+            [ x,-y],
+            [ x, y],
+            [-x, y]]);
+        return box;
+
     def __parse_config_file(self, config_file):
+        """ syntax:
+        {
+            "max_triangle_area": #,
+            "output": output_filename,
+            "with_top_bottom_plates": bool (optional),
+            "with_left_right_plates": bool (optional),
+            "single_material": bool (optional),
+            "laminates": [
+                {
+                    "center": [x,y],
+                    "rotation": angle in degrees,
+                    "dimensions": [scale, material ratio]
+                }
+            ]
+        }
+        """
         basename, ext = os.path.splitext(config_file);
         path, name = os.path.split(basename);
         with open(config_file, 'r') as fin:
             lamination_spec = json.load(fin);
 
         self.__num_layers = len(lamination_spec["laminates"]);
-        self.__max_area = lamination_spec["max_area"];
+        self.__max_triangle_area = lamination_spec["max_triangle_area"];
         self.__output_file = lamination_spec["output"];
         self.__centers = [];
         self.__angles = [];
@@ -158,6 +226,10 @@ class LaminationGenerator:
             self.__angles.append(radians(spec["rotation"]));
             self.__scales.append(spec["dimensions"][0]);
             self.__ratios.append(spec["dimensions"][1]);
+
+        self.__with_top_bottom_plates = lamination_spec.get("with_top_bottom_plates", False);
+        self.__with_left_right_plates = lamination_spec.get("with_left_right_plates", False);
+        self.__single_material = lamination_spec.get("single_material", True);
 
     def __is_hole(self, point, layer_idx):
         if point[0] < -self.width/2.0 or point[0] > self.width/2.0:
@@ -183,7 +255,7 @@ class LaminationGenerator:
             return False;
 
     def __on_top_bottom_plates(self, point):
-        plate_thickness = self.__plate_thickness;
+        plate_thickness = self.__boundary_plate_thickness;
         half_width = self.width / 2.0;
         half_height = self.height / 2.0;
         if point[0] < -half_width or point[0] > half_width:
@@ -194,6 +266,20 @@ class LaminationGenerator:
         on_bottom = (point[1] <= -half_height + plate_thickness) and\
                 (point[1] >= -half_height - plate_thickness);
         return on_top or on_bottom;
+
+    def __on_left_right_plates(self, point):
+        plate_thickness = self.__boundary_plate_thickness;
+        half_width = self.width / 2.0;
+        half_height = self.height / 2.0;
+        if point[1] < -half_height or point[1] > half_height:
+            return False;
+
+        on_left = (point[0] <= -half_width + plate_thickness) and\
+                (point[0] >= -half_width - plate_thickness);
+        on_right = (point[0] <= half_width + plate_thickness) and\
+                (point[0] >= half_width - plate_thickness);
+
+        return on_left or on_right;
 
 
     def __rotate(self, angle, vector):
@@ -230,8 +316,20 @@ class LaminationGenerator:
         return self.__output_file;
 
     @property
-    def max_area(self):
-        return self.__max_area;
+    def max_triangle_area(self):
+        return self.__max_triangle_area;
+
+    @property
+    def with_left_right_plates(self):
+        return self.__with_left_right_plates;
+
+    @property
+    def with_top_bottom_plates(self):
+        return self.__with_top_bottom_plates;
+
+    @property
+    def single_material(self):
+        return self.__single_material;
 
 def parse_args():
     parser = argparse.ArgumentParser(

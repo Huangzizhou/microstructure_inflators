@@ -16,6 +16,8 @@
     % endif
 % endfor
 ],
-"output": "rank_2_laminates_${triangle_density}.obj",
-"max_area": ${max_area}
+"output": "rank_${rank}_laminates_${file_index}.obj",
+"max_triangle_area": ${max_triangle_area},
+"with_top_bottom_plates": ${with_top_bottom_plates},
+"single_material": ${single_material}
 }
