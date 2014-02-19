@@ -68,7 +68,7 @@ class LaminationGenerator:
         on_top_bottom_plates = [self.__on_top_bottom_plates(p) for p in face_centers];
         is_not_hole = np.logical_or(is_not_hole, on_top_bottom_plates);
         faces = faces[is_not_hole];
-        vertices, faces = collapse_short_edges(vertices, faces, 0.005);
+        vertices, faces = collapse_short_edges(vertices, faces, 0.0005);
         vertices, faces, voxel = remove_isolated_vertices(vertices, faces);
         save_mesh_raw(out_file, vertices, faces);
 

@@ -34,7 +34,7 @@ def main():
     config = Template(filename=template_file);
 
     total_material_ratio = compute_total_material_ratio(args.ratio);
-    for num_triangle_per_unit in np.arange(1e5, 2e6, 1e5):
+    for num_triangle_per_unit in np.arange(1e3, 2e4, 1e3):
         num_triangle_per_unit = int(round(num_triangle_per_unit));
         ave_triangle_area = total_material_ratio / num_triangle_per_unit;
         contents = config.render(
