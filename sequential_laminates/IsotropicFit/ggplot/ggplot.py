@@ -59,6 +59,12 @@ class ggplot:
         self.r_script += self.template.get_def("draw_point").render(
                 x=x, y=y, color=color, size=size);
 
+    def draw_hline(self, y):
+        self.r_script += self.template.get_def("draw_hline").render(y=y);
+
+    def draw_vline(self, x):
+        self.r_script += self.template.get_def("draw_vline").render(x=x);
+
     def draw_text(self, x, y, text, hjust=0, vjust=1):
         self.r_script += self.template.get_def("draw_text").render(
                 x=x, y=y, text=text, hjust=hjust, vjust=vjust);

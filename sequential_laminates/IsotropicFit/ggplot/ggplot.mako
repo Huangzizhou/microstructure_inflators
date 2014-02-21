@@ -76,6 +76,14 @@ p <- p + annotate("point", x=x, y=y, color="green", size=3);
 p <- p + annotate("point", x=${x}, y=${y}, color="${color}", size=${size});
 </%def>
 
+<%def name="draw_hline()">
+p <- p + geom_hline(aes(yintercept=${y}));
+</%def>
+
+<%def name="draw_vline()">
+p <- p + geom_vline(aes(xintercept=${x}));
+</%def>
+
 <%def name="draw_text()">
 p <- p + annotate("text", x=${x}, y=${y}, label="${text}", hjust=${hjust}, vjust=${vjust});
 </%def>

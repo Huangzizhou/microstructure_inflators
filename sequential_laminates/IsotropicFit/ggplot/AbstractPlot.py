@@ -22,6 +22,7 @@ class AbstractPlot:
     def postprocess_plot(self):
         self.add_facet_grid();
         self.add_points();
+        self.add_lines();
         self.add_texts();
         self.set_range();
         self.set_title();
@@ -111,6 +112,36 @@ class AbstractPlot:
         if points is not None:
             for p in points:
                 self.plot.draw_point(**p);
+
+    def add_lines(self):
+        self.add_hline();
+        self.add_vline();
+
+    def add_hline(self):
+        """ syntax:
+        "hline": y
+        or
+        "hline": [y1, y2, ...]
+        """
+        y = self.config.get("hline", None);
+        if y is not None:
+            if not isinstance(y, list):
+                y = [y];
+            for y_intercept in y:
+                self.plot.draw_hline(y_intercept);
+
+    def add_vline(self):
+        """ syntax:
+        "vline": x
+        or
+        "vline": [x1, x2, ...]
+        """
+        x = self.config.get("vline", None);
+        if x is not None:
+            if not isinstance(x, list):
+                x = [x];
+            for x_intercept in x:
+                self.plot.draw_vline(x_intercept);
 
     def add_texts(self):
         """ syntax:
