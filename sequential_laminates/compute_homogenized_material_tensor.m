@@ -17,8 +17,8 @@
 %                       angle between lamination direction with the Y axis.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function A_star = compute_homogenized_material_tensor(lamA, muA, lamB, muB, p, ratios, angles)
-    assert(p == size(ratios));
-    assert(p == size(angles));
+    assert(p == size(ratios, 2));
+    assert(p == size(angles, 2));
     A = [lamA+2*muA, lamA,       0;
          lamA,       lamA+2*muA, 0;
          0,          0,          2*muA];
