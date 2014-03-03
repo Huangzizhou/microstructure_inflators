@@ -1,10 +1,12 @@
 import numpy as np
 from numpy.linalg import norm
-from math import pi
+from math import pi, sqrt
 
 class Holes(object):
     class Hole:
-        def __init__(self, p, radius, num_samples=60):
+        def __init__(self, p, radius, num_samples=72):
+            if p == "inf":
+                p = np.inf;
             self.measure = p;
             self.radius = radius;
             self.num_samples = num_samples;
@@ -20,6 +22,20 @@ class Holes(object):
             x = np.divide(x, lp_norm);
             y = np.divide(y, lp_norm);
             return np.array([x,y]).T * self.radius;
+
+        def __compute_hole_area(self):
+            area = 0.0;
+            for i in range(self.num_samples):
+                vi = self.boundary[i,:];
+                vj = self.boundary[(i+1)%self.num_samples, :];
+                area += norm(np.cross(vi, vj)) / 2.0;
+            return area;
+
+        def __normalize_hole_area(self):
+            target_area = pi*radius*radius; # Use circular hole area as target
+            hole_area = self.__compute_hole_area();
+            self.boundary *= sqrt(target_area/hole_area);
+
 
     def __init__(self, width, height, radius, p):
         self.width = width;
