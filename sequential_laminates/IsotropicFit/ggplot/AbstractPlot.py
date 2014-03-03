@@ -26,6 +26,7 @@ class AbstractPlot:
         self.add_lines();
         self.add_texts();
         self.set_range();
+        self.log_scale();
         self.set_title();
         self.save_plot();
 
@@ -95,6 +96,15 @@ class AbstractPlot:
                 x_max = self.config.get("x_max", None),
                 y_min = self.config.get("y_min", None),
                 y_max = self.config.get("y_max", None));
+
+    def log_scale(self):
+        """ syntax:
+        "log_scale": "x" | "y" | "xy"
+        """
+        log_axis = self.config.get("log_scale", "");
+        self.plot.log_scale(
+                x = "x" in log_axis,
+                y = "y" in log_axis);
 
     def set_title(self):
         """ syntax:

@@ -51,6 +51,11 @@ p <- p + geom_line(aes(x=${x_col}, y=${y_col}));
 % endif
 </%def>
 
+<%def name="contour_plot()">
+bin_width <- (max(raw_data$${w_col}) - min(raw_data$${w_col}))/${num_bins};
+p <- p + stat_contour(aes(x=${x_col}, y=${y_col}, z=${w_col}, color=..level..), binwidth=bin_width);
+</%def>
+
 <%def name="title()">
 p <- p + ggtitle("${title_text}");
 </%def>
@@ -67,6 +72,15 @@ p <- p + xlim(${x_col_min}, ${x_col_max});
 % endif
 % if y_col_min is not None and y_col_max is not None:
 p <- p + ylim(${y_col_min}, ${y_col_max});
+% endif
+</%def>
+
+<%def name="log_scale()">
+% if x:
+p <- p + scale_x_log10();
+% endif
+% if y:
+p <- p + scale_y_log10();
 % endif
 </%def>
 

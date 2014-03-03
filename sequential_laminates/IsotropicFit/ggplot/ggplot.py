@@ -41,6 +41,10 @@ class ggplot:
         self.r_script += self.template.get_def("line_plot").render(
                 x_col = x_col, y_col = y_col, w_col = w_col);
 
+    def contour_plot(self, x_col, y_col, w_col, num_bins):
+        self.r_script += self.template.get_def("contour_plot").render(
+                x_col = x_col, y_col = y_col, w_col = w_col, num_bins = num_bins);
+
     def title(self, title_text):
         self.r_script += self.template.get_def("title").render(
                 title_text = title_text);
@@ -53,6 +57,10 @@ class ggplot:
         self.r_script += self.template.get_def("set_range").render(
                 x_col_min = x_min, x_col_max = x_max,
                 y_col_min = y_min, y_col_max = y_max);
+
+    def log_scale(self, x=True, y=True):
+        self.r_script += self.template.get_def("log_scale").render(
+                x=x, y=y);
 
     def facet_grid(self, facet_1, facet_2):
         self.r_script += self.template.get_def("facet_grid").render(
