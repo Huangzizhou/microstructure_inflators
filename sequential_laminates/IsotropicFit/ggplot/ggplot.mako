@@ -4,7 +4,6 @@ library("ggplot2")
 
 raw_data <- read.csv("${csv_file}");
 names(raw_data) <- sub(" ", "_", names(raw_data));
-summary(raw_data$Error);
 
 </%def>
 
@@ -25,9 +24,16 @@ raw_data$${new_column} = with(raw_data, ${formula});
 raw_data$${field_name} = as.factor(raw_data$${field_name});
 </%def>
 
-<%def name="scatter_plot()">
+<%def name="init_plot()">
 p <- ggplot(raw_data);
+</%def>
+
+<%def name="scatter_plot()">
+% if w_col is not None:
 p <- p + geom_point(aes(x=${x_col}, y=${y_col}, color=${w_col}));
+% else:
+p <- p + geom_point(aes(x=${x_col}, y=${y_col}));
+% endif
 % if discrete:
 #p <- p + scale_color_discrete();
 p <- p + scale_colour_brewer(palette="Paired")
@@ -37,13 +43,20 @@ p <- p + scale_color_gradientn(colours=c("blue", "green", "orange", "red"));
 % endif
 </%def>
 
+<%def name="line_plot()">
+% if w_col is not None:
+p <- p + geom_line(aes(x=${x_col}, y=${y_col}, color=${w_col}));
+% else:
+p <- p + geom_line(aes(x=${x_col}, y=${y_col}));
+% endif
+</%def>
+
 <%def name="title()">
 p <- p + ggtitle("${title_text}");
 </%def>
 
 <%def name="histogram()">
 bin_width <- (max(raw_data$${w_col}) - min(raw_data$${w_col}))/${num_bins};
-p <- ggplot(raw_data);
 p <- p + geom_histogram(aes(x=${w_col}), binwidth=bin_width);
 </%def>
 

@@ -16,6 +16,9 @@ class ggplot:
         self.r_script += self.template.get_def("header").render(
                 csv_file=csv_file);
 
+    def init_plot(self):
+        self.r_script += self.template.get_def("init_plot").render();
+
     def filter_data(self, col_name, min_val, max_val):
         self.r_script += self.template.get_def("filter_data").render(
                 field_name = col_name,
@@ -33,6 +36,10 @@ class ggplot:
     def scatter_plot(self, x_col, y_col, w_col, discrete=False):
         self.r_script += self.template.get_def("scatter_plot").render(
                 x_col = x_col, y_col = y_col, w_col = w_col, discrete=discrete);
+
+    def line_plot(self, x_col, y_col, w_col):
+        self.r_script += self.template.get_def("line_plot").render(
+                x_col = x_col, y_col = y_col, w_col = w_col);
 
     def title(self, title_text):
         self.r_script += self.template.get_def("title").render(

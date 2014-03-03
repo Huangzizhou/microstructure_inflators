@@ -15,6 +15,7 @@ class AbstractPlot:
         self.discretize_column();
         self.add_column();
         self.filter_data();
+        self.init_plot();
 
     def process_plot(self):
         raise NotImplementedError("process_plot() is abstract");
@@ -68,6 +69,9 @@ class AbstractPlot:
                 self.plot.filter_data(f["name"],
                         min_val = f["min_val"],
                         max_val = f["max_val"]);
+
+    def init_plot(self):
+        self.plot.init_plot();
 
     def add_facet_grid(self):
         """ syntax:

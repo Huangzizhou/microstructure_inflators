@@ -7,6 +7,7 @@ import os.path
 from ggplot import ggplot
 from Histogram import Histogram
 from ScatterPlot import ScatterPlot
+from LinePlot import LinePlot
 
 def create_plot(plots, plot_config):
     plot_type = plot_config.get("type", "unknown");
@@ -14,6 +15,8 @@ def create_plot(plots, plot_config):
         plot = Histogram(plots, plot_config);
     elif plot_type == "scatter_plot":
         plot = ScatterPlot(plots, plot_config);
+    elif plot_type == "line_plot":
+        plot = LinePlot(plots, plot_config);
     else:
         raise NotImplementedError("{} plot type is not supported."\
                 .format(plot_type));
