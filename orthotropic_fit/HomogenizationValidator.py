@@ -7,6 +7,7 @@ from mesh_io import form_mesh
 from BoundaryCondition import BoundaryCondition
 from ElasticityUtils import displacement_to_stress, force_to_pressure
 import ElasticModel2
+from generate_box_mesh import generate_box_mesh
 from LinearElasticity import LinearElasticity
 import PyAssembler
 from timethis import timethis
@@ -57,29 +58,7 @@ class HomogenizationValidator(object):
             raise NotImplementedError("Only 2D mesh are supported for now.");
         bbox_min, bbox_max = self.input_mesh.bbox;
         num_samples = 100;
-        vertices = [];
-        faces = [];
-        for i in range(num_samples+1):
-            for j in range(num_samples+1):
-                x_ratio = float(i) / float(num_samples);
-                y_ratio = float(j) / float(num_samples);
-                x = x_ratio * bbox_max[0] + (1.0 - x_ratio) * bbox_min[0];
-                y = y_ratio * bbox_max[1] + (1.0 - y_ratio) * bbox_min[1];
-                vertices.append([x,y]);
-
-        row_size = num_samples+1;
-        for i in range(num_samples):
-            for j in range(num_samples):
-                idx = [i*row_size+j,
-                        i*row_size+j+1,
-                        (i+1)*row_size+j,
-                        (i+1)*row_size+j+1 ];
-                faces.append([idx[0], idx[2], idx[3]]);
-                faces.append([idx[0], idx[3], idx[1]]);
-
-        vertices = np.array(vertices, dtype=float);
-        faces = np.array(faces, dtype=int);
-        self.mesh = form_mesh(vertices, faces);
+        self.mesh = generate_box_mesh(bbox_min, bbox_max, num_samples);
 
     @timethis
     def __initialize_assembler(self):

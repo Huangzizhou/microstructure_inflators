@@ -8,16 +8,23 @@ from mesh_io import load_mesh, form_mesh
 import PyAssembler
 from BoundaryCondition import BoundaryCondition
 import ElasticModel2
-from LinearElasticity import LinearElasticity
+from generate_box_mesh import generate_box_mesh
 from ElasticityUtils import displacement_to_stress, displacement_to_strain,\
         total_energy, force_to_pressure
+from LinearElasticity import LinearElasticity
+from Material import Material
 from timethis import timethis
 
 class OrthotropicFitter(object):
-    def __init__(self, mesh):
+    def __init__(self, mesh, material_file=None):
         self.mesh = mesh;
-        assembler = PyAssembler.FEAssembler.create_from_name(
-                mesh.raw_mesh, "test_material");
+        if material_file is None:
+            assembler = PyAssembler.FEAssembler.create_from_name(
+                    mesh.raw_mesh, "test_material");
+        else:
+            mat = Material(material_file);
+            assembler = PyAssembler.FEAssembler.create(mesh.raw_mesh,
+                    mat.material);
         self.assembler = ElasticModel2.PyAssembler(mesh, assembler);
         self.deformer = LinearElasticity(self.mesh, self.assembler);
         self.displacements = [];
@@ -40,7 +47,7 @@ class OrthotropicFitter(object):
                 self.__compression_xy(),
                 #self.__shear_x(),
                 #self.__shear_y(),
-                self.__compression_uniform()
+                #self.__compression_uniform()
                 ];
         self.boundary_conditions = [bd.extract_from_dict(config)
                 for config in self.bc_configs];
@@ -73,15 +80,8 @@ class OrthotropicFitter(object):
     @timethis
     def __fit_orthotropic_parameters(self):
         bbox_min, bbox_max = self.mesh.bbox;
-        vertices = np.array([
-            [bbox_min[0], bbox_min[1]],
-            [bbox_max[0], bbox_min[1]],
-            [bbox_max[0], bbox_max[1]],
-            [bbox_min[0], bbox_max[1]] ]);
-        faces = np.array([
-            [0, 1, 2],
-            [0, 2, 3] ]);
-        mesh = form_mesh(vertices, faces);
+        num_samples = 2;
+        mesh = generate_box_mesh(bbox_min, bbox_max, num_samples);
         mesh.add_attribute("face_area");
         face_areas = mesh.get_attribute("face_area").ravel();
 
@@ -372,9 +372,9 @@ class OrthotropicFitter(object):
 
     @property
     def shear_modulus(self):
-        shear = np.array([1.0 / self.orthotropic_parameter[2]]);
+        shear = np.array([0.5 / self.orthotropic_parameter[2]]);
         if shear <= 0:
-            import warning
-            warning.warn("Negative shear modulus: {}".format(shear));
+            import warnings
+            warnings.warn("Negative shear modulus: {}".format(shear));
         return abs(shear);
 

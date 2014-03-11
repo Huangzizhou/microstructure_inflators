@@ -14,9 +14,9 @@ from timethis import timethis
 import PyAssembler
 
 @timethis
-def fit_orthotropic_material_and_validate(input_file, output_file):
+def fit_orthotropic_material_and_validate(input_file, output_file, material_file):
     mesh = load_mesh(input_file);
-    fitter = fit(mesh);
+    fitter = fit(mesh, material_file);
     validator = validate(fitter);
 
     basename,ext = os.path.splitext(output_file);
@@ -51,8 +51,8 @@ def validate(fitter):
     return validator;
 
 @timethis
-def fit(mesh):
-    fitter = OrthotropicFitter(mesh);
+def fit(mesh, material_file):
+    fitter = OrthotropicFitter(mesh, material_file);
     fitter.fit();
     return fitter;
 
@@ -93,6 +93,7 @@ def save_parameters(parameter_file, young, poisson, shear, error, condition_num)
 def parse_args():
     parser = argparse.ArgumentParser(
             description="Compute the best fit orthotropic material parameters");
+    parser.add_argument("--material", help="material file", default=None);
     parser.add_argument("input_mesh", help="input mesh");
     parser.add_argument("output_mesh", help="output mesh");
     args = parser.parse_args();
@@ -100,7 +101,8 @@ def parse_args():
 
 def main():
     args = parse_args();
-    fit_orthotropic_material_and_validate(args.input_mesh, args.output_mesh);
+    fit_orthotropic_material_and_validate(args.input_mesh, args.output_mesh,
+            args.material);
 
 if __name__ == "__main__":
     main();
