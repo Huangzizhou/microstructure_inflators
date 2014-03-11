@@ -1,5 +1,6 @@
 import os.path
 from ggplot import ggplot
+from deprecated import deprecated
 
 class AbstractPlot:
     def __init__(self, plot, config):
@@ -30,6 +31,7 @@ class AbstractPlot:
         self.set_title();
         self.save_plot();
 
+    @deprecated
     def discretize_column(self):
         """ syntax:
         discretize_columns : [
@@ -43,6 +45,7 @@ class AbstractPlot:
             for column in columns:
                 self.plot.discretize_column(column["name"]);
 
+    @deprecated
     def add_column(self):
         """ syntax:
         add_columns : [
@@ -56,6 +59,7 @@ class AbstractPlot:
             for column in columns:
                 self.plot.add_column(column["name"], column["formula"]);
 
+    @deprecated
     def filter_data(self):
         """ syntax:
         add_filters : [
@@ -130,6 +134,7 @@ class AbstractPlot:
     def add_lines(self):
         self.add_hline();
         self.add_vline();
+        self.add_line();
 
     def add_hline(self):
         """ syntax:
@@ -156,6 +161,23 @@ class AbstractPlot:
                 x = [x];
             for x_intercept in x:
                 self.plot.draw_vline(x_intercept);
+
+    def add_line(self):
+        """ syntax:
+        "add_lines": [
+            {
+                "intercept": intercept,
+                "slope": slope
+            },
+            ...
+        ]
+        """
+        line_settings = self.config.get("add_lines", None);
+        if line_settings is not None:
+            for setting in line_settings:
+                intercept = setting["intercept"];
+                slope = setting["slope"];
+                self.plot.draw_line(intercept, slope);
 
     def add_texts(self):
         """ syntax:

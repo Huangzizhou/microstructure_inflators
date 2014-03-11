@@ -114,6 +114,10 @@ p <- p + geom_hline(aes(yintercept=${y}));
 p <- p + geom_vline(aes(xintercept=${x}));
 </%def>
 
+<%def name="draw_line()">
+p <- p + geom_abline(intercept=${intercept}, slope=${slope});
+</%def>
+
 <%def name="draw_text()">
 p <- p + annotate("text", x=${x}, y=${y}, label="${text}", hjust=${hjust}, vjust=${vjust});
 </%def>

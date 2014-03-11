@@ -5,6 +5,7 @@ import json
 import os.path
 
 from ggplot import ggplot
+from DataFrame import DataFrame
 from Histogram import Histogram
 from ScatterPlot import ScatterPlot
 from LinePlot import LinePlot
@@ -38,6 +39,8 @@ def plot(config_file):
 
     plots = ggplot();
     plots.set_data(csv_file);
+    data = DataFrame(plots, config);
+    data.prepare();
 
     for plot_config in config.get("plots"):
         plot_config["config_dir"] = config_dir;

@@ -80,6 +80,10 @@ class ggplot:
     def draw_vline(self, x):
         self.r_script += self.template.get_def("draw_vline").render(x=x);
 
+    def draw_line(self, intercept, slope):
+        self.r_script += self.template.get_def("draw_line").render(
+                intercept=intercept, slope = slope);
+
     def draw_text(self, x, y, text, hjust=0, vjust=1):
         self.r_script += self.template.get_def("draw_text").render(
                 x=x, y=y, text=text, hjust=hjust, vjust=vjust);
