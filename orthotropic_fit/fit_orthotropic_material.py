@@ -5,31 +5,65 @@ import json
 import numpy as np
 import os.path
 
+from HomogenizationValidator import HomogenizationValidator
 import LinearElasticitySettings
 from mesh_io import load_mesh, save_mesh
 from OrthotropicFitter import OrthotropicFitter
 from timethis import timethis
 
-def fit_orthotropic(mesh):
+import PyAssembler
+
+@timethis
+def fit_orthotropic_material_and_validate(input_file, output_file):
+    mesh = load_mesh(input_file);
+    fitter = fit(mesh);
+    validator = validate(fitter);
+
+    basename,ext = os.path.splitext(output_file);
+    validation_file = basename + "_homogenized" + ext;
+    param_file = basename + "_param.json";
+
+    save_mesh_fields(output_file, fitter.mesh,
+            fitter.pressures,
+            fitter.displacements,
+            fitter.stress_traces);
+
+    save_mesh_fields(validation_file, validator.mesh,
+            validator.pressures,
+            validator.displacements,
+            validator.stress_traces);
+
+    save_parameters(param_file,
+            fitter.youngs_modulus.tolist(),
+            fitter.poisson_ratio.tolist(),
+            fitter.shear_modulus.tolist(),
+            fitter.residual_error,
+            fitter.condition_num);
+
+@timethis
+def validate(fitter):
+    mat = PyAssembler.Material.create_orthotropic(1.0,
+            fitter.youngs_modulus,
+            fitter.poisson_ratio,
+            fitter.shear_modulus);
+    validator = HomogenizationValidator(fitter.mesh, mat);
+    validator.simulate(fitter.bc_configs);
+    return validator;
+
+@timethis
+def fit(mesh):
     fitter = OrthotropicFitter(mesh);
     fitter.fit();
-    pressures = fitter.pressures;
-    displacements = fitter.displacements;
-    stress_traces = fitter.stress_traces;
-    young = fitter.youngs_modulus;
-    poisson = fitter.poisson_ratio;
-    shear = fitter.shear_modulus;
-    error = fitter.residual_error;
-    condition_num = fitter.condition_num;
-    return pressures, displacements, stress_traces,\
-            young, poisson, shear, error, condition_num;
+    return fitter;
 
+@timethis
 def add_attribute_to_mesh(mesh, attr_name, attr_value):
     if mesh.has_attribute(attr_name):
         raise RuntimeError("Attribute {} already exists.".format(attr_name));
     mesh.add_attribute(attr_name);
     mesh.set_attribute(attr_name, attr_value);
 
+@timethis
 def save_mesh_fields(mesh_file, mesh, pressures, displacements, stress_traces):
     num_fields = len(displacements);
     attributes_to_save = [];
@@ -45,9 +79,8 @@ def save_mesh_fields(mesh_file, mesh, pressures, displacements, stress_traces):
         attributes_to_save.append(strs_attr_name);
     save_mesh(mesh_file, mesh, *attributes_to_save);
 
-def save_parameters(mesh_file, young, poisson, shear, error, condition_num):
-    basename, ext = os.path.splitext(mesh_file);
-    parameter_file = basename + ".param";
+@timethis
+def save_parameters(parameter_file, young, poisson, shear, error, condition_num):
     parameter_dict = {
             "youngs_modulus": young,
             "poisson_ratio": poisson,
@@ -67,12 +100,7 @@ def parse_args():
 
 def main():
     args = parse_args();
-    mesh = load_mesh(args.input_mesh);
-    pressures, displacements, stress_traces,\
-            young, poisson, shear, error, condition_num = fit_orthotropic(mesh)
-    save_mesh_fields(args.output_mesh, mesh, pressures, displacements, stress_traces);
-    save_parameters(args.output_mesh,
-            young, poisson, shear, error, condition_num);
+    fit_orthotropic_material_and_validate(args.input_mesh, args.output_mesh);
 
 if __name__ == "__main__":
     main();
