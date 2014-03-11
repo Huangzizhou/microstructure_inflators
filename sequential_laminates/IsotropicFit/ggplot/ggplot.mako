@@ -52,8 +52,11 @@ p <- p + geom_line(aes(x=${x_col}, y=${y_col}));
 </%def>
 
 <%def name="contour_plot()">
-bin_width <- (max(raw_data$${w_col}) - min(raw_data$${w_col}))/${num_bins};
-p <- p + stat_contour(aes(x=${x_col}, y=${y_col}, z=${w_col}, color=..level..), binwidth=bin_width);
+#p <- p + geom_tile(aes(x=${x_col}, y=${y_col}, fill=${w_col}));
+#p <- p + scale_fill_gradientn(colours=c("blue", "green", "orange", "red"));
+p <- p + stat_contour(aes(x=${x_col}, y=${y_col}, z=${w_col}, color=..level..), bins=${num_bins});
+p <- p + labs(color="${w_col}");
+#p <- p + scale_color_gradientn(colours=c("blue", "green", "orange", "red"));
 </%def>
 
 <%def name="title()">

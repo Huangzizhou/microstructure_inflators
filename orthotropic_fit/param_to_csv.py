@@ -46,7 +46,7 @@ def get_values(param_file):
                 extra_param[3],
                 param["poisson_ratio"][0],
                 param["poisson_ratio"][1],
-                param["shear_modulus"],
+                param["shear_modulus"][0],
                 param["youngs_modulus"][0],
                 param["youngs_modulus"][1],
                 param["residual_error"],
