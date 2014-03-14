@@ -122,3 +122,7 @@ p <- p + geom_abline(intercept=${intercept}, slope=${slope});
 p <- p + annotate("text", x=${x}, y=${y}, label="${text}", hjust=${hjust}, vjust=${vjust});
 </%def>
 
+<%def name="coord_fixed()">
+p <- p + coord_fixed(ratio=${ratio});
+</%def>
+

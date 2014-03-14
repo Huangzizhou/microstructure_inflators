@@ -88,6 +88,10 @@ class ggplot:
         self.r_script += self.template.get_def("draw_text").render(
                 x=x, y=y, text=text, hjust=hjust, vjust=vjust);
 
+    def coord_fixed(self, ratio=1.0):
+        self.r_script += self.template.get_def("coord_fixed").render(
+                ratio=ratio);
+
     def plot(self, r_file):
         print(r_file);
         with open(r_file, 'w') as fout:

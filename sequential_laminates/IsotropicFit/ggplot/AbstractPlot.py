@@ -29,6 +29,7 @@ class AbstractPlot:
         self.set_range();
         self.log_scale();
         self.set_title();
+        self.coord_fixed();
         self.save_plot();
 
     @deprecated
@@ -190,6 +191,14 @@ class AbstractPlot:
         if texts is not None:
             for t in texts:
                 self.plot.draw_text(**t);
+
+    def coord_fixed(self):
+        """ syntax:
+        "coord_fixed": ratio
+        """
+        ratio = self.config.get("coord_fixed", None);
+        if (ratio is not None):
+            self.plot.coord_fixed(ratio);
 
     def save_plot(self):
         """ syntax:
