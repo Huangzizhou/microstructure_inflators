@@ -18,14 +18,9 @@ from timethis import timethis
 class OrthotropicFitter(object):
     def __init__(self, mesh, material_file=None):
         self.mesh = mesh;
-        if material_file is None:
-            assembler = PyAssembler.FEAssembler.create_from_name(
-                    mesh.raw_mesh, "test_material");
-        else:
-            mat = Material(material_file);
-            assembler = PyAssembler.FEAssembler.create(mesh.raw_mesh,
-                    mat.material);
-        self.assembler = ElasticModel2.PyAssembler(mesh, assembler);
+        mat = Material(self.mesh.dim, material_file);
+        assembler = PyAssembler.FEAssembler.create(mesh.raw_mesh, mat.material);
+        self.assembler = ElasticModel2.PyAssembler(mesh, assembler, mat);
         self.deformer = LinearElasticity(self.mesh, self.assembler);
         self.displacements = [];
         self.stress_traces = [];
@@ -86,9 +81,11 @@ class OrthotropicFitter(object):
         face_areas = mesh.get_attribute("face_area").ravel();
 
         coarse_displacements = self.__extract_coarse_displacements(mesh);
-        coarse_assembler = PyAssembler.FEAssembler.create_from_name(
-                mesh.raw_mesh, "test_material");
-        coarse_assembler = ElasticModel2.PyAssembler(mesh, coarse_assembler);
+        coarse_material = Material(mesh.dim, None);
+        coarse_assembler = PyAssembler.FEAssembler.create(
+                mesh.raw_mesh, coarse_material.material);
+        coarse_assembler = ElasticModel2.PyAssembler(
+                mesh, coarse_assembler, coarse_material);
         K = self.assembler.stiffness_matrix;
 
         coeff = [];

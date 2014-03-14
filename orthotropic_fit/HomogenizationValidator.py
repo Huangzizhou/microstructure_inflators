@@ -63,7 +63,8 @@ class HomogenizationValidator(object):
     @timethis
     def __initialize_assembler(self):
         assembler = PyAssembler.FEAssembler.create(self.mesh.raw_mesh, self.material);
-        self.assembler = ElasticModel2.PyAssembler(self.mesh, assembler);
+        self.assembler = ElasticModel2.PyAssembler(self.mesh, assembler,
+                self.material);
 
     @timethis
     def __initialize_linear_elasticity(self):
