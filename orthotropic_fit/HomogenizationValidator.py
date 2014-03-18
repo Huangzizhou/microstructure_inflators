@@ -4,7 +4,7 @@ import numpy as np
 
 from mesh_io import form_mesh
 
-from BoundaryCondition import BoundaryCondition
+from BoundaryConditionExtractor import BoundaryConditionExtractor
 from ElasticityUtils import displacement_to_stress, force_to_pressure
 import ElasticModel2
 from generate_box_mesh import generate_box_mesh
@@ -26,11 +26,14 @@ class HomogenizationValidator(object):
 
     @timethis
     def simulate(self, bc_configs):
-        bd = BoundaryCondition(self.mesh);
-        boundary_conditions = [bd.extract_from_dict(config)
-                for config in bc_configs];
-        for bc in boundary_conditions:
-            neumann_bc, dirichlet_bc = bc;
+        bd = BoundaryConditionExtractor(self.mesh);
+        boundary_conditions = [];
+        for config in bc_configs:
+            bd.clear();
+            bd.extract_from_dict(config);
+            neumann_bc = bd.neumann_bc;
+            dirichlet_bc = bd.dirichlet_bc;
+
             self.deformer.clear();
             self.deformer.add_dirichlet_constraint(*dirichlet_bc);
             self.deformer.add_neumann_constraint(*neumann_bc);

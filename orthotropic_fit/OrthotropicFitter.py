@@ -6,7 +6,7 @@ import LinearElasticitySettings
 from Mesh import Mesh
 from mesh_io import load_mesh, form_mesh
 import PyAssembler
-from BoundaryCondition import BoundaryCondition
+from BoundaryConditionExtractor import BoundaryConditionExtractor
 import ElasticModel2
 from generate_box_mesh import generate_box_mesh
 from ElasticityUtils import displacement_to_stress, displacement_to_strain,\
@@ -35,7 +35,7 @@ class OrthotropicFitter(object):
 
     @timethis
     def __generate_boundary_conditions(self):
-        bd = BoundaryCondition(self.mesh);
+        bd = BoundaryConditionExtractor(self.mesh);
         self.bc_configs = [
                 self.__compression_x(),
                 self.__compression_y(),
@@ -44,8 +44,12 @@ class OrthotropicFitter(object):
                 #self.__shear_y(),
                 #self.__compression_uniform()
                 ];
-        self.boundary_conditions = [bd.extract_from_dict(config)
-                for config in self.bc_configs];
+        self.boundary_conditions = [];
+        for config in self.bc_configs:
+            bd.clear();
+            bd.extract_from_dict(config);
+            self.boundary_conditions.append([
+                bd.neumann_bc, bd.dirichlet_bc]);
 
     @timethis
     def __deform_shape(self):
