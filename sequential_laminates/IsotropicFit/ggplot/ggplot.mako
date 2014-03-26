@@ -31,24 +31,33 @@ p <- ggplot(raw_data);
 <%def name="scatter_plot()">
 % if w_col is not None:
 p <- p + geom_point(aes(x=${x_col}, y=${y_col}, color=${w_col}));
+if (is.factor(raw_data$${w_col})) {
+    p <- p + scale_colour_brewer(palette="Set1")
+} else {
+    p <- p + scale_color_gradientn(colours=c("blue", "green", "orange", "red"));
+}
 % else:
 p <- p + geom_point(aes(x=${x_col}, y=${y_col}));
-% endif
-% if discrete:
-#p <- p + scale_color_discrete();
-p <- p + scale_colour_brewer(palette="Paired")
-% else:
-#p <- p + scale_color_gradient(low="blue", high="red");
-p <- p + scale_color_gradientn(colours=c("blue", "green", "orange", "red"));
 % endif
 </%def>
 
 <%def name="line_plot()">
-% if w_col is not None:
-p <- p + geom_line(aes(x=${x_col}, y=${y_col}, color=${w_col}));
-% else:
-p <- p + geom_line(aes(x=${x_col}, y=${y_col}));
-% endif
+<%
+clauses = [];
+clauses.append("x={}".format(x_col));
+clauses.append("y={}".format(y_col));
+if w_col is not None:
+    clauses.append("color={}".format(w_col));
+if group is not None:
+    clauses.append("group={}".format(group));
+aes = ",".join(clauses);
+%>
+p <- p + geom_line(aes(${aes}));
+if (is.factor(raw_data$${w_col})) {
+    p <- p + scale_colour_brewer(palette="Set1")
+} else {
+    p <- p + scale_color_gradientn(colours=c("blue", "green", "orange", "red"));
+}
 </%def>
 
 <%def name="contour_plot()">

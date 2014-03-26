@@ -84,9 +84,9 @@ class AbstractPlot:
         "facet_1" : "column_1",
         "facet_2" : "column_2",
         """
-        facet_1 = self.config.get("facet_1", None);
-        facet_2 = self.config.get("facet_2", None);
-        if facet_1 is not None and facet_2 is not None:
+        facet_1 = self.config.get("facet_1", ".");
+        facet_2 = self.config.get("facet_2", ".");
+        if facet_1 != "." or facet_2 != ".":
             self.plot.facet_grid(facet_1, facet_2);
 
     def set_range(self):

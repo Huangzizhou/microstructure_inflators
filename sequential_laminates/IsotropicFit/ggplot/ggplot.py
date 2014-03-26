@@ -37,9 +37,9 @@ class ggplot:
         self.r_script += self.template.get_def("scatter_plot").render(
                 x_col = x_col, y_col = y_col, w_col = w_col, discrete=discrete);
 
-    def line_plot(self, x_col, y_col, w_col):
+    def line_plot(self, x_col, y_col, w_col, group=None):
         self.r_script += self.template.get_def("line_plot").render(
-                x_col = x_col, y_col = y_col, w_col = w_col);
+                x_col = x_col, y_col = y_col, w_col = w_col, group=group);
 
     def contour_plot(self, x_col, y_col, w_col, num_bins):
         self.r_script += self.template.get_def("contour_plot").render(
