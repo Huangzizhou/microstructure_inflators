@@ -7,6 +7,7 @@ from math import pi
 from scipy.spatial import ConvexHull
 
 from WireNetwork import WireNetwork
+from timethis import timethis
 
 # Update path to import PyMesh
 py_mesh_path = os.environ.get("PYMESH_PATH");
@@ -22,6 +23,7 @@ class WireInflator(object):
         if self.wire_network.dim == 2:
             NotImplementedError("2D wire inflation is not supported.");
 
+    @timethis
     def inflate(self, thickness):
         self.thickness = thickness;
         self.__compute_min_edge_angles();
@@ -29,6 +31,7 @@ class WireInflator(object):
         self.__generate_joints();
         self.__generate_edge_pipes();
 
+    @timethis
     def save(self, mesh_file):
         writer = PyMesh.MeshWriter.create_writer(mesh_file);
         writer.write(
@@ -37,12 +40,14 @@ class WireInflator(object):
                 np.zeros(0),
                 3, 3, 4);
 
+    @timethis
     def __compute_min_edge_angles(self):
         self.min_angles = np.zeros(self.wire_network.num_vertices);
         for i in range(self.wire_network.num_vertices):
             angle = self.__compute_min_edge_angle(i);
             self.min_angles[i] = angle;
 
+    @timethis
     def __compute_edge_end_loops(self):
         self.edge_loops = np.zeros((self.wire_network.num_edges, 2, 4, 3));
         for i,edge in enumerate(self.wire_network.edges):
@@ -65,6 +70,7 @@ class WireInflator(object):
             self.edge_loops[i, 0, :, :] = loop_0;
             self.edge_loops[i, 1, :, :] = loop_1;
 
+    @timethis
     def __generate_joints(self):
         self.mesh_vertices = np.zeros((0, 3), dtype=float);
         self.mesh_faces = np.zeros((0, 3), dtype=int);
@@ -73,6 +79,7 @@ class WireInflator(object):
         for i in range(self.wire_network.num_vertices):
             self.__generate_joint(i);
 
+    @timethis
     def __generate_edge_pipes(self):
         for i,edge in enumerate(self.wire_network.edges):
             loop_1_idx = self.edge_loop_indices[2*i  , :];
@@ -88,6 +95,7 @@ class WireInflator(object):
                     [loop_2_idx[3], loop_1_idx[0], loop_2_idx[0]] ];
             self.mesh_faces = np.vstack((self.mesh_faces, faces));
 
+    @timethis
     def __compute_min_edge_angle(self, idx):
         min_angle = pi;
         v = self.wire_network.vertices[idx];
@@ -105,6 +113,7 @@ class WireInflator(object):
                 min_angle = min(min_angle, angle);
         return min_angle;
 
+    @timethis
     def __generate_frame(self, edge):
         edge_dir = self.wire_network.vertices[edge[1]] -\
                 self.wire_network.vertices[edge[0]];
@@ -119,6 +128,7 @@ class WireInflator(object):
         offset_dir_2 = np.cross(offset_dir_1, edge_dir);
         return edge_dir, offset_dir_1, offset_dir_2;
 
+    @timethis
     def __generate_joint(self, idx):
         num_vts = len(self.mesh_vertices);
         v = self.wire_network.vertices[idx];

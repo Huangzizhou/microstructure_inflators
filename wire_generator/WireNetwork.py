@@ -14,6 +14,12 @@ class WireNetwork(object):
         self.__parse_wire_file(wire_file);
         self.__compute_connectivity();
 
+    def scale(self, factors):
+        if isinstance(factors, float):
+            self.vertices *= factors;
+        else:
+            self.vertices = np.multiply(self.vertices, factors);
+
     def __parse_wire_file(self, wire_file):
         parser = WireReader(wire_file);
         self.dim = parser.dim;
@@ -36,3 +42,7 @@ class WireNetwork(object):
     @property
     def num_edges(self):
         return len(self.edges);
+
+    @property
+    def bbox(self):
+        return np.amin(self.vertices, axis=0), np.amax(self.vertices, axis=0);
