@@ -146,6 +146,9 @@ class WireInflator(object):
         self.mesh_vertices = np.vstack((self.mesh_vertices,
             convex_hull.points));
         for face in convex_hull.simplices:
+            # The following check if a face is made entirely of edge loop
+            # vertices.  If this is the case, it should be removed since edge
+            # loops would be connected by pipes.
             loop_idx = [(vi-1) / 4 for vi in face];
             if np.max(loop_idx) == np.min(loop_idx):
                 continue;
