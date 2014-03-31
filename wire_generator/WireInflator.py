@@ -141,14 +141,27 @@ class WireInflator(object):
             self.edge_loop_indices[e_idx * 2 + v_idx, :] = \
                     np.arange(i*4, i*4+4) + num_vts + 1;
 
+        joint_center = np.mean(loop_vertices, axis=0);
         convex_hull = ConvexHull(loop_vertices);
         self.mesh_vertices = np.vstack((self.mesh_vertices,
             convex_hull.points));
         for face in convex_hull.simplices:
-            loop_idx = [(v-1) / 4 for v in face];
+            loop_idx = [(vi-1) / 4 for vi in face];
             if np.max(loop_idx) == np.min(loop_idx):
                 continue;
+            face = self.__correct_orientation(joint_center, convex_hull.points, face);
             self.mesh_faces = np.vstack(
                     (self.mesh_faces, face + num_vts));
+
+    def __correct_orientation(self, center, points, face):
+        vts = np.array(points)[face];
+        face_center = np.mean(vts, axis=0);
+        out_dir = face_center - center;
+        normal = np.cross(vts[1] - vts[0], vts[2] - vts[0]);
+        sign = np.dot(out_dir, normal);
+        if sign < 0:
+            return face[[0, 2, 1]];
+        else:
+            return face;
 
 
