@@ -171,10 +171,17 @@ class WireInflator(object):
 
     @timethis
     def __clean_up(self):
+        # Collapse short edges
         edge_remover = PyMeshUtils.ShortEdgeRemoval(self.mesh_vertices,
                 self.mesh_faces);
         edge_remover.run(1e-3);
         self.mesh_vertices = edge_remover.get_vertices();
         self.mesh_faces = edge_remover.get_faces();
 
+        # Remove isolated vertices
+        unique_indices = np.unique(self.mesh_faces.ravel());
+        index_map = np.zeros(len(self.mesh_vertices), dtype=int);
+        index_map[unique_indices] = np.arange(len(unique_indices), dtype=int);
+        self.mesh_vertices = self.mesh_vertices[unique_indices];
+        self.mesh_faces = index_map[self.mesh_faces];
 
