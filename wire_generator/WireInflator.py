@@ -16,6 +16,7 @@ if py_mesh_path == None:
 sys.path.append(os.path.join(py_mesh_path, "lib"));
 sys.path.append(os.path.join(py_mesh_path, "swig"));
 import PyMesh
+import PyMeshUtils
 
 class WireInflator(object):
     def __init__(self, wire_network):
@@ -30,6 +31,7 @@ class WireInflator(object):
         self.__compute_edge_end_loops();
         self.__generate_joints();
         self.__generate_edge_pipes();
+        self.__clean_up();
 
     @timethis
     def save(self, mesh_file):
@@ -52,7 +54,7 @@ class WireInflator(object):
         self.edge_loops = np.zeros((self.wire_network.num_edges, 2, 4, 3));
         for i,edge in enumerate(self.wire_network.edges):
             angles = self.min_angles[edge];
-            offsets = 0.5 * self.thickness / np.tan(angles / 2.0) + self.thickness;
+            offsets = 0.5 * self.thickness / np.tan(angles / 2.0) +1e-6#+ 0.1*self.thickness;
             edge_dir, perp1_dir, perp2_dir = self.__generate_frame(edge);
             v0 = self.wire_network.vertices[edge[0]];
             v1 = self.wire_network.vertices[edge[1]];
@@ -166,5 +168,13 @@ class WireInflator(object):
             return face[[0, 2, 1]];
         else:
             return face;
+
+    @timethis
+    def __clean_up(self):
+        edge_remover = PyMeshUtils.ShortEdgeRemoval(self.mesh_vertices,
+                self.mesh_faces);
+        edge_remover.run(1e-3);
+        self.mesh_vertices = edge_remover.get_vertices();
+        self.mesh_faces = edge_remover.get_faces();
 
 
