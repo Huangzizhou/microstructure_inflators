@@ -14,27 +14,35 @@ from WireNetwork import WireNetwork
 from timethis import timethis
 
 class WirePattern(object):
-    def __init__(self, vertices, edges):
+    def __init__(self):
+        self.x_tile_dir = np.array([1.0, 0.0, 0.0]);
+        self.y_tile_dir = np.array([0.0, 1.0, 0.0]);
+        self.z_tile_dir = np.array([0.0, 0.0, 1.0]);
+
+    def set_single_cell(self, vertices, edges):
         self.pattern_vertices = np.array(vertices);
         self.pattern_edges = np.array(edges, dtype=int);
         self.pattern_bbox_min = np.amin(vertices, axis=0);
         self.pattern_bbox_max = np.amax(vertices, axis=0);
         self.pattern_bbox_size = self.pattern_bbox_max - self.pattern_bbox_min;
 
+    def set_single_cell_from_wire_network(self, network):
+        self.set_single_cell(network.vertices, network.edges);
+
     @timethis
     def tile(self, reps):
         self.wire_vertices = np.zeros((0, 3));
         self.wire_edges = np.zeros((0, 2), dtype=int);
         for i in range(reps[0]):
-            x_inc = self.pattern_bbox_size[0] * i;
+            x_inc = self.x_tile_dir * self.pattern_bbox_size[0] * i;
             for j in range(reps[1]):
-                y_inc = self.pattern_bbox_size[1] * j;
+                y_inc = self.y_tile_dir * self.pattern_bbox_size[1] * j;
                 for k in range(reps[2]):
-                    z_inc = self.pattern_bbox_size[2] * k;
+                    z_inc = self.z_tile_dir * self.pattern_bbox_size[2] * k;
 
                     base_idx = self.wire_vertices.shape[0];
                     vertices = self.pattern_vertices +\
-                            np.array([x_inc, y_inc, z_inc]);
+                            x_inc + y_inc + z_inc;
                     self.wire_vertices = np.vstack(
                             (self.wire_vertices, vertices));
 

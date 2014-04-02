@@ -3,6 +3,7 @@ class WireReader(object):
         self.__wire_file = wire_file;
         self.__initialize();
         self.__parse();
+        self.__remove_duplicated_edges();
 
     def __initialize(self):
         self.__dim = 0;
@@ -18,6 +19,8 @@ class WireReader(object):
                     self.__parse_vertex(line);
                 elif line[0] == 'l':
                     self.__parse_edge(line);
+                elif line[0] == 'f':
+                    self.__parse_face(line);
                 else:
                     pass;
 
@@ -34,6 +37,18 @@ class WireReader(object):
         e1 = int(fields[1]) - 1;
         e2 = int(fields[2]) - 1;
         self.edges.append([e1, e2]);
+
+    def __parse_face(self, line):
+        fields = line.split()[1:];
+        num_vts = len(fields);
+        for i in range(num_vts):
+            e1 = int(fields[i]) -1;
+            e2 = int(fields[(i+1) % num_vts]) -1;
+            self.edges.append([e1, e2]);
+
+    def __remove_duplicated_edges(self):
+        edges = set([(max(e), min(e)) for e in self.edges]);
+        self.edges = list(edges);
 
     @property
     def dim(self):

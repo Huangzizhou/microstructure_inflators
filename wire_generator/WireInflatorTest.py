@@ -34,7 +34,7 @@ class WireInflatorTest(unittest.TestCase):
     def test_edge_loop_indices(self):
         thickness = 0.1;
         inflator = WireInflator(self.wire_network);
-        inflator.inflate(thickness);
+        inflator.inflate(thickness, clean_up=False);
         for i, edge in enumerate(self.wire_network.edges):
             loop_1 = inflator.edge_loops[i, 0, :, :];
             loop_2 = inflator.edge_loops[i, 1, :, :];

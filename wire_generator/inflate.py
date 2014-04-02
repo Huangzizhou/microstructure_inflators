@@ -6,7 +6,7 @@ from WireInflator import WireInflator
 
 def inflate(wire_file, thickness, mesh_file):
     wires = WireNetwork();
-    wire.load_from_file(wire_file);
+    wires.load_from_file(wire_file);
     inflator = WireInflator(wires);
     inflator.inflate(thickness);
     inflator.save(mesh_file);

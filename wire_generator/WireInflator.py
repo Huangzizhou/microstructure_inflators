@@ -25,13 +25,14 @@ class WireInflator(object):
             NotImplementedError("2D wire inflation is not supported.");
 
     @timethis
-    def inflate(self, thickness):
+    def inflate(self, thickness, clean_up=True):
         self.thickness = thickness;
         self.__compute_min_edge_angles();
         self.__compute_edge_end_loops();
         self.__generate_joints();
         self.__generate_edge_pipes();
-        self.__clean_up();
+        if clean_up:
+            self.__clean_up();
 
     @timethis
     def save(self, mesh_file):
@@ -184,4 +185,7 @@ class WireInflator(object):
         index_map[unique_indices] = np.arange(len(unique_indices), dtype=int);
         self.mesh_vertices = self.mesh_vertices[unique_indices];
         self.mesh_faces = index_map[self.mesh_faces];
+
+        # Edge loop indices is no longer valid.
+        self.edge_loop_indices =None;
 

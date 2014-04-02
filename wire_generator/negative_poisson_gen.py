@@ -55,7 +55,9 @@ def generate_pattern():
             [6, 10], [7, 12], [8, 14], [9, 16]
             ];
 
-    return WirePattern(vertices, edges);
+    pattern = WirePattern();
+    pattern.set_single_cell(vertices, edges);
+    return pattern;
 
 @timethis
 def generate_negative_poisson(config):
