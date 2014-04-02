@@ -53,11 +53,13 @@ if group is not None:
 aes = ",".join(clauses);
 %>
 p <- p + geom_line(aes(${aes}));
+% if w_col is not None:
 if (is.factor(raw_data$${w_col})) {
     p <- p + scale_colour_brewer(palette="Set1")
 } else {
     p <- p + scale_color_gradientn(colours=c("blue", "green", "orange", "red"));
 }
+% endif
 </%def>
 
 <%def name="contour_plot()">
