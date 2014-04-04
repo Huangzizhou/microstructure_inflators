@@ -61,6 +61,7 @@ def tile(config):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tile a given pattern");
+    parser.add_argument("--output", "-o", required=False);
     parser.add_argument("config_file", help="pattern configuration file.");
     args = parser.parse_args();
     return args;
@@ -68,6 +69,8 @@ def parse_args():
 def main():
     args = parse_args();
     config = parse_config_file(args.config_file);
+    if args.output is not None:
+        config["output"] = args.output;
     tile(config);
 
 if __name__ == "__main__":
