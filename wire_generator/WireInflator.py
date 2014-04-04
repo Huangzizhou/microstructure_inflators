@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 from numpy.linalg import norm
-from math import pi
+from math import pi, sqrt
 from scipy.spatial import ConvexHull
 
 from WireNetwork import WireNetwork
@@ -55,7 +55,7 @@ class WireInflator(object):
         self.edge_loops = np.zeros((self.wire_network.num_edges, 2, 4, 3));
         for i,edge in enumerate(self.wire_network.edges):
             angles = self.min_angles[edge];
-            offsets = 0.5 * self.thickness / np.tan(angles / 2.0) +1e-6#+ 0.1*self.thickness;
+            offsets = 0.5 * sqrt(2) * self.thickness / np.tan(angles / 2.0) +1e-6;
             edge_dir, perp1_dir, perp2_dir = self.__generate_frame(edge);
             v0 = self.wire_network.vertices[edge[0]];
             v1 = self.wire_network.vertices[edge[1]];
@@ -175,7 +175,7 @@ class WireInflator(object):
         # Collapse short edges
         edge_remover = PyMeshUtils.ShortEdgeRemoval(self.mesh_vertices,
                 self.mesh_faces);
-        edge_remover.run(1e-3);
+        edge_remover.run(0.5 * self.thickness);
         self.mesh_vertices = edge_remover.get_vertices();
         self.mesh_faces = edge_remover.get_faces();
 
