@@ -175,7 +175,7 @@ class WireInflator(object):
         # Collapse short edges
         edge_remover = PyMeshUtils.ShortEdgeRemoval(self.mesh_vertices,
                 self.mesh_faces);
-        edge_remover.run(0.5 * self.thickness);
+        edge_remover.run(0.1 * self.thickness);
         self.mesh_vertices = edge_remover.get_vertices();
         self.mesh_faces = edge_remover.get_faces();
 
