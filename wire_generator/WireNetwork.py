@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.linalg import norm
 
 from WireReader import WireReader
 
@@ -46,3 +47,14 @@ class WireNetwork(object):
     @property
     def bbox(self):
         return np.amin(self.vertices, axis=0), np.amax(self.vertices, axis=0);
+
+    @property
+    def total_wire_length(self):
+        return np.sum(self.wire_lengths);
+
+    @property
+    def wire_lengths(self):
+        return norm(
+            self.vertices[self.edges[:,0]] -
+            self.vertices[self.edges[:,1]], axis=1);
+

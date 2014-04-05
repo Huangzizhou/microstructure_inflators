@@ -1,5 +1,6 @@
 import unittest
 from WireNetwork import WireNetwork
+from math import sqrt
 
 class WireNetworkTest(unittest.TestCase):
     def setUp(self):
@@ -15,4 +16,7 @@ class WireNetworkTest(unittest.TestCase):
         self.assertEqual([1,2], sorted(self.wire_frame.vertex_neighbors[0]));
         self.assertEqual([0,2], sorted(self.wire_frame.vertex_neighbors[1]));
         self.assertEqual([0,1], sorted(self.wire_frame.vertex_neighbors[2]));
+
+    def test_total_length(self):
+        self.assertAlmostEqual(2.0+sqrt(2), self.wire_frame.total_wire_length);
 
