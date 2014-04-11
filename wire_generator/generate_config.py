@@ -50,7 +50,7 @@ def compute_cell_size(wires, volume_fraction, thickness):
     return (bbox_max - bbox_min) * cell_size;
 
 def compute_repetitions(cell_size, cube_size):
-    return np.divide(cube_size, cell_size).astype(int).tolist();
+    return np.around(np.divide(cube_size, cell_size)).astype(int).tolist();
 
 def generate_config(wire_file, repeats, thickness, cube_size, output_file):
     """ syntax:

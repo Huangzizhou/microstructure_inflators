@@ -60,18 +60,20 @@ class WireInflator(object):
             v0 = self.wire_network.vertices[edge[0]];
             v1 = self.wire_network.vertices[edge[1]];
 
-            loop_0 = [
+            loop_0 = np.array([
                     v0+offsets[0]*edge_dir+0.5*self.thickness*(-perp1_dir-perp2_dir),
                     v0+offsets[0]*edge_dir+0.5*self.thickness*(-perp1_dir+perp2_dir),
                     v0+offsets[0]*edge_dir+0.5*self.thickness*( perp1_dir+perp2_dir),
-                    v0+offsets[0]*edge_dir+0.5*self.thickness*( perp1_dir-perp2_dir) ]
-            loop_1 = [
+                    v0+offsets[0]*edge_dir+0.5*self.thickness*( perp1_dir-perp2_dir) ]);
+            loop_1 = np.array([
                     v1-offsets[1]*edge_dir+0.5*self.thickness*(-perp1_dir-perp2_dir),
                     v1-offsets[1]*edge_dir+0.5*self.thickness*(-perp1_dir+perp2_dir),
                     v1-offsets[1]*edge_dir+0.5*self.thickness*( perp1_dir+perp2_dir),
-                    v1-offsets[1]*edge_dir+0.5*self.thickness*( perp1_dir-perp2_dir) ]
+                    v1-offsets[1]*edge_dir+0.5*self.thickness*( perp1_dir-perp2_dir) ]);
+
             self.edge_loops[i, 0, :, :] = loop_0;
             self.edge_loops[i, 1, :, :] = loop_1;
+
 
     @timethis
     def __generate_joints(self):
