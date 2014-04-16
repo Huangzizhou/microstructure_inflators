@@ -13,3 +13,9 @@ sequential_laminates/results/
 sequential_laminates/IsotropicFit/config/
 sequential_laminates/IsotropicFit/jobs/
 sequential_laminates/IsotropicFit/plot.r
+sequential_laminates/lamination_generator/configs/
+wire_generator/results/
+wire_generator/examples/
+orthotropic_fit/results/
+orthotropic_fit/examples/
+lp_holes/generator/examples/

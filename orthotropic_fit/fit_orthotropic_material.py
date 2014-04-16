@@ -22,11 +22,15 @@ def fit_orthotropic_material_and_validate(input_file, output_file, material_file
     basename,ext = os.path.splitext(output_file);
     validation_file = basename + "_homogenized" + ext;
     param_file = basename + "_param.json";
+    coarse_mesh_file = basename + "_coarse" + ext;
 
     save_mesh_fields(output_file, fitter.mesh,
             fitter.pressures,
             fitter.displacements,
             fitter.stress_traces);
+
+    #save_mesh_fields(coarse_mesh_file, fitter.coarse_mesh,
+    #        displacements = fitter.coarse_displacements);
 
     save_mesh_fields(validation_file, validator.mesh,
             validator.pressures,
@@ -64,19 +68,25 @@ def add_attribute_to_mesh(mesh, attr_name, attr_value):
     mesh.set_attribute(attr_name, attr_value);
 
 @timethis
-def save_mesh_fields(mesh_file, mesh, pressures, displacements, stress_traces):
+def save_mesh_fields(mesh_file, mesh, pressures=None, displacements=None,
+        stress_traces=None):
     num_fields = len(displacements);
     attributes_to_save = [];
     for i in range(num_fields):
-        pressure_attr_name = "pressure_{}".format(i);
-        disp_attr_name = "displacement_{}".format(i);
-        strs_attr_name = "stress_trace_{}".format(i);
-        add_attribute_to_mesh(mesh, pressure_attr_name, pressures[i]);
-        add_attribute_to_mesh(mesh, disp_attr_name, displacements[i]);
-        add_attribute_to_mesh(mesh, strs_attr_name, stress_traces[i]);
-        attributes_to_save.append(pressure_attr_name);
-        attributes_to_save.append(disp_attr_name);
-        attributes_to_save.append(strs_attr_name);
+        if pressures is not None:
+            pressure_attr_name = "pressure_{}".format(i);
+            add_attribute_to_mesh(mesh, pressure_attr_name, pressures[i]);
+            attributes_to_save.append(pressure_attr_name);
+
+        if displacements is not None:
+            disp_attr_name = "displacement_{}".format(i);
+            add_attribute_to_mesh(mesh, disp_attr_name, displacements[i]);
+            attributes_to_save.append(disp_attr_name);
+
+        if stress_traces is not None:
+            strs_attr_name = "stress_trace_{}".format(i);
+            add_attribute_to_mesh(mesh, strs_attr_name, stress_traces[i]);
+            attributes_to_save.append(strs_attr_name);
     save_mesh(mesh_file, mesh, *attributes_to_save);
 
 @timethis

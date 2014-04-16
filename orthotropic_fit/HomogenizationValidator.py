@@ -5,9 +5,9 @@ import numpy as np
 from mesh_io import form_mesh
 
 from BoundaryConditionExtractor import BoundaryConditionExtractor
-from ElasticityUtils import displacement_to_stress, force_to_pressure
+from ElasticityUtils import displacement_to_stress
 import ElasticModel2
-from generate_box_mesh import generate_box_mesh
+from BoxMeshGenerator import generate_box_mesh
 from LinearElasticity import LinearElasticity
 import PyAssembler
 from timethis import timethis
@@ -26,6 +26,8 @@ class HomogenizationValidator(object):
 
     @timethis
     def simulate(self, bc_configs):
+        dim = self.mesh.dim;
+        tensor_size = dim * (dim+1) / 2;
         bd = BoundaryConditionExtractor(self.mesh);
         boundary_conditions = [];
         for config in bc_configs:
@@ -36,31 +38,32 @@ class HomogenizationValidator(object):
 
             self.deformer.clear();
             self.deformer.add_dirichlet_constraint(*dirichlet_bc);
-            self.deformer.add_neumann_constraint(*neumann_bc);
+            self.deformer.add_neumann_constraint(*neumann_bc[:2]);
             without_rigid_motion_constraint = len(dirichlet_bc[0]) != 0;
             displacement = self.deformer.solve(without_rigid_motion_constraint);
             self.displacements.append(displacement);
 
             stress = displacement_to_stress(self.assembler, displacement);
-            stress = stress.reshape((-1, 3), order="C");
-            stress_trace = np.sum(stress[:,0:2], axis=1);
+            stress = stress.reshape((-1, tensor_size), order="C");
+            stress_trace = np.sum(stress[:,0:dim], axis=1);
             self.stress_traces.append(stress_trace);
 
             applied_nodes = neumann_bc[0];
             applied_force = neumann_bc[1];
+            applied_node_area = neumann_bc[2];
             force = np.zeros((self.mesh.num_vertices, self.mesh.dim));
+            pressure = np.zeros((self.mesh.num_vertices, self.mesh.dim));
             if len(applied_nodes) > 0:
                 force[applied_nodes] = applied_force;
+                pressure[applied_nodes] = applied_force /\
+                        np.array(applied_node_area)[:,np.newaxis];
             self.forces.append(force.ravel(order="C"));
-            pressure = force_to_pressure(self.mesh, force);
-            self.pressures.append(pressure);
+            self.pressures.append(pressure.ravel(order="C"));
 
     @timethis
     def __generate_bbox_mesh(self):
-        if self.input_mesh.dim != 2:
-            raise NotImplementedError("Only 2D mesh are supported for now.");
         bbox_min, bbox_max = self.input_mesh.bbox;
-        num_samples = 100;
+        num_samples = 10;
         self.mesh = generate_box_mesh(bbox_min, bbox_max, num_samples);
 
     @timethis
