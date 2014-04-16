@@ -2,6 +2,9 @@
 import numpy as np;
 from subprocess import check_call
 import json
+import os.path
+
+bin_dir = "/home/qz263/Research/microstructures/lp_holes/generator/";
 
 config = {
         "lp": 2,
@@ -12,7 +15,7 @@ config = {
         "output": "tmp.obj"
         }
 
-radius_range = np.arange(0.05, 0.5, 0.05);
+radius_range = np.arange(0.2, 0.49, 0.025);
 p_range = np.arange(2.0, 10.0, 0.5);
 
 for r in radius_range:
@@ -24,7 +27,9 @@ for r in radius_range:
         json_file = basename + ".config";
         with open(json_file, 'w') as fout:
             json.dump(config, fout);
-        command = "../generate_holy_rectangle.py {}".format(json_file);
+        
+        command = "{} {}".format(
+                os.path.join(bin_dir, "generate_holy_rectangle.py"), json_file);
         check_call(command.split());
 
 
