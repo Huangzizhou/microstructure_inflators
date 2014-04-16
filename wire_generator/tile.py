@@ -20,6 +20,7 @@ def parse_config_file(config_file):
         "x_tile_dir": [x, y, z],
         "y_tile_dir": [x, y, z],
         "z_tile_dir": [x, y, z],
+        "trim": bool,
         "output": output_file
     }
     """
@@ -49,6 +50,9 @@ def tile(config):
     pattern.tile(config["repeats"]);
 
     tiled_network = pattern.wire_network;
+    if config.get("trim", False):
+        tiled_network.trim();
+
     bbox_min, bbox_max = tiled_network.bbox;
     target_bbox_min = np.array(config["bbox_min"]);
     target_bbox_max = np.array(config["bbox_max"]);

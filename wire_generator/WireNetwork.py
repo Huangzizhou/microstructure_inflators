@@ -21,6 +21,15 @@ class WireNetwork(object):
         else:
             self.vertices = np.multiply(self.vertices, factors);
 
+    def trim(self):
+        """ Remove all hanging edges
+        e.g. edge with at least one vertex of valance <= 1
+        """
+        edge_to_keep = np.all(self.vertex_valance[self.edges] > 1, axis=1);
+        self.edges = self.edges[edge_to_keep];
+        self.__remove_isolated_vertices();
+        self.__compute_connectivity();
+
     def __parse_wire_file(self, wire_file):
         parser = WireReader(wire_file);
         self.dim = parser.dim;
@@ -38,6 +47,20 @@ class WireNetwork(object):
             self.vertex_edge_neighbors[edge[1]].append(i);
             self.vertex_valance[edge[0]] += 1;
             self.vertex_valance[edge[1]] += 1;
+
+    def __remove_isolated_vertices(self):
+        vertex_map = np.zeros(self.num_vertices, dtype=int) - 1;
+        vertices = [];
+        for edge in self.edges:
+            if vertex_map[edge[0]] == -1:
+                vertex_map[edge[0]] = len(vertices);
+                vertices.append(self.vertices[edge[0]]);
+            if vertex_map[edge[1]] == -1:
+                vertex_map[edge[1]] = len(vertices);
+                vertices.append(self.vertices[edge[1]]);
+
+        self.vertices = np.array(vertices);
+        self.edges = vertex_map[self.edges];
 
     @property
     def num_vertices(self):
