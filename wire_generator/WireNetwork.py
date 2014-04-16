@@ -30,11 +30,14 @@ class WireNetwork(object):
     def __compute_connectivity(self):
         self.vertex_neighbors = [[] for i in range(self.num_vertices)];
         self.vertex_edge_neighbors = [[] for i in range(self.num_vertices)];
+        self.vertex_valance = np.zeros(self.num_vertices);
         for i,edge in enumerate(self.edges):
             self.vertex_neighbors[edge[0]].append(edge[1]);
             self.vertex_neighbors[edge[1]].append(edge[0]);
             self.vertex_edge_neighbors[edge[0]].append(i);
             self.vertex_edge_neighbors[edge[1]].append(i);
+            self.vertex_valance[edge[0]] += 1;
+            self.vertex_valance[edge[1]] += 1;
 
     @property
     def num_vertices(self):
