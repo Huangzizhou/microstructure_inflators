@@ -47,7 +47,8 @@ class OrthotropicFitter(object):
                     PredefinedBC.compress_xy(bbox_min, bbox_max, eps),
                     ];
         elif self.mesh.dim == 3:
-            eps = norm(bbox_max - bbox_min) * 0.01;
+            #eps = norm(bbox_max - bbox_min) * 0.01;
+            eps = 1e-3;
             self.bc_configs = [
                     PredefinedBC.compress_x(bbox_min, bbox_max, eps),
                     PredefinedBC.compress_y(bbox_min, bbox_max, eps),
@@ -177,7 +178,7 @@ class OrthotropicFitter(object):
         tensor_size = dim*(dim+1)/2;
         bbox_min, bbox_max = self.mesh.bbox;
         num_samples = 3;
-        eps = 1e-6;
+        eps = min(1e-1, norm(bbox_max - bbox_min) * 0.001);
         self.coarse_mesh = generate_box_mesh(bbox_min-eps, bbox_max+eps, num_samples);
         self.coarse_mesh.add_attribute("voxel_volume");
         voxel_volumes = self.coarse_mesh.get_attribute("voxel_volume").ravel();
@@ -218,9 +219,9 @@ class OrthotropicFitter(object):
                 coeff_11 = np.multiply(strain_1_xx, strain_2_xx).dot(voxel_volumes);
                 coeff_22 = np.multiply(strain_1_yy, strain_2_yy).dot(voxel_volumes);
                 coeff_33 = np.multiply(strain_1_zz, strain_2_zz).dot(voxel_volumes);
-                coeff_44 = np.multiply(strain_1_xy, strain_2_xy).dot(voxel_volumes) * 2;
+                coeff_44 = np.multiply(strain_1_yz, strain_2_yz).dot(voxel_volumes) * 2;
                 coeff_55 = np.multiply(strain_1_xz, strain_2_xz).dot(voxel_volumes) * 2;
-                coeff_66 = np.multiply(strain_1_yz, strain_2_yz).dot(voxel_volumes) * 2;
+                coeff_66 = np.multiply(strain_1_xy, strain_2_xy).dot(voxel_volumes) * 2;
                 coeff_12 = (np.multiply(strain_1_xx, strain_2_yy) +\
                         np.multiply(strain_1_yy, strain_2_xx)).dot(voxel_volumes)
                 coeff_13 = (np.multiply(strain_1_xx, strain_2_zz) +\
@@ -382,21 +383,28 @@ class OrthotropicFitter(object):
                 -self.orthotropic_parameter[3] * young[1]  # v_yx
                 ]);
         elif dim == 3:
+            # Order is important here!
+            # It is consistent with the ordering of input for Orthotropic
+            # material of PyAssembler.
             return np.array( [
-                -self.orthotropic_parameter[6] * young[0], # v_xy
-                -self.orthotropic_parameter[6] * young[1], # v_yx
-                -self.orthotropic_parameter[7] * young[0], # v_xz
-                -self.orthotropic_parameter[7] * young[2], # v_zx
                 -self.orthotropic_parameter[8] * young[1], # v_yz
                 -self.orthotropic_parameter[8] * young[2], # v_zy
+
+                -self.orthotropic_parameter[7] * young[2], # v_zx
+                -self.orthotropic_parameter[7] * young[0], # v_xz
+
+                -self.orthotropic_parameter[6] * young[0], # v_xy
+                -self.orthotropic_parameter[6] * young[1], # v_yx
                 ]);
 
     @property
     def shear_modulus(self):
         dim = self.mesh.dim;
         if dim == 2:
+            # Order: [G_xy]
             shear = 0.5 / self.orthotropic_parameter[2:3];
         elif dim == 3:
+            # Order: [G_yz, G_zx, G_xy]
             shear = 0.5 / self.orthotropic_parameter[3:6];
         else:
             raise RuntimeError("Unsupported dim: {}".format(self.mesh.dim));

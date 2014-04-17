@@ -17,7 +17,6 @@ import PyAssembler
 def fit_orthotropic_material_and_validate(input_file, output_file, material_file):
     mesh = load_mesh(input_file);
     fitter = fit(mesh, material_file);
-    validator = validate(fitter);
 
     basename,ext = os.path.splitext(output_file);
     validation_file = basename + "_homogenized" + ext;
@@ -29,9 +28,10 @@ def fit_orthotropic_material_and_validate(input_file, output_file, material_file
             fitter.displacements,
             fitter.stress_traces);
 
-    #save_mesh_fields(coarse_mesh_file, fitter.coarse_mesh,
-    #        displacements = fitter.coarse_displacements);
+    save_mesh_fields(coarse_mesh_file, fitter.coarse_mesh,
+            displacements = fitter.coarse_displacements);
 
+    validator = validate(fitter);
     save_mesh_fields(validation_file, validator.mesh,
             validator.pressures,
             validator.displacements,
