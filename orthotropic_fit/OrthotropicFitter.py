@@ -48,7 +48,7 @@ class OrthotropicFitter(object):
                     ];
         elif self.mesh.dim == 3:
             #eps = norm(bbox_max - bbox_min) * 0.01;
-            eps = 1e-3;
+            eps = min(1e-1, norm(bbox_max - bbox_min) * 0.001);
             self.bc_configs = [
                     PredefinedBC.compress_x(bbox_min, bbox_max, eps),
                     PredefinedBC.compress_y(bbox_min, bbox_max, eps),
@@ -177,7 +177,7 @@ class OrthotropicFitter(object):
         dim = self.mesh.dim;
         tensor_size = dim*(dim+1)/2;
         bbox_min, bbox_max = self.mesh.bbox;
-        num_samples = 3;
+        num_samples = 2;
         eps = min(1e-1, norm(bbox_max - bbox_min) * 0.001);
         self.coarse_mesh = generate_box_mesh(bbox_min-eps, bbox_max+eps, num_samples);
         self.coarse_mesh.add_attribute("voxel_volume");
