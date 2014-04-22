@@ -48,7 +48,7 @@ class OrthotropicFitter(object):
                     ];
         elif self.mesh.dim == 3:
             #eps = norm(bbox_max - bbox_min) * 0.01;
-            eps = min(1e-1, norm(bbox_max - bbox_min) * 0.001);
+            eps = min(2e-1, norm(bbox_max - bbox_min) * 0.01);
             self.bc_configs = [
                     PredefinedBC.compress_x(bbox_min, bbox_max, eps),
                     PredefinedBC.compress_y(bbox_min, bbox_max, eps),
