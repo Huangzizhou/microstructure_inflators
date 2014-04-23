@@ -113,8 +113,7 @@ class OrthotropicFitter(object):
         assert(tensor_size == 3);
         bbox_min, bbox_max = self.mesh.bbox;
         num_samples = 2;
-        eps = 1e-6;
-        self.coarse_mesh = generate_box_mesh(bbox_min-eps, bbox_max+eps, num_samples);
+        self.coarse_mesh = generate_box_mesh(bbox_min, bbox_max, num_samples);
         self.coarse_mesh.add_attribute("face_area");
         face_areas = self.coarse_mesh.get_attribute("face_area").ravel();
 
@@ -178,8 +177,7 @@ class OrthotropicFitter(object):
         tensor_size = dim*(dim+1)/2;
         bbox_min, bbox_max = self.mesh.bbox;
         num_samples = 2;
-        eps = min(1e-1, norm(bbox_max - bbox_min) * 0.001);
-        self.coarse_mesh = generate_box_mesh(bbox_min-eps, bbox_max+eps, num_samples);
+        self.coarse_mesh = generate_box_mesh(bbox_min, bbox_max, num_samples);
         self.coarse_mesh.add_attribute("voxel_volume");
         voxel_volumes = self.coarse_mesh.get_attribute("voxel_volume").ravel();
 
