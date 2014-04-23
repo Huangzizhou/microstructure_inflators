@@ -67,11 +67,11 @@ class OrthotropicFitterTest(unittest.TestCase):
         self.assertEqual(2, len(fitter.youngs_modulus));
         self.assertEqual(2, len(fitter.poisson_ratio));
         self.assertEqual(1, len(fitter.shear_modulus));
-        self.assertAlmostEqual(1.0, fitter.youngs_modulus[0]);
-        self.assertAlmostEqual(1.0, fitter.youngs_modulus[1]);
-        self.assertAlmostEqual(0.0, fitter.poisson_ratio[0]);
-        self.assertAlmostEqual(0.0, fitter.poisson_ratio[1]);
-        self.assertAlmostEqual(0.5, fitter.shear_modulus[0]);
+        self.assertAlmostEqual(1.0, fitter.youngs_modulus[0], delta=1e-3);
+        self.assertAlmostEqual(1.0, fitter.youngs_modulus[1], delta=1e-3);
+        self.assertAlmostEqual(0.0, fitter.poisson_ratio[0], delta=1e-3);
+        self.assertAlmostEqual(0.0, fitter.poisson_ratio[1], delta=1e-3);
+        self.assertAlmostEqual(0.5, fitter.shear_modulus[0], delta=1e-3);
 
     def test_3D(self):
         fitter = OrthotropicFitter(self.cube);
@@ -85,10 +85,10 @@ class OrthotropicFitterTest(unittest.TestCase):
         self.assertEqual(3, len(fitter.youngs_modulus));
         self.assertEqual(6, len(fitter.poisson_ratio));
         self.assertEqual(3, len(fitter.shear_modulus));
-        self.assertAlmostEqual(1.0, np.amax(fitter.youngs_modulus));
-        self.assertAlmostEqual(1.0, np.amin(fitter.youngs_modulus));
-        self.assertAlmostEqual(0.0, np.amax(fitter.poisson_ratio));
-        self.assertAlmostEqual(0.0, np.amin(fitter.poisson_ratio));
-        self.assertAlmostEqual(0.5, np.amax(fitter.shear_modulus));
-        self.assertAlmostEqual(0.5, np.amin(fitter.shear_modulus));
+        self.assertAlmostEqual(1.0, np.amax(fitter.youngs_modulus), delta=1e-2);
+        self.assertAlmostEqual(1.0, np.amin(fitter.youngs_modulus), delta=1e-2);
+        self.assertAlmostEqual(0.0, np.amax(fitter.poisson_ratio), delta=1e-2);
+        self.assertAlmostEqual(0.0, np.amin(fitter.poisson_ratio), delta=1e-2);
+        self.assertAlmostEqual(0.5, np.amax(fitter.shear_modulus), delta=1e-2);
+        self.assertAlmostEqual(0.5, np.amin(fitter.shear_modulus), delta=1e-2);
 
