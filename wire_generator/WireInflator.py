@@ -27,12 +27,12 @@ class WireInflator(object):
     @timethis
     def inflate(self, thickness, clean_up=True):
         self.thickness = thickness;
-        self.__compute_min_edge_angles();
-        self.__compute_edge_end_loops();
-        self.__generate_joints();
-        self.__generate_edge_pipes();
+        self._compute_min_edge_angles();
+        self._compute_edge_end_loops();
+        self._generate_joints();
+        self._generate_edge_pipes();
         if clean_up:
-            self.__clean_up();
+            self._clean_up();
 
     @timethis
     def save(self, mesh_file):
@@ -44,19 +44,19 @@ class WireInflator(object):
                 3, 3, 4);
 
     @timethis
-    def __compute_min_edge_angles(self):
+    def _compute_min_edge_angles(self):
         self.min_angles = np.zeros(self.wire_network.num_vertices);
         for i in range(self.wire_network.num_vertices):
-            angle = self.__compute_min_edge_angle(i);
+            angle = self._compute_min_edge_angle(i);
             self.min_angles[i] = angle;
 
     @timethis
-    def __compute_edge_end_loops(self):
+    def _compute_edge_end_loops(self):
         self.edge_loops = np.zeros((self.wire_network.num_edges, 2, 4, 3));
         for i,edge in enumerate(self.wire_network.edges):
             angles = self.min_angles[edge];
             offsets = 0.5 * sqrt(2) * self.thickness / np.tan(angles / 2.0) +1e-6;
-            edge_dir, perp1_dir, perp2_dir = self.__generate_frame(edge);
+            edge_dir, perp1_dir, perp2_dir = self._generate_frame(edge);
             v0 = self.wire_network.vertices[edge[0]];
             v1 = self.wire_network.vertices[edge[1]];
 
@@ -76,16 +76,16 @@ class WireInflator(object):
 
 
     @timethis
-    def __generate_joints(self):
+    def _generate_joints(self):
         self.mesh_vertices = np.zeros((0, 3), dtype=float);
         self.mesh_faces = np.zeros((0, 3), dtype=int);
         self.edge_loop_indices = np.zeros((self.edge_loops.shape[0]*2, 4),
                 dtype=int);
         for i in range(self.wire_network.num_vertices):
-            self.__generate_joint(i);
+            self._generate_joint(i);
 
     @timethis
-    def __generate_edge_pipes(self):
+    def _generate_edge_pipes(self):
         for i,edge in enumerate(self.wire_network.edges):
             loop_1_idx = self.edge_loop_indices[2*i  , :];
             loop_2_idx = self.edge_loop_indices[2*i+1, :];
@@ -101,7 +101,7 @@ class WireInflator(object):
             self.mesh_faces = np.vstack((self.mesh_faces, faces));
 
     @timethis
-    def __compute_min_edge_angle(self, idx):
+    def _compute_min_edge_angle(self, idx):
         min_angle = pi;
         v = self.wire_network.vertices[idx];
         neighbors = self.wire_network.vertex_neighbors[idx];
@@ -119,7 +119,7 @@ class WireInflator(object):
         return min_angle;
 
     @timethis
-    def __generate_frame(self, edge):
+    def _generate_frame(self, edge):
         edge_dir = self.wire_network.vertices[edge[1]] -\
                 self.wire_network.vertices[edge[0]];
         edge_dir /= norm(edge_dir);
@@ -134,7 +134,7 @@ class WireInflator(object):
         return edge_dir, offset_dir_1, offset_dir_2;
 
     @timethis
-    def __generate_joint(self, idx):
+    def _generate_joint(self, idx):
         num_vts = len(self.mesh_vertices);
         v = self.wire_network.vertices[idx];
         loop_vertices = v.reshape((-1,3));
@@ -157,11 +157,11 @@ class WireInflator(object):
             loop_idx = [(vi-1) / 4 for vi in face];
             if np.max(loop_idx) == np.min(loop_idx):
                 continue;
-            face = self.__correct_orientation(joint_center, convex_hull.points, face);
+            face = self._correct_orientation(joint_center, convex_hull.points, face);
             self.mesh_faces = np.vstack(
                     (self.mesh_faces, face + num_vts));
 
-    def __correct_orientation(self, center, points, face):
+    def _correct_orientation(self, center, points, face):
         vts = np.array(points)[face];
         face_center = np.mean(vts, axis=0);
         out_dir = face_center - center;
@@ -173,7 +173,7 @@ class WireInflator(object):
             return face;
 
     @timethis
-    def __clean_up(self):
+    def _clean_up(self):
         # Collapse short edges
         edge_remover = PyMeshUtils.ShortEdgeRemoval(self.mesh_vertices,
                 self.mesh_faces);

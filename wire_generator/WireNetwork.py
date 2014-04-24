@@ -21,6 +21,9 @@ class WireNetwork(object):
         else:
             self.vertices = np.multiply(self.vertices, factors);
 
+    def translate(self, offset):
+        self.vertices += offset;
+
     def trim(self):
         """ Remove all hanging edges
         e.g. edge with at least one vertex of valance <= 1
@@ -73,6 +76,10 @@ class WireNetwork(object):
     @property
     def bbox(self):
         return np.amin(self.vertices, axis=0), np.amax(self.vertices, axis=0);
+
+    @property
+    def centroid(self):
+        return np.average(self.vertices, axis=0);
 
     @property
     def total_wire_length(self):

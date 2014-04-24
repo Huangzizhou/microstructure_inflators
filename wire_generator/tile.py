@@ -8,6 +8,7 @@ import os.path
 from WireNetwork import WireNetwork
 from WirePattern import WirePattern
 from WireInflator import WireInflator
+from PeriodicWireInflator import PeriodicWireInflator
 
 def parse_config_file(config_file):
     """ syntax:
@@ -21,6 +22,7 @@ def parse_config_file(config_file):
         "y_tile_dir": [x, y, z],
         "z_tile_dir": [x, y, z],
         "trim": bool,
+        "periodic": bool,
         "output": output_file
     }
     """
@@ -59,7 +61,10 @@ def tile(config):
     factor = np.divide(target_bbox_max - target_bbox_min, bbox_max - bbox_min);
     tiled_network.scale(factor);
 
-    inflator = WireInflator(tiled_network);
+    if not config.get("periodic", False):
+        inflator = WireInflator(tiled_network);
+    else:
+        inflator = PeriodicWireInflator(tiled_network);
     inflator.inflate(config["thickness"]);
     inflator.save(str(config["output"]));
 
