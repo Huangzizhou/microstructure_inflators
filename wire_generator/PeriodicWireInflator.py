@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 from numpy.linalg import norm
-from math import pi, sqrt
+from math import pi, sqrt, radians
 from scipy.spatial import ConvexHull
 
 from WireNetwork import WireNetwork
@@ -31,6 +31,7 @@ class PeriodicWireInflator(WireInflator):
         super(PeriodicWireInflator, self).inflate(thickness, clean_up);
         self._clip_exterior();
         self._enforce_periodic_connectivity();
+        self._remove_obtuse_triangles();
 
     def __generate_phantom_wire_network(self):
         wire_pattern = WirePattern();
@@ -182,10 +183,31 @@ class PeriodicWireInflator(WireInflator):
         face_group = v_group[self.mesh_faces];
         face_group_1 = np.all(face_group == 1, axis=1);
         face_group_2 = np.all(face_group == 2, axis=1);
+        assert(np.sum(face_group_1) == np.sum(face_group_2));
 
         faces_in_1 = self.mesh_faces[face_group_1];
         faces_in_1_mapped = v_map_1_to_2[faces_in_1];
         faces_in_1_mapped = faces_in_1_mapped[:, [0, 2, 1]];
         self.mesh_faces[face_group_2] = faces_in_1_mapped;
+
+    def _remove_obtuse_triangles(self):
+        num_faces = 0;
+        count = 0
+        while num_faces != len(self.mesh_faces):
+            num_faces = len(self.mesh_faces);
+
+            # Remove obtuse triangles
+            obtuse_remover = PyMeshUtils.ObtuseTriangleRemoval(self.mesh_vertices,
+                    self.mesh_faces);
+            obtuse_remover.run(radians(170.0));
+            self.mesh_vertices = obtuse_remover.get_vertices();
+            self.mesh_faces = obtuse_remover.get_faces();
+
+            count += 1;
+            if count >= 10:
+                raise RuntimeError("Unable to resolve degenerated triangles" +
+                        " after {} iterations".format(count));
+
+        self._clean_up();
 
 
