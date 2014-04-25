@@ -29,9 +29,8 @@ class PeriodicWireInflator(WireInflator):
         if not clean_up:
             raise NotImplementedError("Clean up is required for periodic wires");
         super(PeriodicWireInflator, self).inflate(thickness, clean_up);
-        self._clip_exterior();
-        self._enforce_periodic_connectivity();
-        self._remove_obtuse_triangles();
+        self._clean_up();
+        #self._enforce_periodic_connectivity();
 
     def __generate_phantom_wire_network(self):
         wire_pattern = WirePattern();
@@ -87,8 +86,10 @@ class PeriodicWireInflator(WireInflator):
         phantom_loop = [];
         for i,e_idx in enumerate(self.wire_network.vertex_edge_neighbors[idx]):
             edge = self.wire_network.edges[e_idx];
+            edge_vec = self.wire_network.vertices[edge[0]] - self.wire_network.vertices[edge[1]];
             v_idx = np.where(np.array(edge).ravel() == idx)[0][0];
             loop = self.edge_loops[e_idx, v_idx, :, :].reshape((-1,3), order="C");
+            #loop = self._project_edge_loop_onto_bbox(loop, edge_vec);
             loop_vertices = np.vstack((loop_vertices, loop));
             self.edge_loop_indices[e_idx * 2 + v_idx, :] = \
                     np.arange(i*4, i*4+4) + num_vts + 1;
@@ -102,6 +103,8 @@ class PeriodicWireInflator(WireInflator):
                     return True;
             return False;
 
+        bbox_min, bbox_max = self.original_wire_network.bbox;
+        loop_vertices = np.clip(loop_vertices, bbox_min, bbox_max);
         joint_center = np.mean(loop_vertices, axis=0);
         convex_hull = ConvexHull(loop_vertices);
         self.mesh_vertices = np.vstack((self.mesh_vertices,
@@ -113,13 +116,58 @@ class PeriodicWireInflator(WireInflator):
             self.mesh_faces = np.vstack(
                     (self.mesh_faces, face + num_vts));
 
-    def _clip_exterior(self):
+    def _bbox_edge_intersection(self, bbox, p1, p2):
+        eps = 1e-6;
+        bbox_min ,bbox_max = bbox;
+        bbox = np.array(bbox);
+        direction = p2 - p1;
+        effective_coord = direction != 0.0;
+        step = np.divide((bbox-p1)[effective_coord],
+                direction[effective_coord]).ravel();
+        candidates = np.outer(step, direction) + p1[np.newaxis, :];
+        inside = np.logical_and(
+                np.all(candidates < bbox_max+eps, axis=1), 
+                np.all(candidates > bbox_min-eps, axis=1) );
+        if np.any(inside):
+            step = step[inside];
+            step_idx = np.argmin(np.absolute(step));
+            p = candidates[inside][step_idx];
+            return p;
+        else:
+            raise RuntimeError(
+                    "Edge {} to {} does not intersect bbox".format(p1, p2));
+
+    def _project_edge_loop_onto_bbox(self, loop, proj_dir):
+        eps = 1e-6;
         bbox_min, bbox_max = self.original_wire_network.bbox;
-        self.mesh_vertices = np.clip(self.mesh_vertices, bbox_min, bbox_max);
-        self._clean_up();
+        projected_vertices = [];
+        for v in loop:
+            if np.all(v < bbox_max + eps) and np.all(v > bbox_min - eps):
+                projected_vertices.append(v);
+                continue;
+            effective_coords = proj_dir != 0.0;
+            min_step = np.divide((bbox_min - v)[effective_coords],
+                    proj_dir[effective_coords]);
+            max_step = np.divide((bbox_max - v)[effective_coords],
+                    proj_dir[effective_coords]);
+            candidates = np.vstack([
+                np.outer(min_step, proj_dir) + v[np.newaxis, :],
+                np.outer(max_step, proj_dir) + v[np.newaxis, :]]);
+            inside = np.logical_and(np.all(candidates < bbox_max+eps, axis=1),
+                    np.all(candidates > bbox_min-eps, axis=1));
+            if np.any(inside):
+                step = np.array([min_step, max_step]).ravel(order="C")[inside];
+                step_idx = np.argmin(np.absolute(step));
+                projected_v = candidates[inside][step_idx];
+                print(v, projected_v);
+            else:
+                projected_v = np.clip(v, bbox_min, bbox_max);
+
+            projected_vertices.append(projected_v);
+        return np.vstack(projected_vertices);
 
     def _enforce_periodic_connectivity(self):
-        eps = 1e-6;
+        eps = 1e-2;
         bbox_min, bbox_max = self.original_wire_network.bbox;
         bbox_size = bbox_max - bbox_min;
 
@@ -149,23 +197,29 @@ class PeriodicWireInflator(WireInflator):
         """
         assert(len(min_vtx) == len(max_vtx));
         num_pts = len(min_vtx);
-        cell_size = np.amax(offset) * 0.001;
+        cell_size = np.amax(offset) * 0.01;
         hash_grid = PyMesh.HashGrid.create(cell_size);
         hash_grid.insert_multiple(min_vtx,
                 self.mesh_vertices[min_vtx] + offset);
 
-        mapped_min_vtx = np.zeros(num_pts, dtype=int);
+        mapped_min_vtx = [];
+        mapped_max_vtx = [];
         for i,vi in enumerate(max_vtx):
             v = self.mesh_vertices[vi];
             nearby_v_indices = hash_grid.get_items_near_point(v).ravel();
             if len(nearby_v_indices) != 1:
-                err_msg = "Inflated mesh cannot be tiled in " +\
-                        "[{}] direction.\n".format(offset);
-                err_msg += "Found {} vertices to match {}".format(
-                        len(nearby_v_indices), v);
-                raise RuntimeError(err_msg);
-            mapped_min_vtx[i] = nearby_v_indices[0];
-        min_vtx = mapped_min_vtx;
+                pass;
+                #err_msg = "Inflated mesh cannot be tiled in " +\
+                #        "{} direction.\n".format(offset);
+                #err_msg += "Found {} vertices to match {}".format(
+                #        len(nearby_v_indices), v);
+                #raise RuntimeError(err_msg);
+            else:
+                mapped_min_vtx.append(nearby_v_indices[0]);
+                mapped_max_vtx.append(i);
+        min_vtx = np.array(mapped_min_vtx, dtype=int);
+        max_vtx = np.array(mapped_max_vtx, dtype=int);
+        print(len(min_vtx), len(max_vtx));
         return min_vtx, max_vtx;
 
     def _correct_inconsistent_faces(self, v_indices_1, v_indices_2):
@@ -177,37 +231,18 @@ class PeriodicWireInflator(WireInflator):
         v_group[v_indices_1] = 1;
         v_group[v_indices_2] = 2;
 
-        v_map_1_to_2 = np.zeros(len(self.mesh_vertices)) - 1;
+        v_map_1_to_2 = np.zeros(len(self.mesh_vertices), dtype=int) - 1;
         v_map_1_to_2[v_indices_1] = v_indices_2;
 
         face_group = v_group[self.mesh_faces];
         face_group_1 = np.all(face_group == 1, axis=1);
         face_group_2 = np.all(face_group == 2, axis=1);
+        print(np.sum(face_group_1));
+        print(np.sum(face_group_2));
         assert(np.sum(face_group_1) == np.sum(face_group_2));
 
         faces_in_1 = self.mesh_faces[face_group_1];
         faces_in_1_mapped = v_map_1_to_2[faces_in_1];
         faces_in_1_mapped = faces_in_1_mapped[:, [0, 2, 1]];
         self.mesh_faces[face_group_2] = faces_in_1_mapped;
-
-    def _remove_obtuse_triangles(self):
-        num_faces = 0;
-        count = 0
-        while num_faces != len(self.mesh_faces):
-            num_faces = len(self.mesh_faces);
-
-            # Remove obtuse triangles
-            obtuse_remover = PyMeshUtils.ObtuseTriangleRemoval(self.mesh_vertices,
-                    self.mesh_faces);
-            obtuse_remover.run(radians(170.0));
-            self.mesh_vertices = obtuse_remover.get_vertices();
-            self.mesh_faces = obtuse_remover.get_faces();
-
-            count += 1;
-            if count >= 10:
-                raise RuntimeError("Unable to resolve degenerated triangles" +
-                        " after {} iterations".format(count));
-
-        self._clean_up();
-
 
