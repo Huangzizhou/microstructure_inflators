@@ -6,6 +6,8 @@ from numpy.linalg import norm
 from math import pi, sqrt, radians
 from scipy.spatial import ConvexHull
 
+from BoxIntersection import BoxIntersection
+from UniquePointExtractor import UniquePointExtractor
 from WireNetwork import WireNetwork
 from WireInflator import WireInflator
 from WirePattern import WirePattern
@@ -29,8 +31,8 @@ class PeriodicWireInflator(WireInflator):
         if not clean_up:
             raise NotImplementedError("Clean up is required for periodic wires");
         super(PeriodicWireInflator, self).inflate(thickness, clean_up);
-        self._clean_up();
-        #self._enforce_periodic_connectivity();
+        #self._clean_up();
+        self._enforce_periodic_connectivity();
 
     def __generate_phantom_wire_network(self):
         wire_pattern = WirePattern();
@@ -76,7 +78,179 @@ class PeriodicWireInflator(WireInflator):
                     [loop_2_idx[3], loop_1_idx[0], loop_2_idx[0]] ];
             self.mesh_faces = np.vstack((self.mesh_faces, faces));
 
+    def _generate_joints(self):
+        self._register_edge_loops();
+        super(PeriodicWireInflator, self)._generate_joints();
+
+    def _register_edge_loops(self):
+        self.grid = PyMesh.HashGrid.create(1e-3);
+        for i,edge in self.wire_network.edges:
+            end_pts = self.wire_network.vertices[edge];
+            loop_0 = self.edge_loops[i, 0, :, :].reshape((-1, 3), order="C");
+            loop_1 = self.edge_loops[i, 0, :, :].reshape((-1, 3), order="C");
+            self.grid.insert_batch(i, loop_0);
+            self.grid.insert_batch(i, loop_1);
+
+    def _look_up_edge_loop_vertex(self, p):
+        candidates = self.grid.get_items_near_point(p);
+        if len(candidates) == 0:
+            return None;
+        elif len(candidates) == 1:
+            return candidates[0];
+        else:
+            raise RuntimeError("More than one edge loops occupies this point");
+
     def _generate_joint(self, idx):
+        if self.phantom_vertex_map[idx] < 0:
+            return;
+
+        v = self.wire_network.vertices[idx];
+        loop_vertices, phantom_indicator = self._get_incident_edge_loop_vertices(idx);
+        loop_vertices = np.vstack([v, loop_vertices]);
+        phantom_indicator = [False] + phantom_indicator.tolist();
+        hull = ConvexHull(loop_vertices);
+
+        bbox_min, bbox_max = self.original_wire_network.bbox;
+        cell_bbox = BoxIntersection(bbox_min, bbox_max);
+        intersection_pts = cell_bbox.intersect(hull.points, hull.simplices);
+
+        eps = 1e-8;
+        inside = np.logical_and(
+                np.all(loop_vertices > bbox_min - eps, axis=1),
+                np.all(loop_vertices < bbox_max + eps, axis=1));
+        interior_pts = loop_vertices[inside];
+
+        if len(intersection_pts) > 0:
+            vertices = np.vstack((interior_pts, intersection_pts));
+        else:
+            vertices = interior_pts;
+        vertices = UniquePointExtractor.extract(vertices);
+        hull = ConvexHull(vertices);
+
+        clipped_loop_vertices = np.clip(loop_vertices, bbox_min, bbox_max);
+        index_map = self._map_points(clipped_loop_vertices, hull.points);
+        self._register_incident_edge_loop_vertex_indices(idx, index_map);
+
+        valid_clipped_loop_vertices = clipped_loop_vertices[
+                np.logical_not(phantom_indicator)];
+        inverse_map = self._map_points(hull.points, valid_clipped_loop_vertices);
+
+        faces = [];
+        for face in hull.simplices:
+            loop_indices = set(range(len(hull.points)));
+            for vi in face:
+                loop_indices &= set((inverse_map[vi].ravel() - 1)/4);
+            if len(loop_indices) == 1:
+                continue;
+            else:
+                faces.append(face);
+        faces = np.array(faces, dtype=int);
+
+        num_vts = len(self.mesh_vertices);
+        self.mesh_vertices = np.vstack([self.mesh_vertices, hull.points]);
+        self.mesh_faces = np.vstack([self.mesh_faces, faces + num_vts]);
+
+    def _map_points(self, from_pts, to_pts):
+        grid = PyMesh.HashGrid.create(1e-8);
+        grid.insert_multiple(np.arange(len(to_pts), dtype=int), to_pts);
+
+        indices = [];
+        for i,p in enumerate(from_pts):
+            candidates = grid.get_items_near_point(p);
+            indices.append(candidates);
+        return indices;
+
+    def _get_incident_edge_loop_vertices(self, vertex_idx):
+        loop_vertices = [];
+        phantom_indicator = [];
+        for i,e_idx in enumerate(self.wire_network.vertex_edge_neighbors[vertex_idx]):
+            edge = self.wire_network.edges[e_idx];
+            v_idx = np.arange(2)[edge == vertex_idx];
+            loop = self.edge_loops[e_idx, v_idx, :, :].reshape((-1, 3),
+                    order="C");
+            loop_vertices.append(loop);
+            phantom_indicator.append(np.any(self.phantom_vertex_map[edge] < 0));
+        loop_vertices = np.vstack(loop_vertices);
+        phantom_indicator = np.repeat(phantom_indicator, 4);
+        return loop_vertices, phantom_indicator;
+
+    def _register_incident_edge_loop_vertex_indices(self, vertex_idx, index_map):
+        num_vts = len(self.mesh_vertices);
+        for i, e_idx in enumerate(self.wire_network.vertex_edge_neighbors[vertex_idx]):
+            edge = self.wire_network.edges[e_idx];
+            if np.any(self.phantom_vertex_map[edge] < 0):
+                continue;
+            v_idx = np.arange(2)[edge == vertex_idx];
+            loop_v_idx = [];
+            for vi in range(i*4+1, i*4+4+1):
+                assert(len(index_map[vi]) == 1)
+                loop_v_idx.append(index_map[vi].ravel()[0]);
+
+            self.edge_loop_indices[e_idx*2+v_idx, :] = \
+                    np.array(loop_v_idx, dtype=int) + num_vts;
+
+    def _generate_joint_old_2(self, idx):
+        if self.phantom_vertex_map[idx] < 0:
+            return;
+
+        eps = 1e-6;
+        num_vts = len(self.mesh_vertices);
+        v = self.wire_network.vertices[idx];
+        loop_vertices = v.reshape((-1,3));
+        phantom_loop = [];
+        bbox_min, bbox_max = self.original_wire_network.bbox;
+        cell_size = norm(bbox_max - bbox_min) * 1e-3;
+        grid = PyMesh.HashGrid.create(cell_size);
+        for i,e_idx in enumerate(self.wire_network.vertex_edge_neighbors[idx]):
+            edge = self.wire_network.edges[e_idx];
+            edge_vec = self.wire_network.vertices[edge[0]] - self.wire_network.vertices[edge[1]];
+            v_idx = np.where(np.array(edge).ravel() == idx)[0][0];
+            loop = self.edge_loops[e_idx, v_idx, :, :].reshape((-1,3), order="C");
+            loop_vertices = np.vstack((loop_vertices, loop));
+            grid.insert_batch(i, loop);
+            self.edge_loop_indices[e_idx * 2 + v_idx, :] = \
+                    np.arange(i*4, i*4+4) + num_vts + 1;
+            phantom_loop.append(np.any(self.phantom_vertex_map[edge] < 0));
+
+        joint_center = np.mean(loop_vertices, axis=0);
+        convex_hull = ConvexHull(loop_vertices);
+
+        vertices = convex_hull.points;
+        faces = convex_hull.simplices;
+        box = BoxIntersection(bbox_min, bbox_max);
+        intersections = box.intersect(vertices, faces);
+        inside = np.logical_and(
+                np.all(vertices > bbox_min - eps, axis=1),
+                np.all(vertices < bbox_max + eps, axis=1));
+        if len(intersections) > 0:
+            vertices = np.vstack((vertices[inside], intersections));
+        else:
+            vertices = vertices[inside];
+        convex_hull = ConvexHull(vertices);
+
+        def is_edge_loop_face(simplex):
+            indices = [];
+            for vi in simplex:
+                idx = grid.get_items_near_point(convex_hull.points[vi]);
+                if len(idx) > 0:
+                    indices.append(idx);
+            if len(indices) != len(simplex):
+                return False;
+            if np.max(indices) == np.min(indices):
+                if not phantom_loop[indices[0]]:
+                    return True;
+            return False;
+
+        self.mesh_vertices = np.vstack((self.mesh_vertices,
+            convex_hull.points));
+        for face in convex_hull.simplices:
+            if is_edge_loop_face(face):
+                continue;
+            face = self._correct_orientation(joint_center, convex_hull.points, face);
+            self.mesh_faces = np.vstack(
+                    (self.mesh_faces, face + num_vts));
+
+    def _generate_joint_old(self, idx):
         if self.phantom_vertex_map[idx] < 0:
             return;
 
@@ -104,7 +278,7 @@ class PeriodicWireInflator(WireInflator):
             return False;
 
         bbox_min, bbox_max = self.original_wire_network.bbox;
-        loop_vertices = np.clip(loop_vertices, bbox_min, bbox_max);
+        #loop_vertices = np.clip(loop_vertices, bbox_min, bbox_max);
         joint_center = np.mean(loop_vertices, axis=0);
         convex_hull = ConvexHull(loop_vertices);
         self.mesh_vertices = np.vstack((self.mesh_vertices,
@@ -159,7 +333,6 @@ class PeriodicWireInflator(WireInflator):
                 step = np.array([min_step, max_step]).ravel(order="C")[inside];
                 step_idx = np.argmin(np.absolute(step));
                 projected_v = candidates[inside][step_idx];
-                print(v, projected_v);
             else:
                 projected_v = np.clip(v, bbox_min, bbox_max);
 
@@ -216,10 +389,9 @@ class PeriodicWireInflator(WireInflator):
                 #raise RuntimeError(err_msg);
             else:
                 mapped_min_vtx.append(nearby_v_indices[0]);
-                mapped_max_vtx.append(i);
+                mapped_max_vtx.append(vi);
         min_vtx = np.array(mapped_min_vtx, dtype=int);
         max_vtx = np.array(mapped_max_vtx, dtype=int);
-        print(len(min_vtx), len(max_vtx));
         return min_vtx, max_vtx;
 
     def _correct_inconsistent_faces(self, v_indices_1, v_indices_2):
@@ -237,8 +409,6 @@ class PeriodicWireInflator(WireInflator):
         face_group = v_group[self.mesh_faces];
         face_group_1 = np.all(face_group == 1, axis=1);
         face_group_2 = np.all(face_group == 2, axis=1);
-        print(np.sum(face_group_1));
-        print(np.sum(face_group_2));
         assert(np.sum(face_group_1) == np.sum(face_group_2));
 
         faces_in_1 = self.mesh_faces[face_group_1];
