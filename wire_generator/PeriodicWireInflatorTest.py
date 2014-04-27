@@ -55,13 +55,3 @@ class PeriodicWireInflatorTest(unittest.TestCase):
             self.assertTrue(np.any(center_1 > bbox_min - eps));
             self.assertTrue(np.any(center_2 > bbox_min - eps));
 
-    def test_bbox_edge_intersection(self):
-        inflator = PeriodicWireInflator(self.wire_network);
-        bbox = self.wire_network.bbox;
-        p1 = np.array([-1.1, 0, 0]);
-        p2 = np.array([0, 0, 0]);
-        p = inflator._bbox_edge_intersection(bbox, p1, p2);
-        self.assertAlmostEqual(-1.0, p[0]);
-        self.assertAlmostEqual( 0.0, p[1]);
-        self.assertAlmostEqual( 0.0, p[2]);
-
