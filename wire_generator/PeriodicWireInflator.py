@@ -7,6 +7,7 @@ from math import pi, sqrt, radians
 from scipy.spatial import ConvexHull
 
 from BoxIntersection import BoxIntersection
+from Subdivision import Subdivision
 from UniquePointExtractor import UniquePointExtractor
 from WireNetwork import WireNetwork
 from WireInflator import WireInflator
@@ -31,8 +32,14 @@ class PeriodicWireInflator(WireInflator):
         if not clean_up:
             raise NotImplementedError("Clean up is required for periodic wires");
         super(PeriodicWireInflator, self).inflate(thickness, clean_up);
-        #self._clean_up();
         self._enforce_periodic_connectivity();
+        self._clean_up();
+        self._subdivide(1);
+
+    def _subdivide(self, num_iterations):
+        sub = Subdivision();
+        self.mesh_vertices, self.mesh_faces = \
+                sub.subdivide(self.mesh_vertices, self.mesh_faces, num_iterations);
 
     def __generate_phantom_wire_network(self):
         wire_pattern = WirePattern();
@@ -63,20 +70,49 @@ class PeriodicWireInflator(WireInflator):
                 self.phantom_vertex_map[i] = nearby_v_indices[0];
 
     def _generate_edge_pipes(self):
+        bbox_min, bbox_max = self.original_wire_network.bbox;
+        segment_len = norm(bbox_max - bbox_min) * 0.1;
         for i,edge in enumerate(self.wire_network.edges):
             if np.any(self.phantom_vertex_map[edge] < 0): continue;
-            loop_1_idx = self.edge_loop_indices[2*i  , :];
-            loop_2_idx = self.edge_loop_indices[2*i+1, :];
-            faces = [
-                    [loop_1_idx[0], loop_1_idx[1], loop_2_idx[0]],
-                    [loop_2_idx[0], loop_1_idx[1], loop_2_idx[1]],
-                    [loop_2_idx[1], loop_1_idx[1], loop_1_idx[2]],
-                    [loop_2_idx[1], loop_1_idx[2], loop_2_idx[2]],
-                    [loop_2_idx[2], loop_1_idx[2], loop_1_idx[3]],
-                    [loop_2_idx[2], loop_1_idx[3], loop_2_idx[3]],
-                    [loop_2_idx[3], loop_1_idx[3], loop_1_idx[0]],
-                    [loop_2_idx[3], loop_1_idx[0], loop_2_idx[0]] ];
-            self.mesh_faces = np.vstack((self.mesh_faces, faces));
+            self._generate_edge_pipe(i, segment_len);
+
+    def _generate_edge_pipe(self, ei, segment_len):
+        edge = self.wire_network.edges[ei];
+        v0 = self.wire_network.vertices[edge[0]];
+        v1 = self.wire_network.vertices[edge[1]];
+        edge_len = norm(v1 - v0);
+        num_segments = int(np.round(edge_len / segment_len));
+
+        loop_1_idx = self.edge_loop_indices[2*ei  , :];
+        loop_2_idx = self.edge_loop_indices[2*ei+1, :];
+        loop_1_vts = self.mesh_vertices[loop_1_idx];
+        loop_2_vts = self.mesh_vertices[loop_2_idx];
+
+        vertex_count = len(self.mesh_vertices);
+        loop_idx = [loop_1_idx];
+        extra_vertices = [];
+        for i in range(1, num_segments):
+            frac = float(i) / float(num_segments);
+            loop_vtx = loop_1_vts * (1.0 - frac) + loop_2_vts * frac;
+            loop_idx.append(range(vertex_count+(i-1)*4, vertex_count+i*4));
+            extra_vertices.append(loop_vtx);
+        self.mesh_vertices = np.vstack([self.mesh_vertices] + extra_vertices);
+        loop_idx.append(loop_2_idx);
+
+        faces = [];
+        for i in range(num_segments):
+            l1_idx = loop_idx[i];
+            l2_idx = loop_idx[i+1];
+            faces.append([l1_idx[0], l1_idx[1], l2_idx[0]]);
+            faces.append([l2_idx[0], l1_idx[1], l2_idx[1]]);
+            faces.append([l2_idx[1], l1_idx[1], l1_idx[2]]);
+            faces.append([l2_idx[1], l1_idx[2], l2_idx[2]]);
+            faces.append([l2_idx[2], l1_idx[2], l1_idx[3]]);
+            faces.append([l2_idx[2], l1_idx[3], l2_idx[3]]);
+            faces.append([l2_idx[3], l1_idx[3], l1_idx[0]]);
+            faces.append([l2_idx[3], l1_idx[0], l2_idx[0]]);
+
+        self.mesh_faces = np.vstack((self.mesh_faces, faces));
 
     def _generate_joints(self):
         self._register_edge_loops();
@@ -188,156 +224,6 @@ class PeriodicWireInflator(WireInflator):
 
             self.edge_loop_indices[e_idx*2+v_idx, :] = \
                     np.array(loop_v_idx, dtype=int) + num_vts;
-
-    def _generate_joint_old_2(self, idx):
-        if self.phantom_vertex_map[idx] < 0:
-            return;
-
-        eps = 1e-6;
-        num_vts = len(self.mesh_vertices);
-        v = self.wire_network.vertices[idx];
-        loop_vertices = v.reshape((-1,3));
-        phantom_loop = [];
-        bbox_min, bbox_max = self.original_wire_network.bbox;
-        cell_size = norm(bbox_max - bbox_min) * 1e-3;
-        grid = PyMesh.HashGrid.create(cell_size);
-        for i,e_idx in enumerate(self.wire_network.vertex_edge_neighbors[idx]):
-            edge = self.wire_network.edges[e_idx];
-            edge_vec = self.wire_network.vertices[edge[0]] - self.wire_network.vertices[edge[1]];
-            v_idx = np.where(np.array(edge).ravel() == idx)[0][0];
-            loop = self.edge_loops[e_idx, v_idx, :, :].reshape((-1,3), order="C");
-            loop_vertices = np.vstack((loop_vertices, loop));
-            grid.insert_batch(i, loop);
-            self.edge_loop_indices[e_idx * 2 + v_idx, :] = \
-                    np.arange(i*4, i*4+4) + num_vts + 1;
-            phantom_loop.append(np.any(self.phantom_vertex_map[edge] < 0));
-
-        joint_center = np.mean(loop_vertices, axis=0);
-        convex_hull = ConvexHull(loop_vertices);
-
-        vertices = convex_hull.points;
-        faces = convex_hull.simplices;
-        box = BoxIntersection(bbox_min, bbox_max);
-        intersections = box.intersect(vertices, faces);
-        inside = np.logical_and(
-                np.all(vertices > bbox_min - eps, axis=1),
-                np.all(vertices < bbox_max + eps, axis=1));
-        if len(intersections) > 0:
-            vertices = np.vstack((vertices[inside], intersections));
-        else:
-            vertices = vertices[inside];
-        convex_hull = ConvexHull(vertices);
-
-        def is_edge_loop_face(simplex):
-            indices = [];
-            for vi in simplex:
-                idx = grid.get_items_near_point(convex_hull.points[vi]);
-                if len(idx) > 0:
-                    indices.append(idx);
-            if len(indices) != len(simplex):
-                return False;
-            if np.max(indices) == np.min(indices):
-                if not phantom_loop[indices[0]]:
-                    return True;
-            return False;
-
-        self.mesh_vertices = np.vstack((self.mesh_vertices,
-            convex_hull.points));
-        for face in convex_hull.simplices:
-            if is_edge_loop_face(face):
-                continue;
-            face = self._correct_orientation(joint_center, convex_hull.points, face);
-            self.mesh_faces = np.vstack(
-                    (self.mesh_faces, face + num_vts));
-
-    def _generate_joint_old(self, idx):
-        if self.phantom_vertex_map[idx] < 0:
-            return;
-
-        num_vts = len(self.mesh_vertices);
-        v = self.wire_network.vertices[idx];
-        loop_vertices = v.reshape((-1,3));
-        phantom_loop = [];
-        for i,e_idx in enumerate(self.wire_network.vertex_edge_neighbors[idx]):
-            edge = self.wire_network.edges[e_idx];
-            edge_vec = self.wire_network.vertices[edge[0]] - self.wire_network.vertices[edge[1]];
-            v_idx = np.where(np.array(edge).ravel() == idx)[0][0];
-            loop = self.edge_loops[e_idx, v_idx, :, :].reshape((-1,3), order="C");
-            #loop = self._project_edge_loop_onto_bbox(loop, edge_vec);
-            loop_vertices = np.vstack((loop_vertices, loop));
-            self.edge_loop_indices[e_idx * 2 + v_idx, :] = \
-                    np.arange(i*4, i*4+4) + num_vts + 1;
-            phantom_loop.append(np.any(self.phantom_vertex_map[edge] < 0));
-
-        def is_edge_loop_face(simplex):
-            idx = [(vi - 1) / 4 for vi in simplex];
-            if np.max(idx) == np.min(idx):
-                # all face vertices belong to the same edge loop
-                if not phantom_loop[idx[0]]:
-                    return True;
-            return False;
-
-        bbox_min, bbox_max = self.original_wire_network.bbox;
-        #loop_vertices = np.clip(loop_vertices, bbox_min, bbox_max);
-        joint_center = np.mean(loop_vertices, axis=0);
-        convex_hull = ConvexHull(loop_vertices);
-        self.mesh_vertices = np.vstack((self.mesh_vertices,
-            convex_hull.points));
-        for face in convex_hull.simplices:
-            if is_edge_loop_face(face):
-                continue;
-            face = self._correct_orientation(joint_center, convex_hull.points, face);
-            self.mesh_faces = np.vstack(
-                    (self.mesh_faces, face + num_vts));
-
-    def _bbox_edge_intersection(self, bbox, p1, p2):
-        eps = 1e-6;
-        bbox_min ,bbox_max = bbox;
-        bbox = np.array(bbox);
-        direction = p2 - p1;
-        effective_coord = direction != 0.0;
-        step = np.divide((bbox-p1)[effective_coord],
-                direction[effective_coord]).ravel();
-        candidates = np.outer(step, direction) + p1[np.newaxis, :];
-        inside = np.logical_and(
-                np.all(candidates < bbox_max+eps, axis=1), 
-                np.all(candidates > bbox_min-eps, axis=1) );
-        if np.any(inside):
-            step = step[inside];
-            step_idx = np.argmin(np.absolute(step));
-            p = candidates[inside][step_idx];
-            return p;
-        else:
-            raise RuntimeError(
-                    "Edge {} to {} does not intersect bbox".format(p1, p2));
-
-    def _project_edge_loop_onto_bbox(self, loop, proj_dir):
-        eps = 1e-6;
-        bbox_min, bbox_max = self.original_wire_network.bbox;
-        projected_vertices = [];
-        for v in loop:
-            if np.all(v < bbox_max + eps) and np.all(v > bbox_min - eps):
-                projected_vertices.append(v);
-                continue;
-            effective_coords = proj_dir != 0.0;
-            min_step = np.divide((bbox_min - v)[effective_coords],
-                    proj_dir[effective_coords]);
-            max_step = np.divide((bbox_max - v)[effective_coords],
-                    proj_dir[effective_coords]);
-            candidates = np.vstack([
-                np.outer(min_step, proj_dir) + v[np.newaxis, :],
-                np.outer(max_step, proj_dir) + v[np.newaxis, :]]);
-            inside = np.logical_and(np.all(candidates < bbox_max+eps, axis=1),
-                    np.all(candidates > bbox_min-eps, axis=1));
-            if np.any(inside):
-                step = np.array([min_step, max_step]).ravel(order="C")[inside];
-                step_idx = np.argmin(np.absolute(step));
-                projected_v = candidates[inside][step_idx];
-            else:
-                projected_v = np.clip(v, bbox_min, bbox_max);
-
-            projected_vertices.append(projected_v);
-        return np.vstack(projected_vertices);
 
     def _enforce_periodic_connectivity(self):
         eps = 1e-2;
