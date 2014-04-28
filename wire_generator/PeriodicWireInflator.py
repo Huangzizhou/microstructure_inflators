@@ -248,6 +248,10 @@ class PeriodicWireInflator(WireInflator):
         matched_y = self._match_vertices(min_y_vtx, max_y_vtx, offset_y);
         matched_z = self._match_vertices(min_z_vtx, max_z_vtx, offset_z);
 
+        self.snap_corresponding_vertices(*matched_x);
+        self.snap_corresponding_vertices(*matched_y);
+        self.snap_corresponding_vertices(*matched_z);
+
         self._correct_inconsistent_faces(*matched_x);
         self._correct_inconsistent_faces(*matched_y);
         self._correct_inconsistent_faces(*matched_z);
@@ -280,6 +284,22 @@ class PeriodicWireInflator(WireInflator):
         min_vtx = np.array(mapped_min_vtx, dtype=int);
         max_vtx = np.array(mapped_max_vtx, dtype=int);
         return min_vtx, max_vtx;
+
+    def snap_corresponding_vertices(self, min_vertices, max_vertices):
+        bbox_min, bbox_max = self.original_wire_network.bbox;
+        for i in range(len(min_vertices)):
+            vi = min_vertices[i];
+            vj = max_vertices[i];
+            v_min = self.mesh_vertices[vi];
+            v_max = self.mesh_vertices[vj];
+            direction = np.argmax(v_max - v_min);
+            v_mid = 0.5 * (v_min + v_max);
+            v_min = np.copy(v_mid);
+            v_max = np.copy(v_mid);
+            v_min[direction] = bbox_min[direction];
+            v_max[direction] = bbox_max[direction];
+            self.mesh_vertices[vi] = v_min;
+            self.mesh_vertices[vj] = v_max;
 
     def _correct_inconsistent_faces(self, v_indices_1, v_indices_2):
         """ Given that each item in v_indices_1 matches the corresponding item in
