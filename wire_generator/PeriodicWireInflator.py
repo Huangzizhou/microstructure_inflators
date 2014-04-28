@@ -32,9 +32,9 @@ class PeriodicWireInflator(WireInflator):
         if not clean_up:
             raise NotImplementedError("Clean up is required for periodic wires");
         super(PeriodicWireInflator, self).inflate(thickness, clean_up);
-        #self._enforce_periodic_connectivity();
-        #self._clean_up();
-        #self._subdivide(1);
+        self._enforce_periodic_connectivity();
+        self._clean_up();
+        self._subdivide(1);
 
     def _subdivide(self, num_iterations):
         sub = Subdivision();
