@@ -32,9 +32,9 @@ class PeriodicWireInflator(WireInflator):
         if not clean_up:
             raise NotImplementedError("Clean up is required for periodic wires");
         super(PeriodicWireInflator, self).inflate(thickness, clean_up);
-        self._enforce_periodic_connectivity();
-        self._clean_up();
-        self._subdivide(1);
+        #self._enforce_periodic_connectivity();
+        #self._clean_up();
+        #self._subdivide(1);
 
     def _subdivide(self, num_iterations):
         sub = Subdivision();
@@ -155,6 +155,7 @@ class PeriodicWireInflator(WireInflator):
                 np.all(loop_vertices > bbox_min - eps, axis=1),
                 np.all(loop_vertices < bbox_max + eps, axis=1));
         interior_pts = loop_vertices[inside];
+        interior_pts = np.clip(interior_pts, bbox_min, bbox_max);
 
         if len(intersection_pts) > 0:
             vertices = np.vstack((interior_pts, intersection_pts));
