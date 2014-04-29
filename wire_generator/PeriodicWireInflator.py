@@ -163,6 +163,7 @@ class PeriodicWireInflator(WireInflator):
             vertices = interior_pts;
         vertices = UniquePointExtractor.extract(vertices);
         hull = ConvexHull(vertices);
+        joint_center = np.mean(vertices, axis=0);
 
         clipped_loop_vertices = np.clip(loop_vertices, bbox_min, bbox_max);
         index_map = self._map_points(clipped_loop_vertices, hull.points);
@@ -174,6 +175,7 @@ class PeriodicWireInflator(WireInflator):
 
         faces = [];
         for face in hull.simplices:
+            face = self._correct_orientation(joint_center, hull.points, face);
             loop_indices = set(range(len(hull.points)));
             for vi in face:
                 loop_indices &= set((inverse_map[vi].ravel() - 1)/4);
