@@ -32,8 +32,8 @@ class WirePatternTest(unittest.TestCase):
         pattern.tile([2, 2, 2]);
         bbox_min = np.amin(pattern.wire_vertices, axis=0);
         bbox_max = np.amax(pattern.wire_vertices, axis=0);
-        self.assertListEqual([0.0, 0.0, 0.0], bbox_min.tolist());
-        self.assertListEqual([2.0, 2.0, 2.0], bbox_max.tolist());
+        self.assertListEqual([-1.0, -1.0, -1.0], bbox_min.tolist());
+        self.assertListEqual([ 1.0,  1.0,  1.0], bbox_max.tolist());
 
     def test_remove_duplicates(self):
         pattern = WirePattern();

@@ -51,6 +51,7 @@ class WirePattern(object):
                             (self.wire_edges, edges));
         self.__remove_duplicated_vertices();
         self.__remove_duplicated_edges();
+        self.__center_at_origin();
 
     @timethis
     def __remove_duplicated_vertices(self):
@@ -75,6 +76,13 @@ class WirePattern(object):
     def __remove_duplicated_edges(self):
         edges = set([tuple(sorted(edge)) for edge in self.wire_edges]);
         self.wire_edges = np.array(list(edges), dtype=int);
+
+    @timethis
+    def __center_at_origin(self):
+        bbox_min = np.amin(self.wire_vertices, axis=0);
+        bbox_max = np.amax(self.wire_vertices, axis=0);
+        bbox_center = 0.5 * (bbox_min + bbox_max);
+        self.wire_vertices = self.wire_vertices - bbox_center;
 
     @property
     @timethis

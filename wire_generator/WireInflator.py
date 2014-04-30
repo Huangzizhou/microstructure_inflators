@@ -81,19 +81,49 @@ class WireInflator(object):
 
     @timethis
     def _generate_edge_pipes(self):
+        bbox_min, bbox_max = self.wire_network.bbox;
+        #segment_len = norm(bbox_max - bbox_min) * 0.1;
+        segment_len = self.thickness * 2;
         for i,edge in enumerate(self.wire_network.edges):
-            loop_1_idx = self.edge_loop_indices[2*i  , :];
-            loop_2_idx = self.edge_loop_indices[2*i+1, :];
-            faces = [
-                    [loop_1_idx[0], loop_1_idx[1], loop_2_idx[0]],
-                    [loop_2_idx[0], loop_1_idx[1], loop_2_idx[1]],
-                    [loop_2_idx[1], loop_1_idx[1], loop_1_idx[2]],
-                    [loop_2_idx[1], loop_1_idx[2], loop_2_idx[2]],
-                    [loop_2_idx[2], loop_1_idx[2], loop_1_idx[3]],
-                    [loop_2_idx[2], loop_1_idx[3], loop_2_idx[3]],
-                    [loop_2_idx[3], loop_1_idx[3], loop_1_idx[0]],
-                    [loop_2_idx[3], loop_1_idx[0], loop_2_idx[0]] ];
-            self.mesh_faces = np.vstack((self.mesh_faces, faces));
+            self._generate_edge_pipe(i, segment_len);
+
+    def _generate_edge_pipe(self, ei, segment_len):
+        edge = self.wire_network.edges[ei];
+        v0 = self.wire_network.vertices[edge[0]];
+        v1 = self.wire_network.vertices[edge[1]];
+        edge_len = norm(v1 - v0);
+        num_segments = int(np.round(edge_len / segment_len));
+
+        loop_1_idx = self.edge_loop_indices[2*ei  , :];
+        loop_2_idx = self.edge_loop_indices[2*ei+1, :];
+        loop_1_vts = self.mesh_vertices[loop_1_idx];
+        loop_2_vts = self.mesh_vertices[loop_2_idx];
+
+        vertex_count = len(self.mesh_vertices);
+        loop_idx = [loop_1_idx];
+        extra_vertices = [];
+        for i in range(1, num_segments):
+            frac = float(i) / float(num_segments);
+            loop_vtx = loop_1_vts * (1.0 - frac) + loop_2_vts * frac;
+            loop_idx.append(range(vertex_count+(i-1)*4, vertex_count+i*4));
+            extra_vertices.append(loop_vtx);
+        self.mesh_vertices = np.vstack([self.mesh_vertices] + extra_vertices);
+        loop_idx.append(loop_2_idx);
+
+        faces = [];
+        for i in range(num_segments):
+            l1_idx = loop_idx[i];
+            l2_idx = loop_idx[i+1];
+            faces.append([l1_idx[0], l1_idx[1], l2_idx[0]]);
+            faces.append([l2_idx[0], l1_idx[1], l2_idx[1]]);
+            faces.append([l2_idx[1], l1_idx[1], l1_idx[2]]);
+            faces.append([l2_idx[1], l1_idx[2], l2_idx[2]]);
+            faces.append([l2_idx[2], l1_idx[2], l1_idx[3]]);
+            faces.append([l2_idx[2], l1_idx[3], l2_idx[3]]);
+            faces.append([l2_idx[3], l1_idx[3], l1_idx[0]]);
+            faces.append([l2_idx[3], l1_idx[0], l2_idx[0]]);
+
+        self.mesh_faces = np.vstack((self.mesh_faces, faces));
 
     @timethis
     def _compute_min_edge_angle(self, idx):
