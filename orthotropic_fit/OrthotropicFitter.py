@@ -258,23 +258,6 @@ class OrthotropicFitter(object):
                 self.residual_error = np.max(self.residual_error);
 
     @timethis
-    def __extract_coarse_displacements_old(self, mesh):
-        vertices = self.mesh.vertices;
-
-        nearest_idx = np.zeros(mesh.num_vertices, dtype=int);
-        for i,v in enumerate(mesh.vertices):
-            distances = norm(vertices - v, axis=1);
-            nearest_idx[i] = np.argmin(distances);
-
-        coarse_displacements = [];
-        for u in self.displacements:
-            u = u.reshape((-1, mesh.dim), order="C");
-            coarse_u = u[nearest_idx, :].ravel(order="C");
-            coarse_displacements.append(coarse_u);
-
-        return coarse_displacements;
-
-    @timethis
     def __extract_coarse_displacements(self):
         dim = self.mesh.dim;
         if dim == 2:
@@ -296,58 +279,6 @@ class OrthotropicFitter(object):
         for i in range(self.mesh.num_vertices):
             barycentric_matrix[i, coarse_elems[element_indices[i]]] =\
                     barycentric_coords[i];
-
-        coarse_displacements = [];
-        for u in self.displacements:
-            u = u.reshape((-1, dim), order="C");
-            coarse_u, residual, rank, singular_vals  = lstsq(barycentric_matrix, u);
-            coarse_displacements.append(coarse_u.ravel(order="C"));
-        return coarse_displacements;
-
-    @timethis
-    def __extract_coarse_displacements_old(self):
-        dim = self.mesh.dim;
-        coarse_vertices = self.coarse_mesh.vertices;
-        if dim == 2:
-            coarse_elems = self.coarse_mesh.faces;
-            vertex_per_elem = self.coarse_mesh.vertex_per_face;
-        elif dim == 3:
-            coarse_elems = self.coarse_mesh.voxels;
-            vertex_per_elem = self.coarse_mesh.vertex_per_voxel;
-        else:
-            raise NotImplementedError("Only 2D and 3D are supported.");
-
-        assert(coarse_elems.shape[1] == vertex_per_elem);
-
-        barycentric_solver = [];
-        for elem in coarse_elems:
-            T = np.array(coarse_vertices[elem[:dim]] -
-                    coarse_vertices[elem[-1]]).T;
-            barycentric_solver.append(inv(T));
-        last_vertex = coarse_vertices[coarse_elems[:,-1]];
-        assert(len(barycentric_solver) == len(coarse_elems));
-
-        fine_vertices = self.mesh.vertices;
-        barycentric_matrix = np.zeros((
-            self.mesh.num_vertices, self.coarse_mesh.num_vertices));
-        for i,v in enumerate(fine_vertices):
-            barycentric_coords = np.array([np.sum(M * (v-lv), axis=1)
-                    for M,lv in zip(barycentric_solver, last_vertex)]);
-            last_coord = 1.0 - np.sum(barycentric_coords, axis=1).reshape((-1,1));
-            barycentric_coords = np.hstack((barycentric_coords, last_coord));
-
-            for coord, elem in zip (barycentric_coords, coarse_elems):
-                interpolated_v = np.sum(coarse_vertices[elem].T * coord,
-                        axis=1).ravel();
-                assert(norm(v-interpolated_v) < 1e-3);
-
-            inside = np.all(np.logical_and(
-                    barycentric_coords >= 0.0,
-                    barycentric_coords <= 1.0), axis=1);
-            assert(np.any(inside));
-            row = barycentric_matrix[i];
-            row[coarse_elems[inside]] = barycentric_coords[inside];
-            barycentric_matrix[i] = row.ravel(order="C");
 
         coarse_displacements = [];
         for u in self.displacements:

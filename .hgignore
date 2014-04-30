@@ -24,3 +24,4 @@ orthotropic_fit/jobs/
 orthotropic_fit/isotropic_tests/
 lp_holes/generator/examples/
 lp_holes/generator/jobs/
+tools/sample_rotation/example/
