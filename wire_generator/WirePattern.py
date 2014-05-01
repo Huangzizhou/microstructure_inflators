@@ -55,7 +55,7 @@ class WirePattern(object):
 
     @timethis
     def __remove_duplicated_vertices(self):
-        cell_size = np.amin(self.pattern_bbox_size) * 0.1;
+        cell_size = np.amin(self.pattern_bbox_size) * 0.01;
         hash_grid = PyMesh.HashGrid.create(cell_size);
         hash_grid.insert_multiple(
                 np.arange(len(self.wire_vertices), dtype=int),

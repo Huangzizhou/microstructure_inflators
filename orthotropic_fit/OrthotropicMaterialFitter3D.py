@@ -76,8 +76,10 @@ class OrthotropicMaterialFitter3D(MaterialFitter3D):
             [         0.0,          0.0,          0.0, parameter[3],          0.0,          0.0],
             [         0.0,          0.0,          0.0,          0.0, parameter[4],          0.0],
             [         0.0,          0.0,          0.0,          0.0,          0.0, parameter[5]]]);
+        self.elasticity_tensor = C;
 
         S = inv(C);
+        self.compliance_tensor = S;
         parameter = [
                 S[0,0], S[1,1], S[2,2],
                 S[3,3], S[4,4], S[5,5],

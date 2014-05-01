@@ -58,7 +58,9 @@ class OrthotropicMaterialFitter2D(MaterialFitter2D):
             [parameter[0], parameter[3],          0.0],
             [parameter[3], parameter[1],          0.0],
             [         0.0,          0.0, parameter[2]] ]);
+        self.elasticity_tensor = C;
         S = inv(C);
+        self.compliance_tensor = S;
         parameter = [S[0,0], S[1,1], S[2,2], S[0,1]];
         self.orthotropic_parameter = np.array(parameter);
         self.residual_error = residual;
