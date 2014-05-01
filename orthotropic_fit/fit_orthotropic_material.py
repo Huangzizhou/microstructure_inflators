@@ -8,7 +8,7 @@ import os.path
 from HomogenizationValidator import HomogenizationValidator
 import LinearElasticitySettings
 from mesh_io import load_mesh, save_mesh
-from OrthotropicFitter import OrthotropicFitter
+from MaterialFitterFactory import MaterialFitterFactory
 from timethis import timethis
 
 import PyAssembler
@@ -56,7 +56,8 @@ def validate(fitter):
 
 @timethis
 def fit(mesh, material_file):
-    fitter = OrthotropicFitter(mesh, material_file);
+    factory = MaterialFitterFactory(mesh, material_file);
+    fitter = factory.create("orthotropic");
     fitter.fit();
     return fitter;
 
