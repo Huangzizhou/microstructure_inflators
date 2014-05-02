@@ -93,6 +93,7 @@ class WireInflator(object):
         v1 = self.wire_network.vertices[edge[1]];
         edge_len = norm(v1 - v0);
         num_segments = int(np.round(edge_len / segment_len));
+        num_segments = max(1, num_segments);
 
         loop_1_idx = self.edge_loop_indices[2*ei  , :];
         loop_2_idx = self.edge_loop_indices[2*ei+1, :];
