@@ -75,7 +75,11 @@ class OrthotropicMaterialFitter2D(MaterialFitter2D):
     @property
     def youngs_modulus(self):
         dim = self.mesh.dim;
-        return 1.0 / self.orthotropic_parameter[:dim];
+        young = 1.0 / self.orthotropic_parameter[:dim];
+        if np.any(young <= 0.0):
+            import warnings
+            warnings.warn("Negative Young's modulus: {}".format(young));
+        return abs(young);
 
     @property
     def poisson_ratio(self):
