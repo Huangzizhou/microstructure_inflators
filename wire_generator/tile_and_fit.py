@@ -21,11 +21,11 @@ def run_tetgen(obj_file, msh_file):
     print(cmd);
     check_call(cmd.split());
 
-def run_orthotropic_fit(input_file, material_file, output_file):
+def run_material_fit(input_file, material_file, material_model, output_file):
     orthotropic_fit_path = os.environ.get("ORTHOTROPIC_FIT_PATH");
-    exe_name = os.path.join(orthotropic_fit_path, "fit_orthotropic_material.py");
-    cmd = "{} --material {} {} {}".format(exe_name, material_file, input_file,
-            output_file);
+    exe_name = os.path.join(orthotropic_fit_path, "fit_material.py");
+    cmd = "{} --material {} --material-model {} {} {}".format(exe_name,
+            material_file, material_model, input_file, output_file);
     print(cmd);
     check_call(cmd.split());
 
@@ -33,6 +33,8 @@ def parse_args():
     parser = argparse.ArgumentParser(
             description="Tile pattern, tetgen it, then fit orthotropic material");
     parser.add_argument("--material", help="material file");
+    parser.add_argument("--material-model", help="target material model",
+            choices=["orthotropic", "symmetric"], default="orthotropic");
     parser.add_argument("config_file", help="configuration file");
     parser.add_argument("msh_file", help="output msh file");
     args = parser.parse_args();
@@ -48,7 +50,8 @@ def main():
 
     run_tile(args.config_file, tmp_obj);
     run_tetgen(tmp_obj, tmp_msh);
-    run_orthotropic_fit(tmp_msh, args.material, args.msh_file);
+    run_material_fit(tmp_msh, args.material,
+            args.material_model, args.msh_file);
 
     os.remove(tmp_obj);
     os.remove(tmp_msh);
