@@ -51,4 +51,13 @@ class MaterialFitterTest(unittest.TestCase):
         attributes_to_save.append("vertex_voronoi_area");
         save_mesh(mesh_file, mesh, *attributes_to_save);
 
+    def assertEqualMaterial(self, dim, mat1, mat2):
+        ori = np.zeros(dim);
+        for i in range(dim):
+            for j in range(dim):
+                for k in range(dim):
+                    for l in range(dim):
+                        self.assertAlmostEqual(
+                                mat1.get_material_tensor(i,j,k,l,ori),
+                                mat2.get_material_tensor(i,j,k,l,ori));
 

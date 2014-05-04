@@ -45,7 +45,7 @@ class OrthotropicMaterialFitter2D(MaterialFitter2D):
 
                 coeff_11 = np.multiply(strain_1_xx, strain_2_xx).dot(face_areas);
                 coeff_22 = np.multiply(strain_1_yy, strain_2_yy).dot(face_areas);
-                coeff_33 = np.multiply(strain_1_xy, strain_2_xy).dot(face_areas) * 2;
+                coeff_33 = np.multiply(strain_1_xy, strain_2_xy).dot(face_areas) * 4;
                 coeff_12 = (np.multiply(strain_1_xx, strain_2_yy) + \
                         np.multiply(strain_1_yy, strain_2_xx)).dot(face_areas);
 
@@ -94,7 +94,7 @@ class OrthotropicMaterialFitter2D(MaterialFitter2D):
     def shear_modulus(self):
         dim = self.mesh.dim;
         # Order: [G_xy]
-        shear = 0.5 / self.orthotropic_parameter[2:3];
+        shear = 1.0 / self.orthotropic_parameter[2:3];
 
         if np.any(shear <= 0):
             import warnings

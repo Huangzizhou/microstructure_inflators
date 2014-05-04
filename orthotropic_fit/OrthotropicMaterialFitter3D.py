@@ -51,9 +51,9 @@ class OrthotropicMaterialFitter3D(MaterialFitter3D):
                 coeff_11 = np.multiply(strain_1_xx, strain_2_xx).dot(voxel_volumes);
                 coeff_22 = np.multiply(strain_1_yy, strain_2_yy).dot(voxel_volumes);
                 coeff_33 = np.multiply(strain_1_zz, strain_2_zz).dot(voxel_volumes);
-                coeff_44 = np.multiply(strain_1_yz, strain_2_yz).dot(voxel_volumes) * 2;
-                coeff_55 = np.multiply(strain_1_xz, strain_2_xz).dot(voxel_volumes) * 2;
-                coeff_66 = np.multiply(strain_1_xy, strain_2_xy).dot(voxel_volumes) * 2;
+                coeff_44 = np.multiply(strain_1_yz, strain_2_yz).dot(voxel_volumes) * 4;
+                coeff_55 = np.multiply(strain_1_xz, strain_2_xz).dot(voxel_volumes) * 4;
+                coeff_66 = np.multiply(strain_1_xy, strain_2_xy).dot(voxel_volumes) * 4;
                 coeff_12 = (np.multiply(strain_1_xx, strain_2_yy) +\
                         np.multiply(strain_1_yy, strain_2_xx)).dot(voxel_volumes)
                 coeff_13 = (np.multiply(strain_1_xx, strain_2_zz) +\
@@ -125,7 +125,7 @@ class OrthotropicMaterialFitter3D(MaterialFitter3D):
     def shear_modulus(self):
         dim = self.mesh.dim;
         # Order: [G_yz, G_zx, G_xy]
-        shear = 0.5 / self.orthotropic_parameter[3:6];
+        shear = 1.0 / self.orthotropic_parameter[3:6];
 
         if np.any(shear <= 0):
             import warnings
