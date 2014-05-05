@@ -32,6 +32,8 @@ class WireNetwork(object):
         self.edges = self.edges[edge_to_keep];
         self.__remove_isolated_vertices();
         self.__compute_connectivity();
+        if len(self.vertices) == 0:
+            raise RuntimeError("Zero vertices left after trimming.");
 
     def __parse_wire_file(self, wire_file):
         parser = WireReader(wire_file);

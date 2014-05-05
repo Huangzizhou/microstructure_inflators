@@ -2,12 +2,7 @@ import numpy as np
 import os
 import sys
 
-# Update path to import PyMesh
-py_mesh_path = os.environ.get("PYMESH_PATH");
-if py_mesh_path == None:
-    raise ImportError("Please set PYMESH_PATH to the correct lib path.");
-sys.path.append(os.path.join(py_mesh_path, "lib"));
-sys.path.append(os.path.join(py_mesh_path, "swig"));
+import PyMeshSetting
 import PyMesh
 
 from WireNetwork import WireNetwork
@@ -20,10 +15,11 @@ class WirePattern(object):
         self.z_tile_dir = np.array([0.0, 0.0, 1.0]);
 
     def set_single_cell(self, vertices, edges):
-        self.pattern_vertices = np.array(vertices);
+        centroid = np.average(vertices, axis=0);
+        self.pattern_vertices = np.array(vertices) - centroid;
         self.pattern_edges = np.array(edges, dtype=int);
-        self.pattern_bbox_min = np.amin(vertices, axis=0);
-        self.pattern_bbox_max = np.amax(vertices, axis=0);
+        self.pattern_bbox_min = np.amin(self.pattern_vertices, axis=0);
+        self.pattern_bbox_max = np.amax(self.pattern_vertices, axis=0);
         self.pattern_bbox_size = self.pattern_bbox_max - self.pattern_bbox_min;
 
     def set_single_cell_from_wire_network(self, network):
@@ -49,6 +45,41 @@ class WirePattern(object):
                     edges = self.pattern_edges + base_idx;
                     self.wire_edges = np.vstack(
                             (self.wire_edges, edges));
+        self.__remove_duplicated_vertices();
+        self.__remove_duplicated_edges();
+        self.__center_at_origin();
+
+    @timethis
+    def tile_hex_mesh(self, mesh):
+        dim = mesh.get_dim();
+        if not mesh.has_attribute("voxel_centroid"):
+            mesh.add_attribute("voxel_centroid");
+        centroids = mesh.get_attribute("voxel_centroid");
+        centroids = centroids.reshape((-1, dim), order="C");
+        mesh_vertices = mesh.get_vertices().reshape((-1, dim), order="C");
+
+        wire_vertices = [];
+        wire_edges = [];
+        num_pattern_vertices = len(self.pattern_vertices);
+        for i in range(mesh.get_num_voxels()):
+            voxel = mesh.get_voxel(i).ravel();
+            voxel_vertices = mesh_vertices[voxel];
+            voxel_bbox_min = np.amin(voxel_vertices, axis=0);
+            voxel_bbox_max = np.amax(voxel_vertices, axis=0);
+            scale = np.divide(voxel_bbox_max - voxel_bbox_min,
+                    self.pattern_bbox_size);
+
+            base_idx = num_pattern_vertices * i;
+            c = centroids[i];
+
+            vertices = self.pattern_vertices * scale + c;
+            edges = self.pattern_edges + base_idx;
+
+            wire_vertices.append(vertices);
+            wire_edges.append(edges);
+
+        self.wire_vertices = np.vstack(wire_vertices);
+        self.wire_edges = np.vstack(wire_edges);
         self.__remove_duplicated_vertices();
         self.__remove_duplicated_edges();
         self.__center_at_origin();

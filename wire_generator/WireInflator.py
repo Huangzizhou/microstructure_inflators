@@ -87,6 +87,7 @@ class WireInflator(object):
         for i,edge in enumerate(self.wire_network.edges):
             self._generate_edge_pipe(i, segment_len);
 
+    @timethis
     def _generate_edge_pipe(self, ei, segment_len):
         edge = self.wire_network.edges[ei];
         v0 = self.wire_network.vertices[edge[0]];
@@ -187,6 +188,7 @@ class WireInflator(object):
             self.mesh_faces = np.vstack(
                     (self.mesh_faces, face + num_vts));
 
+    @timethis
     def _correct_orientation(self, center, points, face):
         vts = np.array(points)[face];
         face_center = np.mean(vts, axis=0);
