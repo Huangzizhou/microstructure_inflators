@@ -72,23 +72,39 @@ class WireInflator(object):
 
     @timethis
     def _generate_joints(self):
-        self.mesh_vertices = np.zeros((0, 3), dtype=float);
+        self.mesh_vertices = [];
         self.mesh_faces = [];
         self.edge_loop_indices = np.zeros((self.edge_loops.shape[0]*2, 4),
                 dtype=int);
+        num_vts = 0;
         for i in range(self.wire_network.num_vertices):
-            self._generate_joint(i);
+            num_added_vts = self._generate_joint(i, num_vts);
+            num_vts += num_added_vts;
+        self.mesh_vertices = np.vstack(self.mesh_vertices);
         self.mesh_faces = np.vstack(self.mesh_faces);
 
     @timethis
     def _generate_edge_pipes(self):
         bbox_min, bbox_max = self.wire_network.bbox;
         segment_len = self.thickness * 2;
+        extra_vertices = [];
+        extra_faces = [];
+        vertex_count = len(self.mesh_vertices);
         for i,edge in enumerate(self.wire_network.edges):
-            self._generate_edge_pipe(i, segment_len);
+            new_v, new_f = self._generate_edge_pipe(i, segment_len,
+                    vertex_count);
+
+            extra_vertices += new_v;
+            extra_faces += new_f;
+
+            vertex_count += len(new_v) * 4;
+
+        self.mesh_vertices = np.vstack([self.mesh_vertices] + extra_vertices);
+        self.mesh_faces = np.vstack([self.mesh_faces] + extra_faces);
+        assert(len(self.mesh_vertices) == vertex_count);
 
     @timethis
-    def _generate_edge_pipe(self, ei, segment_len):
+    def _generate_edge_pipe(self, ei, segment_len, vertex_count):
         edge = self.wire_network.edges[ei];
         v0 = self.wire_network.vertices[edge[0]];
         v1 = self.wire_network.vertices[edge[1]];
@@ -101,7 +117,6 @@ class WireInflator(object):
         loop_1_vts = self.mesh_vertices[loop_1_idx];
         loop_2_vts = self.mesh_vertices[loop_2_idx];
 
-        vertex_count = len(self.mesh_vertices);
         loop_idx = [loop_1_idx];
         extra_vertices = [];
         for i in range(1, num_segments):
@@ -109,7 +124,6 @@ class WireInflator(object):
             loop_vtx = loop_1_vts * (1.0 - frac) + loop_2_vts * frac;
             loop_idx.append(range(vertex_count+(i-1)*4, vertex_count+i*4));
             extra_vertices.append(loop_vtx);
-        self.mesh_vertices = np.vstack([self.mesh_vertices] + extra_vertices);
         loop_idx.append(loop_2_idx);
 
         faces = [];
@@ -125,7 +139,7 @@ class WireInflator(object):
             faces.append([l2_idx[3], l1_idx[3], l1_idx[0]]);
             faces.append([l2_idx[3], l1_idx[0], l2_idx[0]]);
 
-        self.mesh_faces = np.vstack((self.mesh_faces, faces));
+        return extra_vertices, faces;
 
     @timethis
     def _compute_min_edge_angle(self, idx):
@@ -161,24 +175,24 @@ class WireInflator(object):
         return edge_dir, offset_dir_1, offset_dir_2;
 
     @timethis
-    def _generate_joint(self, idx):
-        num_vts = len(self.mesh_vertices);
+    def _generate_joint(self, idx, num_vts):
         v = self.wire_network.vertices[idx];
         loop_vertices = [v];
         for i,e_idx in enumerate(self.wire_network.vertex_edge_neighbors[idx]):
             edge = self.wire_network.edges[e_idx];
-            v_idx = np.where(np.array(edge).ravel() == idx)[0][0];
+            if edge[0] == idx:
+                v_idx = 0;
+            else:
+                v_idx = 1;
             loop = self.edge_loops[e_idx, v_idx, :, :].reshape((-1,3), order="C");
             loop_vertices.append(loop);
-            #loop_vertices = np.vstack((loop_vertices, loop));
             self.edge_loop_indices[e_idx * 2 + v_idx, :] = \
                     np.arange(i*4, i*4+4) + num_vts + 1;
 
         loop_vertices = np.vstack(loop_vertices);
         joint_center = np.mean(loop_vertices, axis=0);
         convex_hull = ConvexHull(loop_vertices);
-        self.mesh_vertices = np.vstack((self.mesh_vertices,
-            convex_hull.points));
+        self.mesh_vertices.append(convex_hull.points);
 
         for face in convex_hull.simplices:
             # The following check if a face is made entirely of edge loop
@@ -189,6 +203,8 @@ class WireInflator(object):
                 continue;
             face = self._correct_orientation(joint_center, convex_hull.points, face);
             self.mesh_faces.append(face + num_vts);
+
+        return len(convex_hull.points);
 
     @timethis
     def _correct_orientation(self, center, points, face):
