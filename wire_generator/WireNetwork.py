@@ -2,18 +2,18 @@ import numpy as np
 from numpy.linalg import norm
 
 from WireReader import WireReader
+from WireAttributes import WireAttributes
 
 class WireNetwork(object):
 
     def load(self, vertices, edges):
         self.vertices = np.array(vertices);
         self.edges = np.array(edges);
-        self.dim = self.vertices.shape[1];
-        self.__compute_connectivity();
+        self.__initialize();
 
     def load_from_file(self, wire_file):
         self.__parse_wire_file(wire_file);
-        self.__compute_connectivity();
+        self.__initialize();
 
     def scale(self, factors):
         if isinstance(factors, float):
@@ -35,9 +35,13 @@ class WireNetwork(object):
         if len(self.vertices) == 0:
             raise RuntimeError("Zero vertices left after trimming.");
 
+    def __initialize(self):
+        self.__compute_connectivity();
+        self.dim = self.vertices.shape[1];
+        self.attributes = WireAttributes(self);
+
     def __parse_wire_file(self, wire_file):
         parser = WireReader(wire_file);
-        self.dim = parser.dim;
         self.vertices = np.array(parser.vertices);
         self.edges = np.array(parser.edges);
 

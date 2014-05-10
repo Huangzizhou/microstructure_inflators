@@ -19,11 +19,15 @@ class WirePatternTest(unittest.TestCase):
     def test_creation(self):
         pattern = WirePattern();
         pattern.set_single_cell(self.vertices, self.edges);
-        self.assertListEqual([0.0, 0.0, 0.0],
+        bbox_max = np.amax(self.vertices, axis=0);
+        bbox_min = np.amin(self.vertices, axis=0);
+        centroid = 0.5 * (bbox_max + bbox_min);
+
+        self.assertListEqual((bbox_min - centroid).tolist(),
                 pattern.pattern_bbox_min.tolist());
-        self.assertListEqual([1.0, 1.0, 1.0],
+        self.assertListEqual((bbox_max - centroid).tolist(),
                 pattern.pattern_bbox_max.tolist());
-        self.assertListEqual([1.0, 1.0, 1.0],
+        self.assertListEqual((bbox_max - bbox_min).tolist(),
                 pattern.pattern_bbox_size.tolist());
 
     def test_tile(self):

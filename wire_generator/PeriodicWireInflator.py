@@ -69,12 +69,12 @@ class PeriodicWireInflator(WireInflator):
                             "Periodic unit pattern contains duplicated vertices");
                 self.phantom_vertex_map[i] = nearby_v_indices[0];
 
-    def _generate_edge_pipes(self):
-        bbox_min, bbox_max = self.original_wire_network.bbox;
-        segment_len = norm(bbox_max - bbox_min) * 0.1;
-        for i,edge in enumerate(self.wire_network.edges):
-            if np.any(self.phantom_vertex_map[edge] < 0): continue;
-            self._generate_edge_pipe(i, segment_len);
+    def _generate_edge_pipe(self, ei, segment_len, vertex_count):
+        edge = self.wire_network.edges[ei];
+        if np.any(self.phantom_vertex_map[edge] < 0):
+            return [], []
+        return super(PeriodicWireInflator, self)._generate_edge_pipe(
+                ei, segment_len, vertex_count);
 
     def _generate_joints(self):
         self._register_edge_loops();
@@ -98,9 +98,9 @@ class PeriodicWireInflator(WireInflator):
         else:
             raise RuntimeError("More than one edge loops occupies this point");
 
-    def _generate_joint(self, idx):
+    def _generate_joint(self, idx, num_vts):
         if self.phantom_vertex_map[idx] < 0:
-            return;
+            return 0;
 
         v = self.wire_network.vertices[idx];
         loop_vertices, phantom_indicator = self._get_incident_edge_loop_vertices(idx);
@@ -129,7 +129,7 @@ class PeriodicWireInflator(WireInflator):
 
         clipped_loop_vertices = np.clip(loop_vertices, bbox_min, bbox_max);
         index_map = self._map_points(clipped_loop_vertices, hull.points);
-        self._register_incident_edge_loop_vertex_indices(idx, index_map);
+        self._register_incident_edge_loop_vertex_indices(idx, index_map, num_vts);
 
         valid_clipped_loop_vertices = clipped_loop_vertices[
                 np.logical_not(phantom_indicator)];
@@ -147,9 +147,10 @@ class PeriodicWireInflator(WireInflator):
                 faces.append(face);
         faces = np.array(faces, dtype=int);
 
-        num_vts = len(self.mesh_vertices);
-        self.mesh_vertices = np.vstack([self.mesh_vertices, hull.points]);
-        self.mesh_faces = np.vstack([self.mesh_faces, faces + num_vts]);
+        self.mesh_vertices.append(hull.points);
+        self.mesh_faces.append(faces + num_vts);
+
+        return len(hull.points);
 
     def _map_points(self, from_pts, to_pts):
         grid = PyMesh.HashGrid.create(1e-8);
@@ -175,8 +176,8 @@ class PeriodicWireInflator(WireInflator):
         phantom_indicator = np.repeat(phantom_indicator, 4);
         return loop_vertices, phantom_indicator;
 
-    def _register_incident_edge_loop_vertex_indices(self, vertex_idx, index_map):
-        num_vts = len(self.mesh_vertices);
+    def _register_incident_edge_loop_vertex_indices(self, vertex_idx, index_map,
+            num_vts):
         for i, e_idx in enumerate(self.wire_network.vertex_edge_neighbors[vertex_idx]):
             edge = self.wire_network.edges[e_idx];
             if np.any(self.phantom_vertex_map[edge] < 0):

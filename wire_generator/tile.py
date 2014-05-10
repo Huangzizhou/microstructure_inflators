@@ -40,7 +40,7 @@ def parse_config_file(config_file):
         if not os.path.isabs(field):
             field = os.path.join(config_dir, field);
         config[field_name] = field;
-        
+
     convert_to_abs_path("wire_network");
     convert_to_abs_path("output");
     if "hex_mesh" in config:

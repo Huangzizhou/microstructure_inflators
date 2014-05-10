@@ -15,11 +15,13 @@ class WirePattern(object):
         self.z_tile_dir = np.array([0.0, 0.0, 1.0]);
 
     def set_single_cell(self, vertices, edges):
-        centroid = np.average(vertices, axis=0);
+        bbox_min = np.amin(vertices, axis=0);
+        bbox_max = np.amax(vertices, axis=0);
+        centroid = 0.5 * (bbox_min + bbox_max);
         self.pattern_vertices = np.array(vertices) - centroid;
         self.pattern_edges = np.array(edges, dtype=int);
-        self.pattern_bbox_min = np.amin(self.pattern_vertices, axis=0);
-        self.pattern_bbox_max = np.amax(self.pattern_vertices, axis=0);
+        self.pattern_bbox_min = bbox_min - centroid;
+        self.pattern_bbox_max = bbox_max - centroid;
         self.pattern_bbox_size = self.pattern_bbox_max - self.pattern_bbox_min;
 
     def set_single_cell_from_wire_network(self, network):

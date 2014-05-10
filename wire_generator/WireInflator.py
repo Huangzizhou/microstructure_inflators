@@ -85,7 +85,6 @@ class WireInflator(object):
 
     @timethis
     def _generate_edge_pipes(self):
-        bbox_min, bbox_max = self.wire_network.bbox;
         segment_len = self.thickness * 2;
         extra_vertices = [];
         extra_faces = [];
