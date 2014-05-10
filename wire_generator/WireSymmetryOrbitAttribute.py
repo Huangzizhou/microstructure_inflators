@@ -1,3 +1,4 @@
+import numpy as np
 from WireAttribute import WireAttribute
 
 import PyMeshSetting
@@ -30,22 +31,22 @@ class WireSymmetryOrbitAttribute(WireAttribute):
         self.symmetries = [reflect_X, reflect_Y, reflect_Z];
 
     def __compute_orbits(self):
-        self.orbits = np.array(len(self.wire_network.vertices), dtype=int);
+        self.orbits = np.arange(len(self.wire_network.vertices), dtype=int);
         for symm_map in self.symmetries:
             self.__collect_orbits(symm_map);
 
         indices = set(self.orbits);
-        for i, key in indices:
-            self.orbits[self.oribts == key] = i;
+        for i, key in enumerate(indices):
+            self.orbits[self.orbits == key] = i;
 
     def __collect_orbits(self, symmetry_map):
-        for i,v in self.wire_network.vertices:
+        for i,v in enumerate(self.wire_network.vertices):
             v_reflected= symmetry_map(v);
             mapped_candidates = self.grid.get_items_near_point(v_reflected).ravel();
             if len(mapped_candidates) == 0:
                 continue;
             vertex_group = [i] + mapped_candidates.tolist();
-            self.orbits[vertex_group] = np.amin(vertex_group);
+            self.orbits[vertex_group] = np.amin(self.orbits[vertex_group]);
 
     @property
     def value(self):
