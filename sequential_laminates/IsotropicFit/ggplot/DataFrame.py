@@ -47,11 +47,21 @@ class DataFrame:
             {"name": "column_2", "min_val":  0, "max_val": 5},
             ...
         ]
+        or 
+        add_filters : [
+            {"condition": "col1 < col2 and col1 > 0.0"},
+            ...
+        ]
         """
         filters = self.config.get("add_filters", None);
         if filters is not None:
             for f in filters:
-                self.plots.filter_data(f["name"],
-                        min_val = f["min_val"],
-                        max_val = f["max_val"]);
+                if "condition" not in f:
+                    self.plots.filter_data(f["name"],
+                            min_val = f["min_val"],
+                            max_val = f["max_val"]);
+                else:
+                    self.plots.filter_data_with_condition(
+                            f["condition"]);
+
 

@@ -8,9 +8,11 @@ class AbstractPlot:
         self.config = config;
 
     def generate_r_script(self):
+        self.backup_data();
         self.preprocess_plot();
         self.process_plot();
         self.postprocess_plot();
+        self.restore_data();
 
     def preprocess_plot(self):
         self.discretize_column();
@@ -68,13 +70,22 @@ class AbstractPlot:
             {"name": "column_2", "min_val":  0, "max_val": 5},
             ...
         ]
+        or 
+        add_filters : [
+            {"condition": "col1 < col2 and col1 > 0.0"},
+            ...
+        ]
         """
         filters = self.config.get("add_filters", None);
         if filters is not None:
             for f in filters:
-                self.plot.filter_data(f["name"],
-                        min_val = f["min_val"],
-                        max_val = f["max_val"]);
+                if "condition" not in f:
+                    self.plot.filter_data(f["name"],
+                            min_val = f["min_val"],
+                            max_val = f["max_val"]);
+                else:
+                    self.plot.filter_data_with_condition(
+                            f["condition"]);
 
     def init_plot(self):
         self.plot.init_plot();
@@ -199,6 +210,12 @@ class AbstractPlot:
         ratio = self.config.get("coord_fixed", None);
         if (ratio is not None):
             self.plot.coord_fixed(ratio);
+
+    def backup_data(self):
+        self.plot.backup_data();
+
+    def restore_data(self):
+        self.plot.restore_data();
 
     def save_plot(self):
         """ syntax:

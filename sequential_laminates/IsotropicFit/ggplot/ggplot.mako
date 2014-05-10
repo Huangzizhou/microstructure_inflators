@@ -7,13 +7,30 @@ names(raw_data) <- sub(" ", "_", names(raw_data));
 
 </%def>
 
-<%def name="filter_data()">
-raw_data <- subset(raw_data, ${field_name} < ${upper_bound} & ${field_name} > ${lower_bound});
-cat(nrow(raw_data), "samples left after filtering", "${field_name}", "\n")
+<%def name="backup_data()">
+backup = raw_data;
+</%def>
+
+<%def name="restore_data()">
+raw_data = backup;
+</%def>
+
+<%def name="check_nonempty_data()">
+cat(nrow(raw_data), "samples left after filtering\n")
 if (nrow(raw_data) == 0) {
     print("No data left after filtering");
     q();
 }
+</%def>
+
+<%def name="filter_data()">
+raw_data <- subset(raw_data, ${field_name} < ${upper_bound} & ${field_name} > ${lower_bound});
+${check_nonempty_data()}
+</%def>
+
+<%def name="filter_data_with_condition()">
+raw_data <- subset(raw_data, ${condition});
+${check_nonempty_data()}
 </%def>
 
 <%def name="add_column()">

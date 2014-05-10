@@ -25,6 +25,11 @@ class ggplot:
                 lower_bound = min_val,
                 upper_bound = max_val);
 
+    def filter_data_with_condition(self, condition):
+        self.r_script += self.template.get_def(
+                "filter_data_with_condition").render(
+                        condition = condition);
+
     def add_column(self, col_name, formula):
         self.r_script += self.template.get_def("add_column").render(
                 new_column = col_name, formula = formula);
@@ -92,11 +97,18 @@ class ggplot:
         self.r_script += self.template.get_def("coord_fixed").render(
                 ratio=ratio);
 
+    def backup_data(self):
+        self.r_script += self.template.get_def("backup_data").render();
+
+    def restore_data(self):
+        self.r_script += self.template.get_def("restore_data").render();
+
     def plot(self, r_file):
         print(r_file);
         with open(r_file, 'w') as fout:
             fout.write(self.r_script);
         command = "Rscript {}".format(r_file);
         check_call(command.split());
+
 
 
