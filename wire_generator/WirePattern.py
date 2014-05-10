@@ -26,11 +26,13 @@ class WirePattern(object):
 
     def set_single_cell_from_wire_network(self, network):
         self.set_single_cell(network.vertices, network.edges);
+        self.pattern_attributes = network.attributes;
 
     @timethis
     def tile(self, reps):
         self.wire_vertices = np.zeros((0, 3));
         self.wire_edges = np.zeros((0, 2), dtype=int);
+        self.pattern_vertex_map = [];
         for i in range(reps[0]):
             x_inc = self.x_tile_dir * self.pattern_bbox_size[0] * i;
             for j in range(reps[1]):
@@ -43,6 +45,7 @@ class WirePattern(object):
                             x_inc + y_inc + z_inc;
                     self.wire_vertices = np.vstack(
                             (self.wire_vertices, vertices));
+                    self.pattern_vertex_map += range(len(vertices));
 
                     edges = self.pattern_edges + base_idx;
                     self.wire_edges = np.vstack(
@@ -105,6 +108,11 @@ class WirePattern(object):
         self.wire_vertices = np.vstack(vertices);
         self.wire_edges = v_map[self.wire_edges];
 
+        pattern_v_map = np.zeros(len(self.wire_vertices), dtype=int);
+        for i,vi in enumerate(v_map):
+            pattern_v_map[vi] = self.pattern_vertex_map[i];
+        self.pattern_vertex_map = pattern_v_map;
+
     @timethis
     def __remove_duplicated_edges(self):
         edges = set([tuple(sorted(edge)) for edge in self.wire_edges]);
@@ -117,10 +125,22 @@ class WirePattern(object):
         bbox_center = 0.5 * (bbox_min + bbox_max);
         self.wire_vertices = self.wire_vertices - bbox_center;
 
+    @timethis
+    def __copy_attributes(self, wire_network):
+        """ Copy any vertex attributes from single cell to tiled wire network.
+        """
+        if hasattr(self, "pattern_attributes"):
+            for attr_name in self.pattern_attributes:
+                value = self.pattern_attributes[attr_name];
+                if len(value) == len(self.pattern_vertices):
+                    tiled_value = value[self.pattern_vertex_map];
+                    wire_network.attributes.add(attr_name, tiled_value);
+
     @property
     @timethis
     def wire_network(self):
         network = WireNetwork();
         network.load(self.wire_vertices, self.wire_edges);
+        self.__copy_attributes(network);
         return network;
 

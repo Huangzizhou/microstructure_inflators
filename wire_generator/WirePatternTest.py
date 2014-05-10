@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+from WireNetwork import WireNetwork
 from WirePattern import WirePattern
 from WireInflator import WireInflator
 
@@ -47,4 +48,24 @@ class WirePatternTest(unittest.TestCase):
         inflator = WireInflator(pattern.wire_network);
         inflator.inflate(0.1);
         inflator.save("tmp2.obj");
+
+    def test_vertex_attributes(self):
+        cell = WireNetwork();
+        cell.load_from_file("examples/cube.wire");
+        cell.attributes.add("symmetry_orbit");
+        cell_orbits = cell.attributes["symmetry_orbit"];
+
+        pattern = WirePattern();
+        pattern.set_single_cell_from_wire_network(cell);
+        pattern.tile([2, 2, 2]);
+        tiled_wires = pattern.wire_network;
+
+        self.assertTrue("symmetry_orbit" in tiled_wires.attributes);
+
+        orbits = tiled_wires.attributes["symmetry_orbit"];
+        self.assertEqual(len(tiled_wires.vertices), len(orbits));
+        self.assertSetEqual(set(cell_orbits), set(orbits));
+
+        for i,vi in enumerate(pattern.pattern_vertex_map):
+            self.assertEqual(orbits[i], cell_orbits[vi]);
 

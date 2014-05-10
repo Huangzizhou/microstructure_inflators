@@ -9,7 +9,7 @@ class WireSymmetryOrbitAttributeTest(unittest.TestCase):
         self.wire_network.attributes.add("symmetry_orbit");
 
     def get_orbits(self):
-        return self.wire_network.attributes["symmetry_orbit"].value;
+        return self.wire_network.attributes["symmetry_orbit"];
 
     def test_creation(self):
         self.load_wire("examples/cube.wire");

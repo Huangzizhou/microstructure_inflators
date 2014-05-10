@@ -53,5 +53,5 @@ class WireSymmetryOrbitAttribute(WireAttribute):
         return self.orbits
 
     @value.setter
-    def value(self):
+    def value(self, val):
         raise RuntimeError("Wire symmetric orbit attribute is read only!");
