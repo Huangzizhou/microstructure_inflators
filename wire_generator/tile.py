@@ -37,18 +37,39 @@ def parse_config_file(config_file):
 
     def convert_to_abs_path(field_name):
         field = config[field_name];
-        if not os.path.isabs(field):
-            field = os.path.join(config_dir, field);
-        config[field_name] = field;
+        if isinstance(field, (unicode, str)):
+            if not os.path.isabs(field):
+                field = os.path.join(config_dir, field);
+            config[field_name] = field;
 
     convert_to_abs_path("wire_network");
     convert_to_abs_path("output");
+    convert_to_abs_path("thickness");
     if "hex_mesh" in config:
         convert_to_abs_path("hex_mesh");
     return config;
 
+def load_thickness_attribute(wire_network, config):
+    num_vertices = len(wire_network.vertices);
+
+    thickness = config["thickness"];
+    if isinstance(thickness, (int, float)):
+        thickness = np.ones(num_vertices) * thickness;
+    elif isinstance(thickness, (unicode, str)):
+        thickness_file = thickness;
+        with open(thickness_file, 'r') as fin:
+            contents = json.load(fin);
+            thickness = contents["thickness"];
+            assert(len(thickness) == num_vertices);
+            thickness = np.asarray(thickness, dtype=float);
+    else:
+        raise NotImplementedError("Unknown thickness value: {}".format(
+            thickness));
+    wire_network.attributes.add("thickness", thickness);
+
 def tile(config):
     network = load_wire(str(config["wire_network"]));
+    load_thickness_attribute(network, config);
 
     if "hex_mesh" in config:
         tiled_network = tile_hex(config, network);
@@ -59,7 +80,7 @@ def tile(config):
         tiled_network.trim();
 
     inflate_and_save(tiled_network, config.get("periodic", False),
-            config["thickness"], str(config["output"]));
+            str(config["output"]));
 
 def load_mesh(mesh_file):
     factory = PyMesh.MeshFactory();
@@ -72,12 +93,12 @@ def load_wire(wire_file):
     network.load_from_file(wire_file);
     return network;
 
-def inflate_and_save(tiled_network, periodic, thickness, output_file):
+def inflate_and_save(tiled_network, periodic, output_file):
     if not periodic:
         inflator = WireInflator(tiled_network);
     else:
         inflator = PeriodicWireInflator(tiled_network);
-    inflator.inflate(thickness);
+    inflator.inflate();
     inflator.save(output_file);
 
 def tile_hex(config, network):

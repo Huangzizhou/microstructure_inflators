@@ -20,8 +20,8 @@ class WireInflator(object):
             NotImplementedError("2D wire inflation is not supported.");
 
     @timethis
-    def inflate(self, thickness, clean_up=True):
-        self.thickness = thickness;
+    def inflate(self, clean_up=True):
+        self.thickness = self.wire_network.attributes["thickness"];
         self._compute_min_edge_angles();
         self._compute_edge_end_loops();
         self._generate_joints();
@@ -50,21 +50,22 @@ class WireInflator(object):
         self.edge_loops = np.zeros((self.wire_network.num_edges, 2, 4, 3));
         for i,edge in enumerate(self.wire_network.edges):
             angles = self.min_angles[edge];
-            offsets = 0.5 * sqrt(2) * self.thickness / np.tan(angles / 2.0) +1e-6;
+            thickness = self.thickness[edge];
+            offsets = 0.5 * sqrt(2) * thickness / np.tan(angles / 2.0) +1e-6;
             edge_dir, perp1_dir, perp2_dir = self._generate_frame(edge);
             v0 = self.wire_network.vertices[edge[0]];
             v1 = self.wire_network.vertices[edge[1]];
 
             loop_0 = np.array([
-                    v0+offsets[0]*edge_dir+0.5*self.thickness*(-perp1_dir-perp2_dir),
-                    v0+offsets[0]*edge_dir+0.5*self.thickness*(-perp1_dir+perp2_dir),
-                    v0+offsets[0]*edge_dir+0.5*self.thickness*( perp1_dir+perp2_dir),
-                    v0+offsets[0]*edge_dir+0.5*self.thickness*( perp1_dir-perp2_dir) ]);
+                    v0+offsets[0]*edge_dir+0.5*thickness[0]*(-perp1_dir-perp2_dir),
+                    v0+offsets[0]*edge_dir+0.5*thickness[0]*(-perp1_dir+perp2_dir),
+                    v0+offsets[0]*edge_dir+0.5*thickness[0]*( perp1_dir+perp2_dir),
+                    v0+offsets[0]*edge_dir+0.5*thickness[0]*( perp1_dir-perp2_dir) ]);
             loop_1 = np.array([
-                    v1-offsets[1]*edge_dir+0.5*self.thickness*(-perp1_dir-perp2_dir),
-                    v1-offsets[1]*edge_dir+0.5*self.thickness*(-perp1_dir+perp2_dir),
-                    v1-offsets[1]*edge_dir+0.5*self.thickness*( perp1_dir+perp2_dir),
-                    v1-offsets[1]*edge_dir+0.5*self.thickness*( perp1_dir-perp2_dir) ]);
+                    v1-offsets[1]*edge_dir+0.5*thickness[1]*(-perp1_dir-perp2_dir),
+                    v1-offsets[1]*edge_dir+0.5*thickness[1]*(-perp1_dir+perp2_dir),
+                    v1-offsets[1]*edge_dir+0.5*thickness[1]*( perp1_dir+perp2_dir),
+                    v1-offsets[1]*edge_dir+0.5*thickness[1]*( perp1_dir-perp2_dir) ]);
 
             self.edge_loops[i, 0, :, :] = loop_0;
             self.edge_loops[i, 1, :, :] = loop_1;
@@ -85,11 +86,11 @@ class WireInflator(object):
 
     @timethis
     def _generate_edge_pipes(self):
-        segment_len = self.thickness * 2;
         extra_vertices = [];
         extra_faces = [];
         vertex_count = len(self.mesh_vertices);
         for i,edge in enumerate(self.wire_network.edges):
+            segment_len = 2 * np.min(self.thickness[edge]);
             new_v, new_f = self._generate_edge_pipe(i, segment_len,
                     vertex_count);
 
@@ -222,7 +223,7 @@ class WireInflator(object):
         # Collapse short edges
         edge_remover = PyMeshUtils.ShortEdgeRemoval(self.mesh_vertices,
                 self.mesh_faces);
-        edge_remover.run(0.1 * self.thickness);
+        edge_remover.run(0.1 * np.amin(self.thickness));
         self.mesh_vertices = edge_remover.get_vertices();
         self.mesh_faces = edge_remover.get_faces();
 

@@ -58,7 +58,8 @@ class WireNetwork(object):
             self.vertex_valance[edge[1]] += 1;
 
     def __remove_isolated_vertices(self):
-        vertex_map = np.zeros(self.num_vertices, dtype=int) - 1;
+        num_vertices = self.num_vertices;
+        vertex_map = np.zeros(num_vertices, dtype=int) - 1;
         vertices = [];
         for edge in self.edges:
             if vertex_map[edge[0]] == -1:
@@ -70,6 +71,15 @@ class WireNetwork(object):
 
         self.vertices = np.array(vertices);
         self.edges = vertex_map[self.edges];
+
+        indices = np.arange(num_vertices, dtype=int);
+        indices = indices[vertex_map > -1];
+        mapped_indices = vertex_map[vertex_map > -1];
+        for attr_name in self.attributes:
+            value = self.attributes[attr_name];
+            mapped_value = np.zeros(len(self.vertices));
+            mapped_value[mapped_indices] = value[indices];
+            self.attributes[attr_name] = mapped_value;
 
     @property
     def num_vertices(self):

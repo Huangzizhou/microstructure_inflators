@@ -28,10 +28,10 @@ class PeriodicWireInflator(WireInflator):
         self.wire_network = self.phantom_wire_network;
 
 
-    def inflate(self, thickness, clean_up=True):
+    def inflate(self, clean_up=True):
         if not clean_up:
             raise NotImplementedError("Clean up is required for periodic wires");
-        super(PeriodicWireInflator, self).inflate(thickness, clean_up);
+        super(PeriodicWireInflator, self).inflate(clean_up);
         self._enforce_periodic_connectivity();
         self._clean_up();
         self._subdivide(1);
