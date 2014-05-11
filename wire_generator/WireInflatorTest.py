@@ -10,17 +10,19 @@ class WireInflatorTest(unittest.TestCase):
         self.wire_file = "examples/example.wire";
         self.wire_network = WireNetwork();
         self.wire_network.load_from_file(self.wire_file);
+        self.thickness = 0.1;
+        self.wire_network.attributes.add("thickness",
+                np.ones(self.wire_network.num_vertices) * self.thickness);
 
     def test_create(self):
         inflator = WireInflator(self.wire_network);
-        inflator.inflate(0.1);
+        inflator.inflate();
         inflator.save("tmp.obj");
         self.assertEqual(len(self.wire_network.edges), inflator.edge_loops.shape[0]);
 
     def test_edge_loops(self):
-        thickness = 0.1;
         inflator = WireInflator(self.wire_network);
-        inflator.inflate(thickness);
+        inflator.inflate();
         for i,edge in enumerate(self.wire_network.edges):
             loop_1 = inflator.edge_loops[i, 0, :, :];
             loop_2 = inflator.edge_loops[i, 1, :, :];
@@ -28,13 +30,12 @@ class WireInflatorTest(unittest.TestCase):
             center_2 = np.mean(loop_2, axis=0);
             dist_1 = norm(center_1 - self.wire_network.vertices[edge[0]]);
             dist_2 = norm(center_2 - self.wire_network.vertices[edge[1]]);
-            self.assertLess(dist_1, thickness*4);
-            self.assertLess(dist_2, thickness*4);
+            self.assertLess(dist_1, self.thickness*4);
+            self.assertLess(dist_2, self.thickness*4);
 
     def test_edge_loop_indices(self):
-        thickness = 0.1;
         inflator = WireInflator(self.wire_network);
-        inflator.inflate(thickness, clean_up=False);
+        inflator.inflate(clean_up=False);
         for i, edge in enumerate(self.wire_network.edges):
             loop_1 = inflator.edge_loops[i, 0, :, :];
             loop_2 = inflator.edge_loops[i, 1, :, :];

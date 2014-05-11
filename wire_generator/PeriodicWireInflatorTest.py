@@ -11,10 +11,15 @@ class PeriodicWireInflatorTest(unittest.TestCase):
         self.wire_network = WireNetwork();
         self.wire_network.load_from_file(self.wire_file);
 
+    def assign_thickness(self, thickness):
+        self.wire_network.attributes.add("thickness",
+                np.ones(self.wire_network.num_vertices) * thickness);
+
     def test_create(self):
         thickness = 0.1
+        self.assign_thickness(thickness);
         inflator = PeriodicWireInflator(self.wire_network);
-        inflator.inflate(thickness);
+        inflator.inflate();
         inflator.save("tmp3.obj");
         bbox_min, bbox_max = self.wire_network.bbox;
         for v in inflator.mesh_vertices:
@@ -23,9 +28,10 @@ class PeriodicWireInflatorTest(unittest.TestCase):
 
 
     def test_edge_loop(self):
-        thickness = 0.1;
+        thickness = 0.1
+        self.assign_thickness(thickness);
         inflator = PeriodicWireInflator(self.wire_network);
-        inflator.inflate(thickness);
+        inflator.inflate();
         for i,edge in enumerate(inflator.wire_network.edges):
             loop_1 = inflator.edge_loops[i, 0, :, :];
             loop_2 = inflator.edge_loops[i, 1, :, :];
@@ -39,8 +45,9 @@ class PeriodicWireInflatorTest(unittest.TestCase):
     def test_edge_pipe(self):
         eps = 1e-3
         thickness = 0.1;
+        self.assign_thickness(thickness);
         inflator = PeriodicWireInflator(self.wire_network);
-        inflator.inflate(thickness);
+        inflator.inflate();
         bbox_min, bbox_max = self.wire_network.bbox;
         for i,edge in enumerate(inflator.wire_network.edges):
             if np.any(inflator.phantom_vertex_map[edge] < 0):

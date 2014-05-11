@@ -2,7 +2,6 @@ import unittest
 import numpy as np
 from WireNetwork import WireNetwork
 from WirePattern import WirePattern
-from WireInflator import WireInflator
 
 class WirePatternTest(unittest.TestCase):
     def setUp(self):
@@ -45,9 +44,6 @@ class WirePatternTest(unittest.TestCase):
         pattern.set_single_cell(self.vertices, self.edges);
         pattern.tile([2, 2, 2]);
         self.assertEqual(20, len(pattern.wire_vertices));
-        inflator = WireInflator(pattern.wire_network);
-        inflator.inflate(0.1);
-        inflator.save("tmp2.obj");
 
     def test_vertex_attributes(self):
         cell = WireNetwork();
