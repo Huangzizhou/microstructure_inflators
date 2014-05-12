@@ -38,13 +38,17 @@ def thickness_sweep(wire_network, orbits, min_thickness, max_thickness, num_samp
         for orbit, t in zip(orbits, param):
             thickness[orbit] = t;
         per_vertex_thicknesses.append(thickness);
-    return per_vertex_thicknesses;
+    return per_vertex_thicknesses, parameters;
 
-def save_thickness(per_vertex_thicknesses, param_file):
+def save_thickness(per_vertex_thicknesses, parameters, param_file):
     basename, ext = os.path.splitext(param_file);
     for i, thickness in enumerate(per_vertex_thicknesses):
         filename = "{}_{}{}".format(basename, i, ext);
-        contents = {"thickness": thickness.tolist()};
+        param = parameters[i];
+        contents = {
+                "thickness": thickness.tolist(),
+                "parameter": param.tolist()
+                };
         with open(filename, 'w') as fout:
             json.dump(contents, fout, indent=4);
 
@@ -68,9 +72,9 @@ def main():
 
     wire_network = load(args.wire_file);
     orbits = extract_orbits(wire_network);
-    per_vertex_thicknesses = thickness_sweep(wire_network, orbits,
+    per_vertex_thicknesses, parameters = thickness_sweep(wire_network, orbits,
             args.min_thickness, args.max_thickness, args.num_thickness_samples);
-    save_thickness(per_vertex_thicknesses, args.param_file);
+    save_thickness(per_vertex_thicknesses, parameters, args.param_file);
 
 if __name__ == "__main__":
     main();
