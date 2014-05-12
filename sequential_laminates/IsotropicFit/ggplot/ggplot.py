@@ -54,9 +54,10 @@ class ggplot:
         self.r_script += self.template.get_def("title").render(
                 title_text = title_text);
 
-    def histogram(self, w_col, num_bins=20):
+    def histogram(self, w_col, num_bins=20, fill=None, position=None):
         self.r_script += self.template.get_def("histogram").render(
-                w_col = w_col, num_bins = num_bins);
+                w_col = w_col, num_bins = num_bins, fill = fill,
+                position = position);
 
     def set_range(self, x_min=None, x_max=None, y_min=None, y_max=None):
         self.r_script += self.template.get_def("set_range").render(
@@ -70,6 +71,10 @@ class ggplot:
     def facet_grid(self, facet_1, facet_2):
         self.r_script += self.template.get_def("facet_grid").render(
                 facet_1 = facet_1, facet_2 = facet_2);
+
+    def facet_wrap(self, facet):
+        self.r_script += self.template.get_def("facet_wrap").render(
+                facet = facet);
 
     def save_plot(self, out_name, width=10, height=6):
         self.r_script += self.template.get_def("save_plot").render(

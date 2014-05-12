@@ -25,6 +25,7 @@ class AbstractPlot:
 
     def postprocess_plot(self):
         self.add_facet_grid();
+        self.add_facet_wrap();
         self.add_points();
         self.add_lines();
         self.add_texts();
@@ -99,6 +100,13 @@ class AbstractPlot:
         facet_2 = self.config.get("facet_2", ".");
         if facet_1 != "." or facet_2 != ".":
             self.plot.facet_grid(facet_1, facet_2);
+
+    def add_facet_wrap(self):
+        """ syntax:
+        "facet": "column"
+        """
+        facet = self.config["facet"];
+        self.plot.facet_wrap(facet = facet);
 
     def set_range(self):
         """ syntax:

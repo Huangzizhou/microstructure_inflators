@@ -93,7 +93,18 @@ p <- p + ggtitle("${title_text}");
 
 <%def name="histogram()">
 bin_width <- (max(raw_data$${w_col}) - min(raw_data$${w_col}))/${num_bins};
-p <- p + geom_histogram(aes(x=${w_col}), binwidth=bin_width);
+<%
+clauses = ["x={}".format(w_col)];
+if fill is not None:
+    clauses.append("fill={}".format(fill));
+aes = ",".join(clauses);
+
+opts = ["binwidth=bin_width"];
+if position is not None:
+    opts.append("position=\"{}\"".format(position));
+options = ",".join(opts);
+%>
+p <- p + geom_histogram(aes(${aes}), ${options});
 </%def>
 
 
@@ -117,6 +128,10 @@ p <- p + scale_y_log10();
 
 <%def name="facet_grid()">
 p <- p + facet_grid(${facet_1} ~ ${facet_2});
+</%def>
+
+<%def name="facet_wrap()">
+p <- p + facet_wrap(~${facet});
 </%def>
 
 <%def name="save_plot()">
