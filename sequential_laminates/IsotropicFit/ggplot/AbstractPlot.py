@@ -105,8 +105,9 @@ class AbstractPlot:
         """ syntax:
         "facet": "column"
         """
-        facet = self.config["facet"];
-        self.plot.facet_wrap(facet = facet);
+        if "facet" in self.config:
+            facet = self.config["facet"];
+            self.plot.facet_wrap(facet = facet);
 
     def set_range(self):
         """ syntax:
