@@ -2,9 +2,12 @@ import unittest
 import numpy as np
 
 import LinearElasticitySettings
+from Material import Material
 from mesh_io import load_mesh, save_mesh
 from MaterialFitterFactory import MaterialFitterFactory
 from MaterialFitterTest import MaterialFitterTest
+
+import PyAssembler
 
 class OrthotropicMaterialFitter3DTest(MaterialFitterTest):
     def setUp(self):
@@ -30,4 +33,15 @@ class OrthotropicMaterialFitter3DTest(MaterialFitterTest):
         self.assertAlmostEqual(0.0, np.amin(fitter.poisson_ratio));
         self.assertAlmostEqual(0.5, np.amax(fitter.shear_modulus));
         self.assertAlmostEqual(0.5, np.amin(fitter.shear_modulus));
+
+    def test_orthotropic_cube(self):
+        self.mesh= load_mesh("examples/solid_cube.msh");
+        factory = MaterialFitterFactory(self.mesh,
+                "examples/orthotropic.material");
+        fitter = factory.create("orthotropic");
+        fitter.fit();
+
+        material = Material(3, "examples/orthotropic.material").material;
+        homogenized_material = PyAssembler.Material.create_symmetric(
+                material.get_density(), fitter.elasticity_tensor);
 
