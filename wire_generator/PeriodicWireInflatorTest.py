@@ -12,7 +12,7 @@ class PeriodicWireInflatorTest(unittest.TestCase):
         self.wire_network.load_from_file(self.wire_file);
 
     def assign_thickness(self, thickness):
-        self.wire_network.attributes.add("thickness",
+        self.wire_network.attributes.add("vertex_thickness",
                 np.ones(self.wire_network.num_vertices) * thickness);
 
     def test_create(self):

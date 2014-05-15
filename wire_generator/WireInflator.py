@@ -21,7 +21,7 @@ class WireInflator(object):
 
     @timethis
     def inflate(self, clean_up=True):
-        self.thickness = self.wire_network.attributes["thickness"];
+        self._compute_thickness();
         self._compute_min_edge_angles();
         self._compute_edge_end_loops();
         self._generate_joints();
@@ -39,6 +39,32 @@ class WireInflator(object):
                 3, 3, 4);
 
     @timethis
+    def _compute_thickness(self):
+        """ Compute self.thickness parameter.  It is a num_edges x 2 matrix,
+        where each row corresponds to the thickness at each end of the edge.
+        """
+        self.thickness = np.zeros((self.wire_network.num_edges, 2));
+        if "vertex_thickness" in self.wire_network.attributes:
+            self.__init_vertex_thickness(self.wire_network.attributes["vertex_thickness"]);
+        elif "edge_thickness" in self.wire_network.attributes:
+            self.__init_edge_thickness(self.wire_network.attributes["edge_thickness"]);
+        else:
+            raise RuntimeError("Wire thickness not specified through attributes");
+
+        min_thickness = np.amin(self.thickness);
+        if min_thickness < 1e-3:
+            raise RuntimeError("Extremely thin thickness detected: {}".format(
+                min_thickness));
+
+    def __init_vertex_thickness(self, v_thickness):
+        for i,e in enumerate(self.wire_network.edges):
+            self.thickness[i, :] = v_thickness[e];
+
+    def __init_edge_thickness(self, e_thickness):
+        for i,e in enumerate(self.wire_network.edges):
+            self.thickness[i, :] = e_thickness[i];
+
+    @timethis
     def _compute_min_edge_angles(self):
         self.min_angles = np.zeros(self.wire_network.num_vertices);
         for i in range(self.wire_network.num_vertices):
@@ -50,7 +76,7 @@ class WireInflator(object):
         self.edge_loops = np.zeros((self.wire_network.num_edges, 2, 4, 3));
         for i,edge in enumerate(self.wire_network.edges):
             angles = self.min_angles[edge];
-            thickness = self.thickness[edge];
+            thickness = self.thickness[i];
             offsets = 0.5 * sqrt(2) * thickness / np.tan(angles / 2.0) +1e-6;
             edge_dir, perp1_dir, perp2_dir = self._generate_frame(edge);
             v0 = self.wire_network.vertices[edge[0]];
@@ -90,7 +116,7 @@ class WireInflator(object):
         extra_faces = [];
         vertex_count = len(self.mesh_vertices);
         for i,edge in enumerate(self.wire_network.edges):
-            segment_len = 2 * np.min(self.thickness[edge]);
+            segment_len = 2 * np.min(self.thickness[i]);
             new_v, new_f = self._generate_edge_pipe(i, segment_len,
                     vertex_count);
 

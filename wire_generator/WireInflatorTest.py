@@ -11,7 +11,7 @@ class WireInflatorTest(unittest.TestCase):
         self.wire_network = WireNetwork();
         self.wire_network.load_from_file(self.wire_file);
         self.thickness = 0.1;
-        self.wire_network.attributes.add("thickness",
+        self.wire_network.attributes.add("vertex_thickness",
                 np.ones(self.wire_network.num_vertices) * self.thickness);
 
     def test_create(self):
