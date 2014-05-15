@@ -10,8 +10,8 @@ class DataFrame:
         self.config = config;
 
     def prepare(self):
-        self.discretize_column();
         self.add_column();
+        self.discretize_column();
         self.filter_data();
 
     def discretize_column(self):

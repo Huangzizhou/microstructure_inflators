@@ -46,15 +46,23 @@ p <- ggplot(raw_data);
 </%def>
 
 <%def name="scatter_plot()">
+<%
+aes = ["x={}".format(x_col), "y={}".format(y_col)]
+if w_col is not None:
+    aes.append("color={}".format(w_col));
+if shape is not None:
+    aes.append("shape={}".format(shape));
+if point_size is not None:
+    aes.append("size={}".format(point_size));
+aes = ",".join(aes);
+%>
+p <- p + geom_point(aes(${aes}));
 % if w_col is not None:
-p <- p + geom_point(aes(x=${x_col}, y=${y_col}, color=${w_col}));
 if (is.factor(raw_data$${w_col})) {
     p <- p + scale_colour_brewer(palette="Set1")
 } else {
     p <- p + scale_color_gradientn(colours=c("blue", "green", "orange", "red"));
 }
-% else:
-p <- p + geom_point(aes(x=${x_col}, y=${y_col}));
 % endif
 </%def>
 

@@ -15,8 +15,8 @@ class AbstractPlot:
         self.restore_data();
 
     def preprocess_plot(self):
-        self.discretize_column();
         self.add_column();
+        self.discretize_column();
         self.filter_data();
         self.init_plot();
 
