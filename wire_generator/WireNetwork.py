@@ -29,6 +29,7 @@ class WireNetwork(object):
         e.g. edge with at least one vertex of valance <= 1
         """
         edge_to_keep = np.all(self.vertex_valance[self.edges] > 1, axis=1);
+        self.__update_edge_attributes(edge_to_keep);
         self.edges = self.edges[edge_to_keep];
         self.__remove_isolated_vertices();
         self.__compute_connectivity();
@@ -77,9 +78,16 @@ class WireNetwork(object):
         mapped_indices = vertex_map[vertex_map > -1];
         for attr_name in self.attributes:
             value = self.attributes[attr_name];
-            mapped_value = np.zeros(len(self.vertices));
-            mapped_value[mapped_indices] = value[indices];
-            self.attributes[attr_name] = mapped_value;
+            if len(value) == num_vertices:
+                mapped_value = np.zeros(len(self.vertices));
+                mapped_value[mapped_indices] = value[indices];
+                self.attributes[attr_name] = mapped_value;
+
+    def __update_edge_attributes(self, edge_to_keep):
+        for attr_name in self.attributes:
+            value = self.attributes[attr_name];
+            if len(value) == self.num_edges:
+                self.attributes[attr_name] = value[edge_to_keep];
 
     @property
     def num_vertices(self):

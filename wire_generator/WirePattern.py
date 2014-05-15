@@ -33,6 +33,7 @@ class WirePattern(object):
         self.wire_vertices = np.zeros((0, 3));
         self.wire_edges = np.zeros((0, 2), dtype=int);
         self.pattern_vertex_map = [];
+        self.pattern_edge_map = [];
         for i in range(reps[0]):
             x_inc = self.x_tile_dir * self.pattern_bbox_size[0] * i;
             for j in range(reps[1]):
@@ -45,7 +46,8 @@ class WirePattern(object):
                             x_inc + y_inc + z_inc;
                     self.wire_vertices = np.vstack(
                             (self.wire_vertices, vertices));
-                    self.pattern_vertex_map += range(len(vertices));
+                    self.pattern_vertex_map += range(len(self.pattern_vertices));
+                    self.pattern_edge_map += range(len(self.pattern_edges));
 
                     edges = self.pattern_edges + base_idx;
                     self.wire_edges = np.vstack(
@@ -115,8 +117,15 @@ class WirePattern(object):
 
     @timethis
     def __remove_duplicated_edges(self):
-        edges = set([tuple(sorted(edge)) for edge in self.wire_edges]);
-        self.wire_edges = np.array(list(edges), dtype=int);
+        edges = [tuple(sorted(edge)) for edge in self.wire_edges];
+        self.wire_edges = np.unique(edges);
+        edge_map = {tuple(edge):i for i,edge in enumerate(self.wire_edges)};
+        edge_index_map = [edge_map[edge] for edge in edges];
+
+        pattern_e_map = np.zeros(len(self.wire_edges), dtype=int);
+        for i,ei in enumerate(edge_index_map):
+            pattern_e_map[ei] = self.pattern_edge_map[i];
+        self.pattern_edge_map = pattern_e_map;
 
     @timethis
     def __center_at_origin(self):
@@ -134,6 +143,11 @@ class WirePattern(object):
                 value = self.pattern_attributes[attr_name];
                 if len(value) == len(self.pattern_vertices):
                     tiled_value = value[self.pattern_vertex_map];
+                    assert(len(tiled_value) == len(self.wire_vertices));
+                    wire_network.attributes.add(attr_name, tiled_value);
+                elif len(value) == len(self.pattern_edges):
+                    tiled_value = value[self.pattern_edge_map];
+                    assert(len(tiled_value) == len(self.wire_edges));
                     wire_network.attributes.add(attr_name, tiled_value);
 
     @property

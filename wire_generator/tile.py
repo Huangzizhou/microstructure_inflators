@@ -54,18 +54,30 @@ def load_thickness_attribute(wire_network, config):
 
     thickness = config["thickness"];
     if isinstance(thickness, (int, float)):
-        thickness = np.ones(num_vertices) * thickness;
+        set_uniform_thickness(wire_network, thickness);
     elif isinstance(thickness, (unicode, str)):
-        thickness_file = thickness;
-        with open(thickness_file, 'r') as fin:
-            contents = json.load(fin);
-            thickness = contents["thickness"];
-            assert(len(thickness) == num_vertices);
-            thickness = np.asarray(thickness, dtype=float);
+        set_thickness_from_file(wire_network, thickness);
     else:
         raise NotImplementedError("Unknown thickness value: {}".format(
             thickness));
-    wire_network.attributes.add("thickness", thickness);
+
+def set_uniform_thickness(wire_network, thickness):
+    thickness = np.ones(wire_network.num_vertices) * thickness;
+    wire_network.attributes.add("vertex_thickness", thickness);
+
+def set_thickness_from_file(wire_network, thickness_file):
+    with open(thickness_file, 'r') as fin:
+        contents = json.load(fin);
+        if "vertex_thickness" in contents:
+            thickness = np.asarray(contents["vertex_thcickness"], dtype=float);
+            wire_network.attributes.add("vertex_thickness", thickness);
+        elif "edge_thickness" in contents:
+            thickness = np.asarray(contents["edge_thickness"], dtype=float);
+            wire_network.attributes.add("edge_thickness", thickness);
+        else:
+            raise NotImplementedError(
+                    "Invalid thickness specification in file: {}"\
+                            .format(thickness_file)); 
 
 def tile(config):
     network = load_wire(str(config["wire_network"]));
