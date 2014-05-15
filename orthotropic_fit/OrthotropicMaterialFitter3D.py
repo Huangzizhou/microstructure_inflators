@@ -67,8 +67,6 @@ class OrthotropicMaterialFitter3D(MaterialFitter3D):
                     coeff_12, coeff_13, coeff_23]);
                 rhs.append(energy);
 
-        np.save("coeff", coeff);
-        np.save("rhs", rhs);
         parameter, residual, rank, singular_vals =\
                 lstsq(coeff, rhs);
         self.residual_error = norm((rhs - np.dot(coeff, parameter)) / rhs);
