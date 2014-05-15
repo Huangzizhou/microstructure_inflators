@@ -74,11 +74,13 @@ class WireInflator(object):
 
     @timethis
     def _compute_edge_end_loops(self):
+        vertex_offsets = self._compute_vertex_offsets();
         self.edge_loops = np.zeros((self.wire_network.num_edges, 2, 4, 3));
         for i,edge in enumerate(self.wire_network.edges):
             angles = self.min_angles[edge];
             thickness = self.thickness[i];
-            offsets = 0.5 * sqrt(2) * thickness / np.tan(angles / 2.0) +1e-6;
+            #offsets = 0.5 * sqrt(2) * thickness / np.tan(angles / 2.0) +1e-6;
+            offsets = vertex_offsets[edge];
             edge_dir, perp1_dir, perp2_dir = self._generate_frame(edge);
             v0 = self.wire_network.vertices[edge[0]];
             v1 = self.wire_network.vertices[edge[1]];
@@ -96,6 +98,19 @@ class WireInflator(object):
 
             self.edge_loops[i, 0, :, :] = loop_0;
             self.edge_loops[i, 1, :, :] = loop_1;
+
+    def _compute_vertex_offsets(self):
+        vertex_thickness = np.zeros(self.wire_network.num_vertices);
+        for i, edge in enumerate(self.wire_network.edges):
+            thickness = self.thickness[i];
+            vertex_thickness[edge[0]] = max(vertex_thickness[edge[0]], thickness[0]);
+            vertex_thickness[edge[1]] = max(vertex_thickness[edge[1]], thickness[1]);
+
+        offsets = np.zeros(self.wire_network.num_vertices);
+        offsets = 0.5 * sqrt(2) * vertex_thickness /\
+                np.tan(self.min_angles / 2.0) + 1e-6;
+
+        return offsets;
 
 
     @timethis
