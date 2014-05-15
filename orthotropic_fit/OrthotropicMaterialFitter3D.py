@@ -67,8 +67,12 @@ class OrthotropicMaterialFitter3D(MaterialFitter3D):
                     coeff_12, coeff_13, coeff_23]);
                 rhs.append(energy);
 
+        np.save("coeff", coeff);
+        np.save("rhs", rhs);
         parameter, residual, rank, singular_vals =\
                 lstsq(coeff, rhs);
+        self.residual_error = norm((rhs - np.dot(coeff, parameter)) / rhs);
+
         C = np.array([
             [parameter[0], parameter[6], parameter[7],          0.0,          0.0,          0.0],
             [parameter[6], parameter[1], parameter[8],          0.0,          0.0,          0.0],
@@ -85,13 +89,7 @@ class OrthotropicMaterialFitter3D(MaterialFitter3D):
                 S[3,3], S[4,4], S[5,5],
                 S[0,1], S[0,2], S[1,2]];
         self.orthotropic_parameter = np.array(parameter);
-        self.residual_error = residual;
         self.condition_num = np.max(singular_vals) / np.min(singular_vals);
-        if isinstance(self.residual_error, np.ndarray):
-            if len(self.residual_error) == 0:
-                self.residual_error = 0.0;
-            else:
-                self.residual_error = np.max(self.residual_error);
 
 
     @property

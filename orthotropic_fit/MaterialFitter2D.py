@@ -63,6 +63,7 @@ class MaterialFitter2D(MaterialFitter):
 
         parameter, residual, rank, singular_vals =\
                 lstsq(coeff, rhs);
+        self.residual_error = norm((rhs - np.dot(coeff, parameter)) / rhs);
         C_idx = np.array([
             [0, 3, 4],
             [3, 1, 5],
@@ -72,11 +73,5 @@ class MaterialFitter2D(MaterialFitter):
         S = inv(C);
         self.compliance_tensor = S;
 
-        self.residual_error = residual;
         self.condition_num = np.max(singular_vals) / np.min(singular_vals);
-        if isinstance(self.residual_error, np.ndarray):
-            if len(self.residual_error) == 0:
-                self.residual_error = 0.0;
-            else:
-                self.residual_error = np.max(self.residual_error);
 
