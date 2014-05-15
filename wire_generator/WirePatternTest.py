@@ -48,17 +48,17 @@ class WirePatternTest(unittest.TestCase):
     def test_vertex_attributes(self):
         cell = WireNetwork();
         cell.load_from_file("examples/cube.wire");
-        cell.attributes.add("symmetry_orbit");
-        cell_orbits = cell.attributes["symmetry_orbit"];
+        cell.attributes.add("symmetry_vertex_orbit");
+        cell_orbits = cell.attributes["symmetry_vertex_orbit"];
 
         pattern = WirePattern();
         pattern.set_single_cell_from_wire_network(cell);
         pattern.tile([2, 2, 2]);
         tiled_wires = pattern.wire_network;
 
-        self.assertTrue("symmetry_orbit" in tiled_wires.attributes);
+        self.assertTrue("symmetry_vertex_orbit" in tiled_wires.attributes);
 
-        orbits = tiled_wires.attributes["symmetry_orbit"];
+        orbits = tiled_wires.attributes["symmetry_vertex_orbit"];
         self.assertEqual(len(tiled_wires.vertices), len(orbits));
         self.assertSetEqual(set(cell_orbits), set(orbits));
 

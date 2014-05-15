@@ -13,8 +13,8 @@ def load(wire_file):
     return wire_network;
 
 def extract_orbits(wire_network):
-    wire_network.attributes.add("symmetry_orbit");
-    orbits = wire_network.attributes["symmetry_orbit"];
+    wire_network.attributes.add("symmetry_vertex_orbit");
+    orbits = wire_network.attributes["symmetry_vertex_orbit"];
 
     orbit_map = {};
     for i,orbit_id in enumerate(orbits):

@@ -1,19 +1,19 @@
 import unittest
 from WireNetwork import WireNetwork
-from WireSymmetryOrbitAttribute import WireSymmetryOrbitAttribute
+from WireSymmetryVertexOrbitAttribute import WireSymmetryVertexOrbitAttribute
 
-class WireSymmetryOrbitAttributeTest(unittest.TestCase):
+class WireSymmetryVertexOrbitAttributeTest(unittest.TestCase):
     def load_wire(self, wire_file):
         self.wire_network = WireNetwork();
         self.wire_network.load_from_file(wire_file);
-        self.wire_network.attributes.add("symmetry_orbit");
+        self.wire_network.attributes.add("symmetry_vertex_orbit");
 
     def get_orbits(self):
-        return self.wire_network.attributes["symmetry_orbit"];
+        return self.wire_network.attributes["symmetry_vertex_orbit"];
 
     def test_creation(self):
         self.load_wire("examples/cube.wire");
-        self.assertTrue("symmetry_orbit" in self.wire_network.attributes);
+        self.assertTrue("symmetry_vertex_orbit" in self.wire_network.attributes);
 
     def test_cube(self):
         self.load_wire("examples/cube.wire");

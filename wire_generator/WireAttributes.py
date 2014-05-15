@@ -9,9 +9,12 @@ class WireAttributes(object):
         self.__attributes[name] = value;
 
     def __compute_value_from_wire_network(self, name):
-        if name == "symmetry_orbit":
-            from WireSymmetryOrbitAttribute import WireSymmetryOrbitAttribute
-            attr = WireSymmetryOrbitAttribute();
+        if name == "symmetry_vertex_orbit":
+            from WireSymmetryVertexOrbitAttribute import WireSymmetryVertexOrbitAttribute
+            attr = WireSymmetryVertexOrbitAttribute();
+        elif name == "symmetry_edge_orbit":
+            from WireSymmetryEdgeOrbitAttribute import WireSymmetryEdgeOrbitAttribute
+            attr = WireSymmetryEdgeOrbitAttribute();
         else:
             raise NotImplementedError(
                     "Unknow wire network attribute: {}".format(name));
