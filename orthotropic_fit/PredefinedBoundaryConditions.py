@@ -30,6 +30,39 @@ def compress_z(bbox_min, bbox_max, eps=1e-3):
 def compress_xy(bbox_min, bbox_max, eps=1e-3):
     bc_config = {
             "neumann": [
+                generate_force(bbox_min, bbox_max, 0, 0, 1, eps),
+                generate_force(bbox_min, bbox_max, 0, 0,-1, eps),
+                generate_force(bbox_min, bbox_max, 1, 1, 1, eps),
+                generate_force(bbox_min, bbox_max, 1, 1,-1, eps),
+                ]
+            };
+    return bc_config;
+
+def compress_yz(bbox_min, bbox_max, eps=1e-3):
+    bc_config = {
+            "neumann": [
+                generate_force(bbox_min, bbox_max, 1, 1, 1, eps),
+                generate_force(bbox_min, bbox_max, 1, 1,-1, eps),
+                generate_force(bbox_min, bbox_max, 2, 2, 1, eps),
+                generate_force(bbox_min, bbox_max, 2, 2,-1, eps),
+                ]
+            };
+    return bc_config;
+
+def compress_zx(bbox_min, bbox_max, eps=1e-3):
+    bc_config = {
+            "neumann": [
+                generate_force(bbox_min, bbox_max, 2, 2, 1, eps),
+                generate_force(bbox_min, bbox_max, 2, 2,-1, eps),
+                generate_force(bbox_min, bbox_max, 0, 0, 1, eps),
+                generate_force(bbox_min, bbox_max, 0, 0,-1, eps),
+                ]
+            };
+    return bc_config;
+
+def shear_xy(bbox_min, bbox_max, eps=1e-3):
+    bc_config = {
+            "neumann": [
                 generate_force(bbox_min, bbox_max, 0, 1, 1, eps),
                 generate_force(bbox_min, bbox_max, 0, 1,-1, eps),
                 generate_force(bbox_min, bbox_max, 1, 0, 1, eps),
@@ -38,7 +71,7 @@ def compress_xy(bbox_min, bbox_max, eps=1e-3):
             };
     return bc_config;
 
-def compress_yz(bbox_min, bbox_max, eps=1e-3):
+def shear_yz(bbox_min, bbox_max, eps=1e-3):
     bc_config = {
             "neumann": [
                 generate_force(bbox_min, bbox_max, 1, 2, 1, eps),
@@ -49,7 +82,7 @@ def compress_yz(bbox_min, bbox_max, eps=1e-3):
             };
     return bc_config;
 
-def compress_zx(bbox_min, bbox_max, eps=1e-3):
+def shear_zx(bbox_min, bbox_max, eps=1e-3):
     bc_config = {
             "neumann": [
                 generate_force(bbox_min, bbox_max, 2, 0, 1, eps),

@@ -20,7 +20,10 @@ class MaterialFitter3D(MaterialFitter):
                 PredefinedBC.compress_z(bbox_min, bbox_max, eps),
                 PredefinedBC.compress_xy(bbox_min, bbox_max, eps),
                 PredefinedBC.compress_yz(bbox_min, bbox_max, eps),
-                PredefinedBC.compress_zx(bbox_min, bbox_max, eps) ];
+                PredefinedBC.compress_zx(bbox_min, bbox_max, eps),
+                PredefinedBC.shear_xy(bbox_min, bbox_max, eps),
+                PredefinedBC.shear_yz(bbox_min, bbox_max, eps),
+                PredefinedBC.shear_zx(bbox_min, bbox_max, eps) ];
 
     @timethis
     def _fit_material_parameters(self):

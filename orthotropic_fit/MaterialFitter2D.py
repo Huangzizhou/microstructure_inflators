@@ -18,7 +18,7 @@ class MaterialFitter2D(MaterialFitter):
         bbox_min, bbox_max = self.mesh.bbox;
         return [PredefinedBC.compress_x(bbox_min, bbox_max, eps),
                 PredefinedBC.compress_y(bbox_min, bbox_max, eps),
-                PredefinedBC.compress_xy(bbox_min, bbox_max, eps)];
+                PredefinedBC.shear_xy(bbox_min, bbox_max, eps)];
 
     @timethis
     def _fit_material_parameters(self):
