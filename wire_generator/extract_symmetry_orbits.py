@@ -12,19 +12,29 @@ def load(wire_file):
     return wire_network;
 
 def extract_orbits(wire_network):
-    wire_network.attributes.add("symmetry_orbit");
-    orbits = wire_network.attributes["symmetry_orbit"];
-    return orbits;
+    wire_network.attributes.add("symmetry_vertex_orbit");
+    vertex_orbits = wire_network.attributes["symmetry_vertex_orbit"];
+    wire_network.attributes.add("symmetry_edge_orbit");
+    edge_orbits = wire_network.attributes["symmetry_edge_orbit"];
+    return vertex_orbits, edge_orbits;
 
-def save_orbits(orbit_file, orbits):
+def generate_index_map(orbits):
     orbit_map = {};
     for i,orbit_id in enumerate(orbits):
         if orbit_id in orbit_map:
             orbit_map[orbit_id].append(i);
         else:
             orbit_map[orbit_id] = [i];
+    return orbit_map;
 
-    contents = {"orbits": orbit_map.values()};
+def save_orbits(orbit_file, vertex_orbits, edge_orbits):
+    vertex_orbit_map = generate_index_map(vertex_orbits);
+    edge_orbit_map = generate_index_map(edge_orbits);
+
+    contents = {
+            "vertex_orbits": vertex_orbit_map.values(),
+            "edge_orbits": edge_orbit_map.values()
+            };
     with open(orbit_file, 'w') as fout:
         json.dump(contents, fout, indent=4);
 
@@ -42,8 +52,8 @@ def main():
         orbit_file = basename + ".orbit";
 
         wire_network = load(wire_file);
-        orbits = extract_orbits(wire_network);
-        save_orbits(orbit_file, orbits);
+        vertex_orbits, edge_orbits = extract_orbits(wire_network);
+        save_orbits(orbit_file, vertex_orbits, edge_orbits);
 
 if __name__ == "__main__":
     main();
