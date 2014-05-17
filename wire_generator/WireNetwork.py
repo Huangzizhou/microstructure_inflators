@@ -21,6 +21,9 @@ class WireNetwork(object):
         else:
             self.vertices = np.multiply(self.vertices, factors);
 
+    def offset(self, offset_vector):
+        self.vertices += offset_vector;
+
     def translate(self, offset):
         self.vertices += offset;
 

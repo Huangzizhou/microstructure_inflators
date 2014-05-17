@@ -45,6 +45,7 @@ def parse_config_file(config_file):
     convert_to_abs_path("wire_network");
     convert_to_abs_path("output");
     convert_to_abs_path("thickness");
+    convert_to_abs_path("vertex_offset");
     if "hex_mesh" in config:
         convert_to_abs_path("hex_mesh");
     return config;
@@ -60,6 +61,16 @@ def load_thickness_attribute(wire_network, config):
     else:
         raise NotImplementedError("Unknown thickness value: {}".format(
             thickness));
+
+def apply_vertex_offset(wire_network, config):
+    if "vertex_offset" in config:
+        apply_vertex_offset_from_file(config["vertex_offset"], wire_network);
+
+def apply_vertex_offset_from_file(offset_file, wire_network):
+    with open(offset_file, 'r') as fin:
+        contents = json.load(fin);
+        offset = contents["vertex_offset"];
+        wire_network.offset(offset);
 
 def set_uniform_thickness(wire_network, thickness):
     thickness = np.ones(wire_network.num_vertices) * thickness;
@@ -82,6 +93,7 @@ def set_thickness_from_file(wire_network, thickness_file):
 def tile(config):
     network = load_wire(str(config["wire_network"]));
     load_thickness_attribute(network, config);
+    apply_vertex_offset(network, config);
 
     if "hex_mesh" in config:
         tiled_network = tile_hex(config, network);
