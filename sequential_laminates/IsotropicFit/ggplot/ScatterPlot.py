@@ -12,7 +12,9 @@ class ScatterPlot(AbstractPlot):
         "y": "column_2",
         "w": "column_3",
         "with_lines": bool,
+        "group": "column_4",
         "shape": shape_column,
+        "smooth": method,
         "point_size": point_size_column
         """
         x = self.config.get("x");
@@ -25,3 +27,7 @@ class ScatterPlot(AbstractPlot):
         self.plot.scatter_plot(x, y, w, shape, point_size);
         if self.config.get("with_lines"):
             self.plot.line_plot(x, y, w, group);
+
+        if "smooth" in self.config:
+            self.plot.smooth(x, y, self.config["smooth"], group);
+

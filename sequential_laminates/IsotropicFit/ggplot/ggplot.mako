@@ -142,6 +142,16 @@ p <- p + facet_grid(${facet_1} ~ ${facet_2});
 p <- p + facet_wrap(~${facet});
 </%def>
 
+<%def name="smooth()">
+<%
+clauses = ["x={}".format(x_col), "y={}".format(y_col)]
+if group is not None:
+    clauses.append("group={}".format(group));
+clauses = ",".join(clauses);
+%>
+p <- p + stat_smooth(aes(${clauses}), method="${method}");
+</%def>
+
 <%def name="save_plot()">
 ggsave("${out_name}", width=${width}, height=${height});
 </%def>

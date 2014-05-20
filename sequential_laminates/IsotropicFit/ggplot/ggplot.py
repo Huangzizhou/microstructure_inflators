@@ -77,6 +77,10 @@ class ggplot:
         self.r_script += self.template.get_def("facet_wrap").render(
                 facet = facet);
 
+    def smooth(self, x_col, y_col, method="lm", group=None):
+        self.r_script += self.template.get_def("smooth").render(
+                x_col = x_col, y_col = y_col, method=method, group=group);
+
     def save_plot(self, out_name, width=10, height=6):
         self.r_script += self.template.get_def("save_plot").render(
                 out_name = out_name, width = width, height = height);
