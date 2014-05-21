@@ -45,7 +45,8 @@ def parse_config_file(config_file):
     convert_to_abs_path("wire_network");
     convert_to_abs_path("output");
     convert_to_abs_path("thickness");
-    convert_to_abs_path("vertex_offset");
+    if "vertex_offset" in config:
+        convert_to_abs_path("vertex_offset");
     if "hex_mesh" in config:
         convert_to_abs_path("hex_mesh");
     return config;

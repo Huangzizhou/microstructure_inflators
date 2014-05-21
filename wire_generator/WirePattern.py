@@ -67,6 +67,8 @@ class WirePattern(object):
 
         wire_vertices = [];
         wire_edges = [];
+        self.pattern_vertex_map = [];
+        self.pattern_edge_map = [];
         num_pattern_vertices = len(self.pattern_vertices);
         for i in range(mesh.get_num_voxels()):
             voxel = mesh.get_voxel(i).ravel();
@@ -84,6 +86,9 @@ class WirePattern(object):
 
             wire_vertices.append(vertices);
             wire_edges.append(edges);
+
+            self.pattern_vertex_map += range(len(self.pattern_vertices));
+            self.pattern_edge_map += range(len(self.pattern_edges));
 
         self.wire_vertices = np.vstack(wire_vertices);
         self.wire_edges = np.vstack(wire_edges);
