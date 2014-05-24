@@ -105,6 +105,10 @@ class WireNetwork(object):
         return np.amin(self.vertices, axis=0), np.amax(self.vertices, axis=0);
 
     @property
+    def bbox_center(self):
+        return np.average(self.bbox, axis=0);
+
+    @property
     def centroid(self):
         return np.average(self.vertices, axis=0);
 

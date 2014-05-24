@@ -40,5 +40,8 @@ class WireAttributes(object):
     def keys(self):
         return self.__attributes.keys();
 
+    def iteritems(self):
+        return self.__attributes.iteritems();
+
     def __len__(self):
         return len(self.__attributes);

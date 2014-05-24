@@ -11,6 +11,7 @@ import PyMesh
 from WireNetwork import WireNetwork
 from WirePattern import WirePattern
 from WireInflator import WireInflator
+from WireModifierFactory import WireModifierFactory
 from PeriodicWireInflator import PeriodicWireInflator
 from timethis import timethis
 
@@ -19,6 +20,7 @@ def parse_config_file(config_file):
     {
         "wire_network": single_cell_wire_network,
         "thickness": float,
+        "modifiers": modifier_file,
         "bbox_min": [min_x, min_y, min_z],
         "bbox_max": [max_x, max_y, max_z],
         "repeats": [x_reps, y_reps, z_reps],
@@ -44,62 +46,34 @@ def parse_config_file(config_file):
 
     convert_to_abs_path("wire_network");
     convert_to_abs_path("output");
-    convert_to_abs_path("thickness");
     if "vertex_offset" in config:
         convert_to_abs_path("vertex_offset");
     if "hex_mesh" in config:
         convert_to_abs_path("hex_mesh");
+    if "modifier_file" in config:
+        convert_to_abs_path("modifier_file");
     return config;
-
-def load_thickness_attribute(wire_network, config):
-    num_vertices = len(wire_network.vertices);
-
-    thickness = config["thickness"];
-    if isinstance(thickness, (int, float)):
-        set_uniform_thickness(wire_network, thickness);
-    elif isinstance(thickness, (unicode, str)):
-        set_thickness_from_file(wire_network, thickness);
-    else:
-        raise NotImplementedError("Unknown thickness value: {}".format(
-            thickness));
-
-def apply_vertex_offset(wire_network, config):
-    if "vertex_offset" in config:
-        apply_vertex_offset_from_file(config["vertex_offset"], wire_network);
-
-def apply_vertex_offset_from_file(offset_file, wire_network):
-    with open(offset_file, 'r') as fin:
-        contents = json.load(fin);
-        offset = contents["vertex_offset"];
-        wire_network.offset(offset);
 
 def set_uniform_thickness(wire_network, thickness):
     thickness = np.ones(wire_network.num_vertices) * thickness;
     wire_network.attributes.add("vertex_thickness", thickness);
 
-def set_thickness_from_file(wire_network, thickness_file):
-    with open(thickness_file, 'r') as fin:
-        contents = json.load(fin);
-        if "vertex_thickness" in contents:
-            thickness = np.asarray(contents["vertex_thcickness"], dtype=float);
-            wire_network.attributes.add("vertex_thickness", thickness);
-        elif "edge_thickness" in contents:
-            thickness = np.asarray(contents["edge_thickness"], dtype=float);
-            wire_network.attributes.add("edge_thickness", thickness);
-        else:
-            raise NotImplementedError(
-                    "Invalid thickness specification in file: {}"\
-                            .format(thickness_file)); 
+def load_modifiers(modifier_file):
+    if modifier_file is None:
+        return [];
+
+    modifiers = WireModifierFactory.create_from_file(str(modifier_file));
+    return modifiers;
 
 def tile(config):
     network = load_wire(str(config["wire_network"]));
-    load_thickness_attribute(network, config);
-    apply_vertex_offset(network, config);
+    set_uniform_thickness(network, config["thickness"]);
+    modifiers = load_modifiers(config.get("modifier_file", None));
 
     if "hex_mesh" in config:
-        tiled_network = tile_hex(config, network);
+        tiled_network = tile_hex(config, network, modifiers);
     else:
-        tiled_network = tile_box(config, network);
+        tiled_network = tile_box(config, network, modifiers);
 
     if config.get("trim", False):
         tiled_network.trim();
@@ -123,25 +97,26 @@ def inflate_and_save(tiled_network, periodic, output_file):
         inflator = WireInflator(tiled_network);
     else:
         inflator = PeriodicWireInflator(tiled_network);
+
     inflator.inflate();
     inflator.save(output_file);
 
-def tile_hex(config, network):
+def tile_hex(config, network, modifiers):
     pattern = WirePattern();
     pattern.set_single_cell_from_wire_network(network);
     hex_mesh = load_mesh(str(config["hex_mesh"]));
-    pattern.tile_hex_mesh(hex_mesh);
+    pattern.tile_hex_mesh(hex_mesh, modifiers);
 
     tiled_network = pattern.wire_network;
     return tiled_network;
 
-def tile_box(config, network):
+def tile_box(config, network, modifiers):
     pattern = WirePattern();
     pattern.set_single_cell_from_wire_network(network);
     pattern.x_tile_dir = np.array(config.get("x_tile_dir", [1.0, 0.0, 0.0]));
     pattern.y_tile_dir = np.array(config.get("y_tile_dir", [0.0, 1.0, 0.0]));
     pattern.z_tile_dir = np.array(config.get("z_tile_dir", [0.0, 0.0, 1.0]));
-    pattern.tile(config["repeats"]);
+    pattern.tile(config["repeats"], modifiers);
 
     tiled_network = pattern.wire_network;
 
