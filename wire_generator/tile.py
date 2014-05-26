@@ -20,7 +20,7 @@ def parse_config_file(config_file):
     {
         "wire_network": single_cell_wire_network,
         "thickness": float,
-        "modifiers": modifier_file,
+        "modifier_file": modifier_file,
         "bbox_min": [min_x, min_y, min_z],
         "bbox_max": [max_x, max_y, max_z],
         "repeats": [x_reps, y_reps, z_reps],
@@ -46,8 +46,6 @@ def parse_config_file(config_file):
 
     convert_to_abs_path("wire_network");
     convert_to_abs_path("output");
-    if "vertex_offset" in config:
-        convert_to_abs_path("vertex_offset");
     if "hex_mesh" in config:
         convert_to_abs_path("hex_mesh");
     if "modifier_file" in config:
