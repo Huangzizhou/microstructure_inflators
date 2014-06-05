@@ -45,3 +45,5 @@ class OrthotropicMaterialFitter3DTest(MaterialFitterTest):
         homogenized_material = PyAssembler.Material.create_symmetric(
                 material.get_density(), fitter.elasticity_tensor);
 
+        self.assertEqualMaterial(3, material, homogenized_material);
+

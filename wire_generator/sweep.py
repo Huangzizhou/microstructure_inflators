@@ -9,6 +9,25 @@ import os.path
 from WireNetwork import WireNetwork
 
 def load_config(config_file):
+    """ Syntax:
+    {
+        "wire_file": wire_file,
+        "orbit_file": orbit_file,
+        "thickness": {
+            "per_edge": true,
+            "orbits": [#, #, ...],
+            "thickness_range": [min_thickness, max_thickness],
+            "num_samples": #,
+            "default": #
+        },
+        "offset": {
+            "orbits": [#, #, ...],
+            "offset_percentage": [min_offset_percentage, max_offset_percentage],
+            "num_samples": #,
+            "default": 0.0
+        }
+    }
+    """
     config_path = os.path.dirname(config_file);
     with open(config_file, 'r') as fin:
         config = json.load(fin);
@@ -31,13 +50,15 @@ def load_orbits(orbit_file):
 
 def sweep_thickness(thickness_config, wire_network):
     num_dof = len(thickness_config["orbits"]);
-    if num_dof != 0:
-        thickness_range = thickness_config["thickness_range"];
-        thickness_samples = thickness_config["num_samples"];
-        values = np.linspace(thickness_range[0], thickness_range[1],
-                thickness_samples);
+    thickness_range = thickness_config["thickness_range"];
+    thickness_samples = thickness_config["num_samples"];
+    values = np.linspace(thickness_range[0], thickness_range[1],
+            thickness_samples);
+    if num_dof > 1:
         grid = np.meshgrid(*([values] * num_dof));
         thicknesses = np.vstack(map(np.ravel, grid)).T;
+    elif num_dof == 1:
+        thicknesses = values.reshape((-1, 1));
     else:
         thicknesses = np.array([]);
     parameters = thicknesses;
@@ -88,15 +109,10 @@ def sweep_vertex_offset(offset_config, wire_network, vertex_orbits):
         parameters = offsets;
     return offsets, parameters;
 
-def save_setting(output_file, sweep_config, thickness_settings, offset_settings):
-    basename, ext = os.path.splitext(output_file);
-    basedir = os.path.dirname(basename);
+def generate_thickness_configs(thickness_settings, sweep_config, basedir):
     orbit_file = sweep_config["orbit_file"];
     orbit_file = os.path.relpath(orbit_file, basedir);
-
     thicknesses, thickness_parameters = thickness_settings;
-    vertex_offsets, offset_parameters = offset_settings;
-
     thickness_configs = [];
     if len(thicknesses) > 0:
         thickness_config = sweep_config["thickness"];
@@ -110,7 +126,12 @@ def save_setting(output_file, sweep_config, thickness_settings, offset_settings)
                     "thickness": thickness.tolist(),
                     "default": thickness_config["default"] };
             thickness_configs.append(config);
+    return zip(thickness_configs, thickness_parameters);
 
+def generate_offset_configs(offset_settings, sweep_config, basedir):
+    orbit_file = sweep_config["orbit_file"];
+    orbit_file = os.path.relpath(orbit_file, basedir);
+    vertex_offsets, offset_parameters = offset_settings;
     offset_configs = [];
     if len(vertex_offsets) > 0:
         offset_config = sweep_config["offset"];
@@ -121,23 +142,40 @@ def save_setting(output_file, sweep_config, thickness_settings, offset_settings)
                     "effective_orbits": offset_config["orbits"],
                     "offset_percentages": offset.tolist() };
             offset_configs.append(config);
+    return zip(offset_configs, offset_parameters);
 
-    for i,j in itertools.product(
-            range(len(thickness_configs)),
-            range(len(offset_configs))):
-        thickness = thickness_configs[i];
-        thickness_param = thickness_parameters[i].tolist();
-        offset = offset_configs[j];
-        offset_param = offset_parameters[j].tolist();
-        contents = {
-                "thickness": thickness,
-                "thickness_parameter": thickness_param,
-                "vertex_offset": offset,
-                "offset_parameter": offset_param
-                };
-        filename = "{}_thickness_{}_offset_{}{}".format(basename, i, j, ext);
+def save_setting(output_file, sweep_config, settings):
+    basename, ext = os.path.splitext(output_file);
+    basedir = os.path.dirname(basename);
+
+    config_names = [];
+    configs = [];
+    for setting_name, settings_val in settings.iteritems():
+        if setting_name == "thickness":
+            thickness_configs = generate_thickness_configs(settings_val,
+                    sweep_config, basedir);
+            configs.append(thickness_configs);
+            config_names.append("thickness");
+        elif setting_name == "offset":
+            offset_configs = generate_offset_configs(settings_val, sweep_config,
+                    basedir);
+            configs.append(offset_configs);
+            config_names.append("vertex_offset");
+        else:
+            raise NotImplementedError("Unsupported setting name: {}".format(
+                setting_name));
+
+    count = 0;
+    for config_combo in itertools.product(*configs):
+        contents = {};
+        for i in range(len(config_names)):
+            name = config_names[i];
+            contents[name] = config_combo[i][0];
+            contents["{}_paramter".format(name)] = config_combo[i][1].tolist();
+        filename = "{}_{}{}".format(basename, count, ext);
         with open(filename, 'w') as fout:
             json.dump(contents, fout, indent=4);
+        count += 1;
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -158,11 +196,17 @@ def main():
     wire_network = load(wire_file);
     vertex_orbits, edge_orbits = load_orbits(orbit_file);
 
-    thickness_setting = sweep_thickness(sweep_config["thickness"], wire_network);
-    offset_setting = sweep_vertex_offset(sweep_config["offset"], wire_network,
-            vertex_orbits);
+    setting = {};
+    if "thickness" in sweep_config:
+        thickness_setting = sweep_thickness(sweep_config["thickness"],
+                wire_network);
+        setting["thickness"] = thickness_setting;
+    if "offset" in sweep_config:
+        offset_setting = sweep_vertex_offset(sweep_config["offset"],
+                wire_network, vertex_orbits);
+        setting["offset"] = offset_setting;
 
-    save_setting(args.output, sweep_config, thickness_setting, offset_setting);
+    save_setting(args.output, sweep_config, setting);
 
 if __name__ == "__main__":
     main();

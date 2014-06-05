@@ -32,9 +32,9 @@ class OrthotropicMaterialFitter3D(MaterialFitter3D):
             strain_1_xx = strain_1[:,0].ravel();
             strain_1_yy = strain_1[:,1].ravel();
             strain_1_zz = strain_1[:,2].ravel();
-            strain_1_xy = strain_1[:,3].ravel();
+            strain_1_yz = strain_1[:,3].ravel();
             strain_1_xz = strain_1[:,4].ravel();
-            strain_1_yz = strain_1[:,5].ravel();
+            strain_1_xy = strain_1[:,5].ravel();
             for u2,coarse_u2 in zip(self.displacements, self.coarse_displacements):
                 energy = np.dot(u1, K*u2);
 
@@ -44,9 +44,9 @@ class OrthotropicMaterialFitter3D(MaterialFitter3D):
                 strain_2_xx = strain_2[:,0].ravel();
                 strain_2_yy = strain_2[:,1].ravel();
                 strain_2_zz = strain_2[:,2].ravel();
-                strain_2_xy = strain_2[:,3].ravel();
+                strain_2_yz = strain_2[:,3].ravel();
                 strain_2_xz = strain_2[:,4].ravel();
-                strain_2_yz = strain_2[:,5].ravel();
+                strain_2_xy = strain_2[:,5].ravel();
 
                 coeff_11 = np.multiply(strain_1_xx, strain_2_xx).dot(voxel_volumes);
                 coeff_22 = np.multiply(strain_1_yy, strain_2_yy).dot(voxel_volumes);

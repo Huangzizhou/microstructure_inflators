@@ -84,17 +84,12 @@ class WirePattern(object):
         for i in range(mesh.get_num_voxels()):
             voxel = mesh.get_voxel(i).ravel();
             voxel_vertices = mesh_vertices[voxel];
-            voxel_bbox_min = np.amin(voxel_vertices, axis=0);
-            voxel_bbox_max = np.amax(voxel_vertices, axis=0);
-            scale = np.divide(voxel_bbox_max - voxel_bbox_min,
-                    self.pattern_bbox_size);
-            c = centroids[i];
-
             attr_dict = {
                     name:val[i] for name,val in mesh_attributes.iteritems() };
 
             pattern = copy.deepcopy(self.pattern);
-            pattern.vertices = pattern.vertices * scale + c;
+            pattern.vertices = self.trilinear_interpolate(
+                    pattern.vertices, voxel_vertices);
             self.tile_once(base_idx, pattern, modifiers, **attr_dict);
             base_idx += pattern.num_vertices;
 
@@ -103,6 +98,34 @@ class WirePattern(object):
         self.__remove_duplicated_vertices();
         self.__remove_duplicated_edges();
         self.__center_at_origin();
+
+    @timethis
+    def trilinear_interpolate(self, vertices, corners):
+        """ Trilinear interpolate vertices inside of the hex specified by
+        corners.  The order of corners should be consistent with the hex node
+        order specified by GMSH:
+        http://www.geuz.org/gmsh/doc/texinfo/gmsh.html#Node-ordering
+        """
+        assert(len(corners) == 8);
+        shape_functions = [
+                lambda v : (1.0-v[0]) * (1.0-v[1]) * (1.0-v[2]),
+                lambda v : (    v[0]) * (1.0-v[1]) * (1.0-v[2]),
+                lambda v : (    v[0]) * (    v[1]) * (1.0-v[2]),
+                lambda v : (1.0-v[0]) * (    v[1]) * (1.0-v[2]),
+                lambda v : (1.0-v[0]) * (1.0-v[1]) * (    v[2]),
+                lambda v : (    v[0]) * (1.0-v[1]) * (    v[2]),
+                lambda v : (    v[0]) * (    v[1]) * (    v[2]),
+                lambda v : (1.0-v[0]) * (    v[1]) * (    v[2]),
+                ];
+        bbox_min = np.amin(vertices, axis=0);
+        bbox_max = np.amax(vertices, axis=0);
+        bbox_size = bbox_max - bbox_min;
+        vertices = (vertices - bbox_min) / bbox_size;
+        trilinear_coords = np.array([
+            [f(v) for f in shape_functions]
+            for v in vertices ]);
+        vertices = np.dot(trilinear_coords, corners);
+        return vertices;
 
     @timethis
     def __remove_duplicated_vertices(self):

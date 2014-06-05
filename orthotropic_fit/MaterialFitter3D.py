@@ -41,9 +41,9 @@ class MaterialFitter3D(MaterialFitter):
             strain_1_xx = strain_1[:,0].ravel();
             strain_1_yy = strain_1[:,1].ravel();
             strain_1_zz = strain_1[:,2].ravel();
-            strain_1_xy = strain_1[:,3].ravel();
+            strain_1_yz = strain_1[:,3].ravel();
             strain_1_xz = strain_1[:,4].ravel();
-            strain_1_yz = strain_1[:,5].ravel();
+            strain_1_xy = strain_1[:,5].ravel();
             for u2,coarse_u2 in zip(self.displacements, self.coarse_displacements):
                 energy = np.dot(u1, K*u2);
 
@@ -53,17 +53,17 @@ class MaterialFitter3D(MaterialFitter):
                 strain_2_xx = strain_2[:,0].ravel();
                 strain_2_yy = strain_2[:,1].ravel();
                 strain_2_zz = strain_2[:,2].ravel();
-                strain_2_xy = strain_2[:,3].ravel();
+                strain_2_yz = strain_2[:,3].ravel();
                 strain_2_xz = strain_2[:,4].ravel();
-                strain_2_yz = strain_2[:,5].ravel();
+                strain_2_xy = strain_2[:,5].ravel();
 
                 coeff_11 = np.multiply(strain_1_xx, strain_2_xx).dot(voxel_volumes);
                 coeff_22 = np.multiply(strain_1_yy, strain_2_yy).dot(voxel_volumes);
                 coeff_33 = np.multiply(strain_1_zz, strain_2_zz).dot(voxel_volumes);
 
-                coeff_44 = np.multiply(strain_1_xy, strain_2_xy).dot(voxel_volumes) * 4;
+                coeff_44 = np.multiply(strain_1_yz, strain_2_yz).dot(voxel_volumes) * 4;
                 coeff_55 = np.multiply(strain_1_xz, strain_2_xz).dot(voxel_volumes) * 4;
-                coeff_66 = np.multiply(strain_1_yz, strain_2_yz).dot(voxel_volumes) * 4;
+                coeff_66 = np.multiply(strain_1_xy, strain_2_xy).dot(voxel_volumes) * 4;
 
                 coeff_12 = (np.multiply(strain_1_xx, strain_2_yy) +\
                         np.multiply(strain_1_yy, strain_2_xx)).dot(voxel_volumes)
@@ -72,33 +72,33 @@ class MaterialFitter3D(MaterialFitter):
                 coeff_23 = (np.multiply(strain_1_yy, strain_2_zz) +\
                         np.multiply(strain_1_zz, strain_2_yy)).dot(voxel_volumes)
 
-                coeff_14 = (np.multiply(strain_1_xx, strain_2_xy) +\
-                        np.multiply(strain_1_xy, strain_2_xx)).dot(voxel_volumes) * 2;
+                coeff_14 = (np.multiply(strain_1_xx, strain_2_yz) +\
+                        np.multiply(strain_1_yz, strain_2_xx)).dot(voxel_volumes) * 2;
                 coeff_15 = (np.multiply(strain_1_xx, strain_2_xz) +\
                         np.multiply(strain_1_xz, strain_2_xx)).dot(voxel_volumes) * 2;
-                coeff_16 = (np.multiply(strain_1_xx, strain_2_yz) +\
-                        np.multiply(strain_1_yz, strain_2_xx)).dot(voxel_volumes) * 2;
+                coeff_16 = (np.multiply(strain_1_xx, strain_2_xy) +\
+                        np.multiply(strain_1_xy, strain_2_xx)).dot(voxel_volumes) * 2;
 
-                coeff_24 = (np.multiply(strain_1_yy, strain_2_xy) +\
-                        np.multiply(strain_1_xy, strain_2_yy)).dot(voxel_volumes) * 2;
+                coeff_24 = (np.multiply(strain_1_yy, strain_2_yz) +\
+                        np.multiply(strain_1_yz, strain_2_yy)).dot(voxel_volumes) * 2;
                 coeff_25 = (np.multiply(strain_1_yy, strain_2_xz) +\
                         np.multiply(strain_1_xz, strain_2_yy)).dot(voxel_volumes) * 2;
-                coeff_26 = (np.multiply(strain_1_yy, strain_2_yz) +\
-                        np.multiply(strain_1_yz, strain_2_yy)).dot(voxel_volumes) * 2;
+                coeff_26 = (np.multiply(strain_1_yy, strain_2_xy) +\
+                        np.multiply(strain_1_xy, strain_2_yy)).dot(voxel_volumes) * 2;
 
-                coeff_34 = (np.multiply(strain_1_zz, strain_2_xy) +\
-                        np.multiply(strain_1_xy, strain_2_zz)).dot(voxel_volumes) * 2;
+                coeff_34 = (np.multiply(strain_1_zz, strain_2_yz) +\
+                        np.multiply(strain_1_yz, strain_2_zz)).dot(voxel_volumes) * 2;
                 coeff_35 = (np.multiply(strain_1_zz, strain_2_xz) +\
                         np.multiply(strain_1_xz, strain_2_zz)).dot(voxel_volumes) * 2;
-                coeff_36 = (np.multiply(strain_1_zz, strain_2_yz) +\
-                        np.multiply(strain_1_yz, strain_2_zz)).dot(voxel_volumes) * 2;
+                coeff_36 = (np.multiply(strain_1_zz, strain_2_xy) +\
+                        np.multiply(strain_1_xy, strain_2_zz)).dot(voxel_volumes) * 2;
 
-                coeff_45 = (np.multiply(strain_1_xz, strain_2_xy) +\
-                        np.multiply(strain_1_xy, strain_2_xz)).dot(voxel_volumes) * 4;
+                coeff_45 = (np.multiply(strain_1_yz, strain_2_xz) +\
+                        np.multiply(strain_1_xz, strain_2_yz)).dot(voxel_volumes) * 4;
                 coeff_46 = (np.multiply(strain_1_yz, strain_2_xy) +\
                         np.multiply(strain_1_xy, strain_2_yz)).dot(voxel_volumes) * 4;
-                coeff_56 = (np.multiply(strain_1_yz, strain_2_xz) +\
-                        np.multiply(strain_1_xz, strain_2_yz)).dot(voxel_volumes) * 4;
+                coeff_56 = (np.multiply(strain_1_xz, strain_2_xy) +\
+                        np.multiply(strain_1_xy, strain_2_xz)).dot(voxel_volumes) * 4;
 
                 coeff.append([
                     coeff_11, coeff_22, coeff_33,
