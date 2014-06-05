@@ -44,8 +44,7 @@ def homogenize(mesh_file, material_file):
     E = homogenizer.periodicHomogenize();
     print E
     print "Moduli: "
-    print np.multiply(1.0 / np.diag(np.linalg.inv(E)),
-                      np.array([1, 1, 1, .5, .5, .5]));
+    print 1.0 / np.diag(np.linalg.inv(E))
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Periodic Homogenization");

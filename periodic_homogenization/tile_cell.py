@@ -12,6 +12,7 @@ if PYMESH_PATH is None:
 sys.path.append(os.path.join(PYMESH_PATH, "lib"));
 sys.path.append(os.path.join(PYMESH_PATH, "swig"));
 LINEAR_ELASTICITY_PATH = os.environ.get("LINEAR_ELASTICITY_PATH");
+sys.path.append(LINEAR_ELASTICITY_PATH);
 sys.path.append(os.path.join(LINEAR_ELASTICITY_PATH, "PyUtils"));
 
 from mesh_io import *
