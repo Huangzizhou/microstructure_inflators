@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse
+import PyMesh
 from scipy.sparse.linalg import spsolve
 
 from MatrixUtils import *
@@ -142,7 +143,7 @@ class PeriodicHomogenization:
         return elasticity / cell_volume;
 
 
-    def periodicHomogenize(self):
+    def periodicHomogenize(self, out_file):
         ''' Run periodic homogenization, returning the effective elasticity
             tensor.
         '''
@@ -150,6 +151,15 @@ class PeriodicHomogenization:
         assert(dim == 3);
 
         w_ij = self.solveCellProblems()
+        if (out_file != None):
+            mesh = self.__mesh
+            writer = PyMesh.MeshWriter.create_writer(out_file)
+            for ij in range(6):
+                name = "w_ij " + str(ij)
+                mesh.add_attribute(name)
+                mesh.set_attribute(name, w_ij[ij])
+                writer.with_attribute(name)
+            writer.write_mesh(mesh.raw_mesh)
         return self.homogenizedElasticityTensor(w_ij)
 
 

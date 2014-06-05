@@ -37,11 +37,11 @@ def init(mesh_file, material_file):
     return mesh, assembler;
 
 @timethis
-def homogenize(mesh_file, material_file):
+def homogenize(mesh_file, material_file, outMSH):
     mesh, assembler = init(mesh_file, material_file);
 
     homogenizer = PeriodicHomogenization(mesh, assembler);
-    E = homogenizer.periodicHomogenize();
+    E = homogenizer.periodicHomogenize(outMSH);
     print E
     print "Moduli: "
     print 1.0 / np.diag(np.linalg.inv(E))
@@ -52,12 +52,13 @@ def parse_args():
             help="Display timing information");
     parser.add_argument("--material", help="Material file", default=None);
     parser.add_argument("in_mesh", help="input mesh file (.msh)");
+    parser.add_argument("--outMSH", help="Debugging fields output", default=None);
     args = parser.parse_args();
     return args;
 
 def main():
     args = parse_args();
-    homogenize(args.in_mesh, args.material)
+    homogenize(args.in_mesh, args.material, args.outMSH)
 
     if args.timing:
         timethis.summarize();
