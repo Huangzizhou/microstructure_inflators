@@ -2,6 +2,8 @@ import numpy as np
 import scipy.sparse
 import PyMesh
 from scipy.sparse.linalg import spsolve
+from numpy.linalg import norm
+import itertools
 
 from MatrixUtils import *
 
@@ -38,18 +40,18 @@ class PeriodicHomogenization:
         vtx = self.__mesh.vertices;
         # Find identified vertices (sets of vertices on the periodic boundary)
         import PeriodicBoundaryCondition as pbc
-        identifiedPairs = []
+        pbcPairs = []
         bmin,bmax = self.__mesh.bbox;
         for d in range(self.__mesh.dim):
-            minFaceVertices, = np.where(np.abs(vtx[:,d] - bmin[d]) < 1e-5);
-            maxFaceVertices, = np.where(np.abs(vtx[:,d] - bmax[d]) < 1e-5);
+            minFaceVertices, = np.where(np.abs(vtx[:,d] - bmin[d]) < 1e-8);
+            maxFaceVertices, = np.where(np.abs(vtx[:,d] - bmax[d]) < 1e-8);
             # print self.__mesh.vertices[minFaceVertices]
             # print self.__mesh.vertices[maxFaceVertices]
             assert(minFaceVertices.shape == maxFaceVertices.shape);
-            identifiedPairs = identifiedPairs + pbc.match_boundaries(
-                    self.__mesh, minFaceVertices, maxFaceVertices);
+            pbcPairs += [pbc.match_boundaries(self.__mesh, minFaceVertices,
+                maxFaceVertices)];
 
-        # print identifiedPairs;
+        identifiedPairs = list(itertools.chain(*pbcPairs))
         identifiedPairs = pbc.breakIdentificationCycles(identifiedPairs)
         
         i, j, v = [], [], []
@@ -99,11 +101,51 @@ class PeriodicHomogenization:
                     (np.tile([1, 1, 1, 2, 2, 2], numElems), 0),
                     shape=(6 * numElems, 6 * numElems));
 
-            source_term = -B.T * (V * (shearDoubler * (D *
+            sourceTerm = -B.T * (V * (shearDoubler * (D *
                 np.tile(e_ij, numElems))));
-            b = np.hstack([source_term, C_rhs]);
+
+            ij = len(w_ij)
+            # # Check for force balance on periodic boundary for x loading
+            # # scenario
+            # if (ij == 0):
+            #     for (u, v) in pbcPairs[0]:
+            #         f1 = np.array(sourceTerm[3 * u : 3 * u + 3])
+            #         f2 = np.array(sourceTerm[3 * v : 3 * v + 3])
+            #         print "total force on periodic vertices (" + str(u) + ", " + \
+            #                 str(v) + "): " + str(f1[0]) + " + " + str(f2[0]) + \
+            #                 " = " + str(norm(f1 + f2))
+
+            name = "rhs " + str(ij);
+            self.__mesh.add_attribute(name);
+            self.__mesh.set_attribute(name, sourceTerm);
+            b = np.hstack([sourceTerm, C_rhs]);
             assert(A.shape[0] == b.shape[0]);
             soln = spsolve(A, b);
+
+            # # Check how accurately periodic boundary conditions are enforced:
+            # maxNorm = 0;
+            # for (u, v) in identifiedPairs:
+            #     maxNorm = max(maxNorm, abs(soln[3 * u + 0] - soln[3 * v + 0]))
+            #     maxNorm = max(maxNorm, abs(soln[3 * u + 1] - soln[3 * v + 1]))
+            #     maxNorm = max(maxNorm, abs(soln[3 * u + 2] - soln[3 * v + 2]))
+            # print "max pbc violation for w_ij " + str(ij) + \
+            #       ": " + str(maxNorm)
+
+            # Print displacements on the x-periodic boundary for x loading
+            # Also output strains
+            if (ij == 0):
+                # for (u, v) in pbcPairs[0]:
+                #     d1 = np.array(soln[3 * u : 3 * u + 3])
+                #     d2 = np.array(soln[3 * v : 3 * v + 3])
+                #     print "displacement on periodic vertices (" + str(u) + ", " + \
+                #             str(v) + "): " + str(d1) + ", " + str(d2)
+                strain = B * soln[0:n * dim];
+                for i in range(6):
+                   strain_i = strain[6 * np.arange(numElems) + i]
+                   name = "strain_0 component " + str(i)
+                   self.__mesh.add_attribute(name)
+                   self.__mesh.set_attribute(name, strain_i)
+
             w_ij.append(soln[0:n*dim]);
 
         return w_ij
@@ -159,6 +201,12 @@ class PeriodicHomogenization:
                 mesh.add_attribute(name)
                 mesh.set_attribute(name, w_ij[ij])
                 writer.with_attribute(name)
+                rhs_name = "rhs " + str(ij) # Already in attributes...
+                writer.with_attribute(rhs_name)
+            for ij in range(6):
+                name = "strain_0 component " + str(ij)
+                writer.with_attribute(name)
+
             writer.write_mesh(mesh.raw_mesh)
         return self.homogenizedElasticityTensor(w_ij)
 
