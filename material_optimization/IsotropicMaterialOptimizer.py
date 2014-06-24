@@ -26,9 +26,10 @@ class IsotropicMaterialOptimizer(MaterialOptimizer):
             grad_young, grad_poisson = self.__compute_objective_grad();
             self.__update_material_parameters(grad_young, grad_poisson);
             self.__update_elasticity_model();
-            dist = norm(self.displacement - self.target_displacement);
+
+            obj_val = self.__evaluate_objective();
             print("itr: {}  ave_grd: {}  obj: {}".format(
-                i, norm(grad_young), dist));
+                i, norm(grad_young), obj_val));
 
     @timethis
     def __initialize_material_parameters(self):
@@ -146,7 +147,7 @@ class IsotropicMaterialOptimizer(MaterialOptimizer):
         young = self.mesh.get_attribute(self.young_field_name).ravel();
         poisson = self.mesh.get_attribute(self.poisson_field_name).ravel();
 
-        young -= young_step_size * delta_young;
+        young += young_step_size * delta_young;
         #poisson += poisson_step_size * delta_poisson;
 
         self.mesh.set_attribute(self.young_field_name, young);
@@ -214,5 +215,12 @@ class IsotropicMaterialOptimizer(MaterialOptimizer):
         self.grad_poisson = np.sum(self.grad_poisson, axis=1);
 
         return self.grad_young, self.grad_poisson;
+
+    @timethis
+    def __evaluate_objective(self):
+        displacement_gap = (self.displacement - self.target_displacement)\
+                .reshape((self.mesh.num_vertices, self.mesh.dim), order="C");
+        obj_value = 0.5 * np.sum(norm(displacement_gap, axis=1) * self.target_areas);
+        return obj_value;
 
 
