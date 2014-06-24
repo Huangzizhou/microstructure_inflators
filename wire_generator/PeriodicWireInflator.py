@@ -226,7 +226,8 @@ class PeriodicWireInflator(WireInflator):
         """
         assert(len(min_vtx) == len(max_vtx));
         num_pts = len(min_vtx);
-        cell_size = np.amax(offset) * 0.01;
+        bbox_min, bbox_max = self.original_wire_network.bbox;
+        cell_size = np.amin(bbox_max - bbox_min) * 0.001;
         hash_grid = PyMesh.HashGrid.create(cell_size);
         hash_grid.insert_multiple(min_vtx,
                 self.mesh_vertices[min_vtx] + offset);
@@ -246,6 +247,7 @@ class PeriodicWireInflator(WireInflator):
             else:
                 mapped_min_vtx.append(nearby_v_indices[0]);
                 mapped_max_vtx.append(vi);
+
         min_vtx = np.array(mapped_min_vtx, dtype=int);
         max_vtx = np.array(mapped_max_vtx, dtype=int);
         return min_vtx, max_vtx;
