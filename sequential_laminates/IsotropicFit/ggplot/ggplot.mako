@@ -75,6 +75,8 @@ if w_col is not None:
     clauses.append("color={}".format(w_col));
 if group is not None:
     clauses.append("group={}".format(group));
+else:
+    clauses.append("group=1");
 aes = ",".join(clauses);
 %>
 p <- p + geom_line(aes(${aes}));
