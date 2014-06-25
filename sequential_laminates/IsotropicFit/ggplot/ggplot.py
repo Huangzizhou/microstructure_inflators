@@ -38,6 +38,10 @@ class ggplot:
         self.r_script += self.template.get_def("discretize_column").render(
                 field_name = col_name);
 
+    def as_numeric(self, col_name):
+        self.r_script += self.template.get_def("as_numeric").render(
+                field_name = col_name);
+
     def scatter_plot(self, x_col, y_col, w_col, shape=None, point_size=None, discrete=False):
         self.r_script += self.template.get_def("scatter_plot").render(
                 x_col = x_col, y_col = y_col, w_col = w_col, discrete=discrete,

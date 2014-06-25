@@ -12,6 +12,7 @@ class DataFrame:
     def prepare(self):
         self.add_column();
         self.discretize_column();
+        self.as_numeric();
         self.filter_data();
 
     def discretize_column(self):
@@ -26,6 +27,19 @@ class DataFrame:
         if columns is not None:
             for column in columns:
                 self.plots.discretize_column(column["name"]);
+
+    def as_numeric(self):
+        """ syntax:
+        as_numeric: [
+            {"name": "column_1"},
+            {"name": "column_2"},
+            ...
+        ]
+        """
+        columns = self.config.get("as_numeric", None);
+        if columns is not None:
+            for column in columns:
+                self.plots.as_numeric(column["name"]);
 
     def add_column(self):
         """ syntax:

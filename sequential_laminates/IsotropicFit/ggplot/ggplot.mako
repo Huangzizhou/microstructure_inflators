@@ -41,6 +41,10 @@ raw_data$${new_column} = with(raw_data, ${formula});
 raw_data$${field_name} = as.factor(raw_data$${field_name});
 </%def>
 
+<%def name="as_numeric()">
+raw_data$${field_name} = as.numeric(as.character(raw_data$${field_name}))
+</%def>
+
 <%def name="init_plot()">
 p <- ggplot(raw_data);
 </%def>
