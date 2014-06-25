@@ -20,16 +20,28 @@ class IsotropicMaterialOptimizer(MaterialOptimizer):
 
     @timethis
     def optimize(self, max_iterations):
+        obj_history = [];
+        grad_history = [];
         for i in range(max_iterations):
+            finite_diff_grad_young = self.__compute_finite_difference_grad();
+
             self.__compute_displacement();
             self.__compute_lagrange_multiplier();
             grad_young, grad_poisson = self.__compute_objective_grad();
             self.__update_material_parameters(grad_young, grad_poisson);
             self.__update_elasticity_model();
 
+            grad_difference = norm(finite_diff_grad_young - grad_young);
             obj_val = self.__evaluate_objective();
-            print("itr: {}  ave_grd: {}  obj: {}".format(
-                i, norm(grad_young), obj_val));
+            grad_norm = norm(grad_young);
+            obj_history.append(obj_val);
+            grad_history.append(grad_norm);
+            print("itr: {}  grd: {}  obj: {}  grad_diff: {}".format(
+                i, grad_norm, obj_val, grad_difference));
+
+            if self.__has_converged(grad_history, obj_history):
+                print("Converged in {} iterations.".format(i));
+                break;
 
     @timethis
     def __initialize_material_parameters(self):
@@ -147,8 +159,8 @@ class IsotropicMaterialOptimizer(MaterialOptimizer):
         young = self.mesh.get_attribute(self.young_field_name).ravel();
         poisson = self.mesh.get_attribute(self.poisson_field_name).ravel();
 
-        young += young_step_size * delta_young;
-        #poisson += poisson_step_size * delta_poisson;
+        young -= young_step_size * delta_young;
+        #poisson -= poisson_step_size * delta_poisson;
 
         self.mesh.set_attribute(self.young_field_name, young);
         #self.mesh.set_attribute(self.poisson_field_name, poisson);
@@ -173,7 +185,7 @@ class IsotropicMaterialOptimizer(MaterialOptimizer):
     @timethis
     def __compute_lagrange_multiplier(self):
         num_dof = self.mesh.dim * self.mesh.num_vertices;
-        displacement_gap = (self.displacement - self.target_displacement)\
+        displacement_gap = (self.target_displacement - self.displacement)\
                 .reshape((self.mesh.num_vertices, self.mesh.dim), order="C");
 
         self.assembler.set_material(self.hetero_material);
@@ -217,10 +229,40 @@ class IsotropicMaterialOptimizer(MaterialOptimizer):
         return self.grad_young, self.grad_poisson;
 
     @timethis
+    def __compute_finite_difference_grad(self):
+        def get_objective_value(young_array):
+            self.mesh.set_attribute("young", young_array);
+            self.hetero_material.update();
+            self.assembler.set_material(self.hetero_material);
+            self.stiffness = format(self.assembler.assemble("stiffness"));
+
+            self.__compute_displacement();
+            return self.__evaluate_objective();
+
+        young = np.copy(self.mesh.get_attribute("young"));
+        step_size = 1e-3;
+        ori_obj = get_objective_value(young);
+
+        young_grad = np.zeros(self.mesh.num_elements);
+        for i in range(self.mesh.num_elements):
+            cur_young = np.copy(young);
+            cur_young[i] += step_size;
+            cur_obj = get_objective_value(cur_young);
+            young_grad[i] = (cur_obj - ori_obj) / step_size;
+
+        self.mesh.set_attribute("young", young);
+        self.hetero_material.update();
+        self.stiffness = format(self.assembler.assemble("stiffness"));
+        return young_grad;
+
+    @timethis
     def __evaluate_objective(self):
         displacement_gap = (self.displacement - self.target_displacement)\
                 .reshape((self.mesh.num_vertices, self.mesh.dim), order="C");
-        obj_value = 0.5 * np.sum(norm(displacement_gap, axis=1) * self.target_areas);
+        obj_value = 0.5 * np.sum(norm(displacement_gap, axis=1)**2 * self.target_areas);
         return obj_value;
+
+    def __has_converged(self, obj_hist, grad_hist):
+        return grad_hist[-1] < grad_hist[0] * 1e-2;
 
 

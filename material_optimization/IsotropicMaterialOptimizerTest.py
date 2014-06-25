@@ -7,7 +7,7 @@ from timethis import timethis
 
 class IsotropicMaterialOptimizerTest(unittest.TestCase):
     def setUp(self):
-        self.mesh = load_mesh("example/solid_square.obj");
+        self.mesh = load_mesh("example/square_8x8.obj");
         self.optimizer = IsotropicMaterialOptimizer(self.mesh);
 
     def test_initialization(self):
@@ -16,3 +16,4 @@ class IsotropicMaterialOptimizerTest(unittest.TestCase):
         self.assertTrue(self.mesh.has_attribute(self.optimizer.grad_young_field_name));
         self.assertTrue(self.mesh.has_attribute(self.optimizer.grad_poisson_field_name));
         timethis.summarize();
+

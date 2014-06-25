@@ -38,7 +38,7 @@ def main():
     mesh = load_mesh(args.input_mesh);
     optimizer = IsotropicMaterialOptimizer(mesh);
     init_boundary_condition(optimizer, args.boundary_condition);
-    optimizer.optimize(100);
+    optimizer.optimize(10);
     save_result(optimizer, args.output_mesh,
             "young", "poisson",
             "displacement", "source_term",
