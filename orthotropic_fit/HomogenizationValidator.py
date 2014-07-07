@@ -37,7 +37,7 @@ class HomogenizationValidator(object):
             dirichlet_bc = bd.dirichlet_bc;
 
             self.deformer.clear();
-            self.deformer.add_dirichlet_constraint(*dirichlet_bc);
+            self.deformer.add_dirichlet_constraint(*dirichlet_bc[:2]);
             self.deformer.add_neumann_constraint(*neumann_bc[:2]);
             without_rigid_motion_constraint = len(dirichlet_bc[0]) != 0;
             displacement = self.deformer.solve(without_rigid_motion_constraint);
