@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-from IsotropicMaterialOptimizerTest import IsotropicMaterialOptimizerTest
+#from IsotropicMaterialOptimizerTest import IsotropicMaterialOptimizerTest
+from IsotropicMatOptSettingTest import IsotropicMatOptSettingTest
 import unittest
 
 def main():

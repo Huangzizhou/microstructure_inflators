@@ -22,8 +22,9 @@ class IsotropicMaterialOptimizer(MaterialOptimizer):
     def optimize(self, max_iterations):
         obj_history = [];
         grad_history = [];
+        young_history = [];
         for i in range(max_iterations):
-            finite_diff_grad_young = self.__compute_finite_difference_grad();
+            #finite_diff_grad_young = self.__compute_finite_difference_grad();
 
             self.__compute_displacement();
             self.__compute_lagrange_multiplier();
@@ -31,17 +32,40 @@ class IsotropicMaterialOptimizer(MaterialOptimizer):
             self.__update_material_parameters(grad_young, grad_poisson);
             self.__update_elasticity_model();
 
-            grad_difference = norm(finite_diff_grad_young - grad_young);
+            #grad_difference = norm(finite_diff_grad_young - grad_young);
             obj_val = self.__evaluate_objective();
             grad_norm = norm(grad_young);
             obj_history.append(obj_val);
             grad_history.append(grad_norm);
-            print("itr: {}  grd: {}  obj: {}  grad_diff: {}".format(
-                i, grad_norm, obj_val, grad_difference));
+            young_history.append(np.copy(self.mesh.get_attribute("young")));
+            #print("itr: {}  grd: {}  obj: {}  grad_diff: {}".format(
+            #    i, grad_norm, obj_val, grad_difference));
+            print("itr: {}  grd: {}  obj: {}".format(
+                i, grad_norm, obj_val));
 
             if self.__has_converged(grad_history, obj_history):
                 print("Converged in {} iterations.".format(i));
                 break;
+        self.save_iterations(obj_history, grad_history);
+        self.add_young_history_to_mesh(young_history);
+
+    def save_iterations(self, obj_hist, grad_hist):
+        assert(len(obj_hist) == len(grad_hist));
+        import csv
+        log_file = "iteration_history.csv";
+        num_data = len(obj_hist);
+        with open(log_file, 'w') as fout:
+            writer = csv.writer(fout);
+            writer.writerow(["iteration", "objective", "gradient"]);
+            rows = np.vstack((range(num_data), obj_hist, grad_hist)).T;
+            writer.writerows(rows);
+        print("iteration history saved to {}".format(log_file));
+
+    def add_young_history_to_mesh(self, young_history):
+        for i,young in enumerate(young_history):
+            name = "young_{}".format(i);
+            self.mesh.add_attribute(name);
+            self.mesh.set_attribute(name, young);
 
     @timethis
     def __initialize_material_parameters(self):
@@ -264,5 +288,4 @@ class IsotropicMaterialOptimizer(MaterialOptimizer):
 
     def __has_converged(self, obj_hist, grad_hist):
         return grad_hist[-1] < grad_hist[0] * 1e-2;
-
 
