@@ -6,6 +6,7 @@ syntax: glob
 *.out
 *.pyg
 *.pyc
+*.orig
 
 sequential_laminates/homogenization.pdf
 sequential_laminates/IsotropicFit/results/
@@ -26,3 +27,4 @@ lp_holes/generator/examples/
 lp_holes/generator/jobs/
 tools/sample_rotation/example/
 material_optimization/example/
+material_optimization/result/
