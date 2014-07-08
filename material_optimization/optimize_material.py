@@ -4,6 +4,7 @@ import argparse
 from scipy.optimize import minimize
 import numpy as np
 from numpy.linalg import norm
+import os.path
 
 import LinearElasticitySettings
 from mesh_io import load_mesh, save_mesh
@@ -13,11 +14,14 @@ from timethis import timethis
 from IsotropicMatOptSetting import IsotropicMatOptSetting
 
 def optimize(setting, max_iterations):
+    GTOL = 1e-6;
     init_parameters = setting.parameters;
-    result = minimize(setting.evaluate, init_parameters, method="BFGS", jac=True,
+    result = minimize(setting.evaluate, init_parameters, method="L-BFGS-B", jac=True,
+            bounds = setting.bounds,
             callback=setting.log_iteration,
             options={
                 "maxiter": max_iterations,
+                "gtol": GTOL / setting.mesh.num_elements,
                 "disp": True
                 });
     return result.x;
@@ -39,7 +43,9 @@ def save_result(optimizer, out_mesh_name, *attribute_names):
     save_mesh(out_mesh_name, optimizer.mesh,
             *attribute_names);
 
-def dump_iteration_log(setting, log_file):
+def dump_iteration_log(setting, output_file):
+    basename, ext = os.path.splitext(output_file);
+    log_file = basename + ".csv";
     import csv
     with open(log_file, 'w') as fout:
         writer = csv.writer(fout);
@@ -55,8 +61,6 @@ def parse_args():
     parser.add_argument("-n", "--num-iterations", default=10, type=int);
     parser.add_argument("-b", "--boundary-condition",
             help="Boundary condition specification", required=True);
-    parser.add_argument("--log-file", help="log file name",
-            default="iteration_history.csv");
     parser.add_argument("input_mesh", help="input mesh file");
     parser.add_argument("output_mesh", help="output mesh file");
     args = parser.parse_args();
@@ -91,7 +95,7 @@ def main():
             "target_displacement",
             *attribute_names);
 
-    dump_iteration_log(setting, args.log_file);
+    dump_iteration_log(setting, args.output_mesh);
 
 
 if __name__ == "__main__":

@@ -279,3 +279,7 @@ class IsotropicMatOptSetting(OptimizationSetting):
         poisson = self.mesh.get_attribute(self.poisson_field_name).ravel();
         return np.hstack((young, poisson));
 
+    @property
+    def bounds(self):
+        return [(0.1, None)] * self.mesh.num_elements +\
+                [(0.0, 0.0)] * self.mesh.num_elements;
