@@ -14,7 +14,7 @@ from timethis import timethis
 from IsotropicMatOptSetting import IsotropicMatOptSetting
 
 def optimize(setting, max_iterations):
-    GTOL = 1e-6;
+    GTOL = 1e-2;
     init_parameters = setting.parameters;
     result = minimize(setting.evaluate, init_parameters, method="L-BFGS-B", jac=True,
             bounds = setting.bounds,

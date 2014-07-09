@@ -257,9 +257,9 @@ class IsotropicMatOptSetting(OptimizationSetting):
             gradient = np.hstack((self.grad_young, self.grad_poisson));
 
             idx = len(self.cache);
-            self.parameter_history.append(parameters);
-            self.objective_history.append(objective);
-            self.gradient_history.append(gradient);
+            self.parameter_history.append(np.copy(parameters));
+            self.objective_history.append(np.copy(objective));
+            self.gradient_history.append(np.copy(gradient));
             self.cache[key] = idx;
 
             return objective, gradient;
