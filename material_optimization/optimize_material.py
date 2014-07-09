@@ -87,6 +87,12 @@ def main():
         mesh.set_attribute(poisson_name, poisson);
         attribute_names.append(poisson_name);
 
+        displacement = setting.displacement_history[idx];
+        displacement_name = "disp_{}".format(i)
+        mesh.add_attribute(displacement_name);
+        mesh.set_attribute(displacement_name, displacement);
+        attribute_names.append(displacement_name);
+
     save_result(setting, args.output_mesh,
             "young", "poisson",
             "displacement", "source_term",

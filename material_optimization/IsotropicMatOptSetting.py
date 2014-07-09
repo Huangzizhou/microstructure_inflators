@@ -154,6 +154,7 @@ class IsotropicMatOptSetting(OptimizationSetting):
         self.parameter_history = [];
         self.objective_history = [];
         self.gradient_history = [];
+        self.displacement_history = [];
         self.cache = {};
         self.iteration_indices = [];
 
@@ -260,6 +261,7 @@ class IsotropicMatOptSetting(OptimizationSetting):
             self.parameter_history.append(np.copy(parameters));
             self.objective_history.append(np.copy(objective));
             self.gradient_history.append(np.copy(gradient));
+            self.displacement_history.append(np.copy(self.displacement));
             self.cache[key] = idx;
 
             return objective, gradient;
