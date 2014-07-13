@@ -21,7 +21,8 @@ def optimize(setting, max_iterations):
             callback=setting.log_iteration,
             options={
                 "maxiter": max_iterations,
-                "gtol": GTOL / setting.mesh.num_elements,
+                "gtol": min(1e-6, GTOL / setting.mesh.num_elements),
+                #"gtol": GTOL / setting.mesh.num_elements,
                 "disp": True
                 });
     return result.x;
@@ -74,24 +75,40 @@ def main():
 
     attribute_names = [];
     num_elements = mesh.num_elements;
+
+    def add_output_field(name, value):
+        mesh.add_attribute(name);
+        mesh.set_attribute(name, value);
+        attribute_names.append(name);
+
     for i,idx in enumerate(setting.iteration_indices):
         young = setting.parameter_history[idx][:num_elements];
         young_name = "young_{}".format(i);
-        mesh.add_attribute(young_name);
-        mesh.set_attribute(young_name, young);
-        attribute_names.append(young_name);
+        add_output_field(young_name, young);
 
         poisson = setting.parameter_history[idx][num_elements:];
         poisson_name = "poisson_{}".format(i);
-        mesh.add_attribute(poisson_name);
-        mesh.set_attribute(poisson_name, poisson);
-        attribute_names.append(poisson_name);
+        add_output_field(poisson_name, poisson);
 
         displacement = setting.displacement_history[idx];
         displacement_name = "disp_{}".format(i)
-        mesh.add_attribute(displacement_name);
-        mesh.set_attribute(displacement_name, displacement);
-        attribute_names.append(displacement_name);
+        add_output_field(displacement_name, displacement);
+
+        grad_young = setting.grad_young_history[idx];
+        grad_young_name = "grad_young_{}".format(i);
+        add_output_field(grad_young_name, grad_young);
+
+        lagrange_multiplier = setting.lagrange_history[idx];
+        lagrange_name = "lagrange_{}".format(i);
+        add_output_field(lagrange_name, lagrange_multiplier);
+
+        displacement_strain = setting.displacement_strain_history[idx];
+        displacement_strain_name = "u_strain_{}".format(i);
+        add_output_field(displacement_strain_name, displacement_strain);
+
+        lagrange_strain = setting.lagrange_strain_history[idx];
+        lagrange_strain_name = "l_strain_{}".format(i);
+        add_output_field(lagrange_strain_name, lagrange_strain);
 
     save_result(setting, args.output_mesh,
             "young", "poisson",

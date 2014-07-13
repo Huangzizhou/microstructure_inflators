@@ -53,6 +53,14 @@ class IsotropicMatOptSettingTest(unittest.TestCase):
         self.mesh.add_attribute(name);
         self.mesh.set_attribute(name, val);
 
+    def get_parameters(self):
+        num_parameters = self.mesh.num_elements * 2;
+        parameters = np.ones(num_parameters);
+        for i in range(self.mesh.num_elements):
+            parameters[i] = 5.0 + 0.1 * i;
+            parameters[i + self.mesh.num_elements] = 0.3 + 0.01 * i;
+        return parameters;
+
     def test_initialization(self):
         self.assertTrue(self.mesh.has_attribute(
             self.opt_setting.young_field_name));
@@ -83,12 +91,7 @@ class IsotropicMatOptSettingTest(unittest.TestCase):
     def test_finite_diff_elasticity_matrix_grad(self):
         dim = self.mesh.dim;
         tensor_size = dim * (dim+1) / 2;
-        young_value = 1.5;
-        poisson_value = 0.3;
-        num_parameters = self.mesh.num_elements * 2;
-        parameters = np.ones(num_parameters) * young_value;
-        parameters[self.mesh.num_elements:] = poisson_value;
-
+        parameters = self.get_parameters();
         obj, grad = self.opt_setting.evaluate(parameters);
 
         grad_C_E = self.mesh.get_attribute(self.opt_setting.grad_young_field_name);
@@ -110,10 +113,7 @@ class IsotropicMatOptSettingTest(unittest.TestCase):
 
     #@unittest.skip("debugging")
     def test_obj_evaluation(self):
-        num_parameters = self.mesh.num_elements * 2;
-        parameters = np.ones(num_parameters) * 5;
-        parameters[self.mesh.num_elements:] = 0.0;
-
+        parameters = self.get_parameters();
         obj, grad = self.opt_setting.evaluate(parameters);
 
         self.add_attribute("displacement",

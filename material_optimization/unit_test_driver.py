@@ -2,6 +2,7 @@
 
 #from IsotropicMaterialOptimizerTest import IsotropicMaterialOptimizerTest
 from IsotropicMatOptSettingTest import IsotropicMatOptSettingTest
+from ScipyOptimizeTest import ScipyOptimizeTest
 import unittest
 
 def main():

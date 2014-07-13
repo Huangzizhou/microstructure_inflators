@@ -154,7 +154,11 @@ class IsotropicMatOptSetting(OptimizationSetting):
         self.parameter_history = [];
         self.objective_history = [];
         self.gradient_history = [];
+        self.grad_young_history = [];
         self.displacement_history = [];
+        self.lagrange_history = [];
+        self.displacement_strain_history = [];
+        self.lagrange_strain_history = [];
         self.cache = {};
         self.iteration_indices = [];
 
@@ -257,11 +261,18 @@ class IsotropicMatOptSetting(OptimizationSetting):
             objective = self.__evaluate_objective();
             gradient = np.hstack((self.grad_young, self.grad_poisson));
 
+            displacement_strain = self.displacement_strain * self.displacement;
+            lagrange_strain = self.displacement_strain * self.lagrange_multiplier;
+
             idx = len(self.cache);
             self.parameter_history.append(np.copy(parameters));
             self.objective_history.append(np.copy(objective));
             self.gradient_history.append(np.copy(gradient));
+            self.grad_young_history.append(np.copy(self.grad_young));
             self.displacement_history.append(np.copy(self.displacement));
+            self.lagrange_history.append(np.copy(self.lagrange_multiplier));
+            self.displacement_strain_history.append(displacement_strain);
+            self.lagrange_strain_history.append(lagrange_strain);
             self.cache[key] = idx;
 
             return objective, gradient;
