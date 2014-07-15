@@ -19,7 +19,7 @@ class IsotropicMatOptSettingTest(unittest.TestCase):
         return bc_extractor.neumann_bc, bc_extractor.dirichlet_bc;
 
     def finite_diff_objective_grad(self, parameters):
-        epsilon = 1e-3;
+        epsilon = 1e-6;
         grad = np.zeros(len(parameters));
         ori_obj, ori_grad = self.opt_setting.evaluate(parameters);
         for i in range(len(parameters)):
@@ -28,6 +28,28 @@ class IsotropicMatOptSettingTest(unittest.TestCase):
             cur_obj, cur_grad = self.opt_setting.evaluate(probe);
             grad[i] = (cur_obj - ori_obj) / epsilon;
 
+        return grad;
+
+    def finite_diff_regularizer_grad(self, parameters):
+        epsilon = 1e-6;
+        young = parameters[:self.mesh.num_elements];
+        poisson = parameters[self.mesh.num_elements:];
+
+        value = self.opt_setting.evaluate_regularizer(young, poisson);
+
+        grad = np.zeros(len(parameters));
+        for i in range(self.mesh.num_elements):
+            mod_young = np.copy(young);
+            mod_young[i] += epsilon;
+            mod_poisson = np.copy(poisson);
+            mod_poisson[i] += epsilon;
+
+            value_mod_young = self.opt_setting.evaluate_regularizer(
+                    mod_young, poisson);
+            value_mod_poisson = self.opt_setting.evaluate_regularizer(
+                    young, mod_poisson);
+            grad[i] = (value_mod_young - value) / epsilon;
+            grad[i+self.mesh.num_elements] = (value_mod_poisson - value) / epsilon;
         return grad;
 
     def finite_difference_elasticity_matrix_gradient(self, parameters):
@@ -110,6 +132,15 @@ class IsotropicMatOptSettingTest(unittest.TestCase):
 
             self.assertAlmostEqual(0.0, norm(grad_C_E_i - fd_grad_C_E_i), 3);
             self.assertAlmostEqual(0.0, norm(grad_C_v_i - fd_grad_C_v_i), 3);
+
+    def test_regularizer_evaluation(self):
+        parameters = self.get_parameters();
+        regularizer_grad = self.opt_setting.evaluate_regularizer_gradient(
+                parameters[:self.mesh.num_elements],
+                parameters[self.mesh.num_elements:]);
+        regularizer_finite_diff_grad = self.finite_diff_regularizer_grad(parameters);
+        diff_grad = regularizer_grad - regularizer_finite_diff_grad;
+        self.assertAlmostEqual(0.0, norm(diff_grad), 3);
 
     #@unittest.skip("debugging")
     def test_obj_evaluation(self):

@@ -150,6 +150,25 @@ class IsotropicMatOptSetting(OptimizationSetting):
                 (np.repeat(volumes, flattened_tensor_size), 0),
                 shape=(size, size));
 
+        num_faces = self.mesh.num_faces;
+        i_idx = [];
+        j_idx = [];
+        val = [];
+        self.mesh.raw_mesh.enable_face_connectivity();
+        for i in range(num_faces):
+            adj_faces = self.mesh.raw_mesh.get_face_adjacent_faces(i).ravel();
+            for j in adj_faces:
+                i_idx.append(i);
+                j_idx.append(i);
+                val.append(1.0);
+
+                i_idx.append(i);
+                j_idx.append(j);
+                val.append(-1.0);
+
+        self.element_connectivity = scipy.sparse.coo_matrix((val, (i_idx,
+            j_idx)), shape=(num_faces, num_faces)).tocsc() * 1e-5;
+
     def __initialize_history(self):
         self.parameter_history = [];
         self.objective_history = [];
@@ -237,6 +256,17 @@ class IsotropicMatOptSetting(OptimizationSetting):
         self.assembler.set_material(self.hetero_material);
         self.stiffness = format(self.assembler.assemble("stiffness"));
 
+    def evaluate_regularizer(self, young, poisson):
+        young_smoothness = 0.5 * np.dot(young, self.element_connectivity * young);
+        poisson_smoothness = 0.5 * np.dot(poisson, self.element_connectivity *
+                poisson);
+        return young_smoothness + poisson_smoothness;
+
+    def evaluate_regularizer_gradient(self, young, poisson):
+        grad_young_smoothness = self.element_connectivity * young;
+        grad_poisson_smoothness = self.element_connectivity * poisson;
+        return np.hstack((grad_young_smoothness, grad_poisson_smoothness));
+
     def __evaluate_objective(self):
         displacement_gap = (self.displacement - self.target_displacement)\
                 .reshape((self.mesh.num_vertices, self.mesh.dim), order="C");
@@ -258,8 +288,10 @@ class IsotropicMatOptSetting(OptimizationSetting):
             self.__compute_lagrange_multiplier();
             self.__compute_objective_grad();
 
-            objective = self.__evaluate_objective();
-            gradient = np.hstack((self.grad_young, self.grad_poisson));
+            objective = self.__evaluate_objective()\
+                    #+ self.evaluate_regularizer(young, poisson);
+            gradient = np.hstack((self.grad_young, self.grad_poisson))\
+                    #+ self.evaluate_regularizer_gradient(young, poisson);
 
             displacement_strain = self.displacement_strain * self.displacement;
             lagrange_strain = self.displacement_strain * self.lagrange_multiplier;
@@ -294,5 +326,5 @@ class IsotropicMatOptSetting(OptimizationSetting):
 
     @property
     def bounds(self):
-        return [(0.1, None)] * self.mesh.num_elements +\
+        return [(0.1, 5.0)] * self.mesh.num_elements +\
                 [(0.0, 0.0)] * self.mesh.num_elements;
