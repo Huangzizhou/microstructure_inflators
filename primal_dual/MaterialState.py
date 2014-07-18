@@ -38,7 +38,7 @@ class MaterialState(object):
 
     def update(self, young, poisson):
         young = np.clip(young, 0.1, 5.0);
-        poisson = np.clip(poisson, 0.0, 0.5);
+        poisson = np.clip(poisson, -0.3, 0.3);
         self.__set_material_attributes(young, poisson);
         self.material.update();
 

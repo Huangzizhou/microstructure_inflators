@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
+import csv
+import os.path
 from MaterialOptimizer import MaterialOptimizer
 
 import LinearElasticitySettings
@@ -25,6 +27,8 @@ def save_results(optimizer, output_file):
     for i in range(optimizer.iterations):
         add_attribute(mesh, "young_{:03}".format(i), optimizer.young[i],
                 attr_names);
+        add_attribute(mesh, "poisson_{:03}".format(i), optimizer.poisson[i],
+                attr_names);
         add_attribute(mesh, "primal_u_{:03}".format(i),
                 optimizer.primal_displacement[i], attr_names);
         add_attribute(mesh, "dual_u_{:03}".format(i),
@@ -34,6 +38,15 @@ def save_results(optimizer, output_file):
             optimizer.material.young_attr_name,
             optimizer.material.poisson_attr_name,
             *attr_names);
+
+def save_progress(optimizer, output_file):
+    basename, ext = os.path.splitext(output_file);
+    csv_file = basename + ".csv";
+    with open(csv_file, 'w') as fout:
+        writer = csv.writer(fout);
+        writer.writerow(["iteration", "objective"]);
+        for i,obj in enumerate(optimizer.objective_history):
+            writer.writerow([i, obj]);
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Optimize material properties");
@@ -58,6 +71,7 @@ def main():
 
     optimizer.optimize(args.num_iterations);
     save_results(optimizer, args.output_mesh);
+    save_progress(optimizer, args.output_mesh);
 
 if __name__ == "__main__":
     main();

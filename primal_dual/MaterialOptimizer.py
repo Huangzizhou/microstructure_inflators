@@ -1,7 +1,7 @@
 import LinearElasticitySettings
 
 import numpy as np
-from numpy.linalg import norm
+from numpy.linalg import norm, lstsq
 
 from Assembler import Assembler
 from Dual import Dual
@@ -25,8 +25,8 @@ class MaterialOptimizer(object):
         self.dual.add_neumann_bc(neumann_bc);
         self.init_log();
 
-        self.objective_tol = 1e-3;
-        self.sufficient_decrease_tol = 0.05;
+        self.objective_tol = 1e-4;
+        self.sufficient_decrease_tol = 0.01;
 
     def optimize(self, max_iter = 10):
         self.iterations = 0;
@@ -53,10 +53,26 @@ class MaterialOptimizer(object):
         young = np.zeros(self.mesh.num_elements);
         poisson = np.zeros(self.mesh.num_elements);
         for i, epsilon, sigma in zip(range(num_elements), strain, stress):
-            # So far, just fit Young's modulus.
-            # Assume poisson is zero.
-            young[i] = norm(sigma) / norm(epsilon);
+            # This is 2D only.
+            e_00 = epsilon[0]; s_00 = sigma[0];
+            e_11 = epsilon[1]; s_11 = sigma[1];
+            e_01 = epsilon[2]; s_01 = sigma[2];
+            A = np.array([
+                [s_00, -s_11],
+                [s_11, -s_00],
+                [2*s_01,  2*s_01] ]);
+            b = [ e_00, e_11, 2*e_01 ];
+            sol, residual, rank, singular_vals = lstsq(A, b);
 
+            young[i] = 1.0 / sol[0];
+            poisson[i] = sol[1] / sol[0];
+            if (young[i] < 0.0):
+                young[i] *= -1;
+                poisson[i] *= -1;
+
+            #young[i] = norm(sigma) / norm(epsilon);
+
+        young = np.absolute(young);
         self.material.update(young, poisson);
 
     def evaluate_objective(self):
@@ -71,12 +87,14 @@ class MaterialOptimizer(object):
         self.primal_displacement = [];
         self.dual_displacement = [];
         self.young = [];
+        self.poisson = [];
         self.objective_history = [];
 
     def log_progress(self):
         self.primal_displacement.append(np.copy(self.primal.displacement));
         self.dual_displacement.append(np.copy(self.dual.displacement));
         self.young.append(np.copy(self.mesh.get_attribute(self.material.young_attr_name)));
+        self.poisson.append(np.copy(self.mesh.get_attribute(self.material.poisson_attr_name)));
         self.objective_history.append(self.objective_value);
 
     def has_converged(self):
