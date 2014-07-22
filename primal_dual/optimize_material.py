@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+import json
 import os.path
 from MaterialOptimizer import MaterialOptimizer
 
@@ -48,6 +49,20 @@ def save_progress(optimizer, output_file):
         for i,obj in enumerate(optimizer.objective_history):
             writer.writerow([i, obj]);
 
+def save_optimal_material(optimizer, output_file):
+    basename, ext = os.path.splitext(output_file);
+    material_file = basename + ".material";
+    material_setting = {
+            "type": "element_wise_isotropic_material",
+            };
+    young = optimizer.mesh.get_attribute(optimizer.material.young_attr_name);
+    poisson = optimizer.mesh.get_attribute(optimizer.material.poisson_attr_name);
+    material_setting["young"] = young.ravel().tolist();
+    material_setting["poisson"] = poisson.ravel().tolist();
+
+    with open(material_file, 'w') as fout:
+        json.dump(material_setting, fout);
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Optimize material properties");
     parser.add_argument("-n", "--num-iterations", default=10, type=int);
@@ -72,6 +87,7 @@ def main():
     optimizer.optimize(args.num_iterations);
     save_results(optimizer, args.output_mesh);
     save_progress(optimizer, args.output_mesh);
+    save_optimal_material(optimizer, args.output_mesh);
 
 if __name__ == "__main__":
     main();
