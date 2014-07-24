@@ -7,3 +7,5 @@ if linear_elasticity_path is None:
 if linear_elasticity_path not in sys.path:
     sys.path.append(linear_elasticity_path);
     sys.path.append(os.path.join(linear_elasticity_path, "PyUtils"));
+
+import PyMeshSetting
