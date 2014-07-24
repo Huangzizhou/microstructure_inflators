@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import json
 from scipy.optimize import minimize
 import numpy as np
 from numpy.linalg import norm
@@ -29,12 +30,27 @@ def optimize(setting, max_iterations):
                 });
     return result.x;
 
-def create_setting(mesh, bd_file):
+def parse_material(material_file):
+    with open(material_file, 'r') as fin:
+        setting = json.load(fin);
+        return setting;
+
+def create_setting(mesh, bd_file, initial_material_file):
     bc_extractor = BoundaryConditionExtractor(mesh);
     bc_extractor.extract_from_file(bd_file);
 
+    if initial_material_file is not None:
+        mat_setting = parse_material(initial_material_file);
+        young = np.array(mat_setting["young"]);
+        poisson = np.array(mat_setting["poisson"]);
+    else:
+        young = np.ones(mesh.num_elements);
+        poisson = np.zeros(mesh.num_elements);
+
     setting = IsotropicMatOptSetting(mesh,
-            bc_extractor.neumann_bc, bc_extractor.dirichlet_bc);
+            bc_extractor.neumann_bc, bc_extractor.dirichlet_bc, young, poisson);
+    if initial_material_file is not None:
+        setting.rigid_motion_rhs = np.array(mat_setting["rigid_motion"]);
     return setting;
 
 def save_result(optimizer, out_mesh_name, *attribute_names):
@@ -64,6 +80,8 @@ def parse_args():
     parser.add_argument("-n", "--num-iterations", default=10, type=int);
     parser.add_argument("-b", "--boundary-condition",
             help="Boundary condition specification", required=True);
+    parser.add_argument("--initial-material", help="initial material to use",
+            default=None);
     parser.add_argument("input_mesh", help="input mesh file");
     parser.add_argument("output_mesh", help="output mesh file");
     args = parser.parse_args();
@@ -72,7 +90,8 @@ def parse_args():
 def main():
     args = parse_args();
     mesh = load_mesh(args.input_mesh);
-    setting = create_setting(mesh, args.boundary_condition);
+    setting = create_setting(mesh, args.boundary_condition,
+            args.initial_material);
     opt_solution = optimize(setting, args.num_iterations);
 
     attribute_names = [];

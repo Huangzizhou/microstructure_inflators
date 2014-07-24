@@ -12,17 +12,18 @@ from MatrixUtils import format
 from OptimizationSetting import OptimizationSetting
 
 class IsotropicMatOptSetting(OptimizationSetting):
-    def __init__(self, mesh, neumann_bc, dirichlet_bc):
+    def __init__(self, mesh, neumann_bc, dirichlet_bc, init_young, init_poisson):
         self.mesh = mesh;
 
         self.__initialize_optimization_parameters();
         self.__initialize_neumann_bc(neumann_bc);
         self.__initialize_dirichlet_bc(dirichlet_bc);
-        self.__initialize_material_parameters();
+        self.__initialize_material_parameters(init_young, init_poisson);
         self.__initialize_elasticity_gradient();
         self.__initialize_materials();
         self.__initialize_assembler();
         self.__initialize_matrices();
+        self.__initialize_rigid_motion_rhs();
         self.__initialize_history();
 
     def evaluate(self, parameters):
@@ -94,11 +95,8 @@ class IsotropicMatOptSetting(OptimizationSetting):
             raise NotImplementedError("{}D is not yet supported"\
                     .format(self.mesh.dim));
 
-    def __initialize_material_parameters(self):
+    def __initialize_material_parameters(self, init_young, init_poisson):
         self.density = 1.0
-
-        init_young = 5.0 * np.ones(self.mesh.num_elements);
-        init_poisson = np.zeros(self.mesh.num_elements);
 
         self.young_field_name = "young";
         self.mesh.add_attribute(self.young_field_name);
@@ -169,6 +167,29 @@ class IsotropicMatOptSetting(OptimizationSetting):
         self.element_connectivity = scipy.sparse.coo_matrix((val, (i_idx,
             j_idx)), shape=(num_faces, num_faces)).tocsc() * 1e-5;
 
+    def __initialize_rigid_motion_rhs(self):
+        dim = self.mesh.dim;
+        K = self.stiffness;
+        i = []; j = []; val = []; rhs = [];
+        for counter, idx, pos in zip(
+                range(len(self.fixed_idx)),
+                self.fixed_idx,
+                self.fixed_position.reshape((-1, dim))):
+            i += range(counter*dim, (counter+1)*dim);
+            j += range(idx*dim, (idx+1)*dim)
+            val += [1.0] * dim;
+            rhs += pos.tolist();
+        R = scipy.sparse.coo_matrix((val, (i, j)),
+                shape=(len(self.fixed_idx)*dim, self.num_dof)).tocsc();
+        A = scipy.sparse.bmat([[K, R.T], [R, None]]).tocsc();
+        b = np.zeros(A.shape[0]);
+        b[self.num_dof:] = rhs;
+
+        sol = scipy.sparse.linalg.spsolve(A, b);
+        u = sol[:self.num_dof];
+
+        self.rigid_motion_rhs = self.rigid_motion * u;
+
     def __initialize_history(self):
         self.parameter_history = [];
         self.objective_history = [];
@@ -188,7 +209,10 @@ class IsotropicMatOptSetting(OptimizationSetting):
         A = scipy.sparse.bmat([[K, R.T], [R, None]]).tocsc();
         b = np.zeros(A.shape[0]);
         b[0:self.num_dof] = self.source_term;
-        b[self.num_dof:] = R * self.target_displacement;
+        if hasattr(self, "rigid_motion_rhs"):
+            b[self.num_dof:] = self.rigid_motion_rhs;
+        else:
+            b[self.num_dof:] = R * self.target_displacement;
 
         sol = scipy.sparse.linalg.spsolve(A, b);
         u = sol[:self.num_dof];
@@ -270,6 +294,8 @@ class IsotropicMatOptSetting(OptimizationSetting):
     def __evaluate_objective(self):
         displacement_gap = (self.displacement - self.target_displacement)\
                 .reshape((self.mesh.num_vertices, self.mesh.dim), order="C");
+        #print(self.displacement.reshape((self.mesh.num_vertices,
+        #    self.mesh.dim))[self.fixed_idx]);
         obj_value = 0.5 * np.sum(norm(displacement_gap, axis=1)**2 * self.target_areas);
         return obj_value;
 
@@ -327,4 +353,4 @@ class IsotropicMatOptSetting(OptimizationSetting):
     @property
     def bounds(self):
         return [(0.1, 5.0)] * self.mesh.num_elements +\
-                [(0.0, 0.0)] * self.mesh.num_elements;
+                [(-0.3, 0.3)] * self.mesh.num_elements;
