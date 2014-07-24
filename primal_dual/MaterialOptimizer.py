@@ -29,21 +29,22 @@ class MaterialOptimizer(object):
         self.sufficient_decrease_tol = 0.01;
 
     def optimize(self, max_iter = 10):
-        self.iterations = 0;
-        for i in range(max_iter):
+        for self.iterations in range(max_iter):
             self.assembler.update();
             self.primal.solve();
             self.dual.set_rigid_motion_as(self.primal.displacement);
             self.dual.solve();
-            self.fit_material();
-            self.iterations += 1;
 
             self.evaluate_objective();
+            print("{:3}: obj={}".format(self.iterations, self.objective_value));
             self.log_progress();
 
-            print("{:3}: obj={}".format(i, self.objective_value));
             if self.has_converged():
                 break;
+
+            if self.iterations != max_iter - 1:
+                self.fit_material();
+
 
     def fit_material(self):
         num_elements = self.mesh.num_elements;
@@ -79,6 +80,8 @@ class MaterialOptimizer(object):
         u_p = self.primal.displacement;
         u_d = self.dual.displacement;
         u_gap = (u_p - u_d).reshape((self.mesh.num_nodes, -1), order="C");
+        #print(self.material.poisson);
+        #print(u_d.reshape((self.mesh.num_nodes, -1), order="C")[self.dirichlet_bc[0]]);
         self.objective_value = np.dot(
                 np.square(norm(u_gap[self.dirichlet_bc[0]], axis=1)),
                 self.dirichlet_bc[2])

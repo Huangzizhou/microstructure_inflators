@@ -7,7 +7,7 @@ import os.path
 from MaterialOptimizer import MaterialOptimizer
 
 import LinearElasticitySettings
-from mesh_io import load_mesh, save_mesh
+from mesh_io import load_mesh, save_mesh, save_mesh_ascii
 from BoundaryConditionExtractor import BoundaryConditionExtractor
 
 def add_attribute(mesh, name, value, attr_names):
@@ -35,7 +35,7 @@ def save_results(optimizer, output_file):
         add_attribute(mesh, "dual_u_{:03}".format(i),
                 optimizer.dual_displacement[i], attr_names);
 
-    save_mesh(output_file, mesh,
+    save_mesh_ascii(output_file, mesh,
             optimizer.material.young_attr_name,
             optimizer.material.poisson_attr_name,
             *attr_names);
@@ -59,6 +59,7 @@ def save_optimal_material(optimizer, output_file):
     poisson = optimizer.mesh.get_attribute(optimizer.material.poisson_attr_name);
     material_setting["young"] = young.ravel().tolist();
     material_setting["poisson"] = poisson.ravel().tolist();
+    material_setting["rigid_motion"] = optimizer.dual.Rb.tolist();
 
     with open(material_file, 'w') as fout:
         json.dump(material_setting, fout);

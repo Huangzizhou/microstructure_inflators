@@ -49,3 +49,12 @@ class MaterialState(object):
     @material.setter
     def material(self, mat):
         self.__hetero_material = mat;
+
+    @property
+    def young(self):
+        return self.mesh.get_attribute(self.young_attr_name).ravel();
+
+    @property
+    def poisson(self):
+        return self.mesh.get_attribute(self.poisson_attr_name).ravel();
+
