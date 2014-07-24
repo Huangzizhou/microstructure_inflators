@@ -50,8 +50,9 @@ def hex2tet(hex_file, tet_file, keep_symmetry):
     vertex_count = 0;
     vertices = [];
     voxels = [];
+    hex_indices = [];
 
-    for voxel in hexes:
+    for i, voxel in enumerate(hexes):
         corners = hex_vertices[voxel];
         if keep_symmetry:
             vts, tets = split_hex_into_tets_symmetrically(corners);
@@ -60,13 +61,17 @@ def hex2tet(hex_file, tet_file, keep_symmetry):
         vertices.append(vts);
         voxels.append(tets + vertex_count);
         vertex_count += len(vts);
+        hex_indices += [i] * len(tets);
 
     vertices = np.vstack(vertices);
     voxels = np.vstack(voxels);
     vertices, voxels = merge_identical_vertices(vertices, voxels);
+    hex_indices = np.array(hex_indices);
 
     tet_mesh = form_mesh(vertices, np.array([]), voxels);
-    save_mesh(tet_file, tet_mesh);
+    tet_mesh.add_attribute("hex_index");
+    tet_mesh.set_attribute("hex_index", hex_indices);
+    save_mesh(tet_file, tet_mesh, "hex_index");
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Convert hex mesh into tet mesh");
