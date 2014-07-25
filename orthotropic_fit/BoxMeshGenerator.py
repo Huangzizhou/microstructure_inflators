@@ -80,7 +80,7 @@ def generate_3D_box_mesh(bbox_min, bbox_max, num_samples, keep_symmetry=False):
     for i in range(num_samples):
         for j in range(num_samples):
             for k in range(num_samples):
-                p = np.multiply([i,j,k], step_size);
+                p = np.multiply([i,j,k], step_size) + bbox_min;
                 corners = [
                         [p[0]             , p[1]             , p[2]             ],
                         [p[0]+step_size[0], p[1]             , p[2]             ],
