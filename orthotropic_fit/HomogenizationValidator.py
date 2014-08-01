@@ -4,7 +4,6 @@ import numpy as np
 
 from mesh_io import form_mesh
 
-from BoundaryConditionExtractor import BoundaryConditionExtractor
 from ElasticityUtils import displacement_to_stress
 import ElasticModel2
 from BoxMeshGenerator import generate_box_mesh
@@ -28,18 +27,10 @@ class HomogenizationValidator(object):
     def simulate(self, bc_configs):
         dim = self.mesh.dim;
         tensor_size = dim * (dim+1) / 2;
-        bd = BoundaryConditionExtractor(self.mesh);
-        boundary_conditions = [];
         for config in bc_configs:
-            bd.clear();
-            bd.extract_from_dict(config);
-            neumann_bc = bd.neumann_bc;
-            dirichlet_bc = bd.dirichlet_bc;
-
             self.deformer.clear();
-            self.deformer.add_dirichlet_constraint(*dirichlet_bc[:2]);
-            self.deformer.add_neumann_constraint(*neumann_bc[:2]);
-            without_rigid_motion_constraint = len(dirichlet_bc[0]) != 0;
+            self.deformer.add_boundary_condition_from_dict(config);
+            without_rigid_motion_constraint = len(self.deformer.fixed_nodes) > 0;
             displacement = self.deformer.solve(without_rigid_motion_constraint);
             self.displacements.append(displacement);
 
@@ -48,15 +39,8 @@ class HomogenizationValidator(object):
             stress_trace = np.sum(stress[:,0:dim], axis=1);
             self.stress_traces.append(stress_trace);
 
-            applied_nodes = neumann_bc[0];
-            applied_force = neumann_bc[1];
-            applied_node_area = neumann_bc[2];
-            force = np.zeros((self.mesh.num_vertices, self.mesh.dim));
-            pressure = np.zeros((self.mesh.num_vertices, self.mesh.dim));
-            if len(applied_nodes) > 0:
-                force[applied_nodes] = applied_force;
-                pressure[applied_nodes] = applied_force /\
-                        np.array(applied_node_area)[:,np.newaxis];
+            force = self.deformer.force;
+            pressure = self.deformer.traction;
             self.forces.append(force.ravel(order="C"));
             self.pressures.append(pressure.ravel(order="C"));
 

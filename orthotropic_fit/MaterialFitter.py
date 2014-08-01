@@ -9,7 +9,6 @@ from mesh_io import load_mesh, form_mesh
 import PyAssembler
 
 from AttributeProjection import AttributeProjection
-from BoundaryConditionExtractor import BoundaryConditionExtractor
 import ElasticModel2
 from BoxMeshGenerator import generate_box_mesh
 from ElasticityUtils import displacement_to_stress, displacement_to_strain,\
@@ -32,31 +31,29 @@ class MaterialFitter(object):
 
     @timethis
     def fit(self):
-        self._generate_boundary_conditions();
+        #self._generate_boundary_conditions();
         self._deform_shape();
         self._initialize_coarse_mesh();
         self._fit_material_parameters();
 
-    @timethis
-    def _generate_boundary_conditions(self):
-        bd = BoundaryConditionExtractor(self.mesh);
-        self.boundary_conditions = [];
-        for config in self.bc_configs:
-            bd.clear();
-            bd.extract_from_dict(config);
-            self.boundary_conditions.append([
-                bd.neumann_bc, bd.dirichlet_bc]);
+    #@timethis
+    #def _generate_boundary_conditions(self):
+    #    bd = BoundaryConditionExtractor(self.mesh);
+    #    self.boundary_conditions = [];
+    #    for config in self.bc_configs:
+    #        bd.clear();
+    #        bd.extract_from_dict(config);
+    #        self.boundary_conditions.append([
+    #            bd.neumann_bc, bd.dirichlet_bc]);
 
     @timethis
     def _deform_shape(self):
         dim = self.mesh.dim;
         stress_size = dim*(dim+1)/2;
-        for bc in self.boundary_conditions:
-            neumann_bc, dirichlet_bc = bc;
+        for bc in self.bc_configs:
             self.deformer.clear();
-            self.deformer.add_dirichlet_constraint(*dirichlet_bc[:2]);
-            self.deformer.add_neumann_constraint(*neumann_bc[:2]);
-            without_rigid_motion_constraint = len(dirichlet_bc[0]) != 0;
+            self.deformer.add_boundary_condition_from_dict(bc);
+            without_rigid_motion_constraint = len(self.deformer.fixed_nodes)>0;
             displacement = self.deformer.solve(without_rigid_motion_constraint);
             self.displacements.append(displacement);
 
@@ -65,16 +62,8 @@ class MaterialFitter(object):
             stress_trace = np.sum(stress[:,0:dim], axis=1);
             self.stress_traces.append(stress_trace);
 
-            applied_nodes = neumann_bc[0];
-            applied_force = neumann_bc[1];
-            applied_node_area = neumann_bc[2];
-
-            force = np.zeros((self.mesh.num_vertices, dim));
-            pressure = np.zeros((self.mesh.num_vertices, dim));
-            if len(applied_nodes) > 0:
-                force[applied_nodes] = applied_force;
-                pressure[applied_nodes] = applied_force /\
-                        np.array(applied_node_area)[:,np.newaxis];
+            force = self.deformer.force;
+            pressure = self.deformer.traction;
             self.forces.append(force.ravel(order="C"));
             self.pressures.append(pressure.ravel(order="C"));
 
