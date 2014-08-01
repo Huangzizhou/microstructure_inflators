@@ -24,8 +24,9 @@ class Dual:
 
     def add_neumann_bc(self, bc):
         dim = self.mesh.dim;
-        for idx, val, area in zip(*bc):
-            self.source_term[dim*idx:dim*(idx+1)] += val;
+        for idx, val, area in zip(*bc[:3]):
+            self.source_term[dim*idx:dim*(idx+1)] += \
+                    np.array(val) * area;
 
     def set_rigid_motion_as(self, target_displacement):
         R = self.assembler.rigid_motion;
