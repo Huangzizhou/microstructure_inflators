@@ -47,8 +47,7 @@ def create_setting(mesh, bd_file, initial_material_file):
         young = np.ones(mesh.num_elements);
         poisson = np.zeros(mesh.num_elements);
 
-    setting = IsotropicMatOptSetting(mesh,
-            bc_extractor.neumann_bc, bc_extractor.dirichlet_bc, young, poisson);
+    setting = IsotropicMatOptSetting(mesh, bc_extractor, young, poisson);
     if initial_material_file is not None:
         setting.rigid_motion_rhs = np.array(mat_setting["rigid_motion"]);
     return setting;

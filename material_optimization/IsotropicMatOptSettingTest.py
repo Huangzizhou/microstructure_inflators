@@ -11,12 +11,14 @@ class IsotropicMatOptSettingTest(unittest.TestCase):
     def setUp(self):
         self.mesh = load_mesh("example/square_4x4.obj");
         bc = self.extract_bc("example/tilt.bc");
-        self.opt_setting = IsotropicMatOptSetting(self.mesh, *bc);
+        self.opt_setting = IsotropicMatOptSetting(self.mesh, bc,
+                np.ones(self.mesh.num_elements),
+                np.zeros(self.mesh.num_elements));
 
     def extract_bc(self, bd_file):
         bc_extractor = BoundaryConditionExtractor(self.mesh);
         bc_extractor.extract_from_file(bd_file);
-        return bc_extractor.neumann_bc, bc_extractor.dirichlet_bc;
+        return bc_extractor;
 
     def finite_diff_objective_grad(self, parameters):
         epsilon = 1e-6;

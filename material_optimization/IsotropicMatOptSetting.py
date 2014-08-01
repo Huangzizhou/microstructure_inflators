@@ -12,12 +12,12 @@ from MatrixUtils import format
 from OptimizationSetting import OptimizationSetting
 
 class IsotropicMatOptSetting(OptimizationSetting):
-    def __init__(self, mesh, neumann_bc, dirichlet_bc, init_young, init_poisson):
+    def __init__(self, mesh, bc_extractor, init_young, init_poisson):
         self.mesh = mesh;
 
         self.__initialize_optimization_parameters();
-        self.__initialize_neumann_bc(neumann_bc);
-        self.__initialize_dirichlet_bc(dirichlet_bc);
+        self.__initialize_neumann_bc(bc_extractor);
+        self.__initialize_dirichlet_bc(bc_extractor);
         self.__initialize_material_parameters(init_young, init_poisson);
         self.__initialize_elasticity_gradient();
         self.__initialize_materials();
@@ -47,19 +47,21 @@ class IsotropicMatOptSetting(OptimizationSetting):
         self.source_term = np.zeros(self.num_dof);
         self.target_displacement = np.zeros(self.num_dof);
 
-    def __initialize_neumann_bc(self, neumann_bc):
-        self.applied_idx, self.applied_traction, self.applied_node_area\
-                = neumann_bc;
-        self.applied_traction = np.array(self.applied_traction);
+    def __initialize_neumann_bc(self, bc_extractor):
+        self.applied_idx = bc_extractor.applied_node_idx;
+        self.applied_traction = np.multiply(
+                bc_extractor.applied_node_traction, 
+                np.array(bc_extractor.applied_node_area)[:,np.newaxis]);
+
         assert(self.mesh.dim == self.applied_traction.shape[1]);
 
         neumann_term = np.zeros((self.mesh.num_vertices, self.mesh.dim));
         neumann_term[self.applied_idx] = self.applied_traction;
         self.source_term += neumann_term.ravel(order="C");
 
-    def __initialize_dirichlet_bc(self, dirichlet_bc):
+    def __initialize_dirichlet_bc(self, bc_extractor):
         self.fixed_idx, self.fixed_position, self.fixed_node_area\
-                = dirichlet_bc;
+                = bc_extractor.dirichlet_bc;
 
         dirichlet_term = np.zeros((self.mesh.num_vertices, self.mesh.dim));
         dirichlet_term[self.fixed_idx] = self.fixed_position;
