@@ -76,6 +76,7 @@ class PeriodicHomogenization:
         # Assemble lagrange multiplier system.
         nc = C.shape[0]
         A = stack([[K, C], [C.T, Z(nc, nc)]]);
+        save_matrix(K, 'K');
         # save_matrix(A, 'A');
 
         B = self.__assembler.displacement_strain_matrix;
@@ -131,20 +132,17 @@ class PeriodicHomogenization:
             # print "max pbc violation for w_ij " + str(ij) + \
             #       ": " + str(maxNorm)
 
-            # Print displacements on the x-periodic boundary for x loading
-            # Also output strains
-            if (ij == 0):
-                # for (u, v) in pbcPairs[0]:
-                #     d1 = np.array(soln[3 * u : 3 * u + 3])
-                #     d2 = np.array(soln[3 * v : 3 * v + 3])
-                #     print "displacement on periodic vertices (" + str(u) + ", " + \
-                #             str(v) + "): " + str(d1) + ", " + str(d2)
-                strain = B * soln[0:n * dim];
-                for i in range(6):
-                   strain_i = strain[6 * np.arange(numElems) + i]
-                   name = "strain_0 component " + str(i)
-                   self.__mesh.add_attribute(name)
-                   self.__mesh.set_attribute(name, strain_i)
+            # # Print displacements on the x-periodic boundary for x loading
+            # if (ij == 0):
+            #     for (u, v) in pbcPairs[0]:
+            #         d1 = np.array(soln[3 * u : 3 * u + 3])
+            #         d2 = np.array(soln[3 * v : 3 * v + 3])
+            #         print "displacement on periodic vertices (" + str(u) + ", " + \
+            #                 str(v) + "): " + str(d1) + ", " + str(d2)
+            strain = B * soln[0:n * dim];
+            name = "fluctuation strain " + str(ij)
+            self.__mesh.add_attribute(name)
+            self.__mesh.set_attribute(name, strain)
 
             w_ij.append(soln[0:n*dim]);
 
@@ -203,8 +201,7 @@ class PeriodicHomogenization:
                 writer.with_attribute(name)
                 rhs_name = "rhs " + str(ij) # Already in attributes...
                 writer.with_attribute(rhs_name)
-            for ij in range(6):
-                name = "strain_0 component " + str(ij)
+                name = "fluctuation strain " + str(ij)
                 writer.with_attribute(name)
 
             writer.write_mesh(mesh.raw_mesh)
