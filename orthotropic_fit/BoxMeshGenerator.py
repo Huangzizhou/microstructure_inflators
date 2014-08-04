@@ -11,12 +11,12 @@ import PyMeshUtils
 from timethis import timethis
 
 @timethis
-def generate_box_mesh(box_min, box_max, num_samples):
+def generate_box_mesh(box_min, box_max, num_samples, keep_symmetry=False):
     dim = len(box_min);
     if dim == 2:
         return generate_2D_box_mesh(box_min, box_max, num_samples);
     elif dim == 3:
-        return generate_3D_box_mesh(box_min, box_max, num_samples);
+        return generate_3D_box_mesh(box_min, box_max, num_samples, keep_symmetry);
 
 def generate_2D_box_mesh(box_min, box_max, num_samples):
     vertices = [];
