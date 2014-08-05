@@ -71,7 +71,18 @@ def hex2tet(hex_file, tet_file, keep_symmetry):
     tet_mesh = form_mesh(vertices, np.array([]), voxels);
     tet_mesh.add_attribute("hex_index");
     tet_mesh.set_attribute("hex_index", hex_indices);
-    save_mesh(tet_file, tet_mesh, "hex_index");
+
+    for attr_name in hex_mesh.get_attribute_names():
+        attr = hex_mesh.get_attribute(attr_name).ravel();
+        if (len(attr) == len(hexes)):
+            if keep_symmetry:
+                attr = np.repeat(attr, 24);
+            else:
+                attr = np.repeat(attr, 6);
+            tet_mesh.add_attribute(attr_name);
+            tet_mesh.set_attribute(attr_name, attr);
+
+    save_mesh(tet_file, tet_mesh, *tet_mesh.get_attribute_names());
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Convert hex mesh into tet mesh");
