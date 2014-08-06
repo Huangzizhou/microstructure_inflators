@@ -16,7 +16,7 @@ unlink 'directory.js';
 my @names;
 while (<*.msh>) {
     s/\.[^.]+$//;
-    `$scriptDir/make_flipper.pl $_.txt $_.msh $_ > $_.js 'E_x E_y nu_yx mu'`;
+    `$scriptDir/make_flipper.pl $_.txt $_.msh $_ > $_.js 'E_x E_y nu_yx mu' 'E_x, E_y, nu_xy, mu'`;
     push(@names, $_);
 }
 
