@@ -200,7 +200,8 @@ class WirePattern(object):
     @timethis
     def __apply_vertex_offset(self):
         if "vertex_offset" in self.wire_attributes:
-            offsets = self.wire_attributes["vertex_offset"];
+            offsets = self.wire_attributes["vertex_offset"].reshape(
+                    self.wire_vertices.shape);
             self.wire_vertices += offsets;
 
     @timethis
