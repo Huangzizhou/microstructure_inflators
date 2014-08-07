@@ -20,7 +20,7 @@ from timethis import timethis
 class MaterialFitter(object):
     def __init__(self, mesh, material_file=None):
         self.mesh = mesh;
-        mat = Material(self.mesh.dim, material_file);
+        mat = Material(self.mesh, material_file);
         assembler = PyAssembler.FEAssembler.create(mesh.raw_mesh, mat.material);
         self.assembler = ElasticModel2.PyAssembler(mesh, assembler, mat);
         self.deformer = LinearElasticity(self.mesh, self.assembler);
@@ -83,7 +83,7 @@ class MaterialFitter(object):
 
     @timethis
     def _create_coarse_mesh_assembler(self):
-        coarse_material = Material(self.coarse_mesh.dim, None);
+        coarse_material = Material(self.coarse_mesh, None);
         coarse_assembler = PyAssembler.FEAssembler.create(
                 self.coarse_mesh.raw_mesh, coarse_material.material);
         coarse_assembler = ElasticModel2.PyAssembler(
