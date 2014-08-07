@@ -3,20 +3,25 @@
 # specified path, writing a flipper directory to directory.js.
 # The .txt file is the STDOUT of the cpp material optimization code, and the
 # .msh is its output msh file.
-# Usage: make_flippers_isotropic_2D.pl [path]
+# Usage: make_flippers_isotropic.pl dimension [path]
 use strict;
 use Cwd qw(abs_path cwd);
 use File::Basename;
 use Sort::Key::Natural 'natsort';
 my $scriptDir = abs_path(dirname(__FILE__));
 
-chdir((@ARGV >= 1) ? @ARGV[0] : cwd());
+(@ARGV < 1 || @ARGV > 2) && die("Usage: make_flippers_isotropic.pl dimension [directory]\n");
+
+my $dim = $ARGV[0];
+($dim ~~ [2, 3]) || die('Dimension must be 2 or 3.');
+
+chdir((@ARGV >= 2) ? @ARGV[1] : cwd());
 
 unlink 'directory.js';
 my @names;
 while (<*.msh>) {
     s/\.[^.]+$//;
-    `$scriptDir/make_flipper.pl $_.txt $_.msh $_ > $_.js`;
+    `$scriptDir/make_flipper.pl $_.txt $_.msh $_ > $_.js $dim`;
     push(@names, $_);
 }
 

@@ -6,12 +6,15 @@ use Cwd 'abs_path';
 use File::Basename;
 my $scriptDir = abs_path(dirname(__FILE__));
 
-(@ARGV != 3 && @ARGV != 5) && die("Usage: make_flipper.pl matopt_out.txt fields.msh problem_name [matProps matPropNames]\n");
+(@ARGV != 4 && @ARGV != 6) && die("Usage: make_flipper.pl matopt_out.txt fields.msh problem_name dimension [matProps matPropNames]\n");
 my $optOutputFile = $ARGV[0];
 my $mshFile = $ARGV[1];
 my $problemName = $ARGV[2];
-my $matPropString = (@ARGV == 5) ? $ARGV[3] : "E nu";
-my $matPropNameString = (@ARGV == 5) ? $ARGV[4] : "Young Modulus, Poisson Ratio";
+my $dim = $ARGV[3];
+($dim ~~ [2, 3]) || die('Dimension must be 2 or 3.');
+my $matPropString = (@ARGV == 6) ? $ARGV[4] : "E nu";
+my $matPropNameString = (@ARGV == 6) ? $ARGV[5] : "Young Modulus, Poisson Ratio";
+
 
 open(my $output, "<", $optOutputFile);
 my (@energies, @gradNorms);
@@ -31,9 +34,11 @@ for my $i (0..$lastIt) { print $pltData ("$i\t${energies[$i]}\t${gradNorms[$i]}\
 ################################################################################
 my $imagePrefix = $problemName;
 my @fieldNames = ("Optimized u", "Neumann u", "Dirichlet u", split(', ', $matPropNameString));
-my @fields = ("u", "u_neumann", "u_dirichletTargets", split(' ', $matPropString));
-my $drawCalls = join("\\\n", map(qq(field="$_"; Call DrawField;), @fields));
-`cat $scriptDir/render.geo | sed 's/<NITER>/$lastIt/; s/<PREFIX>/$imagePrefix/; s/<DRAW_CALLS>/$drawCalls/' > tmp.geo`;
+my @matProps = split(' ', $matPropString);
+my @fields = ("u", "u_neumann", "u_dirichletTargets", @matProps);
+my $drawCalls = join("\\\n", map(qq(field="$_"; Call DrawField) . (($_ ~~ @matProps) ? "Exploded;" : ";"), @fields));
+my $renderScript = ($dim == 2) ? 'render.geo' : 'render3D.geo';
+`cat $scriptDir/$renderScript | sed 's/<NITER>/$lastIt/; s/<PREFIX>/$imagePrefix/; s/<DRAW_CALLS>/$drawCalls/' > tmp.geo`;
 `gmsh -n $mshFile tmp.geo 2>/dev/null`;
 unlink 'tmp.geo';
 
