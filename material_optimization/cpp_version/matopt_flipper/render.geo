@@ -5,7 +5,7 @@ General.SmallAxes = 0;
 General.GraphicsWidth = 1024;
 General.GraphicsHeight = 768;
 Function DrawField
-    For i In {0:<LAST_ITER>}
+    For i In {1:<NITER>}
         name = StrCat(Sprintf("%g ", i ), field);
         For v In {0:PostProcessing.NbViews-1}
             If (StrCmp(View[v].Name, name) == 0)
