@@ -68,7 +68,9 @@ class WirePatternTest(unittest.TestCase):
 
         orbits = tiled_wires.attributes["symmetry_vertex_orbit"];
         self.assertEqual(len(tiled_wires.vertices), len(orbits));
-        self.assertSetEqual(set(cell_orbits), set(orbits));
+        self.assertListEqual(
+                np.unique(cell_orbits.ravel()).tolist(),
+                np.unique(orbits.ravel()).tolist() );
 
     def test_tile_hex(self):
         cell = WireNetwork();

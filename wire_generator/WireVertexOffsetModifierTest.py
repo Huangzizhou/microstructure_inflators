@@ -38,7 +38,6 @@ class WireVertexOffsetModifierTest(unittest.TestCase):
     def test_creation(self):
         orbit_0_percentages = [0.1, 0.2, 0.3];
         wire_network = self.load_wire("examples/cube.wire");
-        ori_wire_network = copy.deepcopy(wire_network);
         self.config["orbit_file"] = "examples/cube.orbit"
         self.config["offset_percentages"] = [orbit_0_percentages];
 
@@ -51,26 +50,24 @@ class WireVertexOffsetModifierTest(unittest.TestCase):
         modifier = WireVertexOffsetModifier(self.config);
         modifier.modify(wire_network);
 
+        offsets = wire_network.attributes["vertex_offset"]
+
         for i in range(wire_network.num_vertices):
             if i in vertex_orbits[0]:
                 orbit_center = orbit_centers[0];
-                ori_v = ori_wire_network.vertices[i];
-                mod_v = wire_network.vertices[i];
-                ratios = (mod_v - ori_v) / (ori_v - orbit_center);
+                ori_v = wire_network.vertices[i];
+                ratios = offsets[i] / (ori_v - orbit_center);
                 self.assertAlmostEqual(orbit_0_percentages[0], ratios[0]);
                 self.assertAlmostEqual(orbit_0_percentages[1], ratios[1]);
                 self.assertAlmostEqual(orbit_0_percentages[2], ratios[2]);
             else:
-                self.assertListEqual(
-                        ori_wire_network.vertices[i].tolist(),
-                        wire_network.vertices[i].tolist());
+                self.assertEqual(0.0, norm(offsets[i]));
 
     def test_formula(self):
         x = 0.1;
         y = 0.5;
         orbit_0_percentages = ["{x}", "{y}", "{x} + {y}"];
         wire_network = self.load_wire("examples/cube.wire");
-        ori_wire_network = copy.deepcopy(wire_network);
         self.config["orbit_file"] = "examples/cube.orbit"
         self.config["offset_percentages"] = [orbit_0_percentages];
 
@@ -83,17 +80,16 @@ class WireVertexOffsetModifierTest(unittest.TestCase):
         modifier = WireVertexOffsetModifier(self.config);
         modifier.modify(wire_network, x=x, y=y);
 
+        offsets = wire_network.attributes["vertex_offset"];
+
         for i in range(wire_network.num_vertices):
             if i in vertex_orbits[0]:
                 orbit_center = orbit_centers[0];
-                ori_v = ori_wire_network.vertices[i];
-                mod_v = wire_network.vertices[i];
-                ratios = (mod_v - ori_v) / (ori_v - orbit_center);
+                ori_v = wire_network.vertices[i];
+                ratios = offsets[i] / (ori_v - orbit_center);
                 self.assertAlmostEqual(x, ratios[0]);
                 self.assertAlmostEqual(y, ratios[1]);
                 self.assertAlmostEqual(x+y, ratios[2]);
             else:
-                self.assertListEqual(
-                        ori_wire_network.vertices[i].tolist(),
-                        wire_network.vertices[i].tolist());
+                self.assertEqual(0.0, norm(offsets[i]));
 

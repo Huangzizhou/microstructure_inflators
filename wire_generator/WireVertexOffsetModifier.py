@@ -22,7 +22,8 @@ class WireVertexOffsetModifier(WireModifier):
     def modify(self, wire_network, **kwargs):
         offsets = self.__generate_default_offsets(wire_network);
         self.__compute_offset(wire_network, offsets, **kwargs);
-        self.__update_wire_network(wire_network, offsets);
+        #self.__update_wire_network(wire_network, offsets);
+        self.__assign_offset_attribute(wire_network, offsets);
 
     def __load_orbits(self, orbit_file):
         with open(orbit_file, 'r') as fin:
@@ -62,4 +63,11 @@ class WireVertexOffsetModifier(WireModifier):
     def __update_wire_network(self, wire_network, offsets):
         for i in range(wire_network.num_vertices):
             wire_network.vertices[i] += offsets[i];
+
+    def __assign_offset_attribute(self, wire_network, offsets):
+        attr_name = "vertex_offset";
+        if attr_name not in wire_network.attributes:
+            wire_network.attributes.add(attr_name, offsets);
+        else:
+            wire_network.attributes[attr_name] = offsets;
 

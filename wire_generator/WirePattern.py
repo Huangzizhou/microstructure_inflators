@@ -60,6 +60,7 @@ class WirePattern(object):
         self.__remove_duplicated_vertices();
         self.__remove_duplicated_edges();
         self.__center_at_origin();
+        self.__apply_vertex_offset();
 
     @timethis
     def tile_hex_mesh(self, mesh, modifiers=[]):
@@ -98,6 +99,7 @@ class WirePattern(object):
         self.__remove_duplicated_vertices();
         self.__remove_duplicated_edges();
         self.__center_at_origin();
+        self.__apply_vertex_offset();
 
     @timethis
     def trilinear_interpolate(self, vertices, corners):
@@ -150,10 +152,19 @@ class WirePattern(object):
         # Update vertex attributes
         for key,val in self.wire_attributes.iteritems():
             if len(val) % num_vertices == 0:
-                attr_val = np.zeros(len(self.wire_vertices))
+                per_vertex_size = len(val) / num_vertices;
+                attr_val = [[] for i in range(len(self.wire_vertices))];
                 for i,vi in enumerate(v_map):
-                    attr_val[vi] = val[i];
-                self.wire_attributes[key] = attr_val;
+                    attr_val[vi].append(val[
+                        i*per_vertex_size:(i+1)*per_vertex_size]);
+                attr_val = [np.mean(val, axis=0) for val in attr_val];
+                self.wire_attributes[key] = np.array(attr_val);
+
+
+                #attr_val = np.zeros(len(self.wire_vertices))
+                #for i,vi in enumerate(v_map):
+                #    attr_val[vi] = val[i];
+                #self.wire_attributes[key] = attr_val;
 
     @timethis
     def __remove_duplicated_edges(self):
@@ -165,10 +176,19 @@ class WirePattern(object):
 
         for key,val in self.wire_attributes.iteritems():
             if len(val) % num_edges == 0:
-                attr_val = np.zeros(len(self.wire_edges));
+                per_edge_size = len(val) / num_edges;
+                attr_val = [[] for i in range(len(self.wire_edges))];
                 for i,ei in enumerate(edge_index_map):
-                    attr_val[ei] = val[i];
-                self.wire_attributes[key] = attr_val;
+                    attr_val[ei].append(val[
+                        i*per_edge_size:(i+1)*per_edge_size]);
+                attr_val = [np.mean(val, axis=0) for val in attr_val];
+                self.wire_attributes[key] = np.array(attr_val);
+
+
+                #attr_val = np.zeros(len(self.wire_edges));
+                #for i,ei in enumerate(edge_index_map):
+                #    attr_val[ei] = val[i];
+                #self.wire_attributes[key] = attr_val;
 
     @timethis
     def __center_at_origin(self):
@@ -176,6 +196,12 @@ class WirePattern(object):
         bbox_max = np.amax(self.wire_vertices, axis=0);
         bbox_center = 0.5 * (bbox_min + bbox_max);
         self.wire_vertices = self.wire_vertices - bbox_center;
+
+    @timethis
+    def __apply_vertex_offset(self):
+        if "vertex_offset" in self.wire_attributes:
+            offsets = self.wire_attributes["vertex_offset"];
+            self.wire_vertices += offsets;
 
     @timethis
     def __copy_attributes(self, wire_network):
