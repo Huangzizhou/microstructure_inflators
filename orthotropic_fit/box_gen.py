@@ -8,19 +8,14 @@ from mesh_io import save_mesh, load_mesh
 
 from BoxMeshGenerator import generate_box_mesh
 
-def generate_box(dim, side_length, num_samples, output_name, keep_symmetry):
+def generate_box(dim, side_length, num_samples, output_name, keep_symmetry,
+        subdiv_order):
     box_min = -0.5 * np.ones(dim) * side_length;
     box_max =  0.5 * np.ones(dim) * side_length;
-    mesh = generate_box_mesh(box_min, box_max, num_samples, keep_symmetry);
-    index = np.arange(num_samples**3, dtype=int)
-    if dim == 2:
-        index = np.repeat(index, 2);
-    elif keep_symmetry:
-        index = np.repeat(index, 24);
-    else:
-        index = np.repeat(index, 6);
+    mesh, hex_index = generate_box_mesh(box_min, box_max, num_samples, keep_symmetry,
+            subdiv_order);
     mesh.add_attribute("hex_index");
-    mesh.set_attribute("hex_index", index);
+    mesh.set_attribute("hex_index", hex_index);
     save_mesh(output_name, mesh, "hex_index");
 
 def parse_args():
@@ -32,6 +27,8 @@ def parse_args():
     parser.add_argument("--size", help="box size", type=float, default=10);
     parser.add_argument("--num-samples",
             help="number of samples along each dimention", type=int, default=2);
+    parser.add_argument("--subdiv", help="subdivision order", type=int,
+            default=0);
     parser.add_argument("output", help="output_mesh");
     args = parser.parse_args();
     return args;
@@ -39,7 +36,7 @@ def parse_args():
 def main():
     args = parse_args();
     generate_box(args.dim, args.size, args.num_samples, args.output,
-            args.symmetric);
+            args.symmetric, args.subdiv);
 
 if __name__ == "__main__":
     main();

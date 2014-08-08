@@ -48,7 +48,7 @@ class HomogenizationValidator(object):
     def __generate_bbox_mesh(self):
         bbox_min, bbox_max = self.input_mesh.bbox;
         num_samples = 10;
-        self.mesh = generate_box_mesh(bbox_min, bbox_max, num_samples);
+        self.mesh, cell_indices = generate_box_mesh(bbox_min, bbox_max, num_samples);
 
     @timethis
     def __initialize_assembler(self):

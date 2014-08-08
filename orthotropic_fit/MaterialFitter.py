@@ -77,7 +77,7 @@ class MaterialFitter(object):
     def _create_coarse_mesh(self):
         num_samples = 2;
         bbox_min, bbox_max = self.mesh.bbox;
-        self.coarse_mesh = generate_box_mesh(bbox_min, bbox_max, num_samples);
+        self.coarse_mesh, cell_indices = generate_box_mesh(bbox_min, bbox_max, num_samples);
         self.coarse_mesh.add_attribute("face_area");
         self.coarse_mesh.add_attribute("voxel_volume");
 

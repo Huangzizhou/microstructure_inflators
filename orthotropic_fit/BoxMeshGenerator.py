@@ -11,16 +11,19 @@ import PyMeshUtils
 from timethis import timethis
 
 @timethis
-def generate_box_mesh(box_min, box_max, num_samples, keep_symmetry=False):
+def generate_box_mesh(box_min, box_max, num_samples, keep_symmetry=False,
+        subdiv_order=0):
     dim = len(box_min);
     if dim == 2:
         return generate_2D_box_mesh(box_min, box_max, num_samples);
     elif dim == 3:
-        return generate_3D_box_mesh(box_min, box_max, num_samples, keep_symmetry);
+        return generate_3D_box_mesh(box_min, box_max, num_samples,
+                keep_symmetry, subdiv_order);
 
 def generate_2D_box_mesh(box_min, box_max, num_samples):
     vertices = [];
     faces = [];
+    quad_indices = [];
     for i in range(num_samples+1):
         for j in range(num_samples+1):
             x_ratio = float(i) / float(num_samples);
@@ -38,11 +41,14 @@ def generate_2D_box_mesh(box_min, box_max, num_samples):
                     (i+1)*row_size+j+1 ];
             faces.append([idx[0], idx[2], idx[3]]);
             faces.append([idx[0], idx[3], idx[1]]);
+            quad_indices.append(i*num_samples + j);
+            quad_indices.append(i*num_samples + j);
 
     vertices = np.array(vertices, dtype=float);
     faces = np.array(faces, dtype=int);
+    quad_indices = np.array(quad_indices, dtype=int);
     mesh = form_mesh(vertices, faces);
-    return mesh;
+    return mesh, quad_indices;
 
 def reorientate_triangles(vertices, faces):
     """ This only works for convex shapes
@@ -70,13 +76,16 @@ def reorientate_tets(vertices, tets):
     tets = tets[np.logical_not(bad)];
     return tets;
 
-def generate_3D_box_mesh(bbox_min, bbox_max, num_samples, keep_symmetry=False):
+def generate_3D_box_mesh(bbox_min, bbox_max, num_samples, keep_symmetry=False,
+        subdiv_order=0):
     step_size = np.divide((bbox_max - bbox_min),
             [num_samples, num_samples, num_samples]);
 
     num_vertices = 0;
     vertices = [];
     tets = [];
+    hex_indices = [];
+    hex_index = 0;
     for i in range(num_samples):
         for j in range(num_samples):
             for k in range(num_samples):
@@ -91,25 +100,90 @@ def generate_3D_box_mesh(bbox_min, bbox_max, num_samples, keep_symmetry=False):
                         [p[0]+step_size[0], p[1]+step_size[1], p[2]+step_size[2]],
                         [p[0]             , p[1]+step_size[1], p[2]+step_size[2]],
                         ];
-                if keep_symmetry:
-                    cell_vertices, cell_tets =\
-                            split_hex_into_tets_symmetrically(corners);
-                else:
-                    cell_vertices, cell_tets =\
-                            split_hex_into_tets(corners);
-                vertices.append(cell_vertices);
-                tets.append(cell_tets + num_vertices);
-                num_vertices += len(cell_vertices);
+                subcell_corners = subdivide_hex(corners, subdiv_order);
+                for corners in subcell_corners:
+                    if keep_symmetry:
+                        cell_vertices, cell_tets =\
+                                split_hex_into_tets_symmetrically(corners);
+                    else:
+                        cell_vertices, cell_tets =\
+                                split_hex_into_tets(corners);
+                    vertices.append(cell_vertices);
+                    tets.append(cell_tets + num_vertices);
+                    num_vertices += len(cell_vertices);
+                    hex_indices.append(np.ones(len(cell_tets)) * hex_index);
+
+                hex_index +=1;
 
     vertices = np.vstack(vertices);
     tets = np.vstack(tets);
+    hex_indices = np.vstack(hex_indices).ravel(order="C");
 
     vertices, tets = remove_duplicated_vertices(vertices, tets);
     vertices, tets = remove_isolated_vertices(vertices, tets);
 
     faces = np.array([], dtype=int);
     mesh = form_mesh(vertices, faces, tets);
-    return mesh;
+    return mesh, hex_indices;
+
+def subdivide_hex(corners, order):
+    """ Subdivide hex into 8**order sub-cells.
+    Corner ordering:     Edge orders:
+         7 _______ 6            ___2___   
+          /:     /|           7/:    6/|        z
+       4 /______/ |           /___1__/ |        |
+        |  :   5| |          | 11    | |10      |  y
+        |  :... |.|         8|  :.3. |.|        | /
+        | . 3   | /2         | 4    9| /        |/
+        |_______|/           |_______|/5        /-------x
+        0        1               0
+    """
+    if order == 0:
+        return [corners];
+    else:
+        corners = np.array(corners);
+        centroid = np.mean(corners, axis=0);
+
+        faces = np.array([
+            [0, 3, 2, 1], # bottom
+            [4, 5, 6, 7], # top
+            [1, 2, 6, 5], # right
+            [0, 4, 7, 3], # left
+            [0, 1, 5, 4], # front
+            [7, 6, 2, 3], # back
+            ]);
+        face_centers = np.array([np.mean(corners[face], axis=0)
+            for face in faces]);
+
+        edge = np.array([
+            [0, 1], [4, 5], [7, 6], [3, 2], # along X
+            [0, 3], [1, 2], [5, 6], [4, 7], # along Y
+            [0, 4], [1, 5], [2, 6], [3, 7], # along Z
+            ]);
+        edge_centers = np.mean(corners[edge], axis=1);
+
+        subcells = [
+                [corners[0], edge_centers[0], face_centers[0], edge_centers[4],
+                 edge_centers[8], face_centers[4], centroid, face_centers[3] ],
+                [edge_centers[0], corners[1], edge_centers[5], face_centers[0],
+                 face_centers[4], edge_centers[9], face_centers[2], centroid],
+                [edge_centers[4], face_centers[0], edge_centers[3], corners[3],
+                 face_centers[3], centroid, face_centers[5], edge_centers[11]],
+                [face_centers[0], edge_centers[5], corners[2], edge_centers[3],
+                 centroid, face_centers[2], edge_centers[10], face_centers[5]],
+
+                [edge_centers[8], face_centers[4], centroid, face_centers[3],
+                 corners[4], edge_centers[1], face_centers[1], edge_centers[7]],
+                [face_centers[4], edge_centers[9], face_centers[2], centroid,
+                 edge_centers[1], corners[5], edge_centers[6], face_centers[1]],
+                [face_centers[3], centroid, face_centers[5], edge_centers[11],
+                 edge_centers[7], face_centers[1], edge_centers[2], corners[7]],
+                [centroid, face_centers[2], edge_centers[10], face_centers[5],
+                 face_centers[1], edge_centers[6], corners[6], edge_centers[2]] ];
+        subcell_corners = [];
+        for cell in subcells:
+            subcell_corners += subdivide_hex(cell, order-1);
+        return subcell_corners;
 
 def split_hex_into_tets(corners):
     """ Convert a hex to 24 tets.
