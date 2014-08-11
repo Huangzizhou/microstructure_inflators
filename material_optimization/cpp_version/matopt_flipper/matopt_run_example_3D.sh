@@ -8,7 +8,7 @@ mesh_dir=$1;
 total=0.0;
 dir=${2-results};
 mkdir $dir;
-for regWeight in 0.0 0.00001 0.0001 0.001 0.01 0.1 1.0; do
+for regWeight in 0.0 0.01 0.1 1.0 10.0; do
     for mesh in $mesh_dir/*.msh; do
         mesh_name=$(basename $mesh .msh)
         for cond in $mesh_dir/$mesh_name*.bc; do
