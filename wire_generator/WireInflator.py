@@ -7,6 +7,7 @@ from math import pi, sqrt
 from scipy.spatial import ConvexHull
 
 from WireNetwork import WireNetwork
+from Subdivision import Subdivision
 from timethis import timethis
 
 import PyMeshSetting
@@ -28,6 +29,7 @@ class WireInflator(object):
         self._generate_edge_pipes();
         if clean_up:
             self._clean_up();
+        self._subdivide(1);
 
     @timethis
     def save(self, mesh_file):
@@ -278,4 +280,10 @@ class WireInflator(object):
 
         # Edge loop indices is no longer valid.
         self.edge_loop_indices =None;
+
+    @timethis
+    def _subdivide(self, num_iterations):
+        sub = Subdivision();
+        self.mesh_vertices, self.mesh_faces = \
+                sub.subdivide(self.mesh_vertices, self.mesh_faces, num_iterations);
 

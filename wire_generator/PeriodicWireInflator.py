@@ -7,7 +7,6 @@ from math import pi, sqrt, radians
 from scipy.spatial import ConvexHull
 
 from BoxIntersection import BoxIntersection
-from Subdivision import Subdivision
 from UniquePointExtractor import UniquePointExtractor
 from WireNetwork import WireNetwork
 from WireInflator import WireInflator
@@ -34,12 +33,7 @@ class PeriodicWireInflator(WireInflator):
         super(PeriodicWireInflator, self).inflate(clean_up);
         self._enforce_periodic_connectivity();
         self._clean_up();
-        self._subdivide(1);
-
-    def _subdivide(self, num_iterations):
-        sub = Subdivision();
-        self.mesh_vertices, self.mesh_faces = \
-                sub.subdivide(self.mesh_vertices, self.mesh_faces, num_iterations);
+        self._subdivide(2);
 
     def __generate_phantom_wire_network(self):
         # Important: delete vertex offset attribute so it won't be applied
