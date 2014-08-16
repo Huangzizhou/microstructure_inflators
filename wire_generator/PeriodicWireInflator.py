@@ -13,6 +13,7 @@ from WireNetwork import WireNetwork
 from WireInflator import WireInflator
 from WirePattern import WirePattern
 from timethis import timethis
+from WireWriter import WireWriter
 
 import PyMesh
 import PyMeshUtils
@@ -26,7 +27,6 @@ class PeriodicWireInflator(WireInflator):
         # Use phantom wires as input for inflator
         self.original_wire_network = self.wire_network;
         self.wire_network = self.phantom_wire_network;
-
 
     def inflate(self, clean_up=True):
         if not clean_up:
@@ -42,13 +42,17 @@ class PeriodicWireInflator(WireInflator):
                 sub.subdivide(self.mesh_vertices, self.mesh_faces, num_iterations);
 
     def __generate_phantom_wire_network(self):
+        # Important: delete vertex offset attribute so it won't be applied
+        # twice for phantom mesh.
+        del self.wire_network.attributes["vertex_offset"];
+
         wire_pattern = WirePattern();
         wire_pattern.set_single_cell_from_wire_network(self.wire_network);
         wire_pattern.tile([3, 3, 3]);
         phantom_wire_network = wire_pattern.wire_network;
 
         phantom_wire_network.translate(
-                self.wire_network.centroid - phantom_wire_network.centroid);
+                self.wire_network.bbox_center - phantom_wire_network.bbox_center);
         self.phantom_wire_network = phantom_wire_network;
 
     def __generate_phantom_vertex_map(self):
@@ -123,6 +127,7 @@ class PeriodicWireInflator(WireInflator):
             vertices = np.vstack((interior_pts, intersection_pts));
         else:
             vertices = interior_pts;
+        assert(len(vertices) > 0);
         vertices = UniquePointExtractor.extract(vertices);
         hull = ConvexHull(vertices);
         joint_center = np.mean(vertices, axis=0);
@@ -289,4 +294,8 @@ class PeriodicWireInflator(WireInflator):
         faces_in_1_mapped = v_map_1_to_2[faces_in_1];
         faces_in_1_mapped = faces_in_1_mapped[:, [0, 2, 1]];
         self.mesh_faces[face_group_2] = faces_in_1_mapped;
+
+    def write_debug_wires(self, filename, vertices, edges):
+        writer = WireWriter(filename);
+        writer.write(vertices, edges);
 

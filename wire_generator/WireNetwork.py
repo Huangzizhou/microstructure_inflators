@@ -82,7 +82,7 @@ class WireNetwork(object):
         for attr_name in self.attributes:
             value = self.attributes[attr_name];
             if len(value) == num_vertices:
-                mapped_value = np.zeros(len(self.vertices));
+                mapped_value = np.zeros_like(value);
                 mapped_value[mapped_indices] = value[indices];
                 self.attributes[attr_name] = mapped_value;
 

@@ -58,7 +58,7 @@ class WireInflator(object):
 
     def __init_vertex_thickness(self, v_thickness):
         for i,e in enumerate(self.wire_network.edges):
-            self.thickness[i, :] = v_thickness[e];
+            self.thickness[i, :] = v_thickness[e].ravel();
 
     def __init_edge_thickness(self, e_thickness):
         assert(len(e_thickness) == len(self.thickness));

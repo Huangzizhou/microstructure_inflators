@@ -157,7 +157,7 @@ class WirePattern(object):
                 for i,vi in enumerate(v_map):
                     attr_val[vi].append(val[
                         i*per_vertex_size:(i+1)*per_vertex_size]);
-                attr_val = [np.mean(val, axis=0) for val in attr_val];
+                attr_val = [np.mean(val, axis=0).ravel() for val in attr_val];
                 self.wire_attributes[key] = np.array(attr_val);
 
 
