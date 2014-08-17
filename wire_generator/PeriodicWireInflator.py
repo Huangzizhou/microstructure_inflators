@@ -36,10 +36,6 @@ class PeriodicWireInflator(WireInflator):
         self._subdivide(2);
 
     def __generate_phantom_wire_network(self):
-        # Important: delete vertex offset attribute so it won't be applied
-        # twice for phantom mesh.
-        del self.wire_network.attributes["vertex_offset"];
-
         wire_pattern = WirePattern();
         wire_pattern.set_single_cell_from_wire_network(self.wire_network);
         wire_pattern.tile([3, 3, 3]);

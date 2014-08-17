@@ -204,6 +204,10 @@ class WirePattern(object):
                     self.wire_vertices.shape);
             self.wire_vertices += offsets;
 
+            # Important: delete vertex offset attribute after it is applied.
+            # This is to prevent applying vertex offset twice if we tile again.
+            del self.wire_attributes["vertex_offset"];
+
     @timethis
     def __copy_attributes(self, wire_network):
         """ Copy any vertex attributes from single cell to tiled wire network.
