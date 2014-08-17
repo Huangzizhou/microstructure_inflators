@@ -19,7 +19,7 @@ def run_tile(config_file, obj_file):
     check_call(cmd.split());
 
 def run_tetgen(obj_file, msh_file):
-    cmd = "tetgen.py --cmd --flags=\"qpQa0.5\" {} {}".format(obj_file, msh_file);
+    cmd = "tetgen.py --cmd --flags=\"YqpQa0.5\" {} {}".format(obj_file, msh_file);
     print(cmd);
     check_call(cmd.split());
 
