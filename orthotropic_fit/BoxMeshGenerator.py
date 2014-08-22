@@ -15,40 +15,99 @@ def generate_box_mesh(box_min, box_max, num_samples, keep_symmetry=False,
         subdiv_order=0):
     dim = len(box_min);
     if dim == 2:
-        return generate_2D_box_mesh(box_min, box_max, num_samples);
+        return generate_2D_box_mesh(box_min, box_max, num_samples,
+                keep_symmetry, subdiv_order);
     elif dim == 3:
         return generate_3D_box_mesh(box_min, box_max, num_samples,
                 keep_symmetry, subdiv_order);
 
-def generate_2D_box_mesh(box_min, box_max, num_samples):
+def generate_2D_box_mesh(box_min, box_max, num_samples, keep_symmetry,
+        subdiv_order):
+    step_size = np.divide((box_max - box_min), [num_samples, num_samples]);
+
+    num_vertices = 0;
     vertices = [];
     faces = [];
     quad_indices = [];
-    for i in range(num_samples+1):
-        for j in range(num_samples+1):
-            x_ratio = float(i) / float(num_samples);
-            y_ratio = float(j) / float(num_samples);
-            x = x_ratio * box_max[0] + (1.0 - x_ratio) * box_min[0];
-            y = y_ratio * box_max[1] + (1.0 - y_ratio) * box_min[1];
-            vertices.append([x,y]);
-
-    row_size = num_samples+1;
+    quad_index = 0;
     for i in range(num_samples):
         for j in range(num_samples):
-            idx = [i*row_size+j,
-                    i*row_size+j+1,
-                    (i+1)*row_size+j,
-                    (i+1)*row_size+j+1 ];
-            faces.append([idx[0], idx[2], idx[3]]);
-            faces.append([idx[0], idx[3], idx[1]]);
-            quad_indices.append(i*num_samples + j);
-            quad_indices.append(i*num_samples + j);
+            p = np.multiply([i, j], step_size) + box_min;
+            corners = np.array([
+                    [p[0]             , p[1]             ],
+                    [p[0]+step_size[0], p[1]             ],
+                    [p[0]+step_size[0], p[1]+step_size[1]],
+                    [p[0]             , p[1]+step_size[1]] ]);
+            subcell_corners = subdivide_quad(corners, subdiv_order);
+            for corners in subcell_corners:
+                if keep_symmetry:
+                    cell_vertices, cell_faces =\
+                            split_quad_into_tris_symmetrically(corners);
+                else:
+                    cell_vertices, cell_faces =\
+                            split_quad_into_tris(corners);
+                vertices.append(cell_vertices);
+                faces.append(cell_faces + num_vertices);
+                num_vertices += len(cell_vertices);
+                quad_indices.append(np.ones(len(cell_faces)) * quad_index);
 
-    vertices = np.array(vertices, dtype=float);
-    faces = np.array(faces, dtype=int);
-    quad_indices = np.array(quad_indices, dtype=int);
-    mesh = form_mesh(vertices, faces);
+            quad_index +=1;
+
+    vertices = np.vstack(vertices);
+    faces = np.vstack(faces);
+    quad_indices = np.vstack(quad_indices).ravel(order="C");
+
+    vertices, faces = remove_duplicated_vertices(vertices, faces);
+    vertices, faces = remove_isolated_vertices(vertices, faces);
+
+    tets = np.array([], dtype=int);
+    mesh = form_mesh(vertices, faces, tets);
     return mesh, quad_indices;
+
+def subdivide_quad(corners, subdiv_order):
+    """
+    Vertex indices   Edge indices
+                         2
+    3 +------+ 2     +------+
+      |      |     3 |      | 1
+      |      |       |      |
+    0 +------+ 1     +------+
+                         0
+    """
+    if subdiv_order == 0:
+        return [corners];
+    face_center = np.mean(corners, axis=0);
+    edge_centers = [
+            0.5 * (corners[0] + corners[1]),
+            0.5 * (corners[1] + corners[2]),
+            0.5 * (corners[2] + corners[3]),
+            0.5 * (corners[3] + corners[0]) ];
+
+    subcells = [
+            [corners[0], edge_centers[0], face_center, edge_centers[3]],
+            [edge_centers[0], corners[1], edge_centers[1], face_center],
+            [face_center, edge_centers[1], corners[2], edge_centers[2]],
+            [edge_centers[3], face_center, edge_centers[2], corners[3]] ];
+
+    subcell_corners = [];
+    for cell in subcells:
+        subcell_corners += subdivide_quad(cell, subdiv_order-1);
+    return subcell_corners;
+
+def split_quad_into_tris(corners):
+    vertices = corners;
+    faces = np.array([[0, 1, 2], [0, 2, 3]]);
+    return vertices, faces;
+
+def split_quad_into_tris_symmetrically(corners):
+    center = np.mean(corners, axis=0);
+    vertices = np.vstack((corners, center.reshape((1, -1))));
+    faces = np.array([
+            [0, 1, 4],
+            [1, 2, 4],
+            [2, 3, 4],
+            [3, 0, 4] ]);
+    return vertices, faces;
 
 def reorientate_triangles(vertices, faces):
     """ This only works for convex shapes

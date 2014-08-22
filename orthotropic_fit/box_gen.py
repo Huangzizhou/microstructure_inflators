@@ -12,11 +12,15 @@ def generate_box(dim, side_length, num_samples, output_name, keep_symmetry,
         subdiv_order):
     box_min = -0.5 * np.ones(dim) * side_length;
     box_max =  0.5 * np.ones(dim) * side_length;
-    mesh, hex_index = generate_box_mesh(box_min, box_max, num_samples, keep_symmetry,
+    mesh, material_index = generate_box_mesh(box_min, box_max, num_samples, keep_symmetry,
             subdiv_order);
-    mesh.add_attribute("hex_index");
-    mesh.set_attribute("hex_index", hex_index);
-    save_mesh(output_name, mesh, "hex_index");
+    if dim == 2:
+        index_name = "quad_index";
+    else:
+        index_name = "hex_index"
+    mesh.add_attribute(index_name);
+    mesh.set_attribute(index_name, material_index);
+    save_mesh(output_name, mesh, index_name);
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Generate box meshes");
