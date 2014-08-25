@@ -88,8 +88,8 @@ def hex2tet(hex_file, tet_file, keep_symmetry, subdiv_order):
     hex_indices = np.array(hex_indices);
 
     tet_mesh = form_mesh(vertices, np.array([]), voxels);
-    tet_mesh.add_attribute("hex_index");
-    tet_mesh.set_attribute("hex_index", hex_indices);
+    tet_mesh.add_attribute("cell_index");
+    tet_mesh.set_attribute("cell_index", hex_indices);
 
     for attr_name in attributes:
         attr = np.vstack(attributes[attr_name]).ravel(order="C");

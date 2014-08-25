@@ -14,10 +14,7 @@ def generate_box(dim, side_length, num_samples, output_name, keep_symmetry,
     box_max =  0.5 * np.ones(dim) * side_length;
     mesh, material_index = generate_box_mesh(box_min, box_max, num_samples, keep_symmetry,
             subdiv_order);
-    if dim == 2:
-        index_name = "quad_index";
-    else:
-        index_name = "hex_index"
+    index_name = "cell_index"
     mesh.add_attribute(index_name);
     mesh.set_attribute(index_name, material_index);
     save_mesh(output_name, mesh, index_name);
