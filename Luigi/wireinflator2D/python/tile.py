@@ -7,8 +7,9 @@ import os.path
 import os
 import sys
 
-sys.path.append("../lib");
-sys.path.append("../swig");
+exe_dir = sys.path[0];
+sys.path.append(os.path.join(exe_dir, "../lib"));
+sys.path.append(os.path.join(exe_dir, "../swig"));
 
 import PyWireInflator2D
 import PyMeshSetting
@@ -111,6 +112,7 @@ def tile(config):
                 inflator.set_parameter(i,j,p);
 
     if config.get("periodic", False):
+        inflator.set_max_triangle_area(0.0001);
         inflator.generate_periodic_pattern();
     else:
         inflator.generate_tiled_pattern();

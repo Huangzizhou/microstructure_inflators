@@ -38,6 +38,10 @@ class WireInflatorFacade {
             m_p_params(col, row) = p;
         }
 
+        void set_max_triangle_area(Float max_area) {
+            m_t_params.max_area = max_area;
+        }
+
         void generate_periodic_pattern() {
             assert(m_p_params(0, 0) != NULL);
             WireInflator2D::generatePattern(*m_p_params(0, 0), m_t_params, m_mesh);
