@@ -7,6 +7,7 @@ from subprocess import check_call, check_output
 import os
 import os.path
 import re
+import sys
 
 def generate_stamp(config_file):
     m = hashlib.md5();
@@ -14,7 +15,9 @@ def generate_stamp(config_file):
     return m.hexdigest();
 
 def run_tile(config_file, obj_file):
-    cmd = "./tile.py -o {} {}".format(obj_file, config_file);
+    exe_dir = sys.path[0];
+    exe_name = os.path.join(exe_dir, "tile.py");
+    cmd = "{} -o {} {}".format(exe_name, obj_file, config_file);
     print(cmd);
     check_call(cmd.split());
 
