@@ -69,7 +69,7 @@ def compute_orbit_mask(wire_network, orbits):
     mask = [];
     bbox_min, bbox_max = wire_network.bbox;
     for orbit in orbits:
-        orbit_mask = np.array([False, False, False]);
+        orbit_mask = np.zeros(wire_network.dim);
         vertices = wire_network.vertices[orbit];
         orbit_bbox_min = np.amin(vertices, axis=0);
         orbit_bbox_max = np.amax(vertices, axis=0);
