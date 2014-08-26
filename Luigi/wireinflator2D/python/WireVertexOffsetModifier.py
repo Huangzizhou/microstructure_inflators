@@ -1,5 +1,6 @@
 import json
 import numpy as np
+from numpy.linalg import norm
 
 from WireModifier import WireModifier
 
@@ -19,15 +20,19 @@ class WireVertexOffsetModifier(WireModifier):
         self.offset_percentages = config["offset_percentages"];
 
     def modify(self, param, **kwargs):
-        offsets = np.zeros(3);
+        offsets = np.zeros(5);
         self.__compute_offset(offsets, **kwargs);
-        param[5:] = offsets;
+        param[5:] = np.array(offsets)[[0,2,4]];
         return param;
 
     def __compute_offset(self, offsets, **kwargs):
         for orbit, offset_percent in zip(
                 self.effective_orbits, self.offset_percentages):
-            if isinstance(offset_percent, float):
-                offsets[orbit] = offset_percent;
-            elif isinstance(offset_percent, (str, unicode)):
-                offsets[orbit] = eval(offset_percent.format(**kwargs));
+            offset = self.__compute_offset_per_orbit(orbit, offset_percent, **kwargs);
+            offsets[orbit] = offset;
+
+    def __compute_offset_per_orbit(
+            self, orbit, offset_percent, **kwargs):
+        offset_percent = [eval(p.format(**kwargs)) if isinstance(p, str) else p
+                for p in offset_percent];
+        return norm(offset_percent);
