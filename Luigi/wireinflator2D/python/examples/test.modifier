@@ -10,6 +10,6 @@
         "type": "vertex_orbit",
         "orbit_file": "",
         "effective_orbits": [0, 2, 4],
-        "offset_percentages": [[0.0, -0.1], [-0.1, 0.0], [0.0, 0.0]]
+        "offset_percentages": [[0.0, 0.0], [-0.1, 0.0], [0.0, 0.0]]
     }
 }
