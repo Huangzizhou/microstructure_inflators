@@ -99,11 +99,15 @@ def tile(config):
     if config.get("trim", False):
         raise NotImplementedError("Trimming is not supported");
 
+    # Convert wire thickness (unit in mm) to relative thickness used by
+    # Luigi's code: radius of the wire assuming each cell is of size 1.0.
+    thickness_scale_factor = 1.0 / np.mean(scale_factor) * 0.5;
     inflator = PyWireInflator2D.WireInflatorFacade(rows, cols);
     for i in range(rows):
         for j in range(cols):
             p = param[i][j];
             if p is not None:
+                p[:5] *= thickness_scale_factor;
                 inflator.set_parameter(i,j,p);
 
     if config.get("periodic", False):
@@ -139,9 +143,8 @@ def tile_box(config, modifiers):
 
     for modifier in modifiers:
         modifier.modify(default_parameter);
-        print(default_parameter);
 
-    params = [[default_parameter for i in range(cols)] for j in range(rows)];
+    params = [[np.copy(default_parameter) for i in range(cols)] for j in range(rows)];
     return rows, cols, params, scale_factor;
 
 def parse_args():

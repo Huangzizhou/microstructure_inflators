@@ -10,7 +10,7 @@ class WireInflatorFacade {
     public:
         WireInflatorFacade(size_t rows, size_t cols) : 
             m_rows(rows), m_cols(cols), m_p_params(cols, rows) {
-                m_t_params.max_area = 0.005;
+                m_t_params.max_area = 0.001;
             }
 
         size_t get_num_parameters() const {
@@ -44,8 +44,8 @@ class WireInflatorFacade {
         }
 
         void generate_tiled_pattern() {
-            std::cout << m_p_params.width() << ", " << m_p_params.height() << std::endl;
-            std::cout << "generating tiled pattern" << std::endl;
+            std::cout << "generating " << m_p_params.width() << "x" << m_p_params.height()
+                << " tiled pattern" << std::endl;
             WireInflator2D::generateTiledPattern(m_p_params, m_t_params, m_mesh);
         }
 
