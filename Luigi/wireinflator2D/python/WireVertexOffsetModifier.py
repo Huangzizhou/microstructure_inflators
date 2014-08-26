@@ -23,6 +23,7 @@ class WireVertexOffsetModifier(WireModifier):
         offsets = np.zeros(5);
         self.__compute_offset(offsets, **kwargs);
         param[5:] = np.array(offsets)[[0,2,4]];
+        print(param);
         return param;
 
     def __compute_offset(self, offsets, **kwargs):
@@ -35,4 +36,10 @@ class WireVertexOffsetModifier(WireModifier):
             self, orbit, offset_percent, **kwargs):
         offset_percent = [eval(p.format(**kwargs)) if isinstance(p, str) else p
                 for p in offset_percent];
-        return norm(offset_percent);
+        size = norm(offset_percent);
+        if (size < 1e-6):
+            sign = 0.0
+        else:
+            sign = np.dot(offset_percent, [1.0, 1.0]);
+            sign /= abs(sign);
+        return sign * size;

@@ -3,13 +3,13 @@
         "type": "vertex_orbit",
         "orbit_file": "",
         "effective_orbits": [0, 1, 2, 3, 4],
-        "thickness": [0.5, 0.6, 0.7, 0.8, 0.9],
+        "thickness": [0.5, 0.5, 0.5, 0.5, 0.5],
         "default": 0.5
     },
     "vertex_offset": {
         "type": "vertex_orbit",
         "orbit_file": "",
-        "effective_orbits": [0, 1, 2],
-        "offset_percentages": [0.1, -0.1, 0.0]
+        "effective_orbits": [0, 2, 4],
+        "offset_percentages": [[0.0, -0.1], [-0.1, 0.0], [0.0, 0.0]]
     }
 }
