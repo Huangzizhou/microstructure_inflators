@@ -67,6 +67,10 @@ if (@nameComponents > 1) {
     }
     @ymins = (min(@allEnergies), min(@allGradNorms));
 }
+else {
+    # Otherwise, choose a ymin individually for each '.txt'
+    @ymins = ('*', '*');
+}
 
 my @titles = ("Objective", "Gradient Norm");
 my @names =  ("objective", "gradNorm");
