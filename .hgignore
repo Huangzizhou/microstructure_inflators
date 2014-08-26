@@ -28,3 +28,7 @@ lp_holes/generator/jobs/
 tools/sample_rotation/example/
 material_optimization/example/
 material_optimization/result/
+Luigi/wireinflator2D/bin
+Luigi/wireinflator2D/swig
+Luigi/wireinflator2D/lib
+Luigi/wireinflator2D/build
