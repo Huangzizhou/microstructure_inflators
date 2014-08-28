@@ -29,7 +29,8 @@ class WireInflatorFacade {
                     p->parameter(i) = param[i];
                 } else {
                     std::stringstream err_msg;
-                    err_msg << "param " << i << " is out of range ["
+                    err_msg << "param " << i << "=" << param[i]
+                        << " is out of range ["
                         << range.first << ", " << range.second << "]";
                     throw RuntimeError(err_msg.str());
                 }

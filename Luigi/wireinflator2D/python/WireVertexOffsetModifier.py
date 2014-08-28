@@ -36,10 +36,10 @@ class WireVertexOffsetModifier(WireModifier):
         offset_percent = [eval(p.format(**kwargs))
                 if isinstance(p, (str, unicode)) else p
                 for p in offset_percent];
-        size = norm(offset_percent);
-        if (size < 1e-6):
-            sign = 0.0
-        else:
-            sign = np.dot(offset_percent, [1.0, 1.0]);
-            sign /= abs(sign);
-        return sign * size;
+        # TODO:
+        # The generic vertex offset supports asymmetric offset in x and y
+        # direction.  It essentially allows changing a square into a rectangle.
+        # Currently, the 2D wire inflator only support symmetric offset, i.e.
+        # only uniform scale of squares.  So this modifier convert asymmetric
+        # offset into symmetric offset by averaging.
+        return np.mean(offset_percent);
