@@ -46,7 +46,7 @@ class OrthotropicMaterial(Material):
         http://www.efunda.com/formulae/solid_mechanics/mat_mechanics/hooke_orthotropic.cfm
         """
         E_x,E_y,E_z = self.young;
-        nu_yz,nu_zy,nu_zx,nu_xz,nu_xy,nu_yz = self.poisson;
+        nu_yz,nu_zy,nu_zx,nu_xz,nu_xy,nu_yx = self.poisson;
         G_yz,G_zx,G_xy = self.shear;
 
         self.compliance_tensor = np.array([
