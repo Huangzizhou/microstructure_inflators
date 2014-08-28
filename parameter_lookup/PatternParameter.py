@@ -5,7 +5,8 @@ import numpy as np
 from numpy.linalg import norm
 
 class PatternParameter:
-    def __init__(self, modifier_file):
+    def __init__(self, dim, modifier_file):
+        self.dim = dim;
         self.root_dir = os.path.dirname(modifier_file);
 
         with open(modifier_file, 'r') as fin:
@@ -16,7 +17,7 @@ class PatternParameter:
                         ThicknessParameter(config);
             if "vertex_offset" in config:
                 self.vertex_offset_parameter =\
-                        VertexOffsetParameter(config);
+                        VertexOffsetParameter(dim, config);
 
     @property
     def names(self):
@@ -80,7 +81,8 @@ class ThicknessParameter(PatternParameter):
                 range(self.num_vertex_orbits)];
 
 class VertexOffsetParameter(PatternParameter):
-    def __init__(self, config):
+    def __init__(self, dim, config):
+        self.dim = dim;
         self.root_dir = config["root_dir"];
         self.offset_config = config["vertex_offset"];
         self.load_orbits();
@@ -95,16 +97,13 @@ class VertexOffsetParameter(PatternParameter):
             self.num_edge_orbits = len(self.orbit_config["edge_orbits"]);
 
     def load_offset_parameters(self):
-        self.values = np.zeros(self.num_vertex_orbits);
+        self.values = np.zeros((self.num_vertex_orbits, self.dim));
         effective_orbits = self.offset_config["effective_orbits"];
         offsets = self.offset_config["offset_percentages"];
-        # TODO: getting the offset is adhoc.
-        self.values[effective_orbits] = norm(offsets, axis=1);
-        #self.values[effective_orbits] = np.amax(offsets, axis=1);
 
-        self.values = self.values.tolist();
-        self.names = ["vertex_orbit_{}_offset".format(i) for i in
-                range(self.num_vertex_orbits)];
-
-
+        self.values[effective_orbits] = offsets;
+        self.values = self.values.ravel(order="C").tolist();
+        self.names = ["vertex_orbit_{}_offset_{}".format(i, j)
+                for j in range(self.dim)
+                for i in range(self.num_vertex_orbits) ];
 

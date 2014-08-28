@@ -2,6 +2,7 @@ import json
 import os.path
 
 import numpy as np
+from OrthotropicMaterial import OrthotropicMaterial
 
 class MaterialParameter(object):
     def __init__(self, dim, param_file):
@@ -27,6 +28,10 @@ class MaterialParameter(object):
                 "shear_xy",
                 "poisson_xy",
                 "poisson_yx" ];
+        self.material = OrthotropicMaterial(
+                [self.young_x, self.young_y],
+                [self.poisson_xy, self.poisson_yx],
+                [self.shear_xy]);
 
     def __extract_3D_param(self, param_file):
         with open(param_file, 'r') as fin:
@@ -60,6 +65,13 @@ class MaterialParameter(object):
                 "poisson_yx",
                 ];
 
+        self.material = OrthotropicMaterial(
+                [self.young_x, self.young_y, self.young_z],
+                [self.poisson_yz, self.poisson_zy,
+                    self.poisson_zx, self.poisson_xz,
+                    self.poisson_xy, self.poisson_yx],
+                [self.shear_yz, self.shear_zx, self.shear_xy]);
+
     @property
     def names(self):
         return self.__names;
@@ -71,4 +83,8 @@ class MaterialParameter(object):
     @property
     def values(self):
         return [getattr(self, name) for name in self.names];
+
+    @property
+    def elasticity_tensor(self):
+        return self.material.elasticity_tensor;
 
