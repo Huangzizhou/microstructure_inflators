@@ -116,7 +116,7 @@ def tile(config):
         inflator.set_max_triangle_area(0.0001);
         inflator.generate_periodic_pattern();
     else:
-        inflator.set_max_triangle_area(0.01);
+        inflator.set_max_triangle_area(0.001);
         inflator.generate_tiled_pattern();
 
     vertices = inflator.get_vertices().reshape((-1, 2), order="C");
@@ -127,7 +127,7 @@ def tile(config):
     save_mesh(str(config["output"]), mesh);
 
 def tile_quad(config, modifiers):
-    rows, cols = config["repeats"];
+    cols, rows = config["repeats"];
     quad_mesh = load_mesh(str(config["quad_mesh"]));
 
     num_faces = quad_mesh.get_num_faces();
@@ -152,6 +152,7 @@ def tile_quad(config, modifiers):
     default_parameter[:5] = config["thickness"];
 
     params = [[None for i in range(cols)] for j in range(rows)];
+    print(np.array(params).shape);
 
     def index(p):
         return np.floor(np.divide(p - bbox_min, cell_size)).astype(int)[[1, 0]];
@@ -177,7 +178,7 @@ def tile_quad(config, modifiers):
     #return tiled_network;
 
 def tile_box(config, modifiers):
-    rows, cols = config["repeats"];
+    cols, rows = config["repeats"];
     bbox_min = np.array(config["bbox_min"]);
     bbox_max = np.array(config["bbox_max"]);
     scale_factor = np.divide(bbox_max - bbox_min, [cols, rows]);

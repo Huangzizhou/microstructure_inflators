@@ -11,6 +11,11 @@ class WireInflatorFacade {
         WireInflatorFacade(size_t rows, size_t cols) : 
             m_rows(rows), m_cols(cols), m_p_params(cols, rows) {
                 m_t_params.max_area = 0.001;
+                for (size_t row = 0; row < m_rows; row++) {
+                    for (size_t col=0; col < m_cols; col++) {
+                        m_p_params(col, row) = NULL;
+                    }
+                }
             }
 
         size_t get_num_parameters() const {
@@ -19,7 +24,17 @@ class WireInflatorFacade {
         }
 
         void set_parameter(size_t row, size_t col, const VectorF& param) {
-            assert(row < m_num_rows && col < m_num_cols);
+            assert(row < m_rows && col < m_cols);
+            if (row >= m_rows) {
+                std::stringstream err_msg;
+                err_msg << "Out of bound: " << row << " >= " << m_rows;
+                throw RuntimeError(err_msg.str());
+            }
+            if (col >= m_cols) {
+                std::stringstream err_msg;
+                err_msg << "Out of bound: " << col << " >= " << m_cols;
+                throw RuntimeError(err_msg.str());
+            }
             WireInflator2D::PatternParameters* p = new WireInflator2D::PatternParameters();
 
             const size_t num_param = p->numberOfParameters();
@@ -49,7 +64,10 @@ class WireInflatorFacade {
         }
 
         void generate_tiled_pattern() {
-            std::cout << "generating " << m_p_params.width() << "x" << m_p_params.height()
+            std::cout << "generating "
+                << m_p_params.height()
+                << "x"
+                << m_p_params.width()
                 << " tiled pattern" << std::endl;
             WireInflator2D::generateTiledPattern(m_p_params, m_t_params, m_mesh);
         }
