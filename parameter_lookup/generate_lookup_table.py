@@ -69,14 +69,14 @@ def generate_and_save_index(dim, materials, out_dir):
         parameters.append(param.values);
         elasticity_tensors.append(param.elasticity_tensor.ravel(order="C"));
         if dim == 3:
-            youngs.append([param.young_x, param.young_x, param.young_z]);
+            youngs.append([param.young_x, param.young_y, param.young_z]);
             shears.append([param.shear_yz, param.shear_zx, param.shear_xy]);
             poissons.append([
                 param.poisson_yz, param.poisson_zy,
                 param.poisson_zx, param.poisson_xz,
                 param.poisson_xy, param.poisson_yz ]);
         elif dim == 2:
-            youngs.append([param.young_x, param.young_x]);
+            youngs.append([param.young_x, param.young_y]);
             shears.append([param.shear_xy]);
             poissons.append([param.poisson_xy, param.poisson_yx ]);
     parameters = np.array(parameters);
