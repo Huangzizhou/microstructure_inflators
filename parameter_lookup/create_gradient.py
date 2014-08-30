@@ -10,6 +10,8 @@ import PyMesh
 from IsotropicMaterial import IsotropicMaterial
 from PatternParameterTable import PatternParameterTable
 
+AXIS = ["X", "Y", "Z"];
+
 def form_mesh(vertices, faces, voxels=np.array([])):
     factory = PyMesh.MeshFactory();
     factory.load_data(
@@ -72,6 +74,9 @@ def create_material_gradient(mesh, index_dir):
     young_min, young_max = get_young_range(index_dir);
     poisson_min, poisson_max = get_poisson_range(index_dir);
 
+    poisson_max = min(poisson_max, 0.99);
+    poisson_min = max(poisson_min, -0.49);
+
     young_values = [];
     poisson_values = [];
     for i in range(mesh.get_num_faces()):
@@ -89,6 +94,23 @@ def create_material_gradient(mesh, index_dir):
     mesh.add_attribute("poisson");
     mesh.set_attribute("poisson", np.array(poisson_values));
 
+def add_fitted_material_properties(mesh, fitted_young, fitted_poisson,
+        fitted_shear):
+    if mesh.get_dim() == 2:
+        mesh.add_attribute("fitted_young_x");
+        mesh.set_attribute("fitted_young_x", fitted_young[:,0]);
+        mesh.add_attribute("fitted_young_y");
+        mesh.set_attribute("fitted_young_y", fitted_young[:,1]);
+        mesh.add_attribute("fitted_poisson_xy");
+        mesh.set_attribute("fitted_poisson_xy", fitted_poisson[:,0]);
+    elif mesh.get_dim() == 3:
+        mesh.add_attribute("fitted_young_x");
+        mesh.set_attribute("fitted_young_x", fitted_young[:,0]);
+        mesh.add_attribute("fitted_young_y");
+        mesh.set_attribute("fitted_young_y", fitted_young[:,1]);
+        mesh.add_attribute("fitted_young_z");
+        mesh.set_attribute("fitted_young_z", fitted_young[:,2]);
+
 def lookup_pattern_parameter(mesh, index_dir):
     young = mesh.get_attribute("young");
     poisson = mesh.get_attribute("poisson");
@@ -99,10 +121,17 @@ def lookup_pattern_parameter(mesh, index_dir):
     param_table = PatternParameterTable(index_dir);
     header = param_table.header;
 
-    param_values, dist = param_table.lookup(materials);
+    param_values, fitted_young, fitted_poisson, fitted_shear, dist =\
+            param_table.lookup(materials);
     for i,attr_name in enumerate(header):
         mesh.add_attribute(attr_name);
         mesh.set_attribute(attr_name, param_values[:,i]);
+
+    mesh.add_attribute("fit_error");
+    mesh.set_attribute("fit_error", dist);
+
+    add_fitted_material_properties(mesh, fitted_young, fitted_poisson,
+            fitted_shear);
 
 
 def parse_args():
@@ -110,7 +139,7 @@ def parse_args():
             description="Generating a regular grid of patterns based on changing material");
     parser.add_argument("--rows", type=int, help="number of rows", default=10);
     parser.add_argument("--cols", type=int, help="number of cols", default=10);
-    parser.add_argument("--cell-size", type=float, help="cell size", default=0.5);
+    parser.add_argument("--cell-size", type=float, help="cell size in mm", default=5);
     parser.add_argument("--index-dir", help="index directory");
     parser.add_argument("output_mesh", help="output mesh file");
     args = parser.parse_args();
