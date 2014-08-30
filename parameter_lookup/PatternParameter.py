@@ -104,6 +104,6 @@ class VertexOffsetParameter(PatternParameter):
         self.values[effective_orbits] = offsets;
         self.values = self.values.ravel(order="C").tolist();
         self.names = ["vertex_orbit_{}_offset_{}".format(i, j)
-                for j in range(self.dim)
-                for i in range(self.num_vertex_orbits) ];
+                for i in range(self.num_vertex_orbits)
+                for j in range(self.dim) ];
 
