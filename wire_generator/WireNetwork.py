@@ -31,13 +31,14 @@ class WireNetwork(object):
         """ Remove all hanging edges
         e.g. edge with at least one vertex of valance <= 1
         """
-        edge_to_keep = np.all(self.vertex_valance[self.edges] > 1, axis=1);
-        self.__update_edge_attributes(edge_to_keep);
-        self.edges = self.edges[edge_to_keep];
-        self.__remove_isolated_vertices();
-        self.__compute_connectivity();
-        if len(self.vertices) == 0:
-            raise RuntimeError("Zero vertices left after trimming.");
+        while np.any(self.vertex_valance <= 1):
+            edge_to_keep = np.all(self.vertex_valance[self.edges] > 1, axis=1);
+            self.__update_edge_attributes(edge_to_keep);
+            self.edges = self.edges[edge_to_keep];
+            self.__remove_isolated_vertices();
+            self.__compute_connectivity();
+            if len(self.vertices) == 0:
+                raise RuntimeError("Zero vertices left after trimming.");
 
     def __initialize(self):
         self.__compute_connectivity();
