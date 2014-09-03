@@ -109,19 +109,27 @@ def tile_hex(config, network, modifiers):
     return tiled_network;
 
 def tile_box(config, network, modifiers):
+    dim = network.dim;
     pattern = WirePattern();
     pattern.set_single_cell_from_wire_network(network);
-    pattern.x_tile_dir = np.array(config.get("x_tile_dir", [1.0, 0.0, 0.0]));
-    pattern.y_tile_dir = np.array(config.get("y_tile_dir", [0.0, 1.0, 0.0]));
-    pattern.z_tile_dir = np.array(config.get("z_tile_dir", [0.0, 0.0, 1.0]));
-    pattern.tile(config["repeats"], modifiers);
+    pattern.x_tile_dir = np.array(config.get("x_tile_dir", [1.0, 0.0, 0.0]))[:dim];
+    pattern.y_tile_dir = np.array(config.get("y_tile_dir", [0.0, 1.0, 0.0]))[:dim];
+    pattern.z_tile_dir = np.array(config.get("z_tile_dir", [0.0, 0.0, 1.0]))[:dim];
+    pattern.tile(config["repeats"][:dim], modifiers);
 
     tiled_network = pattern.wire_network;
 
     bbox_min, bbox_max = tiled_network.bbox;
-    target_bbox_min = np.array(config["bbox_min"]);
-    target_bbox_max = np.array(config["bbox_max"]);
-    factor = np.divide(target_bbox_max - target_bbox_min, bbox_max - bbox_min);
+    bbox_size = bbox_max - bbox_min;
+    non_zero_dim = bbox_size > 0.0;
+
+    target_bbox_min = np.array(config["bbox_min"])[:dim];
+    target_bbox_max = np.array(config["bbox_max"])[:dim];
+    target_bbox_size = target_bbox_max - target_bbox_min;
+
+    factor = np.ones(dim);
+    factor[non_zero_dim] = np.divide(
+            target_bbox_size[non_zero_dim], bbox_size[non_zero_dim]);
     tiled_network.scale(factor);
     return tiled_network;
 

@@ -18,7 +18,8 @@ class WireInflator(object):
     def __init__(self, wire_network):
         self.wire_network = wire_network;
         if self.wire_network.dim == 2:
-            NotImplementedError("2D wire inflation is not supported.");
+            raise NotImplementedError(
+                    "Inflating 2D wire network is not supported yet.");
 
     @timethis
     def inflate(self, clean_up=True):

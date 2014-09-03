@@ -1,4 +1,5 @@
 import unittest
+import numpy as np
 from WireNetwork import WireNetwork
 from math import sqrt
 
@@ -31,3 +32,12 @@ class WireNetworkTest(unittest.TestCase):
 
         self.assertEqual(14, self.wire_frame.num_vertices);
         self.assertEqual(24, self.wire_frame.num_edges);
+
+    def test_2D_wire(self):
+        self.load_wire("examples/patterns/box_2D.wire");
+        self.assertEqual(2, self.wire_frame.dim);
+        self.assertEqual(12, self.wire_frame.num_vertices);
+        self.assertEqual(12, self.wire_frame.num_edges);
+
+        bbox_center = self.wire_frame.bbox_center;
+        self.assertListEqual([0.5, 0.5], bbox_center.tolist());

@@ -43,6 +43,24 @@ class WirePattern(object):
         self.wire_edges = [];
         self.wire_attributes = {};
 
+        if self.pattern.dim == 2:
+            self.tile_2D_box(reps, modifiers);
+        elif self.pattern.dim == 3:
+            self.tile_3D_box(reps, modifiers);
+        else:
+            raise NotImplementedError(
+                    "Tiling {}D wire network is not supported".format(
+                        self.pattern.dim));
+
+        self.wire_vertices = np.vstack(self.wire_vertices);
+        self.wire_edges = np.vstack(self.wire_edges);
+        self.__remove_duplicated_vertices();
+        self.__remove_duplicated_edges();
+        self.__center_at_origin();
+        self.__apply_vertex_offset();
+
+    @timethis
+    def tile_3D_box(self, reps, modifiers):
         base_idx = 0;
         for i in range(reps[0]):
             x_inc = self.x_tile_dir * self.pattern_bbox_size[0] * i;
@@ -55,12 +73,19 @@ class WirePattern(object):
                     pattern.vertices += x_inc + y_inc + z_inc;
                     self.tile_once(base_idx, pattern, modifiers);
                     base_idx += pattern.num_vertices;
-        self.wire_vertices = np.vstack(self.wire_vertices);
-        self.wire_edges = np.vstack(self.wire_edges);
-        self.__remove_duplicated_vertices();
-        self.__remove_duplicated_edges();
-        self.__center_at_origin();
-        self.__apply_vertex_offset();
+
+    @timethis
+    def tile_2D_box(self, reps, modifiers):
+        base_idx = 0;
+        for i in range(reps[0]):
+            x_inc = self.x_tile_dir * self.pattern_bbox_size[0] * i;
+            for j in range(reps[1]):
+                y_inc = self.y_tile_dir * self.pattern_bbox_size[1] * j;
+
+                pattern = copy.deepcopy(self.pattern);
+                pattern.vertices += (x_inc + y_inc);
+                self.tile_once(base_idx, pattern, modifiers);
+                base_idx += pattern.num_vertices;
 
     @timethis
     def tile_hex_mesh(self, mesh, modifiers=[]):
@@ -133,7 +158,9 @@ class WirePattern(object):
     def __remove_duplicated_vertices(self):
         num_vertices = len(self.wire_vertices);
         cell_size = np.amin(self.pattern_bbox_size) * 0.01;
-        hash_grid = PyMesh.HashGrid.create(cell_size);
+        if (cell_size == 0.0):
+            cell_size = 1e-3;
+        hash_grid = PyMesh.HashGrid.create(cell_size, self.pattern.dim);
         hash_grid.insert_multiple(
                 np.arange(num_vertices, dtype=int),
                 self.wire_vertices);
