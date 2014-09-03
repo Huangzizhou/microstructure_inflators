@@ -19,7 +19,6 @@ class PatternParameterTable:
         target_tensors = np.array([material.elasticity_tensor.ravel(order="C")
             for material in materials ]);
         index, dist = self.elasticity_table.nn_index(target_tensors, 1);
-        index = index.ravel();
 
         param_values = self.pattern[index];
         young = self.young[index];
@@ -27,6 +26,29 @@ class PatternParameterTable:
         shear = self.shear[index];
 
         return param_values, young, poisson, shear, dist.ravel();
+
+    def lookup_and_interpolate(self, materials):
+        target_tensors = np.array([material.elasticity_tensor.ravel(order="C")
+            for material in materials ]);
+        index, dist = self.elasticity_table.nn_index(target_tensors, 3);
+
+        weights = np.ones_like(dist) / dist;
+        weights = weights / np.sum(weights, axis=1)[:,np.newaxis];
+
+        param_values = self.pattern[index].astype(float);
+        param_values = np.sum(param_values * weights[:,:,np.newaxis], axis=1);
+
+        index = index[:,0];
+        dist = dist[:,0];
+        young = self.young[index];
+        poisson = self.poisson[index];
+        shear = self.shear[index];
+
+        return param_values,  young, poisson, shear, dist.ravel();
+
+    def compute_homogenized_materials(self, param_values):
+        # TODO
+        pass;
 
     def __load_index(self, index_name):
         data = self.__load_dataset(index_name);

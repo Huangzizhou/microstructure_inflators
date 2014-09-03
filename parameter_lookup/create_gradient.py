@@ -57,7 +57,11 @@ def generate_quad_mesh(rows, cols, cell_size):
 def get_young_range(index_dir):
     young_file = os.path.join(index_dir, "young.npy");
     young = np.load(young_file);
-    return np.amin(young), np.amax(young);
+    min_young = np.amin(young);
+    max_young = np.amax(young);
+    young_range = max_young - min_young;
+    #return min_young + 0.25 * young_range, max_young - 0.25 * young_range;
+    return min_young, max_young - 0.1 * young_range;
 
 def get_poisson_range(index_dir):
     poisson_file = os.path.join(index_dir, "poisson.npy");
@@ -74,8 +78,8 @@ def create_material_gradient(mesh, index_dir):
     young_min, young_max = get_young_range(index_dir);
     poisson_min, poisson_max = get_poisson_range(index_dir);
 
-    poisson_max = min(poisson_max, 0.99);
-    poisson_min = max(poisson_min, -0.49);
+    poisson_max = min(poisson_max, 0.8);
+    poisson_min = max(poisson_min, 0.3);
 
     young_values = [];
     poisson_values = [];
@@ -83,8 +87,12 @@ def create_material_gradient(mesh, index_dir):
         row = row_indices[i];
         col = col_indices[i];
 
-        young = float(row) / rows * (young_max - young_min) + young_min;
-        poisson = float(col) / cols * (poisson_max - poisson_min) + poisson_min;
+        #young = float(row) / rows * (young_max - young_min) + young_min;
+        #young = 0.5 * (young_max + young_min);
+        young = young_min + 0.5 * (young_max - young_min);
+        #poisson = float(col) / cols * (poisson_max - poisson_min) + poisson_min;
+        poisson = float(row) / rows * (poisson_max - poisson_min) + poisson_min;
+        #poisson = 0.3;
 
         young_values.append(young);
         poisson_values.append(poisson);
@@ -121,8 +129,10 @@ def lookup_pattern_parameter(mesh, index_dir):
     param_table = PatternParameterTable(index_dir);
     header = param_table.header;
 
+    #param_values, fitted_young, fitted_poisson, fitted_shear, dist =\
+    #        param_table.lookup(materials);
     param_values, fitted_young, fitted_poisson, fitted_shear, dist =\
-            param_table.lookup(materials);
+            param_table.lookup_and_interpolate(materials);
     for i,attr_name in enumerate(header):
         mesh.add_attribute(attr_name);
         mesh.set_attribute(attr_name, param_values[:,i]);

@@ -47,8 +47,10 @@ def main():
     param_table = PatternParameterTable(args.index_dir);
     header = param_table.header;
 
+    #param_values, fitted_young, fitted_poisson, fitted_shear, dist =\
+    #        param_table.lookup(materials);
     param_values, fitted_young, fitted_poisson, fitted_shear, dist =\
-            param_table.lookup(materials);
+            param_table.lookup_and_interpolate(materials);
     for i,attr_name in enumerate(header):
         mesh.add_attribute(attr_name);
         mesh.set_attribute(attr_name, param_values[:,i]);
