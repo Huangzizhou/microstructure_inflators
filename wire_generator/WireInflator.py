@@ -265,10 +265,17 @@ class WireInflator(object):
 
     @timethis
     def _clean_up(self):
+        # Remove duplicated vertices
+        duplicated_vertex_removal = PyMeshUtils.DuplicatedVertexRemoval(
+                self.mesh_vertices, self.mesh_faces);
+        duplicated_vertex_removal.run(1e-3);
+        self.mesh_vertices = duplicated_vertex_removal.get_vertices();
+        self.mesh_faces = duplicated_vertex_removal.get_faces();
+
         # Collapse short edges
         edge_remover = PyMeshUtils.ShortEdgeRemoval(self.mesh_vertices,
                 self.mesh_faces);
-        edge_remover.run(0.1 * np.amin(self.thickness));
+        edge_remover.run(np.amin(1e-12, 0.1 * np.amin(self.thickness)));
         self.mesh_vertices = edge_remover.get_vertices();
         self.mesh_faces = edge_remover.get_faces();
 

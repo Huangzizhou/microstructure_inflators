@@ -27,12 +27,13 @@ class PeriodicWireInflator(WireInflator):
         self.original_wire_network = self.wire_network;
         self.wire_network = self.phantom_wire_network;
 
+        self.__compute_original_bbox();
+
     def inflate(self, clean_up=True):
         if not clean_up:
             raise NotImplementedError("Clean up is required for periodic wires");
         super(PeriodicWireInflator, self).inflate(clean_up);
         self._enforce_periodic_connectivity();
-        self._clean_up();
         self._subdivide(2);
 
     def __generate_phantom_wire_network(self):
@@ -48,7 +49,9 @@ class PeriodicWireInflator(WireInflator):
     def __generate_phantom_vertex_map(self):
         bbox_min, bbox_max = self.phantom_wire_network.bbox;
         cell_size = np.amin(bbox_max - bbox_min) * 0.001;
-        hash_grid = PyMesh.HashGrid.create(cell_size);
+        if cell_size == 0:
+            cell_size = 1e-3;
+        hash_grid = PyMesh.HashGrid.create(cell_size, self.wire_network.dim);
         hash_grid.insert_multiple(
                 np.arange(len(self.wire_network.vertices), dtype=int),
                 self.wire_network.vertices);
@@ -63,6 +66,18 @@ class PeriodicWireInflator(WireInflator):
                             "Periodic unit pattern contains duplicated vertices");
                 self.phantom_vertex_map[i] = nearby_v_indices[0];
 
+    def __compute_original_bbox(self):
+        eps = 1e-8;
+        bbox_min, bbox_max = self.original_wire_network.bbox;
+        self.degenerated_dim = (bbox_max - bbox_min) < eps;
+        if np.any(self.degenerated_dim):
+            # Input wire network is flat.
+            large_value = np.amax(bbox_max - bbox_min);
+            bbox_min[self.degenerated_dim] -= large_value;
+            bbox_max[self.degenerated_dim] += large_value;
+        self.original_bbox_min = bbox_min;
+        self.original_bbox_max = bbox_max;
+
     def _generate_edge_pipe(self, ei, segment_len, vertex_count):
         edge = self.wire_network.edges[ei];
         if np.any(self.phantom_vertex_map[edge] < 0):
@@ -75,7 +90,7 @@ class PeriodicWireInflator(WireInflator):
         super(PeriodicWireInflator, self)._generate_joints();
 
     def _register_edge_loops(self):
-        self.grid = PyMesh.HashGrid.create(1e-3);
+        self.grid = PyMesh.HashGrid.create(1e-3, self.wire_network.dim);
         for i,edge in self.wire_network.edges:
             end_pts = self.wire_network.vertices[edge];
             loop_0 = self.edge_loops[i, 0, :, :].reshape((-1, 3), order="C");
@@ -96,17 +111,18 @@ class PeriodicWireInflator(WireInflator):
         if self.phantom_vertex_map[idx] < 0:
             return 0;
 
+        eps = 1e-8;
         v = self.wire_network.vertices[idx];
         loop_vertices, phantom_indicator = self._get_incident_edge_loop_vertices(idx);
         loop_vertices = np.vstack([v, loop_vertices]);
         phantom_indicator = [False] + phantom_indicator.tolist();
         hull = ConvexHull(loop_vertices);
 
-        bbox_min, bbox_max = self.original_wire_network.bbox;
+        bbox_min = self.original_bbox_min;
+        bbox_max = self.original_bbox_max;
         cell_bbox = BoxIntersection(bbox_min, bbox_max);
         intersection_pts = cell_bbox.intersect(hull.points, hull.simplices);
 
-        eps = 1e-8;
         inside = np.logical_and(
                 np.all(loop_vertices > bbox_min - eps, axis=1),
                 np.all(loop_vertices < bbox_max + eps, axis=1));
@@ -148,7 +164,7 @@ class PeriodicWireInflator(WireInflator):
         return len(hull.points);
 
     def _map_points(self, from_pts, to_pts):
-        grid = PyMesh.HashGrid.create(1e-8);
+        grid = PyMesh.HashGrid.create(1e-8, self.wire_network.dim);
         grid.insert_multiple(np.arange(len(to_pts), dtype=int), to_pts);
 
         indices = [];
@@ -186,9 +202,58 @@ class PeriodicWireInflator(WireInflator):
             self.edge_loop_indices[e_idx*2+v_idx, :] = \
                     np.array(loop_v_idx, dtype=int) + num_vts;
 
+
+    def enforce_single_axis_periodicity(self, axis):
+        if self.degenerated_dim[axis]: return;
+
+        tol = 1e-12;
+        bbox_min = self.original_bbox_min;
+        bbox_max = self.original_bbox_max;
+
+        vertices = self.mesh_vertices;
+        faces = self.mesh_faces;
+        num_vertices = len(self.mesh_vertices);
+
+        v_on_min_boundary = vertices[:, axis] <= bbox_min[axis] + tol;
+        v_on_max_boundary = vertices[:, axis] >= bbox_max[axis] - tol;
+        assert(np.any(v_on_min_boundary));
+        assert(np.any(v_on_max_boundary));
+
+        offset = np.zeros(self.wire_network.dim);
+        offset[axis] = bbox_max[axis] - bbox_min[axis];
+
+        f_on_min_boundary = np.all(v_on_min_boundary[faces], axis=1);
+        f_on_max_boundary = np.all(v_on_max_boundary[faces], axis=1);
+        assert(np.any(f_on_min_boundary));
+        assert(np.any(f_on_max_boundary));
+
+        added_vertices = vertices[v_on_min_boundary] + offset;
+        from_index = np.arange(num_vertices, dtype=int)[v_on_min_boundary];
+        to_index = np.arange(len(added_vertices), dtype=int) + num_vertices;
+        vertex_map = {i:j for i,j in zip(from_index, to_index)};
+        index_lookup = lambda i: vertex_map[i];
+        added_faces = [map(index_lookup, face) for face in faces[f_on_min_boundary]];
+        added_faces = np.array(added_faces)[:,[1,0,2]];
+
+        vertices = np.vstack((vertices, added_vertices));
+        faces = faces[np.logical_not(f_on_max_boundary)];
+        faces = np.vstack((faces, added_faces));
+
+        self.mesh_vertices = vertices;
+        self.mesh_faces = faces;
+
     def _enforce_periodic_connectivity(self):
+        self.enforce_single_axis_periodicity(0);
+        self._clean_up();
+        self.enforce_single_axis_periodicity(1);
+        self._clean_up();
+        self.enforce_single_axis_periodicity(2);
+        self._clean_up();
+
+    def _enforce_periodic_connectivity_old(self):
         eps = 1e-2;
-        bbox_min, bbox_max = self.original_wire_network.bbox;
+        bbox_min = self.original_bbox_min;
+        bbox_max = self.original_bbox_max;
         bbox_size = bbox_max - bbox_min;
 
         vtx_indices = np.arange(len(self.mesh_vertices), dtype=int);
@@ -221,9 +286,10 @@ class PeriodicWireInflator(WireInflator):
         """
         assert(len(min_vtx) == len(max_vtx));
         num_pts = len(min_vtx);
-        bbox_min, bbox_max = self.original_wire_network.bbox;
+        bbox_min = self.original_bbox_min;
+        bbox_max = self.original_bbox_max;
         cell_size = np.amin(bbox_max - bbox_min) * 0.001;
-        hash_grid = PyMesh.HashGrid.create(cell_size);
+        hash_grid = PyMesh.HashGrid.create(cell_size, self.wire_network.dim);
         hash_grid.insert_multiple(min_vtx,
                 self.mesh_vertices[min_vtx] + offset);
 
@@ -248,7 +314,8 @@ class PeriodicWireInflator(WireInflator):
         return min_vtx, max_vtx;
 
     def snap_corresponding_vertices(self, min_vertices, max_vertices):
-        bbox_min, bbox_max = self.original_wire_network.bbox;
+        bbox_min = self.original_bbox_min;
+        bbox_max = self.original_bbox_max;
         for i in range(len(min_vertices)):
             vi = min_vertices[i];
             vj = max_vertices[i];
