@@ -115,17 +115,45 @@ class PeriodicWireInflator(WireInflator):
         v = self.wire_network.vertices[idx];
         loop_vertices, phantom_indicator = self._get_incident_edge_loop_vertices(idx);
         loop_vertices = np.vstack([v, loop_vertices]);
-        phantom_indicator = [False] + phantom_indicator.tolist();
-        hull = ConvexHull(loop_vertices);
 
         bbox_min = self.original_bbox_min;
         bbox_max = self.original_bbox_max;
-        cell_bbox = BoxIntersection(bbox_min, bbox_max);
-        intersection_pts = cell_bbox.intersect(hull.points, hull.simplices);
-
         inside = np.logical_and(
                 np.all(loop_vertices > bbox_min - eps, axis=1),
                 np.all(loop_vertices < bbox_max + eps, axis=1));
+
+        # Update loop vertices
+        for i, e_idx in enumerate(self.wire_network.vertex_edge_neighbors[idx]):
+            edge = self.wire_network.edges[e_idx];
+            if np.any(self.phantom_vertex_map[edge] < 0): continue;
+
+            v0 = self.wire_network.vertices[edge[0]];
+            v1 = self.wire_network.vertices[edge[1]];
+            if idx == edge[0]:
+                edge_vector = v1 - v0;
+            else:
+                edge_vector = v0 - v1;
+            loop_vts = loop_vertices[i*4+1:i*4+5];
+            if np.all(inside[i*4+1:i*4+5]): continue;
+
+            mask = np.logical_not(inside[i*4+1:i*4+5]);
+
+            clipped_vts = np.clip(loop_vts, bbox_min, bbox_max);
+            loop_to_clipped = clipped_vts - loop_vts;
+            loop_to_clipped = loop_to_clipped[mask];
+
+            offset_dist  = np.square(norm(loop_to_clipped, axis=1)) /\
+                    np.dot(loop_to_clipped, edge_vector);
+            offset = np.outer(offset_dist, edge_vector);
+            loop_vertices[i*4+1:i*4+5][mask] += offset;
+
+
+        phantom_indicator = [False] + phantom_indicator.tolist();
+        hull = ConvexHull(loop_vertices);
+
+        cell_bbox = BoxIntersection(bbox_min, bbox_max);
+        intersection_pts = cell_bbox.intersect(hull.points, hull.simplices);
+
         interior_pts = loop_vertices[inside];
         interior_pts = np.clip(interior_pts, bbox_min, bbox_max);
 
@@ -137,6 +165,7 @@ class PeriodicWireInflator(WireInflator):
         vertices = UniquePointExtractor.extract(vertices);
         hull = ConvexHull(vertices);
         joint_center = np.mean(vertices, axis=0);
+
 
         clipped_loop_vertices = np.clip(loop_vertices, bbox_min, bbox_max);
         index_map = self._map_points(clipped_loop_vertices, hull.points);
