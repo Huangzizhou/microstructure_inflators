@@ -1,8 +1,10 @@
 #ifndef CELLPARAMETERS_H
 #define CELLPARAMETERS_H
 
-#include <cstddef>
 #include <utility>
+#include <map>
+
+#include <vcg/space/point2.h>
 
 struct TessellationParameters
 {
@@ -14,6 +16,20 @@ struct TessellationParameters
 		max_area = 0.0002;
 		min_angle = 30;
 	}
+};
+
+struct ParameterChange
+{
+	typedef int NodeID;
+
+	typedef enum
+	{
+		Translation,
+		Radius
+	} OperationType;
+
+	OperationType                type;
+	std::map<NodeID, vcg::Point2d> node_ops;
 };
 
 template <size_t NumParameters>
