@@ -1,9 +1,11 @@
 import numpy as np
+from math import ceil,log
 
 from WireInflator import WireInflator
 from WirePattern import WirePattern
 
 import PyCSG
+import PyMeshUtils
 
 class PeriodicWireInflator(WireInflator):
     def __init__(self, wire_network):
@@ -35,6 +37,7 @@ class PeriodicWireInflator(WireInflator):
         assert(self.original_wire_network.dim == 3);
         bbox_min, bbox_max = self.original_wire_network.bbox;
         bbox_vertices, bbox_faces = self._generate_box_mesh(bbox_min, bbox_max);
+        bbox_vertices, bbox_faces = self._subdivide_bbox(bbox_vertices, bbox_faces);
 
         csg_engine = PyCSG.CSGEngine.create("cork");
         csg_engine.set_mesh_1(bbox_vertices, bbox_faces);
@@ -68,6 +71,16 @@ class PeriodicWireInflator(WireInflator):
             [2, 3, 6],
             [3, 7, 6] ], dtype=int, order="C");
         return vertices, faces;
+
+    def _subdivide_bbox(self, vertices, faces):
+        bbox_min = np.amin(vertices, axis=0);
+        bbox_max = np.amax(vertices, axis=0);
+        order = int(ceil(log(
+            np.amax(bbox_max-bbox_min) / np.amin(self.thickness), 2)));
+
+        subdiv = PyMeshUtils.Subdivision.create("simple");
+        subdiv.subdivide(vertices, faces, order+1);
+        return subdiv.get_vertices(), subdiv.get_faces();
 
     def _enforce_periodic_connectivity(self):
         self._enforce_single_axis_periodicity(0);
