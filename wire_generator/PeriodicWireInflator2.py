@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.linalg import norm
 from math import ceil,log
 
 from WireInflator import WireInflator
@@ -6,6 +7,7 @@ from WirePattern import WirePattern
 
 import PyCSG
 import PyMeshUtils
+import PyMesh
 
 class PeriodicWireInflator(WireInflator):
     def __init__(self, wire_network):
@@ -46,6 +48,11 @@ class PeriodicWireInflator(WireInflator):
 
         self.mesh_vertices = csg_engine.get_vertices();
         self.mesh_faces    = csg_engine.get_faces();
+
+        self._clean_up();
+        self._post_clip_processing(0);
+        self._post_clip_processing(1);
+        self._post_clip_processing(2);
 
     def _generate_box_mesh(self, bbox_min, bbox_max):
         vertices = np.array([
@@ -122,6 +129,114 @@ class PeriodicWireInflator(WireInflator):
         self.mesh_vertices = vertices;
         self.mesh_faces = faces;
 
+    def _post_clip_processing(self, axis):
+        tol = 1e-3;
+        bbox_min, bbox_max = self.original_wire_network.bbox;
+
+        offset = np.zeros(self.original_wire_network.dim);
+        offset[axis] = (bbox_max - bbox_min)[axis];
+
+        v_on_min_boundary = self.mesh_vertices[:, axis] <= bbox_min[axis] + tol;
+        v_on_max_boundary = self.mesh_vertices[:, axis] >= bbox_max[axis] - tol;
+
+        f_on_min_boundary = np.all(v_on_min_boundary[self.mesh_faces], axis=1);
+        f_on_max_boundary = np.all(v_on_max_boundary[self.mesh_faces], axis=1);
+
+        min_mesh = self._form_mesh(self.mesh_vertices,
+                self.mesh_faces[f_on_min_boundary]);
+        max_mesh = self._form_mesh(self.mesh_vertices,
+                self.mesh_faces[f_on_max_boundary]);
+
+        min_bd_edge_extractor = PyMeshUtils.Boundary.extract_surface_boundary(
+                min_mesh);
+        max_bd_edge_extractor = PyMeshUtils.Boundary.extract_surface_boundary(
+                max_mesh);
+
+        min_bd_edges = min_bd_edge_extractor.get_boundaries();
+        max_bd_edges = max_bd_edge_extractor.get_boundaries();
+        min_bd_vertices = min_bd_edge_extractor.get_boundary_nodes().ravel();
+        max_bd_vertices = max_bd_edge_extractor.get_boundary_nodes().ravel();
+
+        boundary_marker = np.zeros(len(self.mesh_vertices), dtype=int);
+        boundary_marker[min_bd_vertices] = -1;
+        boundary_marker[max_bd_vertices] = 1;
+        self.write_debug_mesh("bd_vertices.msh", boundary_marker);
+
+        min_to_max_map = self._map(
+                self.mesh_vertices[min_bd_vertices] + offset,
+                self.mesh_vertices[max_bd_vertices]);
+
+        matched = np.zeros(len(self.mesh_vertices), dtype=bool);
+        for v,neighbors in zip(min_bd_vertices, min_to_max_map):
+            if len(neighbors) == 0: continue;
+            elif len(neighbors) == 1:
+                other = max_bd_vertices[neighbors[0]];
+                matched[v] = True;
+                matched[other] = True;
+            else:
+                source = self.mesh_vertices[v];
+                target = self.mesh_vertices[
+                        max_bd_vertices[neighbors] ];
+                dist = norm(target - source, axis=1);
+                idx = np.argmin(dist);
+                other = max_bd_vertices[neighbors[idx]];
+                matched[v] = True;
+                matched[other] = True;
+
+        self.write_debug_mesh("matched_bd.msh", matched.astype(float));
+
+        while not np.all(matched[min_bd_vertices]):
+            for edge in min_bd_edges:
+                if matched[edge[0]] and matched[edge[1]]: continue;
+                if not matched[edge[0]] and matched[edge[1]]:
+                    self.mesh_vertices[edge[0]] = self.mesh_vertices[edge[1]];
+                    matched[edge[0]] = True;
+                elif matched[edge[0]] and not matched[edge[1]]:
+                    self.mesh_vertices[edge[1]] = self.mesh_vertices[edge[0]];
+                    matched[edge[1]] = True;
+
+        while not np.all(matched[max_bd_vertices]):
+            for edge in max_bd_edges:
+                if matched[edge[0]] and matched[edge[1]]: continue;
+                if not matched[edge[0]] and matched[edge[1]]:
+                    self.mesh_vertices[edge[0]] = self.mesh_vertices[edge[1]];
+                    matched[edge[0]] = True;
+                elif matched[edge[0]] and not matched[edge[1]]:
+                    self.mesh_vertices[edge[1]] = self.mesh_vertices[edge[0]];
+                    matched[edge[1]] = True;
+
+        self._clean_up();
+
+    def _form_mesh(self, vertices, faces):
+        voxels = np.array([]);
+        factory = PyMesh.MeshFactory();
+        factory.load_data(
+                vertices.ravel(order="C"),
+                faces.ravel(order="C"),
+                voxels,
+                self.original_wire_network.dim, 3, 0);
+        return factory.create();
+
+    def _map(self, from_pts, to_pts):
+        dim = from_pts.shape[1];
+        num_pts = len(to_pts);
+        grid = PyMesh.HashGrid.create(1e-3, dim);
+        grid.insert_multiple(np.arange(num_pts, dtype=int), to_pts);
+
+        nearby_pts = [ grid.get_items_near_point(p).ravel() for p in from_pts ];
+        return nearby_pts;
+
     def write_debug_wires(self, filename, vertices, edges):
         writer = WireWriter(filename);
         writer.write(vertices, edges);
+
+    def write_debug_mesh(self, filename, field=None):
+        mesh = self._form_mesh(self.mesh_vertices, self.mesh_faces);
+        if field is not None:
+            mesh.add_attribute("debug");
+            mesh.set_attribute("debug", field);
+
+        writer = PyMesh.MeshWriter.create_writer(filename);
+        writer.with_attribute("debug");
+        writer.write_mesh(mesh);
+

@@ -114,6 +114,7 @@ class PeriodicWireInflator(WireInflator):
         eps = 1e-8;
         v = self.wire_network.vertices[idx];
         loop_vertices, phantom_indicator = self._get_incident_edge_loop_vertices(idx);
+        #loop_vertices = self._resolve_crossing_loops(idx, loop_vertices);
         loop_vertices = np.vstack([v, loop_vertices]);
 
         bbox_min = self.original_bbox_min;
@@ -142,10 +143,15 @@ class PeriodicWireInflator(WireInflator):
             loop_to_clipped = clipped_vts - loop_vts;
             loop_to_clipped = loop_to_clipped[mask];
 
-            offset_dist  = np.square(norm(loop_to_clipped, axis=1)) /\
-                    np.dot(loop_to_clipped, edge_vector);
-            offset = np.outer(offset_dist, edge_vector);
-            loop_vertices[i*4+1:i*4+5][mask] += offset;
+            proj_dist = np.dot(loop_to_clipped, edge_vector);
+            if np.all(proj_dist > 1e-6):
+                offset_dist  = np.square(norm(loop_to_clipped, axis=1)) /\
+                        np.dot(loop_to_clipped, edge_vector);
+                offset = np.outer(offset_dist, edge_vector);
+                loop_vertices[i*4+1:i*4+5][mask] += offset;
+            else:
+                loop_vertices[i*4+1:i*4+5][mask] = np.clip(
+                        loop_vts[mask], bbox_min, bbox_max);
 
 
         phantom_indicator = [False] + phantom_indicator.tolist();
@@ -216,8 +222,53 @@ class PeriodicWireInflator(WireInflator):
         phantom_indicator = np.repeat(phantom_indicator, 4);
         return loop_vertices, phantom_indicator;
 
-    def _register_incident_edge_loop_vertex_indices(self, vertex_idx, index_map,
-            num_vts):
+    #def _resolve_crossing_loops(self, vertex_idx, loop_vertices):
+    #    """ Resolve edge loop that is partially inside the unit cell and
+    #    partiallly outside.
+    #    """
+    #    tol = 1e-8;
+    #    bbox_min = self.original_bbox_min;
+    #    bbox_max = self.original_bbox_max;
+    #    bbox_size = bbox_max - bbox_min;
+
+    #    inside = np.logical_and(
+    #            np.all(loop_vertices > bbox_min - tol, axis=1),
+    #            np.all(loop_vertices < bbox_max + tol, axis=1));
+    #    outside = np.logical_or(
+    #            np.any(loop_vertices < bbox_min + tol, axis=1),
+    #            np.any(loop_vertices > bbox_max - tol, axis=1));
+
+    #    neighbor_edges = self.wire_network.vertex_edge_neighbors[vertex_idx];
+    #    for i,e_idx in enumerate(neighbor_edges):
+    #        edge = self.wire_network.edges[e_idx];
+    #        neibhbor_v_idx = edge[np.where(edge != vertex_idx)];
+    #        edge_vector = self.wire_network.vertices[neighbor_v_idx]\
+    #                - self.wire_network.vertices[vertex_idx];
+
+    #        is_phantom_edge = np.any(self.phantom_vertex_map[edge]);
+    #        loop = loop_vertices[i*4:(i+1)*4];
+    #        if is_phantom_edge:
+    #            # push the edge loop out.
+    #            # TODO
+    #            #sign = 
+    #            neighbor_bbox_min = bbox_min;
+    #            neighbor_bbox_max = bbox_max;
+
+
+    #            bad_mask = np.logical_not(outside[i*4:(i+1)*4]);
+    #            if np.any(bad_mask):
+    #                dist_to_min = np.absolute(loop[bad_mask] - bbox_min);
+    #                dist_to_max = np.absolute(loop[bad_mask] - bbox_max);
+    #                dist = np.amin([dist_to_min, dist_to_max]);
+    #        else:
+    #            # push the edge loop in.
+    #            bad_mask = np.logical_not(inside[i*4:(i+1)*4]);
+    #            if np.any(bad_mask):
+    #                #TODO
+    #                pass;
+
+
+    def _register_incident_edge_loop_vertex_indices(self, vertex_idx, index_map, num_vts):
         for i, e_idx in enumerate(self.wire_network.vertex_edge_neighbors[vertex_idx]):
             edge = self.wire_network.edges[e_idx];
             if np.any(self.phantom_vertex_map[edge] < 0):

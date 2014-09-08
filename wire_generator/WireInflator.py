@@ -265,6 +265,13 @@ class WireInflator(object):
 
     @timethis
     def _clean_up(self):
+        # Remove obtuse triangles
+        obtuse_triangle_removal = PyMeshUtils.ObtuseTriangleRemoval(
+                self.mesh_vertices, self.mesh_faces);
+        obtuse_triangle_removal.run(179.0);
+        self.mesh_vertices = obtuse_triangle_removal.get_vertices();
+        self.mesh_faces = obtuse_triangle_removal.get_faces();
+
         # Remove duplicated vertices
         duplicated_vertex_removal = PyMeshUtils.DuplicatedVertexRemoval(
                 self.mesh_vertices, self.mesh_faces);
