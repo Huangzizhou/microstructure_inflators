@@ -93,7 +93,7 @@ public:
 	typedef Tessellator2DSettings TessellatorSettings;
 
 	EdgeMeshPattern(void)
-	    : m_repeat_x(2)
+	    : m_repeat_x(1)
 	    , m_repeat_y(1)
 	    , m_scale(1)
 	{
