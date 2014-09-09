@@ -12,7 +12,7 @@ from WireNetwork import WireNetwork
 from WirePattern import WirePattern
 from WireInflator import WireInflator
 from WireModifierFactory import WireModifierFactory
-from PeriodicWireInflator import PeriodicWireInflator
+from PeriodicWireInflator2 import PeriodicWireInflator
 from timethis import timethis
 
 def parse_config_file(config_file):

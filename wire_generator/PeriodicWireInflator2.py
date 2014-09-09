@@ -4,6 +4,7 @@ from math import ceil,log
 
 from WireInflator import WireInflator
 from WirePattern import WirePattern
+from Triangulation import Triangulation
 
 import PyCSG
 import PyMeshUtils
@@ -34,12 +35,13 @@ class PeriodicWireInflator(WireInflator):
         super(PeriodicWireInflator, self).inflate(clean_up);
         self._clip_with_bbox();
         self._enforce_periodic_connectivity();
+        self._subdivide(2);
 
     def _clip_with_bbox(self):
         assert(self.original_wire_network.dim == 3);
         bbox_min, bbox_max = self.original_wire_network.bbox;
         bbox_vertices, bbox_faces = self._generate_box_mesh(bbox_min, bbox_max);
-        bbox_vertices, bbox_faces = self._subdivide_bbox(bbox_vertices, bbox_faces);
+        #bbox_vertices, bbox_faces = self._subdivide_bbox(bbox_vertices, bbox_faces);
 
         csg_engine = PyCSG.CSGEngine.create("cork");
         csg_engine.set_mesh_1(bbox_vertices, bbox_faces);
@@ -99,6 +101,8 @@ class PeriodicWireInflator(WireInflator):
 
     def _enforce_single_axis_periodicity(self, axis):
         tol = 1e-3;
+        axis_dir = np.zeros(3);
+        axis_dir[axis] = 1;
         bbox_min, bbox_max = self.original_wire_network.bbox;
 
         vertices = self.mesh_vertices;
@@ -114,20 +118,40 @@ class PeriodicWireInflator(WireInflator):
         f_on_min_boundary = np.all(v_on_min_boundary[faces], axis=1);
         f_on_max_boundary = np.all(v_on_max_boundary[faces], axis=1);
 
-        added_vertices = vertices[v_on_min_boundary] + offset;
-        from_index = np.arange(num_vertices, dtype=int)[v_on_min_boundary];
-        to_index = np.arange(len(added_vertices), dtype=int) + num_vertices;
-        vertex_map = {i:j for i,j in zip(from_index, to_index)};
-        index_lookup = lambda i: vertex_map[i];
-        added_faces = [map(index_lookup, face) for face in faces[f_on_min_boundary]];
-        added_faces = np.array(added_faces)[:,[1,0,2]];
+        added_vertices, added_faces = self._retriangulate(
+                vertices, faces[f_on_min_boundary], axis_dir);
 
-        vertices = np.vstack((vertices, added_vertices));
-        faces = faces[np.logical_not(f_on_max_boundary)];
-        faces = np.vstack((faces, added_faces));
+        f_on_boundary = np.logical_or(f_on_min_boundary, f_on_max_boundary);
+        faces = faces[np.logical_not(f_on_boundary)];
+
+        vertices = np.vstack([vertices, added_vertices, added_vertices + offset]);
+        faces = np.vstack([faces, 
+            added_faces + num_vertices,
+            added_faces[:,[1, 0, 2]] + num_vertices + len(added_vertices) ]);
+
+        #added_vertices = vertices[v_on_min_boundary] + offset;
+        #from_index = np.arange(num_vertices, dtype=int)[v_on_min_boundary];
+        #to_index = np.arange(len(added_vertices), dtype=int) + num_vertices;
+        #vertex_map = {i:j for i,j in zip(from_index, to_index)};
+        #index_lookup = lambda i: vertex_map[i];
+        #added_faces = [map(index_lookup, face) for face in faces[f_on_min_boundary]];
+        #added_faces = np.array(added_faces)[:,[1,0,2]];
+
+        #vertices = np.vstack((vertices, added_vertices));
+        #faces = faces[np.logical_not(f_on_max_boundary)];
+        #faces = np.vstack((faces, added_faces));
 
         self.mesh_vertices = vertices;
         self.mesh_faces = faces;
+
+    def _retriangulate(self, vertices, faces, proj_dir):
+        """ Retriangulate the polygon formed by the faces without introducing
+        new vertices on the boundary.  In particular, all faces should be
+        coplanar.
+        """
+        tri = Triangulation(vertices, faces, proj_dir);
+        tri.triangulate(0.1);
+        return tri.vertices, tri.faces;
 
     def _post_clip_processing(self, axis):
         tol = 1e-3;
@@ -142,20 +166,10 @@ class PeriodicWireInflator(WireInflator):
         f_on_min_boundary = np.all(v_on_min_boundary[self.mesh_faces], axis=1);
         f_on_max_boundary = np.all(v_on_max_boundary[self.mesh_faces], axis=1);
 
-        min_mesh = self._form_mesh(self.mesh_vertices,
-                self.mesh_faces[f_on_min_boundary]);
-        max_mesh = self._form_mesh(self.mesh_vertices,
-                self.mesh_faces[f_on_max_boundary]);
-
-        min_bd_edge_extractor = PyMeshUtils.Boundary.extract_surface_boundary(
-                min_mesh);
-        max_bd_edge_extractor = PyMeshUtils.Boundary.extract_surface_boundary(
-                max_mesh);
-
-        min_bd_edges = min_bd_edge_extractor.get_boundaries();
-        max_bd_edges = max_bd_edge_extractor.get_boundaries();
-        min_bd_vertices = min_bd_edge_extractor.get_boundary_nodes().ravel();
-        max_bd_vertices = max_bd_edge_extractor.get_boundary_nodes().ravel();
+        min_bd_vertices, min_bd_edges = self._extract_face_boundary(
+                self.mesh_vertices, self.mesh_faces[f_on_min_boundary]);
+        max_bd_vertices, max_bd_edges = self._extract_face_boundary(
+                self.mesh_vertices, self.mesh_faces[f_on_max_boundary]);
 
         boundary_marker = np.zeros(len(self.mesh_vertices), dtype=int);
         boundary_marker[min_bd_vertices] = -1;
@@ -206,6 +220,12 @@ class PeriodicWireInflator(WireInflator):
                     matched[edge[1]] = True;
 
         self._clean_up();
+
+    def _extract_face_boundary(self, vertices, faces):
+        mesh = self._form_mesh(vertices, faces);
+        bd_extractor = PyMeshUtils.Boundary.extract_surface_boundary(mesh);
+        return  bd_extractor.get_boundary_nodes().ravel(),\
+                bd_extractor.get_boundaries();
 
     def _form_mesh(self, vertices, faces):
         voxels = np.array([]);
