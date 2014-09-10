@@ -3,7 +3,6 @@
 # code.
 use strict; use warnings;
 use Cwd 'abs_path';
-use List::Util qw(min max);
 use File::Basename;
 use File::Temp qw(tempfile);
 my $scriptDir = abs_path(dirname(__FILE__));
@@ -33,7 +32,7 @@ my $lastIt = $#energies;
 ################################################################################
 # Render Fields
 ################################################################################
-my $imagePrefix = $problemName;
+(my $imagePrefix = $mshFile) =~ s/\.msh$//;
 my @fieldNames = ("Optimized u", "Neumann u", "Dirichlet u", split(', ', $matPropNameString));
 my @matProps = split(' ', $matPropString);
 my @fields = ("u", "u_neumann", "u_dirichletTargets", @matProps);
@@ -50,22 +49,22 @@ my ($pltData, $pltDataPath) = tempfile(UNLINK => 1);
 for my $i (0..$lastIt) { print $pltData ("$i\t${energies[$i]}\t${gradNorms[$i]}\n"); }
 close($pltData);
 
-# If '.txt' name has colon separators, all runs with the same 1st component get
-# the same ymin
-my @nameComponents = split(':', $optOutputFile);
+# Load custom ymin if it exists
+(my $yminFile = $mshFile) =~ s/\.msh$/.ymin/;
 my @ymins = (1e-13, 1e-13);
-if (@nameComponents > 1) {
-    my (@allEnergies, @allGradNorms);
-    while (<${nameComponents[0]}*.txt>) {
-        open(my $similarRun, '<', $_);
-        while (<$similarRun>) {
-            if (/^([0-9]+) objective, gradient norm:\t(\S*)\t(\S*)$/) {
-                push(@allEnergies, $2);
-                push(@allGradNorms, $3);
-            }
+if (-e $yminFile) {
+    my $success = 0;
+    open(YMFILE, '<', $yminFile);
+    my @lines;
+    while (<YMFILE>) { push(@lines, $_); }
+    if (@lines == 1) {
+        my @components = split(/\s+/, $lines[0]);
+        if (@components == 2) {
+            @ymins = @components;
+            $success = 1;
         }
     }
-    @ymins = (min(@allEnergies), min(@allGradNorms));
+    if ($success == 0) { die("Invalid ymin file $yminFile\n"); }
 }
 else {
     # Otherwise, choose a ymin individually for each '.txt'
