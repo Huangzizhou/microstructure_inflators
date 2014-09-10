@@ -5,7 +5,7 @@
 #include <vector>
 #include <unordered_map>
 
-template <size_t NumberOfParameters, size_t Dim = 3, size_t NodesPerElement = 3>
+template <size_t Dim = 3, size_t NodesPerElement = 3>
 struct OutMesh
 {
 	typedef int                                    IndexType;
@@ -18,8 +18,8 @@ struct OutMesh
 	typedef std::vector<CoordType>  NodeVector;
 	typedef std::vector<FaceType>   ElementVector;
 
-	typedef std::array<ScalarType, NumberOfParameters> Fields;
-	typedef std::unordered_map<EdgeType, Fields>       EdgeFields;
+	typedef std::vector<ScalarType>              Fields;
+	typedef std::unordered_map<EdgeType, Fields> EdgeFields;
 
 	NodeVector    nodes;
 	ElementVector elements;
