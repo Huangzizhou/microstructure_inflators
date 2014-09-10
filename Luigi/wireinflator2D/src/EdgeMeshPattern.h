@@ -628,53 +628,59 @@ protected:
 			bounds = c.GetBounds();
 		}
 
-		ClipperLib::Paths newProfile;
-		for (const ClipperLib::Path & p : profile)
+		for (ClipperLib::Path & p : profile)
 		{
-			ClipperLib::Path newPath;
-			size_t idx = 0;
-			for (size_t i=0; i<p.size(); i++)
+			reverse(p);
+			simplifyPath(epsilon, bounds, p);
+			reverse(p);
+			simplifyPath(epsilon, bounds, p);
+		}
+	}
+
+	static void simplifyPath(ClipperLib::cInt epsilon, const ClipperLib::IntRect & bounds, ClipperLib::Path & path)
+	{
+		ClipperLib::Path newPath;
+
+		size_t idx = 0;
+		for (size_t i=0; i<path.size(); i++)
+		{
+			const ClipperLib::IntPoint p0 = path[idx];
+			const ClipperLib::IntPoint p1 = path[(i+1)%path.size()];
+
+			// choose to preserve the points on the boundary
+			bool boundary = p0.X == bounds.left   || p0.X == bounds.right ||
+			                p0.Y == bounds.bottom || p0.Y == bounds.left;
+
+			if (ClipperLib::cInt(distance(p0, p1)) >= epsilon)
 			{
-				const ClipperLib::IntPoint p0 = p[idx];
-				const ClipperLib::IntPoint p1 = p[(i+1)%p.size()];
-
-				// choose to preserve the points on the boundary
-				bool boundary = p0.X == bounds.left   || p0.X == bounds.right ||
-				                p0.Y == bounds.bottom || p0.Y == bounds.left;
-
-				if (ClipperLib::cInt(distance(p0, p1)) >= epsilon)
+				// points are far apart or p0 is on the boundary
+				newPath.push_back(p0);
+				idx = i+1;
+			}
+			else
+			{
+				if (boundary)
 				{
-					// points are far apart or p0 is on the boundary
 					newPath.push_back(p0);
 					idx = i+1;
 				}
 				else
-				{
-					if (boundary)
+					if (p1.X == bounds.left   || p1.X == bounds.right ||
+					    p1.Y == bounds.bottom || p1.Y == bounds.left)
 					{
-						newPath.push_back(p0);
-						idx = i+1;
-					}
-					else
-						if (p1.X == bounds.left   || p1.X == bounds.right ||
-						    p1.Y == bounds.bottom || p1.Y == bounds.left)
+						if (boundary)
 						{
-							if (boundary)
-							{
-								newPath.push_back(p0);
-							}
-							idx = i+1;
-
-							if (i+1 == p.size())
-								newPath.push_back(p1);
+							newPath.push_back(p0);
 						}
-				}
-			}
+						idx = i+1;
 
-			newProfile.push_back(newPath);
+						if (i+1 == path.size())
+							newPath.push_back(p1);
+					}
+			}
 		}
 
-		profile = newProfile;
+		path = newPath;
 	}
 
 	// generating circle functions

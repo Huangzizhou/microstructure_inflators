@@ -2,7 +2,8 @@
 #define CLIPPERHELPER_H
 
 #include "clipper.hpp"
-#include <vcg/complex/complex.h>
+#include <vcg/space/point2.h>
+#include <vcg/space/point3.h>
 #include <cmath>
 
 template <typename ScalarType>
@@ -85,6 +86,16 @@ inline ClipperLib::Path & operator *= (ClipperLib::Path & lhs, const double rhs)
 		lhs[i] *= rhs;
 
 	return lhs;
+}
+
+inline void reverse(ClipperLib::Path & path)
+{
+	ClipperLib::Path newPath;
+	for (int i=int(path.size()-1); i>=0; --i)
+	{
+		newPath.push_back(path[i]);
+	}
+	path = newPath;
 }
 
 /// PATHS
