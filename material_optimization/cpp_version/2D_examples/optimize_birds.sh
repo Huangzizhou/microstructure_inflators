@@ -1,9 +1,11 @@
-dir=results/bird_opt
+# usage: ./optimize_birds.sh [resultsDir]
+resultsDir=${1-results}
+dir=$resultsDir/bird_opt
 mkdir -p $dir
 
 # $1: mesh, $2: bc, $3: name, $4: args
 function run {
-    echo "$MeshFEM/MaterialOptimization_cli results/$1 $2 $4 $dir/$3.msh | tee $dir/$3.txt" > $dir/$3.sh
+    echo "$MeshFEM/MaterialOptimization_cli $resultsDir/$1 $2 $4 $dir/$3.msh | tee $dir/$3.txt" > $dir/$3.sh
     sh $dir/$3.sh
 }
 

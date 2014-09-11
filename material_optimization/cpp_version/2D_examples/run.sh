@@ -1,7 +1,9 @@
 #!/usr/bin/env zsh
 # Run everything!
-if [[ -d results ]]; then
-    backupFile=results_old
+# usage: ./run.sh [resultsDir]
+resultsDir=${1-results}
+if [[ -d $resultsDir ]]; then
+    backupFile=${resultsDir}_old
     if [[ -e $backupFile ]]; then
         i=0;
         while [[ -e ${backupFile}_$i ]]; do
@@ -9,17 +11,17 @@ if [[ -d results ]]; then
         done
         backupFile=${backupFile}_$i
     fi
-    mv results $backupFile
+    mv $resultsDir $backupFile
 fi
-mkdir results;
-./generate_geometry.sh
+mkdir $resultsDir;
+./generate_geometry.sh $resultsDir
 
 # These should generate results in subdirectories "birds" and "bars"
-./optimize_bars.sh
-./optimize_birds.sh
+./optimize_bars.sh $resultsDir
+./optimize_birds.sh $resultsDir
 
 # Remove input geometry
-rm results/*.obj results/*.msh
+rm $resultsDir/*.obj $resultsDir/*.msh
 
-../matopt_flipper/make_flippers.pl isotropic 2 results
-cp custom_directory.js results/directory.js
+../matopt_flipper/make_flippers.pl isotropic 2 $resultsDir
+cp custom_directory.js $resultsDir/directory.js

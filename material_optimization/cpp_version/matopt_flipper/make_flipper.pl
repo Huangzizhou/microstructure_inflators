@@ -102,7 +102,7 @@ GNU_EOF
 # Determine repository statuses
 ################################################################################
 my @repoNames = ("MeshFEM", "CSGFEM", "microstructures");
-my @localPaths = ($ENV{'MeshFEM'}, $ENV{'CSGFEM'}, '.');
+my @localPaths = ($ENV{'MeshFEM'}, $ENV{'CSGFEM'}, $scriptDir);
 my @remotePaths = ('jpanetta/MeshFEM', 'jpanetta/CSGFEM', '3DPrint/microstructures');
 my @links;
 my $uncommittedChanges;

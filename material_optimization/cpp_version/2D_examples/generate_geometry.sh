@@ -1,6 +1,8 @@
 # Generate all the triangulated meshes from the source .obj geometry.
-tar -xf source_objs.tgz -C results
-cd results
+# usage: ./generate_geometry.sh [resultsDir]
+resultsDir=${1-results}
+tar -xf source_objs.tgz -C $resultsDir
+cd $resultsDir
 
 # Generate birds
 $MeshFEM/mesh_convert bird.obj --Sx 5 --Sy 5 -q1 bird_tri.msh
