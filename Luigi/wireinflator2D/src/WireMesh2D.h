@@ -146,7 +146,7 @@ public:
 		this->applyParameterOperations(em, params);
 	}
 
-	const std::vector<ParameterOperation> &  getParameterOperations(void) const
+	const std::vector<ParameterOperation> & getParameterOperations(void) const
 	{
 		return m_operations;
 	}

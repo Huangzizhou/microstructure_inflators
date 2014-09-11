@@ -31,7 +31,12 @@ struct ParameterOperation
 
 	OperationType                  type;
 
+	// if type == Translation
+	// nodes_displ maps the nodes to be translated to the respective translation vectors
 	std::map<NodeID, vcg::Point2d> nodes_displ;
+
+	// if type == Radius
+	// nodes contains the nodes for which this radius-change operation is applied
 	std::vector<NodeID>            nodes;
 };
 
