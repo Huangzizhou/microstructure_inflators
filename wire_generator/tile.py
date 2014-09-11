@@ -28,6 +28,7 @@ def parse_config_file(config_file):
         "y_tile_dir": [x, y, z],
         "z_tile_dir": [x, y, z],
         "hex_mesh": hex_mesh,
+        "no_tile": bool,
         "trim": bool,
         "periodic": bool,
         "output": output_file
@@ -68,7 +69,9 @@ def tile(config):
     set_uniform_thickness(network, config["thickness"]);
     modifiers = load_modifiers(config.get("modifier_file", None));
 
-    if "hex_mesh" in config:
+    if config.get("no_tile", False):
+        tiled_network = network;
+    elif "hex_mesh" in config:
         tiled_network = tile_hex(config, network, modifiers);
     else:
         tiled_network = tile_box(config, network, modifiers);

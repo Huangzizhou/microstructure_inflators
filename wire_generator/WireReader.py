@@ -36,6 +36,7 @@ class WireReader(object):
         assert(len(fields) == 3);
         e1 = int(fields[1]) - 1;
         e2 = int(fields[2]) - 1;
+        assert(e1 >= 0 and e2 >= 0);
         self.edges.append([e1, e2]);
 
     def __parse_face(self, line):
