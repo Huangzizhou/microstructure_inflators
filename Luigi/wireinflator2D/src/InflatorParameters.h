@@ -3,6 +3,7 @@
 
 #include <utility>
 #include <map>
+#include <vector>
 
 #include <vcg/space/point2.h>
 
@@ -18,7 +19,7 @@ struct TessellationParameters
 	}
 };
 
-struct ParameterChange
+struct ParameterOperation
 {
 	typedef int NodeID;
 
@@ -28,14 +29,21 @@ struct ParameterChange
 		Radius
 	} OperationType;
 
-	OperationType                type;
-	std::map<NodeID, vcg::Point2d> node_ops;
+	OperationType                  type;
+
+	std::map<NodeID, vcg::Point2d> nodes_displ;
+	std::vector<NodeID>            nodes;
 };
 
-template <size_t NumParameters>
-struct CellParameters
+class CellParameters
 {
-	enum { NumberOfParameters = NumParameters};
+public:
+	CellParameters(void) : CellParameters(0) {;}
+
+	CellParameters(size_t parameters_count)
+	{
+		m_parameters.resize(parameters_count);
+	}
 
 	virtual ~CellParameters(void)
 	{
@@ -48,7 +56,7 @@ struct CellParameters
 	 */
 	virtual size_t numberOfParameters(void) const
 	{
-		return NumParameters;
+		return m_parameters.size();
 	}
 
 	/*!
@@ -56,32 +64,20 @@ struct CellParameters
 	 * \param i the parameter index.
 	 * \return the i-th parameter
 	 */
-	virtual double & parameter(int i) = 0;
-
-	virtual const double & cParameter(int i) const = 0;
-
-	/*!
-	 * \brief parameterRange return the admissible range for the specified parameter
-	 * \param i the parameter index.
-	 * \return the pair <min value, max value> for the i-th parameter.
-	 */
-	virtual std::pair<double,double> parameterRange(int i) const = 0;
-
-	/*!
-	 * \brief isValid checks wheter the current set of parameters is valid.
-	 * \return true if the parameters are valide, false otherwise.
-	 */
-	virtual bool isValid(void) const
+	virtual double & parameter(int i)
 	{
-		for (size_t i=0; i<numberOfParameters(); i++)
-		{
-			const double & par = cParameter(i);
-			std::pair<double, double> pr = this->parameterRange(i);
-			if (par < pr.first || par > pr.second)
-				return false;
-		}
-		return true;
+		assert(i>=0 && i<int(m_parameters.size()));
+		return m_parameters[i];
 	}
+
+	virtual const double & cParameter(int i) const
+	{
+		assert(i>=0 && i<int(m_parameters.size()));
+		return m_parameters[i];
+	}
+
+protected:
+	std::vector<double> m_parameters;
 };
 
 #endif // CELLPARAMETERS_H

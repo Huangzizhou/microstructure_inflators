@@ -7,6 +7,9 @@
 use strict; use warnings;
 use Cwd qw(abs_path cwd);
 use File::Basename;
+use File::Find;
+use File::chdir;
+use File::Spec;
 my $scriptDir = abs_path(dirname(__FILE__));
 
 (@ARGV < 2 || @ARGV > 4) && die("Usage: make_flippers.pl iso|orthotropic dimension [directory [filter]]\n");
@@ -17,11 +20,11 @@ my $dim = $ARGV[1];
 ($material ~~ ['isotropic', 'orthotropic']) || die('Material must be isotropic or orthotropic');
 ($dim ~~ [2, 3]) || die('Dimension must be 2 or 3.');
 
-chdir((@ARGV >= 3) ? $ARGV[2] : cwd());
+my $rootDir = (@ARGV >= 3) ? $ARGV[2] : cwd();
 
 my $properties;
 if ($material eq 'isotropic') {
-       $properties = 'E nu';
+    $properties = 'E nu';
 }
 else { $properties = ($dim == 2) ? 'E_x E_y nu_yx mu'
                                  : 'E_x E_y E_z nu_yx nu_zx nu_zy mu_yz mu_zx mu_xy';
@@ -30,10 +33,16 @@ my $commaProperties = $properties;
 $commaProperties =~ s/ /, /g;
 
 unlink 'directory.js';
-my @names = glob (((@ARGV >= 4) ? $ARGV[3] : '*') . '.msh');
-@names = map {local $_ = $_; s/\.[^.]+$//; $_} @names;
-for (my $i = 0; $i < @names; ++$i) {
-    my $name = $names[$i];
-    `$scriptDir/make_flipper.pl $name.txt $name.msh $name $dim '$properties' '$commaProperties' > $name.js`;
-    print "$name\t(" . ($i + 1) . '/' . @names . ")\n";
+my @mshFiles;
+my $filter = ((@ARGV >= 4) ? $ARGV[3] : '') . '.*\.msh';
+find(sub { my $path = File::Spec->abs2rel($File::Find::name, $rootDir);
+           if ($path =~ /$filter/) { push(@mshFiles, $path); } }, $rootDir);
+
+for (my $i = 0; $i < @mshFiles; ++$i) {
+    my ($name, $dir, $suffix) = fileparse($mshFiles[$i], qr/\.[^.]*/);
+    local $CWD = "$rootDir/$dir";
+    (my $runName = $dir) =~ tr#/#:#;
+    $runName .= $name;
+    `$scriptDir/make_flipper.pl $name.txt $name.msh '$runName' $dim '$properties' '$commaProperties' > $name.js`;
+    print "$runName\t(" . ($i + 1) . '/' . @mshFiles . ")\n";
 }

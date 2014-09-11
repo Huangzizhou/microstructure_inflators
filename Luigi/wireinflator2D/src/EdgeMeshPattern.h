@@ -4,6 +4,7 @@
 #include "Pattern2D.h"
 #include "EdgeMeshType.h"
 #include "InflatorParameters.h"
+
 #include "tessellator2d.h"
 #include <stdlib.h>
 #include <cmath>
@@ -11,6 +12,7 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+#include <algorithm>
 
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/update/bounding.h>
@@ -80,24 +82,33 @@ private:
 };
 
 
-template <class TriMesh, typename Parameters>
+template <class TriMesh, class WireMesh>
 class EdgeMeshPattern : public Pattern2D<TriMesh>
 {
 public:
-	typedef EdgeMeshPattern<TriMesh, Parameters> ThisType;
-	typedef Pattern2D<TriMesh>                   BaseType;
-	typedef Parameters                           PatternParameters;
-	typedef typename BaseType::ScalarType        ScalarType;
-	typedef typename BaseType::Coord2Type        Coord2Type;
+	typedef EdgeMeshPattern<TriMesh, WireMesh> ThisType;
+	typedef Pattern2D<TriMesh>                 BaseType;
+	typedef typename BaseType::ScalarType      ScalarType;
+	typedef typename BaseType::Coord2Type      Coord2Type;
 
-	typedef Tessellator2DSettings TessellatorSettings;
+	typedef Tessellator2DSettings              TessellatorSettings;
 
-	EdgeMeshPattern(void)
-	    : m_repeat_x(1)
-	    , m_repeat_y(1)
-	    , m_scale(1)
+	EdgeMeshPattern(WireMesh & wm)
+	    : m_wire(wm)
 	{
-		;
+		this->setup();
+	}
+
+	EdgeMeshPattern(EMesh & em)
+	{
+		m_wire.setMesh(em);
+		this->setup();
+	}
+
+	EdgeMeshPattern(const std::string & edgeMeshPath)
+	{
+		m_wire.setMesh(edgeMeshPath);
+		this->setup();
 	}
 
 	TessellatorSettings & getTessellationSettings(void)
@@ -105,24 +116,9 @@ public:
 		return m_tri_settings;
 	}
 
-	size_t & repeatX(void)
-	{
-		return m_repeat_x;
-	}
-
-	size_t & repeatY(void)
-	{
-		return m_repeat_x;
-	}
-
-	double & scale(void)
-	{
-		return m_scale;
-	}
-
 	struct InputParameters
 	{
-		PatternParameters      patternParams;
+		CellParameters         patternParams;
 		TessellationParameters tessellationParams;
 	};
 
@@ -131,53 +127,49 @@ public:
 		return m_params;
 	}
 
+	size_t numberOfParameters(void) const
+	{
+		return m_wire.numberOfParameters();
+	}
+
+	bool parametersValid(const CellParameters & params) const
+	{
+		return m_wire.parametersValid(params);
+	}
+
+	std::pair<double,double> getParameterRange(int i) const
+	{
+		return m_wire.getParameterRange(i);
+	}
+
 	bool generate(void)
 	{
-		// set tesselation settings from settings
-		this->m_tri_settings.area_constrained = true;
-		this->m_tri_settings.max_area = m_params.tessellationParams.max_area;
-		this->m_tri_settings.angle_constrained = true;
-		this->m_tri_settings.min_angle = m_params.tessellationParams.min_angle;
+		if (!m_wire.isValid())
+			return false;
 
-		// prevent steiner points to be added on each boundary segment
-		this->m_tri_settings.steiner_points = false;
-		this->m_tri_settings.quiet = true;
+		this->setTessellationParameters();
 
 		this->m_paths.clear();
-
 		generateOneElement();
-
-		assert(m_scale > 0);
-
-		ClipperLib::Clipper clipper;
-		ClipperLib::IntRect bounds = { 0, ThisType::ScaleFactor, ThisType::ScaleFactor, 0 };
-
-		for (unsigned int x=0; x<m_repeat_x; ++x)
-		{
-			for (unsigned int y=0; y<m_repeat_y; ++y)
-			{
-				ClipperLib::IntPoint t((bounds.right - bounds.left)*x, (bounds.top - bounds.bottom)*y);
-				clipper.AddPaths((this->m_base_paths + t), ClipperLib::ptSubject, true);
-			}
-		}
-
-		clipper.Execute(ClipperLib::ctUnion, this->m_paths, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
+		this->m_paths = this->m_base_paths;
 
 		splitAllCountourEdges(this->m_paths);
-		this->m_paths *= m_scale;
 
 		return true;
 	}
 
 	void computeVelocityField(TriMesh & mesh,
-	                          std::unordered_map<std::pair<int, int>, std::array<ScalarType, PatternParameters::NumberOfParameters> > & fields)
-	{
+	                          std::unordered_map<std::pair<int, int>, std::vector<ScalarType> > & fields)
+	{                                                              // contains one scalar for each pattern parameter
 		typedef typename EMesh::CoordType        CoordType;
-		typedef typename ParameterChange::NodeID NodeID;
+		typedef typename ParameterOperation::NodeID NodeID;
+
+		if (!m_wire.isValid())
+			return;
 
 		// get the generating edge mesh
 		EMesh em;
-		this->getEdgeMesh(em);
+		m_wire.getEdgeMesh(em, this->m_params.patternParams);
 
 		// update border topology
 		vcg::tri::UpdateTopology<TriMesh>::FaceFace(mesh);
@@ -293,34 +285,35 @@ public:
 		}
 
 		// compute displacement per vertex changing each parameter
-		std::vector<ParameterChange> params_op;
-		this->getParameterOperations(params_op);
-		assert(params_op.size() == PatternParameters::NumberOfParameters);
+		const std::vector<ParameterOperation> & params_op =
+			m_wire.getParameterOperations();
+//		assert(params_op.size() == PatternParameters::NumberOfParameter);
+		size_t numberOfParameters = params_op.size();
 
 		fields.clear();
 		typedef typename TriMesh::VertexType::NormalType NormalType;
-		for (size_t p=0; p<PatternParameters::NumberOfParameters; ++p)
+		for (size_t p=0; p<numberOfParameters; ++p)
 		{
-			this->m_params.patternParams.cParameter(p);
-			ParameterChange & par = params_op[p];
+//			this->m_params.patternParams.cParameter(p);
+			const ParameterOperation & par = params_op[p];
 
 			// for each parameter compute the displacement per vertex
-			if (par.type == ParameterChange::Radius)
+			if (par.type == ParameterOperation::Radius)
 			{
 				for (size_t i=0; i<vtxToSegs.size(); ++i)
 				{
 					typename TriMesh::VertexPointer v = vtx[i];
-					const SegmentType * s       = vtxToSegs[i].first;
-					const Coord2Type  & closest = vtxToSegs[i].second;
+					const SegmentType * s             = vtxToSegs[i].first;
+					const Coord2Type  & closest       = vtxToSegs[i].second;
 
 					switch (s->belonging) {
 					case SegmentType::EdgeSegment :
 					{
-						NormalType n0 = (par.node_ops.count(NodeID(s->index0)) == 0) ?
+						NormalType n0 = (std::find(par.nodes.begin(), par.nodes.end(), NodeID(s->index0)) == par.nodes.end()) ?
 						                    NormalType(0,0,0) :
 						                    NormalType::Construct(CoordType(s->P0()[0], s->P0()[1], 0) - em.vert[s->index0].cP()).Normalize();
 
-						NormalType n1 = (par.node_ops.count(NodeID(s->index1)) == 0) ?
+						NormalType n1 = (std::find(par.nodes.begin(), par.nodes.end(), NodeID(s->index1)) == par.nodes.end()) ?
 						                    NormalType(0,0,0) :
 						                    NormalType::Construct(CoordType(s->P1()[0], s->P1()[1], 0) - em.vert[s->index1].cP()).Normalize();
 
@@ -331,7 +324,7 @@ public:
 					}
 					case SegmentType::VertexSegment :
 					{
-						v->N() = (par.node_ops.count(NodeID(s->index0)) == 0) ?
+						v->N() = (std::find(par.nodes.begin(), par.nodes.end(), NodeID(s->index0)) == par.nodes.end()) ?
 						             NormalType(0,0,0) :
 						             (NormalType::Construct(v->cP()) - NormalType::Construct(em.vert[s->index0].cP())).Normalize();
 						break;
@@ -342,25 +335,25 @@ public:
 					}
 				}
 			}
-			else if (par.type == ParameterChange::Translation)
+			else if (par.type == ParameterOperation::Translation)
 			{
 				// for each parameter compute the displacement per vertex
 				for (size_t i=0; i<vtxToSegs.size(); ++i)
 				{
 					typename TriMesh::VertexPointer v = vtx[i];
-					const SegmentType * s       = vtxToSegs[i].first;
-					const Coord2Type  & closest = vtxToSegs[i].second;
+					const SegmentType * s             = vtxToSegs[i].first;
+					const Coord2Type  & closest       = vtxToSegs[i].second;
 
 					switch (s->belonging) {
 					case SegmentType::EdgeSegment :
 					{
-						NormalType n0 = (par.node_ops.count(NodeID(s->index0)) == 0) ?
+						NormalType n0 = (par.nodes_displ.count(NodeID(s->index0)) == 0) ?
 						                    NormalType(0,0,0) :
-						                    NormalType(par.node_ops[NodeID(s->index0)][0], par.node_ops[NodeID(s->index0)][1], 0);
+						                    NormalType(par.nodes_displ.at(NodeID(s->index0))[0], par.nodes_displ.at(NodeID(s->index0))[1], 0);
 
-						NormalType n1 = (par.node_ops.count(NodeID(s->index1)) == 0) ?
+						NormalType n1 = (par.nodes_displ.count(NodeID(s->index1)) == 0) ?
 						                    NormalType(0,0,0) :
-						                    NormalType(par.node_ops[NodeID(s->index1)][0], par.node_ops[NodeID(s->index1)][1], 0);
+						                    NormalType(par.nodes_displ.at(NodeID(s->index1))[0], par.nodes_displ.at(NodeID(s->index1))[1], 0);
 
 						ScalarType t =  s->interpolationParameter(closest);
 						v->N() = n0 * (1-t) + n1 * t;
@@ -368,9 +361,9 @@ public:
 					}
 					case SegmentType::VertexSegment :
 					{
-						v->N() = (par.node_ops.count(NodeID(s->index0)) == 0) ?
+						v->N() = (par.nodes_displ.count(NodeID(s->index0)) == 0) ?
 						             NormalType(0,0,0) :
-						             NormalType(par.node_ops[NodeID(s->index1)][0], par.node_ops[NodeID(s->index1)][1], 0);
+						             NormalType(par.nodes_displ.at(NodeID(s->index1))[0], par.nodes_displ.at(NodeID(s->index1))[1], 0);
 						break;
 					}
 					default:
@@ -390,27 +383,23 @@ public:
 				NormalType n0 = NormalType::Construct(mesh.vert[e.first.first].cN());
 				NormalType n1 = NormalType::Construct(mesh.vert[e.first.second].cN());
 				ScalarType val = (e.second.dot(vcg::Point2d(n0[0], n0[1])) + e.second.dot(vcg::Point2d(n1[0], n1[1]))) / 2;
-				std::array<ScalarType, PatternParameters::NumberOfParameters> & f = fields[e.first];
+				std::vector<ScalarType> & f = fields[e.first];
+				if (f.size() <= 0)
+				{
+					f.resize(numberOfParameters);
+				}
 				f[p] = val;
 			}
 		}
 	}
 
-	bool tile(const Array2D<PatternParameters *> & grid)
+	bool tile(const Array2D<CellParameters *> & grid)
 	{
-		// set tesselation settings from settings
-		this->m_tri_settings.area_constrained = true;
-		this->m_tri_settings.max_area = m_params.tessellationParams.max_area;
-		this->m_tri_settings.angle_constrained = true;
-		this->m_tri_settings.min_angle = m_params.tessellationParams.min_angle;
-
-		// prevent steiner points to be added on each boundary segment
-		this->m_tri_settings.steiner_points = false;
-		this->m_tri_settings.quiet = true;
+		this->setTessellationParameters();
 
 		this->m_paths.clear();
 
-		assert(m_scale > 0);
+//		assert(m_scale > 0);
 
 		ClipperLib::Clipper clipper;
 
@@ -433,7 +422,7 @@ public:
 		clipper.Execute(ClipperLib::ctUnion, this->m_paths, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
 
 		splitAllCountourEdges(this->m_paths);
-		this->m_paths *= m_scale;
+//		this->m_paths *= m_scale;
 
 		return true;
 	}
@@ -446,19 +435,14 @@ public:
 protected:
 	/// parameters
 	TessellatorSettings m_tri_settings;
-	size_t m_repeat_x;
-	size_t m_repeat_y;
-	double m_scale;
-
+	WireMesh        m_wire;
 	InputParameters m_params;
 
-	virtual void getParameterOperations(std::vector<ParameterChange> & params_op) const = 0;
+	EdgeMeshPattern(void) {;}
 
-	virtual void generateUnmodifiedEdgeMesh(EMesh & em) = 0;
-
-	virtual void getEdgeMesh(EMesh & em)
+	void setup()
 	{
-		getEdgeMesh(em, m_params.patternParams);
+		params().patternParams = m_wire.createCellParameters();
 	}
 
 	virtual void generateOneElement(void)
@@ -466,12 +450,16 @@ protected:
 		generateOneElement(this->m_params.patternParams);
 	}
 
-	void generateOneElement(const PatternParameters & pars)
+	void generateOneElement(const CellParameters & pars)
 	{
+		if (!m_wire.isValid())
+			return;
+
 		this->m_base_paths.clear();
 
+		// get the edge mesh with displaced vertices and radius set
 		EMesh em;
-		getEdgeMesh(em, pars);
+		m_wire.getEdgeMesh(em, pars);
 
 		vcg::tri::RequireVEAdjacency(em);
 		vcg::tri::RequireEEAdjacency(em);
@@ -523,7 +511,7 @@ protected:
 			clip.AddPath(edge_path, ClipperLib::ptSubject, true);
 		}
 
-		// get the bbox
+		// get the bbox (1x1 square)
 		ClipperLib::IntRect bbox = { 0, ThisType::ScaleFactor, ThisType::ScaleFactor, 0 };
 		ClipperLib::Path clip_bbox = convertToPath(bbox);
 
@@ -557,43 +545,6 @@ protected:
 		optimizeContours(this->m_base_paths);
 	}
 
-	void getEdgeMesh(EMesh & em, const Parameters & pars)
-	{
-		typedef typename EMesh::CoordType CoordType;
-
-		this->generateUnmodifiedEdgeMesh(em);
-
-		std::vector<ParameterChange> params_op;
-		this->getParameterOperations(params_op);
-		assert(params_op.size() == Parameters::NumberOfParameters);
-
-		for (size_t i=0; i<params_op.size(); ++i)
-		{
-			const ParameterChange & p = params_op[i];
-			switch (p.type)
-			{
-			case ParameterChange::Radius:
-				for (auto & op : p.node_ops)
-				{
-					em.vert[op.first].Q() = pars.cParameter(i);
-				}
-				break;
-			case ParameterChange::Translation:
-				for (auto & op : p.node_ops)
-				{
-					em.vert[op.first].P() +=
-					        CoordType(op.second[0], op.second[1], 0) * pars.cParameter(i);
-				}
-				break;
-			default:
-				assert(0);
-			}
-		}
-
-		vcg::tri::UpdateTopology<EMesh>::VertexEdge(em);
-		vcg::tri::UpdateTopology<EMesh>::EdgeEdge(em);
-	}
-
 	double maxEdgeLength(void)
 	{
 		const TessellatorSettings & ts = this->getTessellationSettings();
@@ -601,6 +552,19 @@ protected:
 			return 1;
 
 		return vcg::math::Sqrt(ts.max_area*2);
+	}
+
+	void setTessellationParameters(void)
+	{
+		// set tesselation settings from tessellation parameters
+		this->m_tri_settings.area_constrained = true;
+		this->m_tri_settings.max_area = m_params.tessellationParams.max_area;
+		this->m_tri_settings.angle_constrained = true;
+		this->m_tri_settings.min_angle = m_params.tessellationParams.min_angle;
+
+		// prevent steiner points to be added on each boundary segment
+		this->m_tri_settings.steiner_points = false;
+		this->m_tri_settings.quiet = true;
 	}
 
 	// in order to preserve periodic boundary conditions we manually split the polygon edges in a consistent way
@@ -618,32 +582,33 @@ protected:
 				const ClipperLib::IntPoint * p1 = &p[(i+1)%p.size()];
 				newPath.push_back(*p0);
 
-				bool swapped = (*p1 < *p0);
-				if (swapped)
-					std::swap(p1, p0);
-
 				// split the edge in <refine_count> edges
-				int refine_count = int(distance(*p0, *p1) / maxLength/* + 0.5*/) + 1;
+				int refine_count = int(ceil(distance(*p0, *p1) / maxLength));
 
-				if (swapped)
+				if (refine_count > 1)
 				{
-					for (int i=(refine_count-1); i>0; i--)
+					if (*p1 < *p0)
 					{
-						double t = double(i)/refine_count;
-						ClipperLib::IntPoint split_p = interpolate(*p0, *p1, t);
-						newPath.push_back(split_p);
+						std::swap(p1, p0);
+						for (int i=(refine_count-1); i>0; i--)
+						{
+							double t = double(i)/refine_count;
+							ClipperLib::IntPoint split_p = interpolate(*p0, *p1, t);
+							newPath.push_back(split_p);
+						}
 					}
-				}
-				else
-				{
-					for (int i=1; i<refine_count; i++)
+					else
 					{
-						double t = double(i)/refine_count;
-						ClipperLib::IntPoint split_p = interpolate(*p0, *p1, t);
-						newPath.push_back(split_p);
+						for (int i=1; i<refine_count; i++)
+						{
+							double t = double(i)/refine_count;
+							ClipperLib::IntPoint split_p = interpolate(*p0, *p1, t);
+							newPath.push_back(split_p);
+						}
 					}
 				}
 			}
+
 			newProfile.push_back(newPath);
 		}
 
@@ -663,53 +628,59 @@ protected:
 			bounds = c.GetBounds();
 		}
 
-		ClipperLib::Paths newProfile;
-		for (const ClipperLib::Path & p : profile)
+		for (ClipperLib::Path & p : profile)
 		{
-			ClipperLib::Path newPath;
-			size_t idx = 0;
-			for (size_t i=0; i<p.size(); i++)
+			reverse(p);
+			simplifyPath(epsilon, bounds, p);
+			reverse(p);
+			simplifyPath(epsilon, bounds, p);
+		}
+	}
+
+	static void simplifyPath(ClipperLib::cInt epsilon, const ClipperLib::IntRect & bounds, ClipperLib::Path & path)
+	{
+		ClipperLib::Path newPath;
+
+		size_t idx = 0;
+		for (size_t i=0; i<path.size(); i++)
+		{
+			const ClipperLib::IntPoint p0 = path[idx];
+			const ClipperLib::IntPoint p1 = path[(i+1)%path.size()];
+
+			// choose to preserve the points on the boundary
+			bool boundary = p0.X == bounds.left   || p0.X == bounds.right ||
+			                p0.Y == bounds.bottom || p0.Y == bounds.left;
+
+			if (ClipperLib::cInt(distance(p0, p1)) >= epsilon)
 			{
-				const ClipperLib::IntPoint p0 = p[idx];
-				const ClipperLib::IntPoint p1 = p[(i+1)%p.size()];
-
-				// choose to preserve the points on the boundary
-				bool boundary = p0.X == bounds.left   || p0.X == bounds.right ||
-				                p0.Y == bounds.bottom || p0.Y == bounds.left;
-
-				if (ClipperLib::cInt(distance(p0, p1)) >= epsilon)
+				// points are far apart or p0 is on the boundary
+				newPath.push_back(p0);
+				idx = i+1;
+			}
+			else
+			{
+				if (boundary)
 				{
-					// points are far apart or p0 is on the boundary
 					newPath.push_back(p0);
 					idx = i+1;
 				}
 				else
-				{
-					if (boundary)
+					if (p1.X == bounds.left   || p1.X == bounds.right ||
+					    p1.Y == bounds.bottom || p1.Y == bounds.left)
 					{
-						newPath.push_back(p0);
-						idx = i+1;
-					}
-					else
-						if (p1.X == bounds.left   || p1.X == bounds.right ||
-						    p1.Y == bounds.bottom || p1.Y == bounds.left)
+						if (boundary)
 						{
-							if (boundary)
-							{
-								newPath.push_back(p0);
-							}
-							idx = i+1;
-
-							if (i+1 == p.size())
-								newPath.push_back(p1);
+							newPath.push_back(p0);
 						}
-				}
-			}
+						idx = i+1;
 
-			newProfile.push_back(newPath);
+						if (i+1 == path.size())
+							newPath.push_back(p1);
+					}
+			}
 		}
 
-		profile = newProfile;
+		path = newPath;
 	}
 
 	// generating circle functions

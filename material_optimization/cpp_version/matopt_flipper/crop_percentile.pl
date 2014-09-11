@@ -1,6 +1,5 @@
 #!/usr/bin/env perl
 use Parallel::ForkManager;
-use List::Util qw(min max);
 
 # Trims a collection of images consistently by cropping to the minimal bounding
 # box that contains all trimmed images (with an optional margin).
@@ -30,11 +29,15 @@ while (<BBOX_FILE>) {
 }
 close(BBOX_FILE);
 
+# approximate percentiles.
+sub percentile90 { (sort { $a <=> $b } @_ )[ int( $#_ * 0.90 ) ]; }
+sub percentile10 { (sort { $a <=> $b } @_ )[ int( $#_ * 0.10 ) ]; }
+
 # extract bb and apply margin
-$bb_ulx = min(@ulx) - $margin;
-$bb_uly = min(@uly) - $margin;
-$bb_brx = max(@brx) + $margin;
-$bb_bry = max(@bry) + $margin;
+$bb_ulx = percentile10(@ulx) - $margin;
+$bb_uly = percentile10(@uly) - $margin;
+$bb_brx = percentile90(@brx) + $margin;
+$bb_bry = percentile90(@bry) + $margin;
 
 print("$bb_ulx $bb_uly $bb_brx $bb_bry\n");
 
@@ -44,5 +47,3 @@ for my $img (@images) {
     `mogrify -crop ${width}x${height}+$bb_ulx+$bb_uly +repage $img`;
     $pm->finish;
 }
-
-$pm->wait_all_children();

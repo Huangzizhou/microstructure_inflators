@@ -1,58 +1,78 @@
 #ifndef WIREINFLATOR2D_H
 #define WIREINFLATOR2D_H
 
-#include "InflatorParameters.h"
-#include "OctaCellPattern.h"
+#include "EdgeMeshPattern.h"
+#include "WireMesh2D.h"
 #include "TriMeshType.h"
 #include "OutMesh.h"
+
 #include <vcg/complex/complex.h>
+#include <string>
 
 class WireInflator2D
 {
 public:
-	typedef OctaCellPattern<TMesh>                               PatternGen;
-	typedef typename PatternGen::PatternParameters               PatternParameters;
-	typedef OutMesh<PatternParameters::NumberOfParameters, 2, 3> OutMeshType;
+	typedef EdgeMeshPattern<TMesh,WireMesh2D> PatternGen;
+	typedef OutMesh<2, 3>                     OutMeshType;
 
-	static void generatePattern(const PatternParameters & inP, const TessellationParameters & inT, OutMeshType & out)
+	WireInflator2D(const std::string & edgeMeshPath)
+	    : m_pattern(edgeMeshPath)
+	{
+		;
+	}
+
+	void generatePattern(const CellParameters & inP,
+	                     const TessellationParameters & inT,
+	                     OutMeshType & out,
+	                     bool genVelocityField = true)
 	{
 		TMesh m;
 
-		PatternGen pattern;
-		pattern.params() = { inP, inT };
+		m_pattern.params() = { inP, inT };
 
-		pattern.generate();
-		pattern.tessellate(m);
+		m_pattern.generate();
+		m_pattern.tessellate(m);
 
 		vcg::tri::Allocator<TMesh>::CompactEveryVector(m);
 
 		vcgMeshToOutMesh(out, m);
 
 		// compute edge velocity field
-		pattern.computeVelocityField(m, out.edge_fields);
+		if (genVelocityField)
+			m_pattern.computeVelocityField(m, out.edge_fields);
 	}
 
-	static void generateTiledPattern(const Array2D<PatternParameters *> & inP, const TessellationParameters & inT, OutMeshType & out)
+	void generateTiledPattern(const Array2D<CellParameters *> & inP, const TessellationParameters & inT, OutMeshType & out)
 	{
 		TMesh m;
 
-		PatternGen pattern;
-		PatternParameters p;
-		pattern.params() = { p, inT };
+		m_pattern.params().tessellationParams = inT;
 
-		pattern.tile(inP);
-		pattern.tessellate(m);
+		m_pattern.tile(inP);
+		m_pattern.tessellate(m);
 
 		vcg::tri::Allocator<TMesh>::CompactEveryVector(m);
 
 		vcgMeshToOutMesh(out, m);
 	}
 
+	CellParameters createParameters(void)
+	{
+		return CellParameters(m_pattern.numberOfParameters());
+	}
+
+	const PatternGen & patternGenerator(void)
+	{
+		return m_pattern;
+	}
+
 private:
+	PatternGen m_pattern;
+
 	// convert vcg mesh to outmesh structure
 	static void vcgMeshToOutMesh(OutMeshType & out, TMesh & m)
 	{
-		typedef typename OutMeshType::IndexType  Index;
+		typedef typename OutMeshType::IndexType Index;
 
 		// resize vectors
 		out.nodes.resize(m.vert.size());
