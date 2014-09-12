@@ -8,7 +8,7 @@ use strict; use warnings;
 use Cwd qw(abs_path cwd);
 use File::Basename;
 use File::Find;
-use File::chdir;
+use File::chdir; # for $CWD
 use File::Spec;
 my $scriptDir = abs_path(dirname(__FILE__));
 
@@ -32,17 +32,16 @@ else { $properties = ($dim == 2) ? 'E_x E_y nu_yx mu'
 my $commaProperties = $properties;
 $commaProperties =~ s/ /, /g;
 
-unlink 'directory.js';
-my @mshFiles;
-my $filter = ((@ARGV >= 4) ? $ARGV[3] : '') . '.*\.msh';
+my @txtFiles;
+my $filter = ((@ARGV >= 4) ? $ARGV[3] : '') . '.*\.txt';
 find(sub { my $path = File::Spec->abs2rel($File::Find::name, $rootDir);
-           if ($path =~ /$filter/) { push(@mshFiles, $path); } }, $rootDir);
+           if ($path =~ /$filter/) { push(@txtFiles, $path); } }, $rootDir);
 
-for (my $i = 0; $i < @mshFiles; ++$i) {
-    my ($name, $dir, $suffix) = fileparse($mshFiles[$i], qr/\.[^.]*/);
+for (my $i = 0; $i < @txtFiles; ++$i) {
+    my ($name, $dir, $suffix) = fileparse($txtFiles[$i], qr/\.[^.]*/);
     local $CWD = "$rootDir/$dir";
     (my $runName = $dir) =~ tr#/#:#;
     $runName .= $name;
     `$scriptDir/make_flipper.pl $name.txt $name.msh '$runName' $dim '$properties' '$commaProperties' > $name.js`;
-    print "$runName\t(" . ($i + 1) . '/' . @mshFiles . ")\n";
+    print "$runName\t(" . ($i + 1) . '/' . @txtFiles . ")\n";
 }

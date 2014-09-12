@@ -5,6 +5,7 @@ use strict; use warnings;
 use Cwd 'abs_path';
 use File::Basename;
 use File::Temp qw(tempfile);
+use File::chdir; # for $CWD
 my $scriptDir = abs_path(dirname(__FILE__));
 
 (@ARGV != 4 && @ARGV != 6) && die("Usage: make_flipper.pl matopt_out.txt fields.msh problem_name dimension [matProps matPropNames]\n");
@@ -17,6 +18,10 @@ my $dim = $ARGV[3];
 my $matPropString = (@ARGV == 6) ? $ARGV[4] : "E nu";
 my $matPropNameString = (@ARGV == 6) ? $ARGV[5] : "Young Modulus, Poisson Ratio";
 
+my ($name, $dir, $suffix) = fileparse($optOutputFile, qr/\.[^.]*/);
+my $commandFile = $dir . '/' . $name . ".sh";
+my $command = "(unknown)";
+if (-e $commandFile) { local(@ARGV, $/) = $commandFile; $command = <>; }
 
 open(my $output, "<", $optOutputFile) or die("Couldn't open $optOutputFile\n");
 my (@energies, @gradNorms);
@@ -94,6 +99,30 @@ GNU_EOF
 }
 
 ################################################################################
+# Determine repository statuses
+################################################################################
+my @repoNames = ("MeshFEM", "CSGFEM", "microstructures");
+my @localPaths = ($ENV{'MeshFEM'}, $ENV{'CSGFEM'}, $scriptDir);
+my @remotePaths = ('jpanetta/MeshFEM', 'jpanetta/CSGFEM', '3DPrint/microstructures');
+my @links;
+my $uncommittedChanges;
+for my $i (0..$#repoNames) {
+    local $CWD = $localPaths[$i];
+    my $rev = `hg id -i`;
+    $rev =~ s/\+?\s+$//;
+    push(@links, "<a href='https://subversive.cims.nyu.edu/geonum/${remotePaths[$i]}/rev/$rev'>${repoNames[$i]} $rev</a>");
+    my $changes = `hg stat -amd`;
+    $changes =~ s/\s+$//;
+    $changes =~ s/^([A-Z])/\t$1/gm;
+    if (length($changes) > 0) {
+        $uncommittedChanges .= "\nWarning! Uncommitted changes in '${repoNames[$i]}':\n$changes";
+    }
+}
+my $infoString = "Command: $command" .
+    "\nRepository changesets: " . join(', ', @links) . $uncommittedChanges;
+$infoString =~ s/\n/\\n/g;
+
+################################################################################
 # Generate frames file.
 ################################################################################
 my @views=(@fieldNames, "Objective Value", "Gradient Norm");
@@ -105,9 +134,10 @@ my $viewList = join(', ', map(qq('$_'), @views));
 my $statList = join(', ', map(qq('$_'), @statistics));
 
 print <<HERE;
-title = 'Material optimization &quot;$problemName&quot;';
+title = 'Material optimization "$problemName"';
 statistics = ['name', $statList];
 views = [$viewList];
+infostring = "$infoString";
 frames = [
 HERE
 

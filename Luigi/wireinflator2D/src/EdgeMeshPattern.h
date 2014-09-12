@@ -142,6 +142,11 @@ public:
 		return m_wire.getParameterRange(i);
 	}
 
+	const std::vector<ParameterOperation> & getParameterOperations(void) const
+	{
+		return m_wire.getParameterOperations();
+	}
+
 	bool generate(void)
 	{
 		if (!m_wire.isValid())
