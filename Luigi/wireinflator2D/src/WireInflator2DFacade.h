@@ -2,14 +2,16 @@
 #include <sstream>
 #include <iostream>
 
+#include "InflatorParameters.h"
 #include "WireInflator2D.h"
+
 #include "EigenTypedef.h"
 #include "Exception.h"
 
 class WireInflatorFacade {
     public:
-        WireInflatorFacade(size_t rows, size_t cols) : 
-            m_rows(rows), m_cols(cols), m_p_params(cols, rows) {
+        WireInflatorFacade(const std::string& wire_file, size_t rows, size_t cols) : 
+            m_inflator(wire_file), m_rows(rows), m_cols(cols), m_p_params(cols, rows) {
                 m_t_params.max_area = 0.001;
                 for (size_t row = 0; row < m_rows; row++) {
                     for (size_t col=0; col < m_cols; col++) {
@@ -18,9 +20,9 @@ class WireInflatorFacade {
                 }
             }
 
-        size_t get_num_parameters() const {
-            WireInflator2D::PatternParameters p;
-            return p.numberOfParameters();
+        size_t get_num_parameters() {
+            const WireInflator2D::PatternGen& pattern_gen = m_inflator.patternGenerator();
+            return pattern_gen.numberOfParameters();
         }
 
         void set_parameter(size_t row, size_t col, const VectorF& param) {
@@ -35,11 +37,12 @@ class WireInflatorFacade {
                 err_msg << "Out of bound: " << col << " >= " << m_cols;
                 throw RuntimeError(err_msg.str());
             }
-            WireInflator2D::PatternParameters* p = new WireInflator2D::PatternParameters();
+            const WireInflator2D::PatternGen& pattern_gen = m_inflator.patternGenerator();
+            CellParameters* p = new CellParameters(pattern_gen.numberOfParameters());
 
             const size_t num_param = p->numberOfParameters();
             for (size_t i=0; i<num_param; i++) {
-                std::pair<double, double> range = p->parameterRange(i);
+                std::pair<double, double> range = pattern_gen.getParameterRange(i);
                 if (param[i] >= range.first && param[i] <= range.second) {
                     p->parameter(i) = param[i];
                 } else {
@@ -60,7 +63,7 @@ class WireInflatorFacade {
 
         void generate_periodic_pattern() {
             assert(m_p_params(0, 0) != NULL);
-            WireInflator2D::generatePattern(*m_p_params(0, 0), m_t_params, m_mesh);
+            m_inflator.generatePattern(*m_p_params(0, 0), m_t_params, m_mesh);
         }
 
         void generate_tiled_pattern() {
@@ -69,7 +72,7 @@ class WireInflatorFacade {
                 << "x"
                 << m_p_params.width()
                 << " tiled pattern" << std::endl;
-            WireInflator2D::generateTiledPattern(m_p_params, m_t_params, m_mesh);
+            m_inflator.generateTiledPattern(m_p_params, m_t_params, m_mesh);
         }
 
         VectorF get_vertices() {
@@ -128,6 +131,7 @@ class WireInflatorFacade {
         size_t m_rows;
         size_t m_cols;
         TessellationParameters m_t_params;
-        Array2D<WireInflator2D::PatternParameters*> m_p_params;
+        Array2D<CellParameters*> m_p_params;
         WireInflator2D::OutMeshType m_mesh;
+        WireInflator2D m_inflator;
 };

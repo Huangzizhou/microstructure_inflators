@@ -14,6 +14,8 @@ FILE(GLOB_RECURSE SRC_FILES *.cpp *.c)
 FILE(GLOB_RECURSE INC_FILES *.h *.hpp)
 
 ADD_LIBRARY(WireInflator2D SHARED ${SRC_FILES} ${INC_FILES})
+ADD_EXECUTABLE(random_gen main.cpp)
+TARGET_LINK_LIBRARIES(random_gen WireInflator2D)
 
 
 # Add swig interface files

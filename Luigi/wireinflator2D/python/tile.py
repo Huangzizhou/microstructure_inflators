@@ -92,6 +92,7 @@ def load_modifiers(modifier_file):
     return modifiers;
 
 def tile(config):
+    wire_file = str(config["wire_network"]);
     modifiers = load_modifiers(config.get("modifier_file", None));
     if "quad_mesh" in config:
         rows, cols, param, scale_factor = tile_quad(config, modifiers);
@@ -104,7 +105,7 @@ def tile(config):
     # Convert wire thickness (unit in mm) to relative thickness used by
     # Luigi's code: radius of the wire assuming each cell is of size 1.0.
     thickness_scale_factor = 1.0 / np.mean(scale_factor) * 0.5;
-    inflator = PyWireInflator2D.WireInflatorFacade(rows, cols);
+    inflator = PyWireInflator2D.WireInflatorFacade(wire_file, rows, cols);
     for i in range(rows):
         for j in range(cols):
             p = param[i][j];
@@ -148,7 +149,7 @@ def tile_quad(config, modifiers):
 
     face_centers = np.mean(vertices[faces], axis=1);
 
-    default_parameter = np.zeros(8);
+    default_parameter = np.zeros(9);
     default_parameter[:5] = config["thickness"];
 
     params = [[None for i in range(cols)] for j in range(rows)];
@@ -183,7 +184,7 @@ def tile_box(config, modifiers):
     bbox_max = np.array(config["bbox_max"]);
     scale_factor = np.divide(bbox_max - bbox_min, [cols, rows]);
 
-    default_parameter = np.zeros(8);
+    default_parameter = np.zeros(9);
     default_parameter[:5] = config["thickness"];
 
     for modifier in modifiers:

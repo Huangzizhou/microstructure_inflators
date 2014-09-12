@@ -1,5 +1,6 @@
 #include "WireInflator2D.h"
 #include <cassert>
+#include <iostream>
 
 typedef WireInflator2D::PatternGen PatternGen;
 
@@ -22,6 +23,7 @@ int main(int argc, char* argv[])
 	static const std::string wireMeshPath = "../meshes/octa_cell.obj";
 
 	WireInflator2D wi(wireMeshPath);
+    WireInflator2D::OutMeshType mesh;
 
 	// single cell generations
 	{
@@ -35,7 +37,6 @@ int main(int argc, char* argv[])
 		}
 		assert(wi.patternGenerator().parametersValid(p_params));
 
-		WireInflator2D::OutMeshType mesh;
 		wi.generatePattern(p_params, t_params, mesh);
 	}
 
@@ -55,12 +56,15 @@ int main(int argc, char* argv[])
 				}
 			}
 
-		WireInflator2D::OutMeshType mesh;
 		wi.generateTiledPattern(grid, t_params, mesh);
 
 		for (int x=0; x<10; ++x)
 			for (int y=0; y<10; ++y)
 				delete grid(x,y);
 	}
+
+    WireInflator2D::OutMeshType::NodeVector nodes = mesh.nodes;
+    std::cout << nodes.size() << " vertices" << std::endl;
+
 	return 0;
 }
