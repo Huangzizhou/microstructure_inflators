@@ -20,7 +20,12 @@ int main(int argc, char* argv[])
 	(void)argc;
 	(void)argv;
 
-	static const std::string wireMeshPath = "../meshes/octa_cell.obj";
+    if (argc != 2) {
+        std::cerr << "Usage:" << std::endl;
+        std::cerr << argv[0] << " wire_file" << std::endl;
+        return -1;
+    }
+    static const std::string wireMeshPath(argv[1]);
 
 	WireInflator2D wi(wireMeshPath);
     WireInflator2D::OutMeshType mesh;
@@ -29,6 +34,7 @@ int main(int argc, char* argv[])
 	{
 		TessellationParameters t_params;
 		CellParameters         p_params = wi.createParameters();
+        std::cout << p_params.numberOfParameters() << " parameters" << std::endl;
 
 		for (size_t i=0; i<p_params.numberOfParameters(); ++i)
 		{
@@ -64,7 +70,9 @@ int main(int argc, char* argv[])
 	}
 
     WireInflator2D::OutMeshType::NodeVector nodes = mesh.nodes;
+    WireInflator2D::OutMeshType::ElementVector elements = mesh.elements;
     std::cout << nodes.size() << " vertices" << std::endl;
+    std::cout << elements.size() << " elements" << std::endl;
 
 	return 0;
 }

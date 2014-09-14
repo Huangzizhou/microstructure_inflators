@@ -1,6 +1,7 @@
 #pragma once
-#include <sstream>
 #include <iostream>
+#include <memory>
+#include <sstream>
 
 #include "InflatorParameters.h"
 #include "WireInflator2D.h"
@@ -10,19 +11,84 @@
 
 class WireInflatorFacade {
     public:
-        WireInflatorFacade(const std::string& wire_file, size_t rows, size_t cols) : 
-            m_inflator(wire_file), m_rows(rows), m_cols(cols), m_p_params(cols, rows) {
-                m_t_params.max_area = 0.001;
-                for (size_t row = 0; row < m_rows; row++) {
-                    for (size_t col=0; col < m_cols; col++) {
-                        m_p_params(col, row) = NULL;
-                    }
+        enum ParameterType {
+            THICKNESS,
+            VERTEX_OFFSET
+        };
+
+    public:
+        WireInflatorFacade(std::string wire_file) : m_inflator(wire_file) {
+            m_t_params.max_area = 0.001;
+        }
+
+        void set_dimension(size_t rows, size_t cols) {
+            m_rows = rows;
+            m_cols = cols;
+            m_p_params = ParameterGridPtr(new ParameterGrid(m_cols, m_rows));
+            for (size_t row = 0; row < m_rows; row++) {
+                for (size_t col=0; col < m_cols; col++) {
+                    (*m_p_params)(col, row) = NULL;
                 }
             }
+        }
 
         size_t get_num_parameters() {
             const WireInflator2D::PatternGen& pattern_gen = m_inflator.patternGenerator();
             return pattern_gen.numberOfParameters();
+        }
+
+        ParameterType get_parameter_type(size_t i) {
+            const ParameterOperation& param_op = m_inflator.patternGenerator().getParameterOperations()[i];
+            switch (param_op.type) {
+                case ParameterOperation::Radius:
+                    return THICKNESS;
+                case ParameterOperation::Translation:
+                    return VERTEX_OFFSET;
+                default:
+                    throw NotImplementedError("Unknown parameter type detected.");
+            }
+        }
+
+        VectorI get_affected_vertex_orbit(size_t i) {
+            VectorI vertex_orbit;
+            const ParameterOperation& param_op = m_inflator.patternGenerator().getParameterOperations()[i];
+            size_t count = 0;
+            switch (param_op.type) {
+                case ParameterOperation::Radius:
+                    vertex_orbit.resize(param_op.nodes.size());
+                    std::copy(param_op.nodes.begin(), param_op.nodes.end(), vertex_orbit.data());
+                    break;
+                case ParameterOperation::Translation:
+                    vertex_orbit.resize(param_op.nodes_displ.size());
+                    for (auto itr : param_op.nodes_displ) {
+                        vertex_orbit[count] = itr.first;
+                        count++;
+                    }
+                    break;
+                default:
+                    throw NotImplementedError("Unknown parameter type detected.");
+            }
+            assert(vertex_orbit.size() > 0);
+            return vertex_orbit;
+        }
+
+        MatrixF get_offset_direction(size_t i) {
+            const ParameterOperation& param_op = m_inflator.patternGenerator().getParameterOperations()[i];
+            if (param_op.type == ParameterOperation::Translation) {
+                const size_t num_nodes = param_op.nodes_displ.size();
+                MatrixF offset_dir(num_nodes, 2);
+                size_t count = 0;
+                for (auto itr : param_op.nodes_displ) {
+                    offset_dir.coeffRef(count, 0) = itr.second[0];
+                    offset_dir.coeffRef(count, 1) = itr.second[1];
+                    count++;
+                }
+                return offset_dir;
+            } else {
+                std::stringstream err_msg;
+                err_msg << "Parameter " << i << " is not offset parameter";
+                throw RuntimeError(err_msg.str());
+            }
         }
 
         void set_parameter(size_t row, size_t col, const VectorF& param) {
@@ -54,7 +120,7 @@ class WireInflatorFacade {
                 }
             }
 
-            m_p_params(col, row) = p;
+            (*m_p_params)(col, row) = p;
         }
 
         void set_max_triangle_area(Float max_area) {
@@ -62,17 +128,17 @@ class WireInflatorFacade {
         }
 
         void generate_periodic_pattern() {
-            assert(m_p_params(0, 0) != NULL);
-            m_inflator.generatePattern(*m_p_params(0, 0), m_t_params, m_mesh);
+            assert((*m_p_params)(0, 0) != NULL);
+            m_inflator.generatePattern(*(*m_p_params)(0, 0), m_t_params, m_mesh);
         }
 
         void generate_tiled_pattern() {
             std::cout << "generating "
-                << m_p_params.height()
+                << m_p_params->height()
                 << "x"
-                << m_p_params.width()
+                << m_p_params->width()
                 << " tiled pattern" << std::endl;
-            m_inflator.generateTiledPattern(m_p_params, m_t_params, m_mesh);
+            m_inflator.generateTiledPattern(*m_p_params, m_t_params, m_mesh);
         }
 
         VectorF get_vertices() {
@@ -128,10 +194,12 @@ class WireInflatorFacade {
         }
 
     private:
+        typedef Array2D<CellParameters*> ParameterGrid;
+        typedef std::shared_ptr<ParameterGrid> ParameterGridPtr;
         size_t m_rows;
         size_t m_cols;
         TessellationParameters m_t_params;
-        Array2D<CellParameters*> m_p_params;
+        ParameterGridPtr  m_p_params;
         WireInflator2D::OutMeshType m_mesh;
         WireInflator2D m_inflator;
 };

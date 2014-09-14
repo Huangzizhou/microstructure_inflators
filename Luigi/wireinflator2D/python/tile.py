@@ -4,13 +4,8 @@ import argparse
 import json
 import numpy as np
 import os.path
-import os
-import sys
 
-exe_dir = sys.path[0];
-sys.path.append(os.path.join(exe_dir, "../lib"));
-sys.path.append(os.path.join(exe_dir, "../swig"));
-
+import PyWireInflator2DSetting
 import PyWireInflator2D
 import PyMeshSetting
 import PyMesh
@@ -92,25 +87,26 @@ def load_modifiers(modifier_file):
     return modifiers;
 
 def tile(config):
-    wire_file = str(config["wire_network"]);
+    wire_file = "{}".format(config["wire_network"]);
+    assert(os.path.exists(wire_file));
+    inflator = PyWireInflator2D.WireInflatorFacade(wire_file);
+
     modifiers = load_modifiers(config.get("modifier_file", None));
     if "quad_mesh" in config:
-        rows, cols, param, scale_factor = tile_quad(config, modifiers);
+        rows, cols, param, scale_factor = tile_quad(config, modifiers, inflator);
     else:
-        rows, cols, param, scale_factor = tile_box(config, modifiers);
+        rows, cols, param, scale_factor = tile_box(config, modifiers, inflator);
 
     if config.get("trim", False):
         raise NotImplementedError("Trimming is not supported");
 
     # Convert wire thickness (unit in mm) to relative thickness used by
     # Luigi's code: radius of the wire assuming each cell is of size 1.0.
-    thickness_scale_factor = 1.0 / np.mean(scale_factor) * 0.5;
-    inflator = PyWireInflator2D.WireInflatorFacade(wire_file, rows, cols);
+    inflator.set_dimension(rows, cols);
     for i in range(rows):
         for j in range(cols):
             p = param[i][j];
             if p is not None:
-                p[:5] *= thickness_scale_factor;
                 inflator.set_parameter(i,j,p);
 
     if config.get("periodic", False):
@@ -127,7 +123,7 @@ def tile(config):
     mesh = form_mesh(vertices, faces, np.array([]));
     save_mesh(str(config["output"]), mesh);
 
-def tile_quad(config, modifiers):
+def tile_quad(config, modifiers, inflator):
     cols, rows = config["repeats"];
     quad_mesh = load_mesh(str(config["quad_mesh"]));
 
@@ -149,11 +145,15 @@ def tile_quad(config, modifiers):
 
     face_centers = np.mean(vertices[faces], axis=1);
 
-    default_parameter = np.zeros(9);
-    default_parameter[:5] = config["thickness"];
+    num_parameters = inflator.get_num_parameters();
+    default_parameter = np.zeros(num_parameters);
+    thickness_param_mask = np.zeros(num_parameters, dtype=bool)
+    for i in range(num_parameters):
+        thickness_param_mask[i] = \
+                inflator.get_parameter_type(i) == PyWireInflator2D.WireInflatorFacade.THICKNESS;
+    default_parameter[thickness_param_mask] = config["thickness"];
 
     params = [[None for i in range(cols)] for j in range(rows)];
-    print(np.array(params).shape);
 
     def index(p):
         return np.floor(np.divide(p - bbox_min, cell_size)).astype(int)[[1, 0]];
@@ -163,33 +163,31 @@ def tile_quad(config, modifiers):
         attr_map = {str(name):val[i] for name,val in attributes.iteritems()};
         p = np.copy(default_parameter);
         for modifier in modifiers:
-            modifier.modify(p, **attr_map);
+            modifier.modify(p, inflator, **attr_map);
         assert(row < rows and col < cols)
+        p[thickness_param_mask] *= 0.5 / np.mean(scale_factor);
         params[row][col] = p;
 
     return rows, cols, params, scale_factor;
 
-    #raise NotImplementedError("Tiling quad is not implemented yet");
-    #pattern = WirePattern();
-    #pattern.set_single_cell_from_wire_network(network);
-    #hex_mesh = load_mesh(str(config["hex_mesh"]));
-    #pattern.tile_hex_mesh(hex_mesh, modifiers);
-
-    #tiled_network = pattern.wire_network;
-    #return tiled_network;
-
-def tile_box(config, modifiers):
+def tile_box(config, modifiers, inflator):
     cols, rows = config["repeats"];
     bbox_min = np.array(config["bbox_min"]);
     bbox_max = np.array(config["bbox_max"]);
     scale_factor = np.divide(bbox_max - bbox_min, [cols, rows]);
 
-    default_parameter = np.zeros(9);
-    default_parameter[:5] = config["thickness"];
+    num_params = inflator.get_num_parameters();
+    default_parameter = np.zeros(num_params);
+    thickness_param_mask = np.zeros(num_params, dtype=bool)
+    for i in range(num_params):
+        thickness_param_mask[i] = \
+                inflator.get_parameter_type(i) == PyWireInflator2D.WireInflatorFacade.THICKNESS;
+    default_parameter[thickness_param_mask] = config["thickness"];
 
     for modifier in modifiers:
-        modifier.modify(default_parameter);
+        modifier.modify(default_parameter, inflator);
 
+    default_parameter[thickness_param_mask] *= 0.5 / np.mean(scale_factor);
     params = [[np.copy(default_parameter) for i in range(cols)] for j in range(rows)];
     return rows, cols, params, scale_factor;
 
