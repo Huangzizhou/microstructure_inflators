@@ -28,18 +28,30 @@ class WireInflator(object):
         self._compute_edge_end_loops();
         self._generate_joints();
         self._generate_edge_pipes();
+        self._store_source_indices();
         if clean_up:
             self._clean_up();
         self._subdivide(1);
+        self._load_source_indices();
 
-    @timethis
-    def save(self, mesh_file):
-        writer = PyMesh.MeshWriter.create_writer(mesh_file);
-        writer.write(
+    @property
+    def mesh(self):
+        factory = PyMesh.MeshFactory();
+        factory.load_data(
                 self.mesh_vertices.ravel(order="C"),
                 self.mesh_faces.ravel(order="C"),
                 np.zeros(0),
                 3, 3, 4);
+        mesh = factory.create_shared();
+        mesh.add_attribute("source_wire_id");
+        mesh.set_attribute("source_wire_id", self.source_wire_id);
+        return mesh;
+
+    @timethis
+    def save(self, mesh_file):
+        writer = PyMesh.MeshWriter.create_writer(mesh_file);
+        writer.with_attribute("source_wire_id");
+        writer.write_mesh(self.mesh);
 
     @timethis
     def _compute_thickness(self):
@@ -122,18 +134,33 @@ class WireInflator(object):
         self.mesh_faces = [];
         self.edge_loop_indices = np.zeros((self.edge_loops.shape[0]*2, 4),
                 dtype=int);
+
+        # Source wire_id assigns an index per face.
+        # positive indices is vertex index.  Negative indices is edge index.
+        # 0 should not be used.
+        self.source_wire_id = [];
+
         num_vts = 0;
+        num_faces = 0;
         for i in range(self.wire_network.num_vertices):
             num_added_vts = self._generate_joint(i, num_vts);
+            num_added_faces = len(self.mesh_faces) - num_faces;
             num_vts += num_added_vts;
+            num_faces += num_added_faces;
+            self.source_wire_id.append([i+1]*num_added_faces);
+
         self.mesh_vertices = np.vstack(self.mesh_vertices);
         self.mesh_faces = np.vstack(self.mesh_faces);
+        self.source_wire_id = np.hstack(self.source_wire_id);
+        assert(len(self.source_wire_id) == len(self.mesh_faces));
 
     @timethis
     def _generate_edge_pipes(self):
         extra_vertices = [];
         extra_faces = [];
+        extra_wire_id = [];
         vertex_count = len(self.mesh_vertices);
+
         for i,edge in enumerate(self.wire_network.edges):
             segment_len = 2 * np.min(self.thickness[i]);
             new_v, new_f = self._generate_edge_pipe(i, segment_len,
@@ -141,12 +168,14 @@ class WireInflator(object):
 
             extra_vertices += new_v;
             extra_faces += new_f;
-
+            extra_wire_id += [-i-1] * len(new_f);
             vertex_count += len(new_v) * 4;
 
         self.mesh_vertices = np.vstack([self.mesh_vertices] + extra_vertices);
         self.mesh_faces = np.vstack([self.mesh_faces] + extra_faces);
+        self.source_wire_id = np.hstack([self.source_wire_id] + extra_wire_id);
         assert(len(self.mesh_vertices) == vertex_count);
+        assert(len(self.source_wire_id) == len(self.mesh_faces));
 
     @timethis
     def _generate_edge_pipe(self, ei, segment_len, vertex_count):
@@ -301,4 +330,22 @@ class WireInflator(object):
         sub = Subdivision();
         self.mesh_vertices, self.mesh_faces = \
                 sub.subdivide(self.mesh_vertices, self.mesh_faces, num_iterations);
+
+    @timethis
+    def _store_source_indices(self):
+        assert(len(self.source_wire_id) == len(self.mesh_faces));
+        self.grid = PyMesh.HashGrid.create(0.1, self.wire_network.dim);
+        self.grid.insert_multiple_triangles(
+                self.source_wire_id,
+                self.mesh_vertices[self.mesh_faces.ravel(order="C")]);
+
+    @timethis
+    def _load_source_indices(self):
+        face_centers = np.average(self.mesh_vertices[self.mesh_faces], axis=1);
+        self.source_wire_id = [];
+        for c in face_centers:
+            ids = self.grid.get_items_near_point(c);
+            assert(len(ids) >= 1);
+            self.source_wire_id.append(np.amin(ids));
+        self.source_wire_id = np.array(self.source_wire_id);
 

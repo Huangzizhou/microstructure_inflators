@@ -39,11 +39,6 @@ class WireSymmetryAttribute(WireAttribute):
                 lambda v: (v-bbox_center)*XYZ + bbox_center,
                 ];
 
-        #reflect_X = lambda v: (v-bbox_center) * X + bbox_center
-        #reflect_Y = lambda v: (v-bbox_center) * Y + bbox_center
-        #reflect_Z = lambda v: (v-bbox_center) * Z + bbox_center
-        #self.symmetries = [reflect_X, reflect_Y, reflect_Z];
-
     @property
     def value(self):
         raise NotImplementedError("This attribute is abstract");

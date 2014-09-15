@@ -85,28 +85,6 @@ class PeriodicWireInflator(WireInflator):
         return super(PeriodicWireInflator, self)._generate_edge_pipe(
                 ei, segment_len, vertex_count);
 
-    def _generate_joints(self):
-        self._register_edge_loops();
-        super(PeriodicWireInflator, self)._generate_joints();
-
-    def _register_edge_loops(self):
-        self.grid = PyMesh.HashGrid.create(1e-3, self.wire_network.dim);
-        for i,edge in self.wire_network.edges:
-            end_pts = self.wire_network.vertices[edge];
-            loop_0 = self.edge_loops[i, 0, :, :].reshape((-1, 3), order="C");
-            loop_1 = self.edge_loops[i, 0, :, :].reshape((-1, 3), order="C");
-            self.grid.insert_batch(i, loop_0);
-            self.grid.insert_batch(i, loop_1);
-
-    def _look_up_edge_loop_vertex(self, p):
-        candidates = self.grid.get_items_near_point(p);
-        if len(candidates) == 0:
-            return None;
-        elif len(candidates) == 1:
-            return candidates[0];
-        else:
-            raise RuntimeError("More than one edge loops occupies this point");
-
     def _generate_joint(self, idx, num_vts):
         if self.phantom_vertex_map[idx] < 0:
             return 0;
