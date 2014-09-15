@@ -24,10 +24,25 @@ class WireSymmetryAttribute(WireAttribute):
         X = np.array([-1, 1, 1]);
         Y = np.array([ 1,-1, 1]);
         Z = np.array([ 1, 1,-1]);
-        reflect_X = lambda v: (v-bbox_center) * X + bbox_center
-        reflect_Y = lambda v: (v-bbox_center) * Y + bbox_center
-        reflect_Z = lambda v: (v-bbox_center) * Z + bbox_center
-        self.symmetries = [reflect_X, reflect_Y, reflect_Z];
+        XY= np.array([-1,-1, 1]);
+        YZ= np.array([ 1,-1,-1]);
+        ZX= np.array([-1, 1,-1]);
+        XYZ=np.array([-1,-1,-1]);
+
+        self.symmetries = [
+                lambda v: (v-bbox_center)*X + bbox_center,
+                lambda v: (v-bbox_center)*Y + bbox_center,
+                lambda v: (v-bbox_center)*Z + bbox_center,
+                lambda v: (v-bbox_center)*XY + bbox_center,
+                lambda v: (v-bbox_center)*YZ + bbox_center,
+                lambda v: (v-bbox_center)*ZX + bbox_center,
+                lambda v: (v-bbox_center)*XYZ + bbox_center,
+                ];
+
+        #reflect_X = lambda v: (v-bbox_center) * X + bbox_center
+        #reflect_Y = lambda v: (v-bbox_center) * Y + bbox_center
+        #reflect_Z = lambda v: (v-bbox_center) * Z + bbox_center
+        #self.symmetries = [reflect_X, reflect_Y, reflect_Z];
 
     @property
     def value(self):
