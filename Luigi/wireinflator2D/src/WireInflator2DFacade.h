@@ -21,6 +21,16 @@ class WireInflatorFacade {
             m_t_params.max_area = 0.001;
         }
 
+        virtual ~WireInflatorFacade() {
+            for (size_t row=0; row<m_rows; row++) {
+                for (size_t col=1; col<m_cols; col++) {
+                    if ((*m_p_params)(col, row) != NULL) {
+                        delete (*m_p_params)(col, row);
+                    }
+                }
+            }
+        }
+
         void set_dimension(size_t rows, size_t cols) {
             m_rows = rows;
             m_cols = cols;
@@ -179,10 +189,6 @@ class WireInflatorFacade {
                     itr != m_mesh.edge_fields.end(); itr++) {
                 MeshType::EdgeType edge = itr->first;
                 MeshType::Fields edge_velocity = itr->second;
-                for (size_t i=0; i<edge_velocity.size(); i++) {
-                    std::cout << edge_velocity[i] << " ";
-                }
-                std::cout << std::endl;
                 std::copy(edge_velocity.begin(), edge_velocity.end(),
                         bd_velocity.row(edge.first).data());
                 std::copy(edge_velocity.begin(), edge_velocity.end(),
