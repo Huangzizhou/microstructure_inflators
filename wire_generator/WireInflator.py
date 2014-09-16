@@ -28,11 +28,9 @@ class WireInflator(object):
         self._compute_edge_end_loops();
         self._generate_joints();
         self._generate_edge_pipes();
-        self._store_source_indices();
         if clean_up:
             self._clean_up();
         self._subdivide(1);
-        self._load_source_indices();
 
     @property
     def mesh(self):
@@ -294,12 +292,12 @@ class WireInflator(object):
 
     @timethis
     def _clean_up(self):
-        # Remove obtuse triangles
-        obtuse_triangle_removal = PyMeshUtils.ObtuseTriangleRemoval(
-                self.mesh_vertices, self.mesh_faces);
-        obtuse_triangle_removal.run(179.0);
-        self.mesh_vertices = obtuse_triangle_removal.get_vertices();
-        self.mesh_faces = obtuse_triangle_removal.get_faces();
+        ## Remove obtuse triangles
+        #obtuse_triangle_removal = PyMeshUtils.ObtuseTriangleRemoval(
+        #        self.mesh_vertices, self.mesh_faces);
+        #obtuse_triangle_removal.run(179.0);
+        #self.mesh_vertices = obtuse_triangle_removal.get_vertices();
+        #self.mesh_faces = obtuse_triangle_removal.get_faces();
 
         # Remove duplicated vertices
         duplicated_vertex_removal = PyMeshUtils.DuplicatedVertexRemoval(
@@ -314,6 +312,8 @@ class WireInflator(object):
         edge_remover.run(np.amin(1e-12, 0.1 * np.amin(self.thickness)));
         self.mesh_vertices = edge_remover.get_vertices();
         self.mesh_faces = edge_remover.get_faces();
+        self.face_indices = edge_remover.get_face_indices().ravel();
+        self.source_wire_id = self.source_wire_id[self.face_indices];
 
         # Remove isolated vertices
         unique_indices = np.unique(self.mesh_faces.ravel());
@@ -328,24 +328,7 @@ class WireInflator(object):
     @timethis
     def _subdivide(self, num_iterations):
         sub = Subdivision();
-        self.mesh_vertices, self.mesh_faces = \
+        self.mesh_vertices, self.mesh_faces, face_indices= \
                 sub.subdivide(self.mesh_vertices, self.mesh_faces, num_iterations);
-
-    @timethis
-    def _store_source_indices(self):
-        assert(len(self.source_wire_id) == len(self.mesh_faces));
-        self.grid = PyMesh.HashGrid.create(0.1, self.wire_network.dim);
-        self.grid.insert_multiple_triangles(
-                self.source_wire_id,
-                self.mesh_vertices[self.mesh_faces.ravel(order="C")]);
-
-    @timethis
-    def _load_source_indices(self):
-        face_centers = np.average(self.mesh_vertices[self.mesh_faces], axis=1);
-        self.source_wire_id = [];
-        for c in face_centers:
-            ids = self.grid.get_items_near_point(c);
-            assert(len(ids) >= 1);
-            self.source_wire_id.append(np.amin(ids));
-        self.source_wire_id = np.array(self.source_wire_id);
+        self.source_wire_id = self.source_wire_id[face_indices];
 

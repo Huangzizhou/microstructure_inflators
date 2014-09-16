@@ -9,4 +9,5 @@ class Subdivision:
         self.__subdivision.subdivide(vertices, faces, num_iterations);
         vertices = self.__subdivision.get_vertices();
         faces = self.__subdivision.get_faces();
-        return vertices, faces;
+        face_indices = self.__subdivision.get_face_indices();
+        return vertices, faces, face_indices;
