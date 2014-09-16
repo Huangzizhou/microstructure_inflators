@@ -40,7 +40,7 @@ class WireVertexOffsetModifier(WireModifier):
             mask = np.absolute(offset) > tol
             if np.any(mask):
                 param_index = param_index[mask];
-                assert(param_index >= 0);
+                assert(np.all(param_index >= 0));
                 param[param_index] = offset[mask];
 
         return param;

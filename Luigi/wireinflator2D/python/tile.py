@@ -121,7 +121,22 @@ def tile(config):
     faces = inflator.get_triangles().reshape((-1, 3), order="C");
 
     mesh = form_mesh(vertices, faces, np.array([]));
-    save_mesh(str(config["output"]), mesh);
+
+    attr_names = [];
+    if config.get("periodic", False):
+        num_vertices = mesh.get_num_vertices();
+        mesh.add_attribute("vertex_normal");
+        normals = mesh.get_attribute("vertex_normal").reshape((num_vertices, -1));
+        velocity = inflator.get_boundary_velocity();
+        num_params = velocity.shape[1];
+        for i in range(num_params):
+            attr_name = "normal_velocity_{}".format(i);
+            attr_value = normals * velocity[:,i][:,np.newaxis];
+            mesh.add_attribute(attr_name);
+            mesh.set_attribute(attr_name, attr_value.ravel(order="C"));
+            attr_names.append(attr_name);
+
+    save_mesh(str(config["output"]), mesh, *attr_names);
 
 def tile_quad(config, modifiers, inflator):
     cols, rows = config["repeats"];
