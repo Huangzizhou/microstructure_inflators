@@ -6,34 +6,35 @@ import numpy as np
 class WireVertexOffsetModifier(WireModifier):
     def __init__(self, config):
         """ Syntax:
-        {
+        "vertex_offset": {
             "type": "vertex_orbit",
-            "orbit_file": "filename",
             "effective_orbits": [i0, i1, ...],
             "offset_percentages": [[#, #, #], [0.0, #, 0.0], ...,\
                     ["{x}", "{y}", 0.0]]
         }
         """
+        self.config = config;
         self.offset_type = config["type"];
-        self.__load_orbits(config["orbit_file"]);
-        self.effective_orbits = self.orbits[config["effective_orbits"]];
         self.offset_percentages = config["offset_percentages"];
 
     def modify(self, wire_network, **kwargs):
+        self.__load_orbits(wire_network);
         offsets = self.__generate_default_offsets(wire_network);
         self.__compute_offset(wire_network, offsets, **kwargs);
-        #self.__update_wire_network(wire_network, offsets);
         self.__assign_offset_attribute(wire_network, offsets);
 
-    def __load_orbits(self, orbit_file):
-        with open(orbit_file, 'r') as fin:
-            contents = json.load(fin);
-            if self.offset_type == "vertex_orbit":
-                orbits = contents["vertex_orbits"];
-            else:
-                raise NotImplementedError("Vertex offset type ({}) is not supported"\
-                        .format(self.offset_type));
-            self.orbits = np.array(orbits);
+    def __load_orbits(self, wire_network):
+        if "symmetry_vertex_orbit" not in wire_network.attributes:
+            wire_network.compute_symmetry_orbits();
+
+        if self.offset_type == "vertex_orbit":
+            self.orbits = wire_network.attributes["symmetry_vertex_orbit"];
+        else:
+            raise NotImplementedError("Vertex offset type ({}) is not supported"\
+                    .format(self.offset_type));
+
+        self.orbits = np.array(self.orbits);
+        self.effective_orbits = self.orbits[self.config["effective_orbits"]];
 
     def __generate_default_offsets(self, wire_network):
         offsets = np.zeros((wire_network.num_vertices, wire_network.dim));
@@ -59,10 +60,6 @@ class WireVertexOffsetModifier(WireModifier):
 
         offset = [(v-bbox_center)*offset_percent for v in vertices];
         return offset;
-
-    def __update_wire_network(self, wire_network, offsets):
-        for i in range(wire_network.num_vertices):
-            wire_network.vertices[i] += offsets[i];
 
     def __assign_offset_attribute(self, wire_network, offsets):
         attr_name = "vertex_offset";

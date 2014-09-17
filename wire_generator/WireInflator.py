@@ -299,6 +299,7 @@ class WireInflator(object):
         #self.mesh_vertices = obtuse_triangle_removal.get_vertices();
         #self.mesh_faces = obtuse_triangle_removal.get_faces();
 
+        assert(len(self.mesh_faces) == len(self.source_wire_id));
         # Remove duplicated vertices
         duplicated_vertex_removal = PyMeshUtils.DuplicatedVertexRemoval(
                 self.mesh_vertices, self.mesh_faces);

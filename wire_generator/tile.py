@@ -13,6 +13,7 @@ from WirePattern import WirePattern
 from WireInflator import WireInflator
 from WireModifierFactory import WireModifierFactory
 from PeriodicWireInflator2 import PeriodicWireInflator
+from find_file import find_file
 from timethis import timethis
 
 def parse_config_file(config_file):
@@ -41,9 +42,7 @@ def parse_config_file(config_file):
     def convert_to_abs_path(field_name):
         field = config[field_name];
         if isinstance(field, (unicode, str)):
-            if not os.path.isabs(field):
-                field = os.path.join(config_dir, field);
-            config[field_name] = field;
+            config[field_name] = find_file(field, config_dir);
 
     convert_to_abs_path("wire_network");
     convert_to_abs_path("output");

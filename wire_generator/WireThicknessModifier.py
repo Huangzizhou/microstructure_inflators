@@ -6,36 +6,38 @@ import numpy as np
 class WireThicknessModifier(WireModifier):
     def __init__(self, config):
         """ Syntax:
-        {
+        "thickness": {
             "type": "vertex_orbit" or "edge_orbit",
-            "orbit_file": "filename",
             "effective_orbits": [i0, i1, ...],
             "thickness": [#, #, ..., "{x} + {y}", ...],
             "default": float 
         }
         """
+        self.config = config;
         self.thickness_type = config["type"];
-        self.__load_orbits(config["orbit_file"]);
-        self.effective_orbits = self.orbits[config["effective_orbits"]];
         self.thicknesses = config["thickness"];
         self.default_thickness = config["default"];
 
     def modify(self, wire_network, **kwargs):
+        self.__load_orbits(wire_network);
         thicknesses = self.__generate_default_thicknesses(wire_network);
         self.__compute_thickness(wire_network, thicknesses, **kwargs);
         self.__assign_thickness_attribute(wire_network, thicknesses);
 
-    def __load_orbits(self, orbit_file):
-        with open(orbit_file, 'r') as fin:
-            contents = json.load(fin);
-            if self.thickness_type == "vertex_orbit":
-                orbits = contents["vertex_orbits"];
-            elif self.thickness_type == "edge_orbit":
-                orbits = contents["edge_orbits"];
-            else:
-                raise NotImplementedError("Thickness type ({}) is not supported"\
-                        .format(self.thickness_type));
-            self.orbits = np.array(orbits);
+    def __load_orbits(self, wire_network):
+        if "symmetry_vertex_orbit" not in wire_network.attributes or\
+                "symmetry_edge_orbit" not in wire_network.attributes:
+            wire_network.compute_symmetry_orbits();
+        if self.thickness_type == "vertex_orbit":
+            self.orbits = wire_network.attributes["symmetry_vertex_orbit"];
+        elif self.thickness_type == "edge_orbit":
+            self.orbits = wire_network.attributes["symmetry_edge_orbit"];
+        else:
+            raise NotImplementedError("Thickness type ({}) is not supported"\
+                    .format(self.thickness_type));
+
+        self.orbits = np.array(self.orbits);
+        self.effective_orbits = self.orbits[self.config["effective_orbits"]];
 
     def __generate_default_thicknesses(self, wire_network):
         if self.thickness_type == "vertex_orbit":

@@ -1,5 +1,7 @@
+import json
 import numpy as np
 from numpy.linalg import norm
+import os.path
 
 from WireReader import WireReader
 from WireAttributes import WireAttributes
@@ -12,6 +14,7 @@ class WireNetwork(object):
         self.__initialize();
 
     def load_from_file(self, wire_file):
+        self.source_file = wire_file;
         self.__parse_wire_file(wire_file);
         self.__initialize();
 
@@ -39,6 +42,22 @@ class WireNetwork(object):
             self.__compute_connectivity();
             if len(self.vertices) == 0:
                 raise RuntimeError("Zero vertices left after trimming.");
+
+    def compute_symmetry_orbits(self):
+        if hasattr(self, "source_file"):
+            basename, ext = os.path.splitext(self.source_file);
+            orbit_file = basename + ".orbit";
+            if os.path.exists(orbit_file):
+                with open(orbit_file) as fin:
+                    orbit_config = json.load(fin);
+                    if "vertex_orbits" in orbit_config:
+                        self.attributes["symmetry_vertex_orbit"] = orbit_config["vertex_orbits"];
+                    if "edge_orbits" in orbit_config:
+                        self.attributes["symmetry_edge_orbit"] = orbit_config["edge_orbits"];
+                return;
+
+        self.attributes.add("symmetry_vertex_orbit");
+        self.attributes.add("symmetry_edge_orbit");
 
     def __initialize(self):
         self.__compute_connectivity();
