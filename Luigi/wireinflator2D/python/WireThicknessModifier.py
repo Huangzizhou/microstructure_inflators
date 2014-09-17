@@ -17,15 +17,15 @@ class WireThicknessModifier(WireModifier):
             "default": float 
         }
         """
+        self.config = config;
         self.thickness_type = config["type"];
         assert(self.thickness_type == "vertex_orbit");
-        self.__load_orbits(config["orbit_file"]);
-        self.effective_orbits = self.orbits[config["effective_orbits"]];
         self.default_thickness = config["default"];
         self.thickness = config["thickness"];
 
     def modify(self, param, inflator, **kwargs):
         assert(len(param) == inflator.get_num_parameters());
+        self.__load_orbits(inflator);
         self.__compute_thickness_orbit_index_map(inflator);
         num_params = len(param);
 
@@ -41,17 +41,10 @@ class WireThicknessModifier(WireModifier):
 
         return param;
 
-    def __load_orbits(self, orbit_file):
-        with open(orbit_file, 'r') as fin:
-            contents = json.load(fin);
-            if self.thickness_type == "vertex_orbit":
-                orbits = contents["vertex_orbits"];
-            elif self.thickness_type == "edge_orbit":
-                orbits = contents["edge_orbits"];
-            else:
-                raise NotImplementedError("Thickness type ({}) is not supported"\
-                        .format(self.thickness_type));
-            self.orbits = np.array(orbits);
+    def __load_orbits(self, inflator):
+        assert(self.thickness_type == "vertex_orbit");
+        self.orbits = np.array(inflator.vertex_orbits);
+        self.effective_orbits = self.orbits[self.config["effective_orbits"]];
 
     def __compute_thickness_orbit_index_map(self, inflator):
         target_param_type = PyWireInflator2D.WireInflatorFacade.THICKNESS;
@@ -72,7 +65,4 @@ class WireThicknessModifier(WireModifier):
                 formula = thickness.format(**kwargs);
                 effective_thickness.append(eval(formula));
         return effective_thickness;
-
-
-
 

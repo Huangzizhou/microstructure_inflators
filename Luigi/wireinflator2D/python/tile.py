@@ -11,6 +11,7 @@ import PyMeshSetting
 import PyMesh
 
 from WireModifierFactory import WireModifierFactory
+from find_file import find_file
 
 def form_mesh(vertices, faces, voxels=np.array([])):
     dim = vertices.shape[1];
@@ -63,9 +64,7 @@ def parse_config_file(config_file):
     def convert_to_abs_path(field_name):
         field = config[field_name];
         if isinstance(field, (unicode, str)):
-            if not os.path.isabs(field):
-                field = os.path.join(config_dir, field);
-            config[field_name] = field;
+            config[field_name] = find_file(field, config_dir);
 
     convert_to_abs_path("wire_network");
     convert_to_abs_path("output");
@@ -86,10 +85,19 @@ def load_modifiers(modifier_file):
     modifiers = WireModifierFactory.create_from_file(str(modifier_file));
     return modifiers;
 
+def load_orbits(inflator):
+    basename, ext = os.path.splitext(inflator.source_file);
+    orbit_file = basename + ".orbit";
+    with open(orbit_file, 'r') as fin:
+        orbit_config = json.load(fin);
+        inflator.vertex_orbits = orbit_config["vertex_orbits"];
+
 def tile(config):
     wire_file = "{}".format(config["wire_network"]);
     assert(os.path.exists(wire_file));
     inflator = PyWireInflator2D.WireInflatorFacade(wire_file);
+    inflator.source_file = wire_file;
+    load_orbits(inflator);
 
     modifiers = load_modifiers(config.get("modifier_file", None));
     if "quad_mesh" in config:

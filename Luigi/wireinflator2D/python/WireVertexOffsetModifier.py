@@ -18,15 +18,15 @@ class WireVertexOffsetModifier(WireModifier):
                     ["{x}", "{y}", 0.0]]
         }
         """
+        self.config = config;
         self.offset_type = config["type"];
         assert(self.offset_type == "vertex_orbit");
-        self.__load_orbits(config["orbit_file"]);
-        self.effective_orbits = self.orbits[config["effective_orbits"]];
         self.offset_percentages = config["offset_percentages"];
 
     def modify(self, param, inflator, **kwargs):
         assert(len(param) == inflator.get_num_parameters());
         tol = 1e-3;
+        self.__load_orbits(inflator);
         self.__compute_offset_orbit_index_map(inflator);
         num_params = len(param);
         effective_offsets = self.__compute_offset(**kwargs);
@@ -45,17 +45,10 @@ class WireVertexOffsetModifier(WireModifier):
 
         return param;
 
-    def __load_orbits(self, orbit_file):
-        with open(orbit_file, 'r') as fin:
-            contents = json.load(fin);
-            if self.offset_type == "vertex_orbit":
-                orbits = contents["vertex_orbits"];
-            elif self.offset_type == "edge_orbit":
-                orbits = contents["edge_orbits"];
-            else:
-                raise NotImplementedError("Offset type ({}) is not supported"\
-                        .format(self.offset_type));
-            self.orbits = np.array(orbits);
+    def __load_orbits(self, inflator):
+        assert(self.offset_type == "vertex_orbit");
+        self.orbits = np.array(inflator.vertex_orbits);
+        self.effective_orbits = self.orbits[self.config["effective_orbits"]];
 
     def __compute_offset_orbit_index_map(self, inflator):
         tol = 1e-3;
