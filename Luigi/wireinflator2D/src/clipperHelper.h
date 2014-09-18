@@ -121,9 +121,18 @@ inline ClipperLib::Paths & operator << (ClipperLib::Paths & lhs, const ClipperLi
 	return lhs;
 }
 
+inline ClipperLib::IntRect getBounds(const ClipperLib::Paths & paths)
+{
+		ClipperLib::Clipper c;
+		c.AddPaths(paths, ClipperLib::ptSubject, true);
+		ClipperLib::IntRect rect = c.GetBounds();
+		std::swap(rect.bottom, rect.top); // needed!! maybe due to clipper bug.
+		return rect;
+}
+
 inline ClipperLib::IntPoint getPointInHolePath(const ClipperLib::Path & poly)
 {
-	static const ClipperLib::cInt clipper_epsilon = 5;
+	static const ClipperLib::cInt clipper_epsilon = 3;
 
 	assert(poly.size() > 1);
 

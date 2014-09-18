@@ -8,6 +8,7 @@
 #include <string>
 #include <cmath>
 #include <unordered_map>
+#include <cassert>
 
 #include <vcg/complex/complex.h>
 #include <vcg/complex/append.h>
@@ -17,8 +18,11 @@
 class WireMesh2D
 {
 public:
-	WireMesh2D(void) {;}
+	typedef EMesh::VertexType      VertexType;
+	typedef VertexType::ScalarType ScalarType;
+	typedef VertexType::CoordType  CoordType;
 
+	WireMesh2D(void) {;}
 
 	WireMesh2D(EMesh & em)
 	{
@@ -44,6 +48,7 @@ public:
 		if (!done)
 		{
 			m_em.Clear();
+			m_bbox.SetNull();
 			return;
 		}
 
@@ -146,17 +151,19 @@ public:
 		this->applyParameterOperations(em, params);
 	}
 
-	const std::vector<ParameterOperation> & getParameterOperations(void) const
+	vcg::Point2<ScalarType> getOriginalScale(void) const
+	{
+		return vcg::Point2<ScalarType>(m_bbox.DimX(), m_bbox.DimY());
+	}
+
+	const std::vector<ParameterOperation> &  getParameterOperations(void) const
 	{
 		return m_operations;
 	}
 
 protected:
-	typedef EMesh::VertexType      VertexType;
-	typedef VertexType::ScalarType ScalarType;
-	typedef VertexType::CoordType  CoordType;
-
-	EMesh m_em;
+	EMesh                           m_em;
+	vcg::Box3<ScalarType>           m_bbox; // the original bounding box
 	std::vector<ParameterOperation> m_operations;
 
 	static inline ScalarType Epsilon(void) { return 0.00001; }
@@ -166,6 +173,7 @@ protected:
 		if (!this->isValid())
 		{
 			m_em.Clear();
+			m_bbox.SetNull();
 			return;
 		}
 
@@ -189,33 +197,31 @@ protected:
 		return std::make_pair(-0.15, 0.15);
 	}
 
-	// force the mesh to be 1x1 squared
 	void normalizeMesh(void)
 	{
 		if (!this->isValid())
 			return;
 
+		// store bounding box for later use
+		vcg::tri::UpdateBounding<EMesh>::Box(m_em);
+		m_bbox = m_em.bbox;
+
+		vcg::tri::UpdatePosition<EMesh>::Translate(m_em, -m_bbox.min);
 		vcg::tri::UpdateBounding<EMesh>::Box(m_em);
 
-		auto & bbox = m_em.bbox;
-		vcg::tri::UpdatePosition<EMesh>::Translate(m_em, bbox.min);
+		assert(m_em.bbox.Dim()[0] != 0 && m_em.bbox.Dim()[1] != 0);
 
-		vcg::tri::UpdateBounding<EMesh>::Box(m_em);
-		CoordType max = bbox.max;
-		if (max[0] == 0) max[0] = 1;
-		if (max[1] == 0) max[1] = 1;
+		// custom normalization ( keep width equal to 1)
+		static const unsigned char ax_to_one = 0; //
 		for (size_t i=0; i<m_em.vert.size(); ++i)
 		{
 			CoordType & p = m_em.vert[i].P();
-			p[0] /= max[0];
-			p[1] /= max[1];
+			p[0] /= m_bbox.max[ax_to_one];
+			p[1] /= m_bbox.max[ax_to_one];
 			p[2] = 0;
 		}
 
 		vcg::tri::UpdateBounding<EMesh>::Box(m_em);
-
-		assert((bbox.min[0] == 0 || bbox.min[1] == 0) &&
-		       (bbox.max[0] == 1 || bbox.max[1] == 1));
 	}
 
 	// compute symmetry orbits clusters
@@ -241,7 +247,7 @@ protected:
 			for (int i=0; i<int(m_em.vert.size()); ++i)
 			{
 				CoordType flipped = m_em.vert[i].cP();
-				flipped[ax] = (1 - flipped[ax]);
+				flipped[ax] = (m_em.bbox.Dim()[ax] - flipped[ax]);
 
 				for (int j=0; j<int(m_em.vert.size()); ++j)
 				{

@@ -159,6 +159,7 @@ public:
 		this->m_paths = this->m_base_paths;
 
 		splitAllCountourEdges(this->m_paths);
+		m_final_scale = Coord2Type::Construct(m_wire.getOriginalScale());
 
 		return true;
 	}
@@ -292,14 +293,12 @@ public:
 		// compute displacement per vertex changing each parameter
 		const std::vector<ParameterOperation> & params_op =
 			m_wire.getParameterOperations();
-//		assert(params_op.size() == PatternParameters::NumberOfParameter);
 		size_t numberOfParameters = params_op.size();
 
 		fields.clear();
 		typedef typename TriMesh::VertexType::NormalType NormalType;
 		for (size_t p=0; p<numberOfParameters; ++p)
 		{
-//			this->m_params.patternParams.cParameter(p);
 			const ParameterOperation & par = params_op[p];
 
 			// for each parameter compute the displacement per vertex
@@ -400,6 +399,9 @@ public:
 
 	bool tile(const Array2D<CellParameters *> & grid)
 	{
+		if (!m_wire.isValid())
+			return false;
+
 		this->setTessellationParameters();
 
 		this->m_paths.clear();
@@ -407,8 +409,6 @@ public:
 //		assert(m_scale > 0);
 
 		ClipperLib::Clipper clipper;
-
-		ClipperLib::IntRect bounds = { 0, ThisType::ScaleFactor, ThisType::ScaleFactor, 0 };
 
 		for (unsigned int x=0; x<grid.width(); ++x)
 		{
@@ -419,7 +419,8 @@ public:
 
 				generateOneElement(*grid(x,y));
 
-				ClipperLib::IntPoint t((bounds.right - bounds.left)*x, (bounds.top - bounds.bottom)*y);
+				ClipperLib::IntRect bounds = getBounds(this->m_base_paths);
+				ClipperLib::IntPoint t((bounds.right - bounds.left) * x, (bounds.top - bounds.bottom) * y);
 				clipper.AddPaths((this->m_base_paths + t), ClipperLib::ptSubject, true);
 			}
 		}
@@ -429,12 +430,16 @@ public:
 		splitAllCountourEdges(this->m_paths);
 //		this->m_paths *= m_scale;
 
+		auto singleElemScale = m_wire.getOriginalScale();
+		m_final_scale = Coord2Type(singleElemScale.X() * grid.width(), singleElemScale.Y() * grid.height());
 		return true;
 	}
 
 	bool tessellate(TriMesh & mesh)
 	{
-		return Tessellator2D<TriMesh>::execute(m_tri_settings, this->m_paths, this->ScaleFactor, mesh);
+		bool ret = Tessellator2D<TriMesh>::execute(m_tri_settings, this->m_paths, this->ScaleFactor, mesh);
+		scaleTessellatedMesh(mesh);
+		return ret;
 	}
 
 protected:
@@ -442,6 +447,8 @@ protected:
 	TessellatorSettings m_tri_settings;
 	WireMesh        m_wire;
 	InputParameters m_params;
+
+	Coord2Type m_final_scale;
 
 	EdgeMeshPattern(void) {;}
 
@@ -516,9 +523,9 @@ protected:
 			clip.AddPath(edge_path, ClipperLib::ptSubject, true);
 		}
 
-		// get the bbox (1x1 square)
-		ClipperLib::IntRect bbox = { 0, ThisType::ScaleFactor, ThisType::ScaleFactor, 0 };
-		ClipperLib::Path clip_bbox = convertToPath(bbox);
+		// get the bbox
+		ClipperLib::IntRect intBbox = getClipperBbox(em.bbox);
+		ClipperLib::Path clip_bbox = convertToPath(intBbox);
 
 		// generate vertex circles
 		for (size_t i=0; i<em.vert.size(); ++i)
@@ -572,6 +579,15 @@ protected:
 		this->m_tri_settings.quiet = true;
 	}
 
+	void scaleTessellatedMesh(TriMesh & mesh)
+	{
+		vcg::tri::UpdateBounding<TriMesh>::Box(mesh);
+		vcg::tri::UpdatePosition<TriMesh>::Scale(mesh,typename TriMesh::CoordType(m_final_scale.X()/mesh.bbox.DimX(),
+		                                                                          m_final_scale.X()/mesh.bbox.DimX(),
+		                                                                          0));
+		vcg::tri::UpdateBounding<TriMesh>::Box(mesh);
+	}
+
 	// in order to preserve periodic boundary conditions we manually split the polygon edges in a consistent way
 	void splitAllCountourEdges(ClipperLib::Paths & profile)
 	{
@@ -623,15 +639,10 @@ protected:
 	// needed to avoid vertices too close to each other, leading to artifacts in the triangulation
 	void optimizeContours(ClipperLib::Paths & profile)
 	{
-		ClipperLib::cInt epsilon = ClipperLib::cInt(this->maxEdgeLength() * 0.5 * ThisType::ScaleFactor);
+		ClipperLib::cInt epsilon = ClipperLib::cInt(this->maxEdgeLength() * 0.4 * ThisType::ScaleFactor);
 
 		// get bounds
-		ClipperLib::IntRect bounds;
-		{
-			ClipperLib::Clipper c;
-			c.AddPaths(profile, ClipperLib::ptSubject, true);
-			bounds = c.GetBounds();
-		}
+		ClipperLib::IntRect bounds = getBounds(profile);
 
 		for (ClipperLib::Path & p : profile)
 		{
@@ -654,7 +665,7 @@ protected:
 
 			// choose to preserve the points on the boundary
 			bool boundary = p0.X == bounds.left   || p0.X == bounds.right ||
-			                p0.Y == bounds.bottom || p0.Y == bounds.left;
+			                p0.Y == bounds.bottom || p0.Y == bounds.top;
 
 			if (ClipperLib::cInt(distance(p0, p1)) >= epsilon)
 			{
@@ -671,7 +682,7 @@ protected:
 				}
 				else
 					if (p1.X == bounds.left   || p1.X == bounds.right ||
-					    p1.Y == bounds.bottom || p1.Y == bounds.left)
+					    p1.Y == bounds.bottom || p1.Y == bounds.top)
 					{
 						if (boundary)
 						{
@@ -686,6 +697,20 @@ protected:
 		}
 
 		path = newPath;
+	}
+
+	typedef vcg::Box3<typename EMesh::ScalarType> EMeshBoxType;
+
+	static ClipperLib::IntRect getClipperBbox(const EMeshBoxType & bbox)
+	{
+		ClipperLib::IntRect rect;
+		ClipperLib::IntPoint min = ThisType::convertToIntPoint(Coord2Type(bbox.min[0], bbox.min[1]));
+		ClipperLib::IntPoint max = ThisType::convertToIntPoint(Coord2Type(bbox.max[0], bbox.max[1]));
+		rect.left    = min.X;
+		rect.bottom  = min.Y;
+		rect.right   = max.X;
+		rect.top     = max.Y;
+		return rect;
 	}
 
 	// generating circle functions
