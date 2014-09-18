@@ -53,8 +53,7 @@ def parse_config_file(config_file):
         "repeats": [x_reps, y_reps],
         "quad_mesh": quad_mesh,
         "trim": bool,
-        "periodic": bool,
-        "output": output_file
+        "periodic": bool
     }
     """
     config_dir = os.path.dirname(config_file);
@@ -67,7 +66,6 @@ def parse_config_file(config_file):
             config[field_name] = find_file(field, config_dir);
 
     convert_to_abs_path("wire_network");
-    convert_to_abs_path("output");
     if "quad_mesh" in config:
         convert_to_abs_path("quad_mesh");
     if "modifier_file" in config:
@@ -216,7 +214,7 @@ def tile_box(config, modifiers, inflator):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tile a given pattern");
-    parser.add_argument("--output", "-o", required=False);
+    parser.add_argument("--output", "-o", required=True);
     parser.add_argument("config_file", help="pattern configuration file.");
     args = parser.parse_args();
     return args;
@@ -224,8 +222,7 @@ def parse_args():
 def main():
     args = parse_args();
     config = parse_config_file(args.config_file);
-    if args.output is not None:
-        config["output"] = args.output;
+    config["output"] = args.output;
     tile(config);
 
 if __name__ == "__main__":
