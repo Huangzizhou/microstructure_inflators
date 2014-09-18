@@ -13,7 +13,10 @@
 %\usepackage{outlines}
 \usepackage[font={sf,it}, labelfont={sf,bf}, labelsep=space, belowskip=5pt]{caption}
 \usepackage{hyperref}
-\usepackage{minted}
+% \usepackage{minted}
+
+\usepackage{float}
+% \floatplacement{figure}{H}
 
 \usepackage{fancyhdr}
 \usepackage[title]{appendix}
@@ -170,25 +173,37 @@ and extend this function throughout $\Omega$ by Y-periodicity.
 \subsection{Elastostatic Equation}
 The homogenization process involves finding the static equilibrium of the
 microstructure under particular loads. This is done by solving an
-elliptic force-balace PDE for displacements, $u$, called the elastostatic
+elliptic force-balace PDE for displacements, ${\bf u}$, called the elastostatic
 equation:
-${\bf u}({\bf x})$:
 \begin{align*}
     -\nabla \cdot [E : e({\bf u})] = {\bf f} \quad &\text{in } \Omega \\
-    [E : e({\bf u})] {\bf \hat{n} \bf} = {\bf \tau} \quad &\text{on } \Gamma_N \numberthis \label{eqn:elastostatic} \\
+    {\bf \hat{n}} \cdot [E : e({\bf u})] = {\bf \tau} \quad &\text{on } \Gamma_N \numberthis \label{eqn:elastostatic} \\
     {\bf u} = {\bf u}_D \quad &\text{on } \Gamma_D
 \end{align*}
  
 \subsection{Two-scale Analysis}
-By examining the deformation of such a tiled object under a particular loading
-scenario, we see two distinct scales in the deformation field (see Figure
-\ref{fig:two_scale}). This suggests that we use a two scale analysis to
+\begin{figure}
+    \centering
+    \includegraphics[width=.6\textwidth]{Images/two_scale.png}
+    \caption{Macroscopic and microscopic length scales: notice that the
+             deformation looks smooth when zoomed out (left), but when we zoom
+             in on a few of the base cells, we see a periodic fluctuation
+             in the displacement field. The original, undeformed object was a
+             square, and a uniform squeezing force was applied to its top and
+             bottom edges; if it weren't for its microstructure, the square
+             would just contract uniformly in the vertical direction (an
+             isotropic material with Poisson ratio 0 was used).}
+    \label{fig:two_scale}
+\end{figure}
+By examining the deformation of a periodically tiled object under a particular
+loading scenario, we see two distinct scales in the deformation field (see
+Figure \ref{fig:two_scale}). This suggests that we use a two-scale analysis to
 determine the macroscopic behavior as $\e \to 0$. We will end up with only a
 heuristic derivation of the homogenized elasticity tensor, but once this tensor
 is found it can be rigorously justified. The derivation here follows roughly
 that in \cite{allaire2002shape} with some clarifications and added intuition.
 
-For our two scale analysis, we guess that the solution can be written as an asymptotic
+For our two-scale analysis, we guess that the solution can be written as an asymptotic
 expansion:
 $$
 {\bf u}^\e({\bf x}) = \sum_{p = 0}^{\infty} \e^p {\bf u}_p\left({\bf x}, \frac{{\bf x}}{\e}\right),
@@ -209,20 +224,6 @@ $$
 Letting $\nabla_{\bf x}$ and $\nabla_{\bf y}$ be the vectors of differentiation
 operators with respect to the macroscopic variables and microscopic variables
 respectively, the force balance equation becomes, by linearity,
-
-\begin{figure}
-    \centering
-    \includegraphics[width=.6\textwidth]{Images/two_scale.png}
-    \caption{Macroscopic and microscopic length scales: notice that the
-             deformation looks smooth when zoomed out (left), but when we zoom
-             in on a few of the base cells, we see a periodic fluctuation
-             in the displacement field. The original, undeformed object was a
-             square, and a uniform squeezing force was applied to its top and
-             bottom edges; if it weren't for its microstructure, the square
-             would just contract uniformly in the vertical direction (an
-             isotropic material with Poisson ratio 0 was used).}
-    \label{fig:two_scale}
-\end{figure}
 
 $$
 -\sum_{p = 0}^\infty \e^p \left(\nabla_{\bf x} + \frac{1}{\e} \nabla_{\bf y}\right)
@@ -258,7 +259,7 @@ equation for ${\bf u}_0$ in each instance of the periodic cell (i.e., at each
 point ${\bf x}$). As boundary conditions, ${\bf u}_0$ is required to be
 periodic in ${\bf y}$. This pins down the (infinitesimal) rotational degrees of
 freedom, and all that remains is the translational degree of freedom: a
-function ${\bf u}({\bf x})$ independent of ${\bf y}$. This ${\bf u}(x)$ ends up
+function ${\bf u}({\bf x})$ independent of ${\bf y}$. This ${\bf u}({\bf x})$ ends up
 being the macroscopic displacement, as we will soon see.
 
 Plugging in ${\bf u}({\bf x})$ for ${\bf u}_0$ simplifies (\ref{eqn:em1}) to:
@@ -278,7 +279,7 @@ ${\bf u}_1({\bf x}, {\bf y})$ and (\ref{eqn:u1u}) itself have a nice physical
 interpretation: when we impose a smooth, macroscopic deformation on an object
 as in Figure \ref{fig:two_scale}, the microstructure itself won't, in general,
 be in equilibrium. Instead, there will be periodically fluctuating residual
-forces and we must superimpose a periodic microscopic fluctuation displacement
+forces, and we must superimpose a periodic microscopic fluctuation displacement
 to balance them. For a particular macroscopic displacement ${\bf u}({\bf x})$,
 force balance equation (\ref{eqn:u1u}) solves for this displacement.
 
@@ -440,16 +441,16 @@ with a simple integration over the base cell. We find these by solving the 6 cel
 \end{align*}
 one for each canonical basis tensor $e^{ij}$. The last constraint is to pin
 down the remaining translational degree of freedom; since we only care about
-strain $e_{\bf y}({\bf w}^{ij})$), we can arbitrarily choose to make the
-average displacement over the microstructure geometry ${\bf 0}$.
+strain $e_{\bf y}({\bf w}^{ij})$, we can arbitrarily choose to enforce ${\bf
+0}$ average displacement over the microstructure geometry.
 
 Intuitively, solving each cell problem (\ref{eqn:cell}) corresponds to probing
-the base cell geometry with 6 constant strain displacements to extract how the
+the base cell with 6 constant strain displacements to extract how the
 microstructure geometry $\omega$ reacts (i.e. the fluctuation displacements).
 Then the homogenized elasticity tensor given in (\ref{eqn:Eh}) corresponds to a
 spatial average of $E({\bf y})$ corrected by the fluctuation terms (which
 happen to be averaged fluctuation stresses). We can get a more physical
-interpretation of (\ref{eqn:Eh}) by realizing it is equivalent to:
+interpretation of (\ref{eqn:Eh}) by realizing that it is equivalent to:
 \begin{equation}
     \label{eqn:EhEnergy}
     E^H_{ijkl} = \frac{1}{|Y|} \int_Y (e^{ij} + e_{\bf y}({\bf w}^{ij})) : E({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) \, \mathrm{d} {\bf y}.
@@ -468,28 +469,29 @@ its fluctuation strain. Proof of this equivalence: start with RHS of
 \frac{1}{|Y|} \int_Y (e^{ij} + e_{\bf y}({\bf w}^{ij})) : E({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) \, \mathrm{d} {\bf y} \\
 = \frac{1}{|Y|} \int_Y e^{ij} : E({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) +
     e_{\bf y}({\bf w}^{ij}) : E({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) \, \mathrm{d} {\bf y} \\
-    = \frac{1}{|Y|} \int_Y E_{ijpq}({\bf y}) [e^{kl} + e_{\bf y}({\bf w}^{kl})]_{pq} +
+    = \frac{1}{|Y|} \int_Y E_{ijpq}({\bf y}) [e^{kl} + e_{\bf y}({\bf w}^{kl})]_{pq} -
 {{\bf w}}^{ij} \cdot \cancel{\nabla_y \cdot [E({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl}))]} \, \mathrm{d} {\bf y} \\
 + \cancel{\int_{\partial Y} {\bf w}^{ij} \cdot [E({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl}))] {\bf \hat{n}} \, \mathrm{d} A({\bf y})}
 = \frac{1}{|Y|} \int_Y E_{ijpq}({\bf y}) [e_{\bf y}({\bf w}^{kl})]_{pq} + E_{ijkl}({\bf y}) \, \mathrm{d} {\bf y} = E^H_{ijkl}.
 \end{gather*}
 Here we used integration by parts (for symmetric tensors) to move the strain
-operator off $w^{ij}$. The resulting volume integral vanishes because ${\bf
+operator off ${\bf w}^{ij}$. The resulting volume integral vanishes because ${\bf
 w}^{kl}$ solves the $kl^\text{th}$ cell problem. The surface integral vanishes
 because row vector ${\bf w}^{ij} \cdot [E({\bf y}) : (e^{kl} + e_{\bf
-y}({\bf w}^{kl}))]$ is Y-periodic. {\em Notice that this periodicity only holds
-in the continuous case where $e_{\bf y}(w^{kl})$ is periodic due to $w^{kl}$'s
-periodicity}. When we discretize (with the finite element method) this no
-longer holds exactly---we will need to verify this equivalence numerically in
-the discrete setting by computing both the original integral and this
-``energy'' integral.
+y}({\bf w}^{kl}))]$ is Y-periodic. Notice that this periodicity only holds
+in the continuous case where $e_{\bf y}({\bf w}^{kl})$ is periodic due to ${\bf
+w}^{kl}$'s
+periodicity. When we discretize (with FEM) this no longer holds exactly.
+However, there $e_{\bf y}({\bf w}^{kl})$'s periodicity still holds in a weak sense.
+Weak periodicity is sufficent for the boundary integral to vanish because in the
+integrand, $e_{\bf y}({\bf w}^{kl})$ is dotted with ${\bf w}^{ij}$, which is a linear
+combination of shape functions.
 
 \section{Rigorous Justification}
 The derivation is only a heuristic procedure, not a proof that that the
-sequence of solutions ${\bf u}^\e$ as $\e \to 0$ approaches the solution to the
-homogenized equation, ${\bf u}$. To prove this requires a lot of mathematical
-formalism, such as weak and H-/G-convergence, that is outside the scope of this
-project. \cite{allaire2002shape} provides the details.
+sequence of solutions ${\bf u}^\e$ approaches the solution to the
+homogenized equation, ${\bf u}$, as $\e \to 0$ . To prove this requires a lot of mathematical
+formalism, such as weak and H-/G-convergence. \cite{allaire2002shape} provides the details.
 
 \section{Solving the Cell Problems}
 The homogenization task has now been reduced to solving 6 cell problems:
@@ -606,21 +608,20 @@ to compute the homogenized elasticity coefficients. Notice that only a
 single base cell of the geometry needs to be discretized, making the
 computation very efficient.
 
-Two FEM implementations are used: a traditional volume mesh discretization
-using linear tetrahedron elements, and a novel ``mesh free'' method using a
-grid of trilinear cubes not conforming to the object's boundary. The ``mesh
-free'' method is nice for tasks such as shape/topology optimization where the
-object will change frequently and remeshing is intractable--the method works
-directly on an object's level set description (or any description allowing
-efficient inside/outside tests).
+Two FEM implementations are used: a traditional volume mesh discretization using
+linear tetrahedron elements, and a novel ``mesh free'' method using a grid of
+trilinear cubes not conforming to the object's boundary. The mesh free method is
+nice for tasks such as shape/topology optimization where the object will change
+frequently and remeshing is intractable--the method works directly on an
+object's level set description (or any description allowing efficient
+inside/outside tests).
 
-Adding periodic displacement boundary conditions is needed since this is a
-non-standard elasticity loading scenario. This is tricky for the tet-based
-solver because it requires the tessellation of the microstructure geometry to be
-identical on opposite periodic cell faces for precise implementation. The
-mesh free method is more forgiving in this regard: as long as the geometry
-itself is periodic, the computation grid will always match up across the
-periodic boundaries.
+The linear elasticity solver obviously needs to support periodic boundary
+conditions. This is tricky for the tet-based solver because it requires the
+microstructure geometry to be tessellated identically on opposite periodic cell
+faces. The mesh free method is more forgiving in this regard: as long as the
+geometry itself is periodic, the computation grid will always match up across
+the periodic boundaries.
 
 Periodic boundary conditions are implemented by direct elimination of
 variables (reducing the size of the system); for microstructures filling large
@@ -638,9 +639,8 @@ the ``stress to strain'' compliance tensor from the ``strain to stress'' elastic
 tensor) and double contractions, we use a symmetric tensor flattening approach
 to turn rank 4 tensors into matrices and rank 2 tensors into vectors. Since
 care must be taken in this transformation, the approach is detailed in the
-Tensor Flattening writeup. We end up storing the elasticity tensor as a $6\times
-6$
-symmetric matrix with 21 coefficients.
+Tensor Flattening writeup. We end up storing the elasticity tensor as a
+symmetric $6\times 6$ matrix with 21 coefficients.
 
 \bibliographystyle{plain}
 \bibliography{References}
