@@ -105,7 +105,7 @@ my @repoNames = ("MeshFEM", "CSGFEM", "microstructures");
 my @localPaths = ($ENV{'MeshFEM'}, $ENV{'CSGFEM'}, $scriptDir);
 my @remotePaths = ('jpanetta/MeshFEM', 'jpanetta/CSGFEM', '3DPrint/microstructures');
 my @links;
-my $uncommittedChanges;
+my $uncommittedChanges = '';
 for my $i (0..$#repoNames) {
     local $CWD = $localPaths[$i];
     my $rev = `hg id -i`;
