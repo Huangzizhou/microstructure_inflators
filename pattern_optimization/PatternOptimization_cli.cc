@@ -137,6 +137,28 @@ void writeTargetTensorShapeDerivative(JSFieldWriter<_N> &writer,
     writeDescentVectors(writer, name, v_n, sim);
 }
 
+// Writes steepest descent direction for
+//      1/2 sum_ijkl (target_ijkl - Einv_ijlk|)^2
+// That is, -grad(1/2 sum_ijkl (target_ijkl - Einv_ijlk|)^2) =
+//  -(target_ijkl - Einv_ijlk) * -grad(Einv_ikjl)) =
+//   (target_ijkl - Einv_ijlk) *  grad(Einv_ikjl))
+template<size_t _N, class Simulator>
+void writeTargetTensorShapeDerivative(JSFieldWriter<_N> &writer,
+                const string &name, const ETensor<_N> &target,
+                const ETensor<_N> &current, const vector<ETensor<_N>> &gradEh,
+                const std::vector<VField<_N>> &w_ij, const Simulator &sim) {
+    size_t numBE = sim.mesh().numBoundaryElements();
+    assert(gradEh.size() == numBE);
+    ETensor<_N> diff = target - current;
+    SField v_n(numBE);
+
+    for (size_t be = 0; be < numBE; ++be)
+        v_n[be] = diff.quadrupleContract(gradEh[be]);
+
+    writer.addField(name + " v_n", v_n, JSFieldWriter<_N>::PER_BDRY_ELEM);
+    writeDescentVectors(writer, name, v_n, sim);
+}
+
 template<size_t _N>
 void execute(const po::variables_map &args,
              const vector<MeshIO::IOVertex> &inVertices, 
