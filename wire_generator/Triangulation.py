@@ -1,5 +1,6 @@
 import numpy as np
-from numpy.linalg import norm
+from numpy.linalg import norm, inv
+from math import pi
 
 import PyMesh
 import PyMeshUtils
@@ -32,7 +33,7 @@ class Triangulation(object):
         self.bd_nodes = self.ori_vertices[bd_extractor.get_boundary_nodes().ravel()];
         self.bd_edges = bd_extractor.get_boundaries();
 
-        #self.bd_loops = self.__extract_edge_loops(self.bd_nodes, self.bd_edges);
+        self.__extract_edge_loops();
 
     def __project_onto_2D_plane(self, vertices):
         bd_nodes_coords = np.dot(self.coordinate_frame, vertices.T).T;
@@ -46,10 +47,13 @@ class Triangulation(object):
     def triangulate(self, max_area=0.1):
         self.proj_bd_nodes, intercept =\
                 self.__project_onto_2D_plane(self.bd_nodes);
+        hole_points = self.__compute_hole_points().reshape((-1, 2));
         tri_mesh = {
                 "vertices": self.proj_bd_nodes,
                 "segments": self.bd_edges,
                 }
+        if len(hole_points) > 0:
+            tri_mesh["holes"] = hole_points;
         tri_options = "pqQYa{}".format(max_area);
         result = triangle.triangulate(tri_mesh, tri_options);
 
@@ -71,24 +75,29 @@ class Triangulation(object):
             self.coordinate_frame = np.array([x_dir, y_dir, z_dir]);
             return;
 
+    def __compute_hole_points(self):
+        self.__find_interior_points();
+        self.__compute_loop_orientations();
+        return self.interior_points[np.logical_not(self.loop_orientations)];
 
-    def __extract_edge_loops(self, vertices, edges):
+    def __compute_adjacency_list(self):
+        vertices = self.bd_nodes;
+        edges = self.bd_edges;
         num_vertices = len(vertices);
         adj_list = np.ones((num_vertices, 2), dtype=int) * -1;
         for edge in edges:
-            if adj_list[edge[0], 0] < 0:
-                adj_list[edge[0], 0] = edge[1];
-            elif adj_list[edge[0], 1] < 0:
-                adj_list[edge[0], 1] = edge[1];
-            else:
-                raise NotImplementedError("Non-manifold loop detected");
+            assert(adj_list[edge[0], 0] < 0);
+            assert(adj_list[edge[1], 1] < 0);
+            adj_list[edge[0], 0] = edge[1];
+            adj_list[edge[1], 1] = edge[0];
+        return adj_list;
 
-            if adj_list[edge[1], 0] < 0:
-                adj_list[edge[1], 0] = edge[0];
-            elif adj_list[edge[1], 1] < 0:
-                adj_list[edge[1], 1] = edge[0];
-            else:
-                raise NotImplementedError("Non-manifold loop detected");
+    def __extract_edge_loops(self):
+        vertices = self.bd_nodes;
+        edges = self.bd_edges;
+        num_vertices = len(vertices);
+
+        adj_list = self.__compute_adjacency_list();
 
         loops = [];
         visited = np.zeros(num_vertices, dtype=bool);
@@ -100,12 +109,10 @@ class Triangulation(object):
 
             while True:
                 neighbor = adj_list[loop[-1]];
-                if neighbor[0] == loop[-2]:
-                    assert(not visited[neighbor[1]]);
-                    next_v = neighbor[1];
-                else:
-                    assert(not visited[neighbor[0]]);
-                    next_v = neighbor[0];
+                next_v = neighbor[0];
+                assert(not visited[next_v]);
+                assert(loop[-2] != next_v);
+
                 if loop[0] == next_v:
                     break;
                 else:
@@ -113,7 +120,75 @@ class Triangulation(object):
 
             visited[loop] = True;
             loops.append(loop);
-        return loops;
+        self.bd_loops = loops;
+
+    def __find_interior_points(self):
+        self.interior_points = np.array([self.__find_interior_point(loop)
+            for loop in self.bd_loops]);
+
+    def __compute_loop_orientations(self):
+        self.loop_orientations = [];
+        for i,loop in enumerate(self.bd_loops):
+            vertices = self.proj_bd_nodes[loop]
+            p = self.interior_points[i];
+            wind_num = self.__compute_winding_number(p, vertices);
+            self.loop_orientations.append(wind_num > 0.0);
+
+    def __compute_winding_number(self, p, vertices):
+        num_vts = len(vertices);
+        z_coord = np.zeros((num_vts,1));
+        v0 = np.hstack((vertices - p, z_coord));
+        v1 = np.roll(v0, -1, axis=0);
+        angles = np.arctan2(
+                np.cross(v0, v1)[:,2],
+                np.sum(v0 * v1, axis=1));
+        assert(len(angles) == num_vts);
+        wind_num = np.sum(angles) / (2*pi);
+        return wind_num;
+
+    def __find_interior_point(self, loop):
+        """ For a closed loop, find a point that is interior. Based on
+        modification of the following algorithm:
+        http://www.alecjacobson.com/weblog/?p=1256
+        """
+        vertices = self.proj_bd_nodes[loop];
+        bbox_min = np.amin(vertices, axis=0);
+        bbox_max = np.amax(vertices, axis=0);
+        center = 0.5 * (bbox_min + bbox_max);
+
+        rotation = np.array([[0, 1], [-1, 0]]);
+
+        t0 = center + (bbox_max - center) * 2;
+        t1 = center - (bbox_max - center) * 2;
+        t_normal = np.dot(rotation, t1 - t0);
+
+        p0 = vertices;
+        p1 = np.roll(vertices, -1, axis=0);
+        p_normal = np.dot(rotation, (p1 - p0).T).T;
+
+        t_sides = [
+                np.dot(t_normal, (p0 - t0).T).T,
+                np.dot(t_normal, (p1 - t0).T).T ];
+        p_sides = [
+                np.sum(p_normal * (t0 - p0), axis=1),
+                np.sum(p_normal * (t1 - p0), axis=1) ];
+        crossed = np.logical_and(
+                np.logical_xor(t_sides[0] < 0, t_sides[1] < 0),
+                np.logical_xor(p_sides[0] < 0, p_sides[1] < 0));
+        assert(np.sum(crossed) >= 2);
+
+        p0 = p0[crossed];
+        p1 = p1[crossed];
+        crossed_points = [];
+        for q0, q1 in zip(p0, p1):
+            sol = np.dot(inv(np.array([t1-t0, q0-q1]).T), (q0 - t0));
+            p = t0 + sol[0] * (t1 - t0);
+            crossed_points.append(p);
+        crossed_points = np.array(crossed_points);
+
+        dist_to_t0 = norm(crossed_points - t0, axis=1);
+        order = np.argsort(dist_to_t0);
+        return 0.5 * (crossed_points[order[0]] + crossed_points[order[1]]);
 
     def _form_mesh(self, vertices, faces):
         voxels = np.array([]);
