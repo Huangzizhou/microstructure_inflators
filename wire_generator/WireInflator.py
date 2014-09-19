@@ -22,7 +22,7 @@ class WireInflator(object):
                     "Inflating 2D wire network is not supported yet.");
 
     @timethis
-    def inflate(self, clean_up=True):
+    def inflate(self, clean_up=True, subdivide_order=1):
         self._compute_thickness();
         self._compute_min_edge_angles();
         self._compute_edge_end_loops();
@@ -30,7 +30,7 @@ class WireInflator(object):
         self._generate_edge_pipes();
         if clean_up:
             self._clean_up();
-        self._subdivide(1);
+        self._subdivide(subdivide_order);
 
     @property
     def mesh(self):
@@ -43,13 +43,40 @@ class WireInflator(object):
         mesh = factory.create_shared();
         mesh.add_attribute("source_wire_id");
         mesh.set_attribute("source_wire_id", self.source_wire_id);
+
+        if "vertex_orbit_index" in self.wire_network.attributes:
+            indices = self.wire_network.attributes["vertex_orbit_index"].ravel();
+            source_id_mask = self.source_wire_id > 0;
+            source_index = np.zeros_like(self.source_wire_id);
+            source_index[np.logical_not(source_id_mask)] = -1;
+            source_index[source_id_mask] =\
+                    indices[self.source_wire_id[source_id_mask] - 1];
+            mesh.add_attribute("vertex_orbit");
+            mesh.set_attribute("vertex_orbit", source_index);
+
+        if "edge_orbit_index" in self.wire_network.attributes:
+            indices = self.wire_network.attributes["edge_orbit_index"].ravel();
+            source_id_mask = self.source_wire_id < 0;
+            source_index = np.zeros_like(self.source_wire_id);
+            source_index[np.logical_not(source_id_mask)] = -1;
+            source_index[source_id_mask] =\
+                    indices[-self.source_wire_id[source_id_mask] - 1];
+            mesh.add_attribute("edge_orbit");
+            mesh.set_attribute("edge_orbit", source_index);
+
         return mesh;
 
     @timethis
     def save(self, mesh_file):
+        mesh = self.mesh;
         writer = PyMesh.MeshWriter.create_writer(mesh_file);
         writer.with_attribute("source_wire_id");
-        writer.write_mesh(self.mesh);
+        if mesh.has_attribute("vertex_orbit"):
+            writer.with_attribute("vertex_orbit");
+        if mesh.has_attribute("edge_orbit"):
+            writer.with_attribute("edge_orbit");
+
+        writer.write_mesh(mesh);
 
     @timethis
     def _compute_thickness(self):
@@ -291,7 +318,7 @@ class WireInflator(object):
             return face;
 
     @timethis
-    def _clean_up(self):
+    def _clean_up(self, track_source_id = True):
         ## Remove obtuse triangles
         #obtuse_triangle_removal = PyMeshUtils.ObtuseTriangleRemoval(
         #        self.mesh_vertices, self.mesh_faces);
@@ -299,7 +326,6 @@ class WireInflator(object):
         #self.mesh_vertices = obtuse_triangle_removal.get_vertices();
         #self.mesh_faces = obtuse_triangle_removal.get_faces();
 
-        assert(len(self.mesh_faces) == len(self.source_wire_id));
         # Remove duplicated vertices
         duplicated_vertex_removal = PyMeshUtils.DuplicatedVertexRemoval(
                 self.mesh_vertices, self.mesh_faces);
@@ -313,8 +339,9 @@ class WireInflator(object):
         edge_remover.run(np.amin(1e-12, 0.1 * np.amin(self.thickness)));
         self.mesh_vertices = edge_remover.get_vertices();
         self.mesh_faces = edge_remover.get_faces();
-        self.face_indices = edge_remover.get_face_indices().ravel();
-        self.source_wire_id = self.source_wire_id[self.face_indices];
+        if track_source_id:
+            self.face_indices = edge_remover.get_face_indices().ravel();
+            self.source_wire_id = self.source_wire_id[self.face_indices];
 
         # Remove isolated vertices
         unique_indices = np.unique(self.mesh_faces.ravel());

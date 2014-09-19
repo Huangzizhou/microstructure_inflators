@@ -92,6 +92,19 @@ def load_wire(wire_file):
     network.load_from_file(wire_file);
     return network;
 
+def compute_symmetry_orbits(wire_network):
+    """ Assign symmetry orbit index to each vertex and edge.
+    """
+    wire_network.compute_symmetry_orbits();
+    vertex_orbit_indices = np.ones(len(wire_network.vertices)) * -1;
+    edge_orbit_indices = np.ones(len(wire_network.edges)) * -1;
+    for i,orbit in enumerate(wire_network.attributes["symmetry_vertex_orbit"]):
+        vertex_orbit_indices[orbit] = i;
+    for i,orbit in enumerate(wire_network.attributes["symmetry_edge_orbit"]):
+        edge_orbit_indices[orbit] = i;
+    wire_network.attributes["vertex_orbit_index"] = vertex_orbit_indices;
+    wire_network.attributes["edge_orbit_index"] = edge_orbit_indices;
+
 def inflate_and_save(tiled_network, periodic, output_file):
     if not periodic:
         inflator = WireInflator(tiled_network);
@@ -102,6 +115,7 @@ def inflate_and_save(tiled_network, periodic, output_file):
     inflator.save(output_file);
 
 def tile_hex(config, network, modifiers):
+    compute_symmetry_orbits(network);
     pattern = WirePattern();
     pattern.set_single_cell_from_wire_network(network);
     hex_mesh = load_mesh(str(config["hex_mesh"]));
@@ -112,6 +126,7 @@ def tile_hex(config, network, modifiers):
 
 def tile_box(config, network, modifiers):
     dim = network.dim;
+    compute_symmetry_orbits(network);
     pattern = WirePattern();
     pattern.set_single_cell_from_wire_network(network);
     pattern.x_tile_dir = np.array(config.get("x_tile_dir", [1.0, 0.0, 0.0]))[:dim];

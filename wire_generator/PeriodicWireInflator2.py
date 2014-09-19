@@ -29,13 +29,98 @@ class PeriodicWireInflator(WireInflator):
                 self.wire_network.bbox_center - phantom_wire_network.bbox_center);
         self.phantom_wire_network = phantom_wire_network;
 
-    def inflate(self, clean_up=True):
+    def inflate(self, clean_up=True, subdivide_order=3):
         if not clean_up:
             raise NotImplementedError("Clean up is required for periodic wires");
-        super(PeriodicWireInflator, self).inflate(clean_up);
+        super(PeriodicWireInflator, self).inflate(clean_up, 0);
+        self._build_indices();
         self._clip_with_bbox();
         self._enforce_periodic_connectivity();
-        self._subdivide(2);
+        self._update_source_id();
+        self._subdivide(subdivide_order);
+
+    def _build_indices(self):
+        assert(len(self.source_wire_id) == len(self.mesh_faces));
+        self._build_face_lookup_map();
+        self._build_vertex_grid();
+        self._build_face_grid();
+
+    def _build_face_lookup_map(self):
+        self.face_lookup_map = { tuple(sorted(face)):i
+                for i,face in enumerate(self.mesh_faces) };
+        self.mesh_face_normals = self._compute_normals();
+
+    def _compute_normals(self):
+        v0 = self.mesh_vertices[self.mesh_faces[:,0]];
+        v1 = self.mesh_vertices[self.mesh_faces[:,1]];
+        v2 = self.mesh_vertices[self.mesh_faces[:,2]];
+        e1 = v1 - v0;
+        e2 = v2 - v0;
+        normal = np.cross(e1, e2);
+        normal /= norm(normal, axis=1)[:,np.newaxis];
+        return normal;
+
+    def _build_vertex_grid(self):
+        dim = self.original_wire_network.dim;
+        num_vertices = len(self.mesh_vertices);
+        self.vertex_grid = PyMesh.HashGrid.create(1e-6, dim);
+        self.vertex_grid.insert_multiple(
+                np.arange(num_vertices, dtype=int),
+                self.mesh_vertices);
+
+    def _build_face_grid(self):
+        dim = self.original_wire_network.dim;
+        bbox_min, bbox_max = self.original_wire_network.bbox;
+        vertices_inside = np.logical_and(
+                np.all(self.mesh_vertices < bbox_max, axis=1),
+                np.all(self.mesh_vertices > bbox_min, axis=1));
+        crossing_faces = np.logical_and(
+                np.any(vertices_inside[self.mesh_faces], axis=1),
+                np.logical_not(np.all(vertices_inside[self.mesh_faces], axis=1)));
+
+        self.face_grid = PyMesh.HashGrid.create(1e-1, dim);
+        faces = self.mesh_faces[crossing_faces];
+        face_indices = np.arange(len(self.mesh_faces), dtype=int)[crossing_faces];
+        triangles = self.mesh_vertices[faces.ravel(order="C")];
+        self.face_grid.insert_multiple_triangles(face_indices, triangles);
+
+        self.write_debug_mesh("cross.msh", crossing_faces.astype(int));
+
+    def _update_source_id(self):
+        vertex_map = np.ones(len(self.mesh_vertices), dtype=int) * -1;
+        for i,v in enumerate(self.mesh_vertices):
+            candidates = self.vertex_grid.get_items_near_point(v);
+            if len(candidates) == 0: continue;
+            elif len(candidates) == 1:
+                vertex_map[i] = candidates[0];
+            else:
+                raise RuntimeError("Possible duplicated vertices detected");
+
+        tol = 1e-2;
+        bbox_min, bbox_max = self.original_wire_network.bbox;
+        on_boundary = np.logical_or(
+                np.any(self.mesh_vertices < bbox_min + tol, axis=1),
+                np.any(self.mesh_vertices > bbox_max - tol, axis=1));
+
+        ori_face_normals = self.mesh_face_normals;
+        cur_face_normals = self._compute_normals();
+        source_id = np.zeros(len(self.mesh_faces), dtype=int);
+        for i,face in enumerate(self.mesh_faces):
+            key = vertex_map[sorted(face.tolist())].tolist();
+            ori_face_index = self.face_lookup_map.get(tuple(key), -1);
+            if ori_face_index != -1:
+                source_id[i] = self.source_wire_id[ori_face_index];
+            else:
+                assert(np.any(on_boundary[face]));
+                if np.all(on_boundary[face]): continue;
+                centroid = np.mean(self.mesh_vertices[face], axis=0);
+                face_indices = self.face_grid.get_items_near_point(centroid);
+                assert(len(face_indices) > 0);
+                normal_dist = np.dot(ori_face_normals[face_indices],
+                        cur_face_normals[i]);
+                ori_face_idx = face_indices[np.argmax(normal_dist)];
+                source_id[i] = self.source_wire_id[ori_face_idx];
+        self.source_wire_id = source_id;
 
     def _clip_with_bbox(self):
         assert(self.original_wire_network.dim == 3);
@@ -51,7 +136,7 @@ class PeriodicWireInflator(WireInflator):
         self.mesh_vertices = csg_engine.get_vertices();
         self.mesh_faces    = csg_engine.get_faces();
 
-        self._clean_up();
+        self._clean_up(False);
         self._post_clip_processing(0);
         self._post_clip_processing(1);
         self._post_clip_processing(2);
@@ -93,11 +178,11 @@ class PeriodicWireInflator(WireInflator):
 
     def _enforce_periodic_connectivity(self):
         self._enforce_single_axis_periodicity(0);
-        self._clean_up();
+        self._clean_up(False);
         self._enforce_single_axis_periodicity(1);
-        self._clean_up();
+        self._clean_up(False);
         self._enforce_single_axis_periodicity(2);
-        self._clean_up();
+        self._clean_up(False);
 
     def _enforce_single_axis_periodicity(self, axis):
         tol = 1e-3;
@@ -219,7 +304,7 @@ class PeriodicWireInflator(WireInflator):
                     self.mesh_vertices[edge[1]] = self.mesh_vertices[edge[0]];
                     matched[edge[1]] = True;
 
-        self._clean_up();
+        self._clean_up(False);
 
     def _extract_face_boundary(self, vertices, faces):
         mesh = self._form_mesh(vertices, faces);
