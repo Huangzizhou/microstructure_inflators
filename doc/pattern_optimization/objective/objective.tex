@@ -284,6 +284,14 @@ $x$ face. However, the weighting by $4$ in (\ref{eqn:JS4}) seems excessive--it
 also accounts for the fact that strain is measured redundantly, e.g., by both
 $\epsilon_{xy}$ and $\epsilon_{xy}$.
 
+% Furthermore, since the rank four tensors act on the space of symmetric tensors,
+% there is actually a whole space of tensors representing the same linear map but
+% having nonzero Frobenius norm distance from each other. Thus, it makes sense to
+% consider the minimum Frobenius norm distance over all equivalent mappings.
+% NOTE: we are using the symmetric rank four tensors, which is unique for each
+% map, so the above doesn't really apply--we probably are already considering
+% the minimal distance.
+
 This distinction may turn out to be unimportant; the following objectives
 propose different weightings from those in (\ref{eqn:JS}) anyway.
 

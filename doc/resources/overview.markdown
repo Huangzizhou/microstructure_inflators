@@ -17,14 +17,14 @@ Material Property Optimization
 ------------------------------
 
 [Material Gradient Derivation](https://dl.dropboxusercontent.com/u/29899857/material_opt.pdf)  
-Local/Global optimization
+Local/Global optimization: TODO
 
 Pattern Optimization
 --------------------
 
 [Objective Functions For Pattern Optimization](../pattern_optimization/objective/objective.pdf)  
 Material Property to Pattern Parameter Lookup: TODO  
-Shape Derivatives: TODO
+[Shape Derivative](../pattern_optimization/shape_derivative/shape_derivative.pdf)
 
 Wire Inflator
 -------------
@@ -39,3 +39,7 @@ Double star: [symmetry orbits](https://dl.dropboxusercontent.com/u/29899857/star
 Implementation
 --------------
 [Tensor Flattening](external_writeups/TensorFlattening.pdf) (Describes flattening conventions used in all of Julian's code)  
+
+Old Writeups
+------------
+[Low Dimensional Shape Optimization](external_writeups/shape_opt.pdf)
