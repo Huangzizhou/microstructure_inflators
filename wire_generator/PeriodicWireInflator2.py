@@ -204,7 +204,7 @@ class PeriodicWireInflator(WireInflator):
         f_on_max_boundary = np.all(v_on_max_boundary[faces], axis=1);
 
         added_vertices, added_faces = self._retriangulate(
-                vertices, faces[f_on_min_boundary], axis_dir);
+                vertices, faces[f_on_min_boundary], axis_dir * -1);
 
         f_on_boundary = np.logical_or(f_on_min_boundary, f_on_max_boundary);
         faces = faces[np.logical_not(f_on_boundary)];
