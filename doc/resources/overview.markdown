@@ -24,7 +24,7 @@ Pattern Optimization
 
 [Objective Functions For Pattern Optimization](../pattern_optimization/objective/objective.pdf)  
 Material Property to Pattern Parameter Lookup: TODO  
-[Shape Derivative](../pattern_optimization/shape_derivative/shape_derivative.pdf)
+[Shape Derivative for Functions of Homogenized Elasticity Tensors](../pattern_optimization/shape_derivative/shape_derivative.pdf)
 
 Wire Inflator
 -------------
