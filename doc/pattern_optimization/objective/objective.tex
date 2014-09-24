@@ -74,12 +74,15 @@ the global displacement-fitting objective,
 \begin{equation}
 \begin{aligned}
 \label{eqn:main_objective}
-J_\text{u} = \int_{\partial \Omega} \norm{u - u^*}^2 \dA \quad \text{s.t.} \\
+J_\text{u} = \int_{\Gamma} \norm{P(u - u^*)}^2 \dA \quad \text{s.t.} \\
 -\nabla \cdot [C(x) : \epsilon(u)] = f \text{ in } \Omega \\
 \hat{n} \cdot [C(x) : \epsilon(u)] = g \text{ on } \Omega,
 \end{aligned}
 \end{equation}
-that is used for material optimization
+that is used for material optimization. Here $\Gamma \subseteq \partial \Omega$
+is the portion of the boundary where target displacements $u^*$ are specified,
+and $P$ is a matrix that projects out unspecified components of $u^*$ (e.g., if
+we only want to specify the $y$ coordinate of the target displacement).
 
 Throughout this discussion, it is important to keep in mind that this is the
 over-all goal of our pipeline: to achieve the target displacements, $u^*$.
@@ -195,14 +198,15 @@ $$
     J_S = ||S - S^*||^2_F.
 $$
 
-In the 2D orthotropic case, this can be written as:
+In the 2D orthotropic case using the flattening conventions from the tensor
+flattening writeup, this can be written as:
 \begin{equation}
     \label{eqn:JS}
 J_S(E_x, E_y, \nu_{yx}, \mu) = 
 \left(\frac{1}{E_x} - \frac{1}{E_x^*}\right)^2 +
 \left(\frac{1}{E_y} - \frac{1}{E_y^*}\right)^2 +
 2 \left(\frac{\nu_{yx}}{E_y} - \frac{\nu_{yx}^*}{E_y^*}\right)^2 +
-\left(\frac{1}{\mu} - \frac{1}{\mu^*}\right)^2
+\frac{1}{16} \left(\frac{1}{\mu} - \frac{1}{\mu^*}\right)^2
 \end{equation}
 Each term has a nice physical interpretation: consider two squares with edge
 length $l$, one filled with material $(E_x, E_y, \nu_{yx}, \mu)$ and the other
@@ -256,10 +260,11 @@ of the top whose squared difference is measured by the fourth term in (\ref{eqn:
 
 Thus, minimizing $J_S$ can be viewed as a multi-objective optimization---trying
 to simultaneously fit five 1N displacements---that has been ``linearly
-scalarized'' with equal weights (the third term in (\ref{eqn:JS}) actually
+scalarized'' with particular weights (the third term in (\ref{eqn:JS}) actually
 penalizes two different displacement quantities that equal). This scalarization
 is guaranteed to give us a Pareto optimal solution to the multi-objective
-problem, but not necessarily the Pareto optimum we want. Ideally, we would
+problem, but not necessarily the Pareto optimum we want. For example, the shear
+term is probably weighted much less than it should be. Ideally we would
 choose weights based on how sensitive the over-all objective
 (\ref{eqn:main_objective}) is to an error in each of the sub-objectives.
 
@@ -267,33 +272,42 @@ choose weights based on how sensitive the over-all objective
 There is a question whether we should be using the matrix Frobenius norm on the
 flattened tensors, as done in (\ref{eqn:JS}), or the full rank four tensor
 Frobenius norm. As shown in the Tensor Flattening writeup, the difference is in
-the scaling of the shear term. The rank 4 tensor version is:
+the scaling of the shear term only. The symmetric rank 4 tensor version is:
 \begin{equation}
     \label{eqn:JS4}
 J_{S4}(E_x, E_y, \nu_{yx}, \mu) = 
 \left(\frac{1}{E_x} - \frac{1}{E_x^*}\right)^2 +
 \left(\frac{1}{E_y} - \frac{1}{E_y^*}\right)^2 +
 2 \left(\frac{\nu_{yx}}{E_y} - \frac{\nu_{yx}^*}{E_y^*}\right)^2 +
-4 \left(\frac{1}{\mu} - \frac{1}{\mu^*}\right)^2
+\frac{1}{4} \left(\frac{1}{\mu} - \frac{1}{\mu^*}\right)^2
 \end{equation}
 
-It does make some physical sense to weight the shear term more heavily to
-account for the fact that there are two independent shearing scenarios for each
-coordinate plane: applying $x$ traction on the $y$ face and $y$ traction on the
-$x$ face. However, the weighting by $4$ in (\ref{eqn:JS4}) seems excessive--it
-also accounts for the fact that strain is measured redundantly, e.g., by both
-$\epsilon_{xy}$ and $\epsilon_{xy}$.
+But since the rank 4 tensor implementing the strain to stress mapping is not
+unique, this is not the only possible Frobenius norm. Furthermore, we could have
+flattened in a different way when formulating (\ref{eqn:JS}). For example, we
+could instead use the matrix mapping flattened stress to engineering strain
+(this matrix is no longer symmetric in general, and its entries are no longer in
+direct correspondence with the compliance tensor entries):
+$$
+S' = \begin{pmatrix}
+    \frac{1}{E_x} & -\frac{\nu_{yx}}{E_y} & 0 \\
+    -\frac{\nu_{yx}}{E_y} & \frac{1}{E_y}  & 0 \\
+    0 & 0 & \frac{1}{\mu}
+\end{pmatrix},
+$$
+which would give the objective
+\begin{equation}
+    \label{eqn:JS'}
+J_{S'}(E_x, E_y, \nu_{yx}, \mu) = 
+\left(\frac{1}{E_x} - \frac{1}{E_x^*}\right)^2 +
+\left(\frac{1}{E_y} - \frac{1}{E_y^*}\right)^2 +
+2 \left(\frac{\nu_{yx}}{E_y} - \frac{\nu_{yx}^*}{E_y^*}\right)^2 +
+\left(\frac{1}{\mu} - \frac{1}{\mu^*}\right)^2.
+\end{equation}
 
-% Furthermore, since the rank four tensors act on the space of symmetric tensors,
-% there is actually a whole space of tensors representing the same linear map but
-% having nonzero Frobenius norm distance from each other. Thus, it makes sense to
-% consider the minimum Frobenius norm distance over all equivalent mappings.
-% NOTE: we are using the symmetric rank four tensors, which is unique for each
-% map, so the above doesn't really apply--we probably are already considering
-% the minimal distance.
-
-This distinction may turn out to be unimportant; the following objectives
-propose different weightings from those in (\ref{eqn:JS}) anyway.
+Carefully choosing one from the many possible ``Frobenius norms'' may not be
+worthwhile; the following objectives propose different weightings from those in
+(\ref{eqn:JS}) anyway.
 
 \subsection{Relative displacements objective function}
 We can weight the terms in another way that makes the quantities dimensionless

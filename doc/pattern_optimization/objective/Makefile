@@ -3,6 +3,9 @@ SOURCES=
 IMAGES=
 all: $(NAME).pdf
 
+force:
+	pdflatex -shell-escape $(NAME)
+
 view: $(NAME).pdf
 	skim-load $(NAME).pdf
 
