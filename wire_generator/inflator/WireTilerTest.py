@@ -1,11 +1,11 @@
 import unittest
 import numpy as np
-from WireNetwork import WireNetwork
-from WirePattern import WirePattern
+from core.WireNetwork import WireNetwork
+from WireTiler import WireTiler
 
 import PyMesh
 
-class WirePatternTest(unittest.TestCase):
+class WireTilerTest(unittest.TestCase):
     def setUp(self):
         self.vertices = [
                 [0.0, 0.0, 0.0],
@@ -25,7 +25,7 @@ class WirePatternTest(unittest.TestCase):
         return mesh;
 
     def test_creation(self):
-        pattern = WirePattern();
+        pattern = WireTiler();
         pattern.set_single_cell(self.vertices, self.edges);
         bbox_max = np.amax(self.vertices, axis=0);
         bbox_min = np.amin(self.vertices, axis=0);
@@ -39,7 +39,7 @@ class WirePatternTest(unittest.TestCase):
                 pattern.pattern_bbox_size.tolist());
 
     def test_tile(self):
-        pattern = WirePattern();
+        pattern = WireTiler();
         pattern.set_single_cell(self.vertices, self.edges);
         pattern.tile([2, 2, 2]);
         bbox_min = np.amin(pattern.wire_vertices, axis=0);
@@ -48,7 +48,7 @@ class WirePatternTest(unittest.TestCase):
         self.assertListEqual([ 1.0,  1.0,  1.0], bbox_max.tolist());
 
     def test_remove_duplicates(self):
-        pattern = WirePattern();
+        pattern = WireTiler();
         pattern.set_single_cell(self.vertices, self.edges);
         pattern.tile([2, 2, 2]);
         self.assertEqual(20, len(pattern.wire_vertices));
@@ -59,7 +59,7 @@ class WirePatternTest(unittest.TestCase):
         cell.attributes.add("symmetry_vertex_orbit");
         cell_orbits = cell.attributes["symmetry_vertex_orbit"];
 
-        pattern = WirePattern();
+        pattern = WireTiler();
         pattern.set_single_cell_from_wire_network(cell);
         pattern.tile([2, 2, 2]);
         tiled_wires = pattern.wire_network;
@@ -77,7 +77,7 @@ class WirePatternTest(unittest.TestCase):
         cell.load_from_file("examples/cube.wire");
         mesh = self.load_mesh("examples/bar.msh");
 
-        pattern = WirePattern();
+        pattern = WireTiler();
         pattern.set_single_cell_from_wire_network(cell);
         pattern.tile_hex_mesh(mesh);
 

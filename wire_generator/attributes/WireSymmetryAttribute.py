@@ -1,7 +1,6 @@
 import numpy as np
 from WireAttribute import WireAttribute
 
-import PyMeshSetting
 import PyMesh
 
 class WireSymmetryAttribute(WireAttribute):

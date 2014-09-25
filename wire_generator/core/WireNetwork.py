@@ -3,8 +3,8 @@ import numpy as np
 from numpy.linalg import norm
 import os.path
 
-from WireReader import WireReader
-from WireAttributes import WireAttributes
+from io.WireReader import WireReader
+from attributes.WireAttributes import WireAttributes
 
 class WireNetwork(object):
 
@@ -51,9 +51,17 @@ class WireNetwork(object):
                 with open(orbit_file) as fin:
                     orbit_config = json.load(fin);
                     if "vertex_orbits" in orbit_config:
-                        self.attributes["symmetry_vertex_orbit"] = orbit_config["vertex_orbits"];
+                        vertex_orbits = orbit_config["vertex_orbits"];
+                        orbit_ids = np.zeros(self.num_vertices);
+                        for i,v_indices in enumerate(vertex_orbits):
+                            orbit_ids[v_indices] = i;
+                        self.attributes["symmetry_vertex_orbit"] = orbit_ids;
                     if "edge_orbits" in orbit_config:
-                        self.attributes["symmetry_edge_orbit"] = orbit_config["edge_orbits"];
+                        edge_orbits = orbit_config["edge_orbits"];
+                        orbit_ids = np.zeros(self.num_edges);
+                        for i, e_indices in enumerate(edge_orbits):
+                            orbit_ids[e_indices] = i;
+                        self.attributes["symmetry_edge_orbit"] = orbit_ids;
                 return;
 
         self.attributes.add("symmetry_vertex_orbit");

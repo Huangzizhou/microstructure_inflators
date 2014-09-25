@@ -1,4 +1,3 @@
-import PyMeshSetting
 import PyMeshUtils
 
 class Subdivision:

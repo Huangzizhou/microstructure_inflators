@@ -3,14 +3,14 @@ import copy
 import os
 import sys
 
-import PyMeshSetting
 import PyMesh
 import PyMeshUtils
 
-from WireNetwork import WireNetwork
-from timethis import timethis
+from core.WireNetwork import WireNetwork
+from ParameterHandler import ParameterHandler
+from utils.timethis import timethis
 
-class WirePattern(object):
+class WireTiler(object):
     def __init__(self):
         self.x_tile_dir = np.array([1.0, 0.0, 0.0]);
         self.y_tile_dir = np.array([0.0, 1.0, 0.0]);
@@ -28,25 +28,28 @@ class WirePattern(object):
         self.pattern_bbox_max = np.amax(self.pattern.vertices, axis=0);
         self.pattern_bbox_size = self.pattern_bbox_max - self.pattern_bbox_min;
 
-    def tile_once(self, base_idx, wire_network, modifiers, **kwargs):
-        for modifier in modifiers:
-            modifier.modify(wire_network, **kwargs);
+    def convert_parameter_to_attributes(self, wire_network, parameters, **kwargs):
+        handler = ParameterHandler(wire_network);
+        handler.convert_to_attributes(parameters, **kwargs);
 
+    def tile_once(self, base_idx, wire_network, parameters, **kwargs):
+        if len(parameters) > 0:
+            self.convert_parameter_to_attributes(wire_network, parameters, **kwargs);
         self.wire_vertices.append(wire_network.vertices);
         self.wire_edges.append(wire_network.edges + base_idx);
         for key,val in wire_network.attributes.iteritems():
             self.wire_attributes[key] = self.wire_attributes.get(key, []) + list(val);
 
     @timethis
-    def tile(self, reps, modifiers=[]):
+    def tile(self, reps, parameters=[]):
         self.wire_vertices = [];
         self.wire_edges = [];
         self.wire_attributes = {};
 
         if self.pattern.dim == 2:
-            self.tile_2D_box(reps, modifiers);
+            self.tile_2D_box(reps, parameters);
         elif self.pattern.dim == 3:
-            self.tile_3D_box(reps, modifiers);
+            self.tile_3D_box(reps, parameters);
         else:
             raise NotImplementedError(
                     "Tiling {}D wire network is not supported".format(
@@ -60,7 +63,7 @@ class WirePattern(object):
         self.__apply_vertex_offset();
 
     @timethis
-    def tile_3D_box(self, reps, modifiers):
+    def tile_3D_box(self, reps, parameters):
         base_idx = 0;
         for i in range(reps[0]):
             x_inc = self.x_tile_dir * self.pattern_bbox_size[0] * i;
@@ -71,11 +74,11 @@ class WirePattern(object):
 
                     pattern = copy.deepcopy(self.pattern);
                     pattern.vertices += x_inc + y_inc + z_inc;
-                    self.tile_once(base_idx, pattern, modifiers);
+                    self.tile_once(base_idx, pattern, parameters);
                     base_idx += pattern.num_vertices;
 
     @timethis
-    def tile_2D_box(self, reps, modifiers):
+    def tile_2D_box(self, reps, parameters):
         base_idx = 0;
         for i in range(reps[0]):
             x_inc = self.x_tile_dir * self.pattern_bbox_size[0] * i;
@@ -84,11 +87,11 @@ class WirePattern(object):
 
                 pattern = copy.deepcopy(self.pattern);
                 pattern.vertices += (x_inc + y_inc);
-                self.tile_once(base_idx, pattern, modifiers);
+                self.tile_once(base_idx, pattern, parameters);
                 base_idx += pattern.num_vertices;
 
     @timethis
-    def tile_hex_mesh(self, mesh, modifiers=[]):
+    def tile_hex_mesh(self, mesh, parameters=[]):
         dim = mesh.get_dim();
         if not mesh.has_attribute("voxel_centroid"):
             mesh.add_attribute("voxel_centroid");
@@ -116,7 +119,7 @@ class WirePattern(object):
             pattern = copy.deepcopy(self.pattern);
             pattern.vertices = self.trilinear_interpolate(
                     pattern.vertices, voxel_vertices);
-            self.tile_once(base_idx, pattern, modifiers, **attr_dict);
+            self.tile_once(base_idx, pattern, parameters, **attr_dict);
             base_idx += pattern.num_vertices;
 
         self.wire_vertices = np.vstack(self.wire_vertices);
@@ -210,12 +213,6 @@ class WirePattern(object):
                         i*per_edge_size:(i+1)*per_edge_size]);
                 attr_val = [np.mean(val, axis=0) for val in attr_val];
                 self.wire_attributes[key] = np.array(attr_val);
-
-
-                #attr_val = np.zeros(len(self.wire_edges));
-                #for i,ei in enumerate(edge_index_map):
-                #    attr_val[ei] = val[i];
-                #self.wire_attributes[key] = attr_val;
 
     @timethis
     def __center_at_origin(self):

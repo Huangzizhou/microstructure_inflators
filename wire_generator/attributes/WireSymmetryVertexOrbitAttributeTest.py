@@ -1,5 +1,5 @@
 import unittest
-from WireNetwork import WireNetwork
+from core.WireNetwork import WireNetwork
 from WireSymmetryVertexOrbitAttribute import WireSymmetryVertexOrbitAttribute
 
 class WireSymmetryVertexOrbitAttributeTest(unittest.TestCase):

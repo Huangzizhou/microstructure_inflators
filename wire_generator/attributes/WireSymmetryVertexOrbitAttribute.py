@@ -1,7 +1,6 @@
 import numpy as np
 from WireSymmetryAttribute import WireSymmetryAttribute
 
-import PyMeshSetting
 import PyMesh
 
 class WireSymmetryVertexOrbitAttribute(WireSymmetryAttribute):

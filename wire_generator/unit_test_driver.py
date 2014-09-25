@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 import unittest
-from BoxIntersectionTest import BoxIntersectionTest
-from TriangulationTest import TriangulationTest
-#from PeriodicWireInflatorTest import PeriodicWireInflatorTest
-from WireNetworkTest import WireNetworkTest
-from WireInflatorTest import WireInflatorTest
-from WirePatternTest import WirePatternTest
-from WireSymmetryVertexOrbitAttributeTest import WireSymmetryVertexOrbitAttributeTest
-from WireSymmetryEdgeOrbitAttributeTest import WireSymmetryEdgeOrbitAttributeTest
-from WireThicknessModifierTest import WireThicknessModifierTest
-from WireVertexOffsetModifierTest import WireVertexOffsetModifierTest
+from attributes.WireSymmetryVertexOrbitAttributeTest import WireSymmetryVertexOrbitAttributeTest
+from attributes.WireSymmetryEdgeOrbitAttributeTest import WireSymmetryEdgeOrbitAttributeTest
+from core.WireNetworkTest import WireNetworkTest
+from inflator.ParameterHandlerTest import ParameterHandlerTest
+from inflator.WireInflatorTest import WireInflatorTest
+from inflator.WireTilerTest import WireTilerTest
+from parameter.PatternParameterTest import PatternParameterTest
+from parameter.ThicknessParameterTest import ThicknessParameterTest
+from parameter.VertexThicknessParameterTest import VertexThicknessParameterTest
+from parameter.EdgeThicknessParameterTest import EdgeThicknessParameterTest
+from parameter.VertexOffsetParameterTest import VertexOffsetParameterTest
+from parameter.ParameterFactoryTest import ParameterFactoryTest
+from utils.TriangulationTest import TriangulationTest
 
 if __name__ == "__main__":
     unittest.main();

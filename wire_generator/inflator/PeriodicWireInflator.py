@@ -3,8 +3,8 @@ from numpy.linalg import norm
 from math import ceil,log
 
 from WireInflator import WireInflator
-from WirePattern import WirePattern
-from Triangulation import Triangulation
+from WireTiler import WireTiler
+from utils.Triangulation import Triangulation
 
 import PyCSG
 import PyMeshUtils
@@ -20,7 +20,7 @@ class PeriodicWireInflator(WireInflator):
         self.wire_network = self.phantom_wire_network;
 
     def __generate_phantom_wire_network(self):
-        wire_pattern = WirePattern();
+        wire_pattern = WireTiler();
         wire_pattern.set_single_cell_from_wire_network(self.wire_network);
         wire_pattern.tile([3, 3, 3]);
         phantom_wire_network = wire_pattern.wire_network;

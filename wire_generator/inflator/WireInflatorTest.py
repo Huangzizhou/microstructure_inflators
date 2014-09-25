@@ -1,5 +1,5 @@
 import unittest
-from WireNetwork import WireNetwork
+from core.WireNetwork import WireNetwork
 from WireInflator import WireInflator
 
 import numpy as np

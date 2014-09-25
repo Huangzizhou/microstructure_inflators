@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 from WireNetwork import WireNetwork
+from utils.find_file import find_file
 from math import sqrt
 
 class WireNetworkTest(unittest.TestCase):
@@ -8,6 +9,7 @@ class WireNetworkTest(unittest.TestCase):
         self.load_wire("examples/example.wire");
 
     def load_wire(self, wire_file):
+        wire_file = find_file(wire_file);
         self.wire_frame = WireNetwork();
         self.wire_frame.load_from_file(wire_file);
 
@@ -41,3 +43,12 @@ class WireNetworkTest(unittest.TestCase):
 
         bbox_center = self.wire_frame.bbox_center;
         self.assertListEqual([0.5, 0.5], bbox_center.tolist());
+
+    def test_symmetry_orbits(self):
+        self.load_wire("patterns/3D/brick5.wire");
+        self.wire_frame.compute_symmetry_orbits();
+        vertex_orbits = self.wire_frame.attributes["symmetry_vertex_orbit"];
+        edge_orbits = self.wire_frame.attributes["symmetry_edge_orbit"];
+
+        self.assertEqual(len(vertex_orbits), self.wire_frame.num_vertices);
+        self.assertEqual(len(edge_orbits), self.wire_frame.num_edges);

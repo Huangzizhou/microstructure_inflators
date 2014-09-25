@@ -5,16 +5,14 @@ import json
 import numpy as np
 import os.path
 
-import PyMeshSetting
+from core.WireNetwork import WireNetwork
+from inflator.WireTiler import WireTiler
+from inflator.WireInflator import WireInflator
+from inflator.PeriodicWireInflator import PeriodicWireInflator
+from parameter.ParameterFactory import ParameterFactory
+from utils.find_file import find_file
+from utils.timethis import timethis
 import PyMesh
-
-from WireNetwork import WireNetwork
-from WirePattern import WirePattern
-from WireInflator import WireInflator
-from WireModifierFactory import WireModifierFactory
-from PeriodicWireInflator2 import PeriodicWireInflator
-from find_file import find_file
-from timethis import timethis
 
 def parse_config_file(config_file):
     """ syntax:
@@ -25,9 +23,6 @@ def parse_config_file(config_file):
         "bbox_min": [min_x, min_y, min_z],
         "bbox_max": [max_x, max_y, max_z],
         "repeats": [x_reps, y_reps, z_reps],
-        "x_tile_dir": [x, y, z],
-        "y_tile_dir": [x, y, z],
-        "z_tile_dir": [x, y, z],
         "hex_mesh": hex_mesh,
         "no_tile": bool,
         "trim": bool,
@@ -45,35 +40,28 @@ def parse_config_file(config_file):
             config[field_name] = find_file(field, config_dir);
 
     convert_to_abs_path("wire_network");
-    convert_to_abs_path("output");
     if "hex_mesh" in config:
         convert_to_abs_path("hex_mesh");
     if "modifier_file" in config:
         convert_to_abs_path("modifier_file");
     return config;
 
-def set_uniform_thickness(wire_network, thickness):
-    thickness = np.ones(wire_network.num_vertices) * thickness;
-    wire_network.attributes.add("vertex_thickness", thickness);
-
-def load_modifiers(modifier_file):
-    if modifier_file is None:
-        return [];
-
-    modifiers = WireModifierFactory.create_from_file(str(modifier_file));
-    return modifiers;
+def load_parameters(wire_network, default_thickness, modifier_file):
+    factory = ParameterFactory(wire_network, default_thickness);
+    factory.create_parameters_from_file(modifier_file);
+    return factory.parameters;
 
 def tile(config):
     network = load_wire(str(config["wire_network"]));
-    set_uniform_thickness(network, config["thickness"]);
-    modifiers = load_modifiers(config.get("modifier_file", None));
+    parameters = load_parameters(network,
+            config["thickness"], config.get("modifier_file"));
 
     if config.get("no_tile", False):
         tiled_network = network;
     elif "hex_mesh" in config:
-        tiled_network = tile_hex(config, network, modifiers);
+        tiled_network = tile_hex(config, network, parameters);
     else:
-        tiled_network = tile_box(config, network, modifiers);
+        tiled_network = tile_box(config, network, parameters);
 
     if config.get("trim", False):
         tiled_network.trim();
@@ -90,20 +78,8 @@ def load_mesh(mesh_file):
 def load_wire(wire_file):
     network = WireNetwork();
     network.load_from_file(wire_file);
+    network.compute_symmetry_orbits();
     return network;
-
-def compute_symmetry_orbits(wire_network):
-    """ Assign symmetry orbit index to each vertex and edge.
-    """
-    wire_network.compute_symmetry_orbits();
-    vertex_orbit_indices = np.ones(len(wire_network.vertices)) * -1;
-    edge_orbit_indices = np.ones(len(wire_network.edges)) * -1;
-    for i,orbit in enumerate(wire_network.attributes["symmetry_vertex_orbit"]):
-        vertex_orbit_indices[orbit] = i;
-    for i,orbit in enumerate(wire_network.attributes["symmetry_edge_orbit"]):
-        edge_orbit_indices[orbit] = i;
-    wire_network.attributes["vertex_orbit_index"] = vertex_orbit_indices;
-    wire_network.attributes["edge_orbit_index"] = edge_orbit_indices;
 
 def inflate_and_save(tiled_network, periodic, output_file):
     if not periodic:
@@ -114,27 +90,24 @@ def inflate_and_save(tiled_network, periodic, output_file):
     inflator.inflate();
     inflator.save(output_file);
 
-def tile_hex(config, network, modifiers):
-    compute_symmetry_orbits(network);
-    pattern = WirePattern();
-    pattern.set_single_cell_from_wire_network(network);
+def tile_hex(config, network, parameters):
+    tiler = WireTiler();
+    tiler.set_single_cell_from_wire_network(network);
     hex_mesh = load_mesh(str(config["hex_mesh"]));
-    pattern.tile_hex_mesh(hex_mesh, modifiers);
-
-    tiled_network = pattern.wire_network;
+    tiler.tile_hex_mesh(hex_mesh, parameters);
+    tiled_network = tiler.wire_network;
     return tiled_network;
 
-def tile_box(config, network, modifiers):
+def tile_box(config, network, parameters):
     dim = network.dim;
-    compute_symmetry_orbits(network);
-    pattern = WirePattern();
-    pattern.set_single_cell_from_wire_network(network);
-    pattern.x_tile_dir = np.array(config.get("x_tile_dir", [1.0, 0.0, 0.0]))[:dim];
-    pattern.y_tile_dir = np.array(config.get("y_tile_dir", [0.0, 1.0, 0.0]))[:dim];
-    pattern.z_tile_dir = np.array(config.get("z_tile_dir", [0.0, 0.0, 1.0]))[:dim];
-    pattern.tile(config["repeats"][:dim], modifiers);
+    tiler = WireTiler();
+    tiler.set_single_cell_from_wire_network(network);
+    tiler.x_tile_dir = np.array(config.get("x_tile_dir", [1.0, 0.0, 0.0]))[:dim];
+    tiler.y_tile_dir = np.array(config.get("y_tile_dir", [0.0, 1.0, 0.0]))[:dim];
+    tiler.z_tile_dir = np.array(config.get("z_tile_dir", [0.0, 0.0, 1.0]))[:dim];
+    tiler.tile(config["repeats"][:dim], parameters);
 
-    tiled_network = pattern.wire_network;
+    tiled_network = tiler.wire_network;
 
     bbox_min, bbox_max = tiled_network.bbox;
     bbox_size = bbox_max - bbox_min;
@@ -152,7 +125,7 @@ def tile_box(config, network, modifiers):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tile a given pattern");
-    parser.add_argument("--output", "-o", required=False);
+    parser.add_argument("--output", "-o", required=True);
     parser.add_argument("--timing", help="display running times",
             action="store_true");
     parser.add_argument("config_file", help="pattern configuration file.");

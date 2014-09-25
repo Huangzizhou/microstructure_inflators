@@ -6,11 +6,10 @@ from numpy.linalg import norm
 from math import pi, sqrt
 from scipy.spatial import ConvexHull
 
-from WireNetwork import WireNetwork
-from Subdivision import Subdivision
-from timethis import timethis
+from core.WireNetwork import WireNetwork
+from utils.Subdivision import Subdivision
+from utils.timethis import timethis
 
-import PyMeshSetting
 import PyMesh
 import PyMeshUtils
 
@@ -44,8 +43,8 @@ class WireInflator(object):
         mesh.add_attribute("source_wire_id");
         mesh.set_attribute("source_wire_id", self.source_wire_id);
 
-        if "vertex_orbit_index" in self.wire_network.attributes:
-            indices = self.wire_network.attributes["vertex_orbit_index"].ravel();
+        if "symmetry_vertex_orbit" in self.wire_network.attributes:
+            indices = self.wire_network.attributes["symmetry_vertex_orbit"].ravel();
             source_id_mask = self.source_wire_id > 0;
             source_index = np.zeros_like(self.source_wire_id);
             source_index[np.logical_not(source_id_mask)] = -1;
@@ -54,8 +53,8 @@ class WireInflator(object):
             mesh.add_attribute("vertex_orbit");
             mesh.set_attribute("vertex_orbit", source_index);
 
-        if "edge_orbit_index" in self.wire_network.attributes:
-            indices = self.wire_network.attributes["edge_orbit_index"].ravel();
+        if "symmetry_edge_orbit" in self.wire_network.attributes:
+            indices = self.wire_network.attributes["symmetry_edge_orbit"].ravel();
             source_id_mask = self.source_wire_id < 0;
             source_index = np.zeros_like(self.source_wire_id);
             source_index[np.logical_not(source_id_mask)] = -1;
@@ -68,13 +67,15 @@ class WireInflator(object):
 
     @timethis
     def save(self, mesh_file):
+        basename, ext = os.path.splitext(mesh_file);
         mesh = self.mesh;
         writer = PyMesh.MeshWriter.create_writer(mesh_file);
-        writer.with_attribute("source_wire_id");
-        if mesh.has_attribute("vertex_orbit"):
-            writer.with_attribute("vertex_orbit");
-        if mesh.has_attribute("edge_orbit"):
-            writer.with_attribute("edge_orbit");
+        if ext in (".msh", ".ply"):
+            writer.with_attribute("source_wire_id");
+            if mesh.has_attribute("vertex_orbit"):
+                writer.with_attribute("vertex_orbit");
+            if mesh.has_attribute("edge_orbit"):
+                writer.with_attribute("edge_orbit");
 
         writer.write_mesh(mesh);
 
