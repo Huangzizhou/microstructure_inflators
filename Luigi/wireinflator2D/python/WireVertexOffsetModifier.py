@@ -12,7 +12,6 @@ class WireVertexOffsetModifier(WireModifier):
         """ Syntax:
         {
             "type": "vertex_orbit",
-            "orbit_file": "filename",
             "effective_orbits": [i0, i1, ...],
             "offset_percentages": [[#, #, #], [0.0, #, 0.0], ...,\
                     ["{x}", "{y}", 0.0]]

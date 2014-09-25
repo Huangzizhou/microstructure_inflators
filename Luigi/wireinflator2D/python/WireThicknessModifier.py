@@ -11,7 +11,6 @@ class WireThicknessModifier(WireModifier):
         """ Syntax:
         {
             "type": "vertex_orbit" or "edge_orbit",
-            "orbit_file": "filename",
             "effective_orbits": [i0, i1, ...],
             "thickness": [#, #, ..., "{x} + {y}", ...],
             "default": float 
