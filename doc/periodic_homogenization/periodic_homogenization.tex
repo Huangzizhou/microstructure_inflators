@@ -84,7 +84,7 @@
             throughout $\Omega$ to get a porous, microstructured object
         $\Omega^\epsilon$. As $\epsilon \to 0$, $\Omega^\epsilon$ behaves
         identically to a solid version of $\Omega$ filled with
-        ``homogenized'' material $E^H$.}
+        ``homogenized'' material $C^H$.}
         \label{fig:homogenization}
     \end{figure}
 \section{Introduction}
@@ -95,7 +95,7 @@ effect of all these microscopic scale interactions using a constitutive
 relation, describing how much force is required to stretch an infinitesimal
 piece of the object in each possible way. This relationship is determined by the
 material of the object, which is formalized as the rank 4 ``elasticity'' (or
-``stiffness'') tensor field, $E_{ijkl}$.
+``stiffness'') tensor field, $C_{ijkl}$.
 
 But what if the object is porous or a fine-scale composite of
 multiple materials? Can we apply the same assumptions at a larger length scale
@@ -128,14 +128,14 @@ The prerequisite for solving such a problem is, of course, finding these
 material properties.
 
 \section{Periodic Homogenization}
-Our goal is to find the homogenized elasticity tensor $E^H_{ijkl}$,
+Our goal is to find the homogenized elasticity tensor $C^H_{ijkl}$,
 which tells us the effective properties of the microstructure when it is
 fabricated at a small enough scale. That is, if we fabricate a solid version of
-$\Omega$ filled with $E^H$, it will deform identically to $\Omega^\e$ for small
+$\Omega$ filled with $C^H$, it will deform identically to $\Omega^\e$ for small
 enough $\e$.
 
 A natural question to ask is: why not just spatially
-average $E_{ijkl}({\bf y})$ over the microstructure? But it is clear from the
+average $C_{ijkl}({\bf y})$ over the microstructure? But it is clear from the
 1D case why this would give the wrong answer: consider two equal-length springs
 connected in series with very different spring constants $k_1 \ll k_2$. The
 spatial averaging approach is equivalent to saying that the effective spring
@@ -160,12 +160,12 @@ gets, the more repetitions of $\omega$ are fit into $\Omega$, and the closer we
 get to a homogeneous material (in theory).
 
 For our application, fabricating single-material porous objects rather
-than composites, we let the elasticity tensor take value $E^\text{base}$ inside
+than composites, we let the elasticity tensor take value $C^\text{base}$ inside
 $\Omega^\e$ and $0$ outside. We can describe this mathematically by introducing
 the rapidly changing microscopic variable ${\bf y} = {\bf x} / \epsilon$. Then,
 for ${\bf y} \in Y$, we define
 $$
-E_{ijkl} ({\bf y}) = \begin{cases} E_{ijkl}^\text{base} & \text{if } {\bf y} \in \omega \\
+C_{ijkl} ({\bf y}) = \begin{cases} C_{ijkl}^\text{base} & \text{if } {\bf y} \in \omega \\
                                  0 & \text{ otherwise,} \end{cases},
 $$
 and extend this function throughout $\Omega$ by Y-periodicity.
@@ -176,8 +176,8 @@ microstructure under particular loads. This is done by solving an
 elliptic force-balace PDE for displacements, ${\bf u}$, called the elastostatic
 equation:
 \begin{align*}
-    -\nabla \cdot [E : e({\bf u})] = {\bf f} \quad &\text{in } \Omega \\
-    {\bf \hat{n}} \cdot [E : e({\bf u})] = {\bf \tau} \quad &\text{on } \Gamma_N \numberthis \label{eqn:elastostatic} \\
+    -\nabla \cdot [C : e({\bf u})] = {\bf f} \quad &\text{in } \Omega \\
+    {\bf \hat{n}} \cdot [C : e({\bf u})] = {\bf \tau} \quad &\text{on } \Gamma_N \numberthis \label{eqn:elastostatic} \\
     {\bf u} = {\bf u}_D \quad &\text{on } \Gamma_D
 \end{align*}
  
@@ -227,7 +227,7 @@ respectively, the force balance equation becomes, by linearity,
 
 $$
 -\sum_{p = 0}^\infty \e^p \left(\nabla_{\bf x} + \frac{1}{\e} \nabla_{\bf y}\right)
-    \cdot \left[E({\bf y}) : \left(e_{\bf x}({\bf u}_p) + \frac{1}{\e} e_{\bf y}({\bf u}_p) \right) \right]
+    \cdot \left[C({\bf y}) : \left(e_{\bf x}({\bf u}_p) + \frac{1}{\e} e_{\bf y}({\bf u}_p) \right) \right]
     = {\bf f}({\bf x}) \quad \text{in } \Omega,
 $$
 where $e_{\bf x}({\bf u}) = \frac{1}{2} \left( \nabla_{\bf x} {\bf u} + (\nabla_{\bf x}
@@ -235,21 +235,21 @@ where $e_{\bf x}({\bf u}) = \frac{1}{2} \left( \nabla_{\bf x} {\bf u} + (\nabla_
 \frac{1}{2} \left( \nabla_{\bf y} {\bf u} + (\nabla_{\bf y} {\bf u})^T \right)$
 is the microscopic strain operator. Expanding, we get:
 $$
--\sum_{p = 0}^\infty \e^p \nabla_{\bf x} \cdot [E({\bf y}) : e_{\bf x}({\bf u}_p)] +
-\e^{p - 1} \left(\nabla_{\bf x} \cdot [E({\bf y}) : e_{\bf y}({\bf u}_p)] +
-                 \nabla_{\bf y} \cdot [E({\bf y}) : e_{\bf x}({\bf u}_p)] \right) +
-                 \e^{p - 2} \nabla_{\bf y} \cdot [E({\bf y}) : e_{\bf y}({\bf u}_p)] = {\bf f}
+-\sum_{p = 0}^\infty \e^p \nabla_{\bf x} \cdot [C({\bf y}) : e_{\bf x}({\bf u}_p)] +
+\e^{p - 1} \left(\nabla_{\bf x} \cdot [C({\bf y}) : e_{\bf y}({\bf u}_p)] +
+                 \nabla_{\bf y} \cdot [C({\bf y}) : e_{\bf x}({\bf u}_p)] \right) +
+                 \e^{p - 2} \nabla_{\bf y} \cdot [C({\bf y}) : e_{\bf y}({\bf u}_p)] = {\bf f}
 $$
 This means the three lowest order equations in $\e$ are:
 \begin{align}
-    \e^{-2}:\quad  &-\nabla_{\bf y} \cdot [E({\bf y}) : e_{\bf y}({\bf u}_0)] = {\bf 0} \label{eqn:em2} \\
-    \e^{-1}:\quad  &-\nabla_{\bf y} \cdot [E({\bf y}) : e_{\bf y}({\bf u}_1)] - 
-                     \nabla_{\bf x} \cdot [E({\bf y}) : e_{\bf y}({\bf u}_0)] -
-                     \nabla_{\bf y} \cdot [E({\bf y}) : e_{\bf x}({\bf u}_0)] = {\bf 0} \label{eqn:em1} \\
-    \e^{ 0}:\quad  &-\nabla_{\bf y} \cdot [E({\bf y}) : e_{\bf y}({\bf u}_2)] - 
-                     \nabla_{\bf x} \cdot [E({\bf y}) : e_{\bf y}({\bf u}_1)] -
-                     \nabla_{\bf y} \cdot [E({\bf y}) : e_{\bf x}({\bf u}_1)] -
-                     \nabla_{\bf x} \cdot [E({\bf y}) : e_{\bf x}({\bf u}_0)] = {\bf f} \label{eqn:e0}
+    \e^{-2}:\quad  &-\nabla_{\bf y} \cdot [C({\bf y}) : e_{\bf y}({\bf u}_0)] = {\bf 0} \label{eqn:em2} \\
+    \e^{-1}:\quad  &-\nabla_{\bf y} \cdot [C({\bf y}) : e_{\bf y}({\bf u}_1)] - 
+                     \nabla_{\bf x} \cdot [C({\bf y}) : e_{\bf y}({\bf u}_0)] -
+                     \nabla_{\bf y} \cdot [C({\bf y}) : e_{\bf x}({\bf u}_0)] = {\bf 0} \label{eqn:em1} \\
+    \e^{ 0}:\quad  &-\nabla_{\bf y} \cdot [C({\bf y}) : e_{\bf y}({\bf u}_2)] - 
+                     \nabla_{\bf x} \cdot [C({\bf y}) : e_{\bf y}({\bf u}_1)] -
+                     \nabla_{\bf y} \cdot [C({\bf y}) : e_{\bf x}({\bf u}_1)] -
+                     \nabla_{\bf x} \cdot [C({\bf y}) : e_{\bf x}({\bf u}_0)] = {\bf f} \label{eqn:e0}
 \end{align}
 We notice immediately that a function of the form ${\bf u}_0({\bf x}, {\bf y}) = {\bf u}({\bf x})$
 (independent of ${\bf y}$) satisfies (\ref{eqn:em2}). The Fredholm alternative
@@ -265,7 +265,7 @@ being the macroscopic displacement, as we will soon see.
 Plugging in ${\bf u}({\bf x})$ for ${\bf u}_0$ simplifies (\ref{eqn:em1}) to:
 \begin{equation}
     \label{eqn:u1u}
-    -\nabla_{\bf y} \cdot (E({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})]) =  {\bf 0},
+    -\nabla_{\bf y} \cdot (C({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})]) =  {\bf 0},
 \end{equation}
 where we used linearity to collect the strain terms. This equation yields a
 unique solution for ${\bf u}_1({\bf x}, {\bf y})$ at each point ${\bf x}$ up to
@@ -286,40 +286,40 @@ force balance equation (\ref{eqn:u1u}) solves for this displacement.
 Finally, we consider the $\e^0$ equation that ties everything together.
 Grouping the strain terms, we get:
 $$
- -\nabla_{\bf y} \cdot [E({\bf y}) : e_{\bf y}({\bf u}_2)] = 
-                     \nabla_{\bf y} \cdot [E({\bf y}) : e_{\bf x}({\bf u}_1)] +
-                     \nabla_{\bf x} \cdot (E({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})]) + {\bf f}
+ -\nabla_{\bf y} \cdot [C({\bf y}) : e_{\bf y}({\bf u}_2)] = 
+                     \nabla_{\bf y} \cdot [C({\bf y}) : e_{\bf x}({\bf u}_1)] +
+                     \nabla_{\bf x} \cdot (C({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})]) + {\bf f}
 $$
 We actually don't care about the value of ${\bf u}_2$, just that it exists and
 is unique. This well-posedness requirement actually pins down the macroscopic
 displacement ${\bf u}$. To see this, we average both sides of the equation
 over the base cell $Y$ at each point ${\bf x}$:
 $$
--\int_Y \! \nabla_{\bf y} \cdot [E({\bf y}) : e_{\bf y}({\bf u}_2)] \, \mathrm{d}{\bf y} = 
-         \int_Y \!   \nabla_{\bf y} \cdot [E({\bf y}) : e_{\bf x}({\bf u}_1)] +
-         \nabla_{\bf x} \cdot (E({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})]) + {\bf f} \, \mathrm{d} {\bf y}
+-\int_Y \! \nabla_{\bf y} \cdot [C({\bf y}) : e_{\bf y}({\bf u}_2)] \, \mathrm{d}{\bf y} = 
+         \int_Y \!   \nabla_{\bf y} \cdot [C({\bf y}) : e_{\bf x}({\bf u}_1)] +
+         \nabla_{\bf x} \cdot (C({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})]) + {\bf f} \, \mathrm{d} {\bf y}
 $$
 Applying the divergence theorem for the ${\bf y}$ variables:
 $$
--\int_{\partial Y} \! [E({\bf y}) : e_{\bf y}({\bf u}_2)] {\bf \hat{n}} \, \mathrm{d}A({\bf y}) =
- \int_{\partial Y} \! [E({\bf y}) : e_{\bf x}({\bf u}_1)] {\bf \hat{n}} \, \mathrm{d}A({\bf y}) +
-         \int_Y \nabla_{\bf x} \cdot (E({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})]) + {\bf f} \, \mathrm{d} {\bf y}
+-\int_{\partial Y} \! [C({\bf y}) : e_{\bf y}({\bf u}_2)] {\bf \hat{n}} \, \mathrm{d}A({\bf y}) =
+ \int_{\partial Y} \! [C({\bf y}) : e_{\bf x}({\bf u}_1)] {\bf \hat{n}} \, \mathrm{d}A({\bf y}) +
+         \int_Y \nabla_{\bf x} \cdot (C({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})]) + {\bf f} \, \mathrm{d} {\bf y}
 $$
-Periodicity of $E({\bf y}) : e_{\bf y}({\bf u}_2)$ (both $E$ and ${\bf
+Periodicity of $C({\bf y}) : e_{\bf y}({\bf u}_2)$ (both $C$ and ${\bf
 u}_2$ are periodic in ${\bf y}$) means that the left-hand side is ${\bf 0}$.
-Likewise, periodicity of ${\bf u}_1$ in $y$ means $E(y) : e_{\bf x}({\bf
+Likewise, periodicity of ${\bf u}_1$ in ${\bf y}$ means $C({\bf y}) : e_{\bf x}({\bf
 u}_1({\bf x}, {\bf y}))$ is also periodic in ${\bf y}$, so the surface integral
 term on the right-hand side is ${\bf 0}$ as well. Thus, for a solution ${\bf
 u}_2$ to exist, we must have:
 
 $$
-{\bf 0} = \int_Y \nabla_{\bf x} \cdot (E({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})]) + {\bf f} \, \mathrm{d} {\bf y}
+{\bf 0} = \int_Y \nabla_{\bf x} \cdot (C({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})]) + {\bf f} \, \mathrm{d} {\bf y}
 $$
 Exchanging the ${\bf x}$ divergence with the ${\bf y}$ integration, and pulling
 out ${\bf f}$ (constant wrt. $y$) this equation becomes:
 \begin{equation}
 \label{eqn:almost_force_balance}
--\nabla_{\bf x} \cdot \int_Y E({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})] \, \mathrm{d} {\bf y} = |Y| {\bf f}
+-\nabla_{\bf x} \cdot \int_Y C({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})] \, \mathrm{d} {\bf y} = |Y| {\bf f}
 \end{equation}
 This is starting to look like another force balance equation! Recall that ${\bf
 u}_1$, up to a constant, depends linearly on $e_{\bf x}({\bf u})$ (see
@@ -328,32 +328,32 @@ function of $e_{\bf x}({\bf u})$. We can express this relationship with a rank
 4 tensor ``$F$'' mapping macroscopic strain to microscopic fluctuation strain.
 This allows us to make several simplifications:
 $$
-E({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})] = 
-E({\bf y}) : [F : e_{\bf x}({\bf u}) + e_{\bf x}({\bf u})] = 
-[E({\bf y}): F + E({\bf y})] : e_{\bf x}({\bf u}),
+C({\bf y}) : [e_{\bf y}({\bf u}_1) + e_{\bf x}({\bf u})] = 
+C({\bf y}) : [F : e_{\bf x}({\bf u}) + e_{\bf x}({\bf u})] = 
+[C({\bf y}): F + C({\bf y})] : e_{\bf x}({\bf u}),
 $$
-where $[E({\bf y}) : F]_{ijkl} = E_{ijpq}({\bf y}) F_{pqkl}$ is the double
+where $[C({\bf y}) : F]_{ijkl} = C_{ijpq}({\bf y}) F_{pqkl}$ is the double
 contraction of two rank 4 tensors. Using this in
 (\ref{eqn:almost_force_balance}) and pulling out $e_{\bf x}({\bf u})$ (constant
 wrt. ${\bf y}$) from the integral, we arrive at:
 $$
--\nabla_{\bf x} \cdot \left( \frac{1}{|Y|} \int_Y E({\bf y}) : F + E({\bf y}) \, \mathrm{d} {\bf y} : e_{\bf x}({\bf u}) \right) = {\bf f}
+-\nabla_{\bf x} \cdot \left( \frac{1}{|Y|} \int_Y C({\bf y}) : F + C({\bf y}) \, \mathrm{d} {\bf y} : e_{\bf x}({\bf u}) \right) = {\bf f}
 $$
-Setting, $E^H = \frac{1}{|Y|} \int_Y E({\bf y}) : F + E({\bf y}) \, \mathrm{d}
+Setting, $C^H = \frac{1}{|Y|} \int_Y C({\bf y}) : F + C({\bf y}) \, \mathrm{d}
 {\bf y}$, we finally have our homogenized force balance equation:
 \begin{equation}
     \label{eqn:homogenized}
-    -\nabla_{\bf x} \cdot [E^H : e_{\bf x}({\bf u}) ] = {\bf f} \quad \text{in } \Omega.
+    -\nabla_{\bf x} \cdot [C^H : e_{\bf x}({\bf u}) ] = {\bf f} \quad \text{in } \Omega.
 \end{equation}
 Notice that we've only considered the force balance in the interior of $\Omega$
 and haven't considered the boundary conditions in (\ref{eqn:elastostatic}). It
-turns out that these boundary conditions don't affect $E^H$ (i.e. we get the same
+turns out that these boundary conditions don't affect $C^H$ (i.e. we get the same
 homogenized elasticity tensor regardless of how we intend to deform the object)
 \cite[Remark 3.1]{defranceschi1993}.
 
 \subsection{Cell Problems}
 All that remains is to use (\ref{eqn:u1u}) to determine rank 4 tensor $F$
-appearing in $E^H$. First we introduce the canonical basis for symmetric rank 2 tensors:
+appearing in $C^H$. First we introduce the canonical basis for symmetric rank 2 tensors:
 $$
 e^{ij} = \frac{1}{2} \left({\bf e}_i \otimes {\bf e}_j + {\bf e}_j \otimes {\bf e}_i \right)
 $$
@@ -407,13 +407,13 @@ $$
 We now take advantage of linearity to state that if Y-periodic ${\bf
 w}^{ij}({\bf y})$ solves (\ref{eqn:u1u}) for $e_{\bf x}({\bf u}) = e^{ij}$:
 \begin{equation}
--\nabla_{\bf y} \cdot (E({\bf y}) : [e_{\bf y}({\bf w}^{ij}) + e^{ij}]) = {\bf 0},
+-\nabla_{\bf y} \cdot (C({\bf y}) : [e_{\bf y}({\bf w}^{ij}) + e^{ij}]) = {\bf 0},
 \end{equation}
 then ${\bf u}_1 = {\bf w}^{ij} [e_{\bf x}({\bf u})]_{ij}$ is a solution to
 (\ref{eqn:u1u}) for arbitrary ${\bf u}$:
 $$
--\nabla_{\bf y} \cdot (E({\bf y}) : [e_{\bf y}({\bf w}^{ij})[e_{\bf x}({\bf u})]_{ij} + e^{ij}[e_{\bf x}({\bf u})]_{ij}]) =
-\left(-\nabla_{\bf y} \cdot (E({\bf y}) : [e_{\bf y}({\bf w}^{ij}) + e^{ij}]) \right)[e_{\bf x}({\bf u})]_{ij} = {\bf 0}.
+-\nabla_{\bf y} \cdot (C({\bf y}) : [e_{\bf y}({\bf w}^{ij})[e_{\bf x}({\bf u})]_{ij} + e^{ij}[e_{\bf x}({\bf u})]_{ij}]) =
+\left(-\nabla_{\bf y} \cdot (C({\bf y}) : [e_{\bf y}({\bf w}^{ij}) + e^{ij}]) \right)[e_{\bf x}({\bf u})]_{ij} = {\bf 0}.
 $$
 Since this solution is unique up to a constant wrt. ${\bf y}$, we know that
 $$
@@ -429,13 +429,13 @@ F_{pqkl} = [e_{\bf y}({\bf w}^{kl})]_{pq}
 Plugging this into the equation for the homogenized elasticity coefficients, we get in index notation:
 \begin{equation}
     \label{eqn:Eh}
-E^H_{ijkl} = \frac{1}{|Y|} \int_Y E_{ijpq}({\bf y}) F_{pqkl} + E_{ijkl}({\bf y}) \, \mathrm{d} {\bf y}
-= \boxed{\frac{1}{|Y|} \int_Y E_{ijpq}({\bf y}) [e_{\bf y}({\bf w}^{kl})]_{pq} + E_{ijkl}({\bf y}) \, \mathrm{d} {\bf y}.}
+C^H_{ijkl} = \frac{1}{|Y|} \int_Y C_{ijpq}({\bf y}) F_{pqkl} + C_{ijkl}({\bf y}) \, \mathrm{d} {\bf y}
+= \boxed{\frac{1}{|Y|} \int_Y C_{ijpq}({\bf y}) [e_{\bf y}({\bf w}^{kl})]_{pq} + C_{ijkl}({\bf y}) \, \mathrm{d} {\bf y}.}
 \end{equation}
 Thus, once we know each ${\bf w}^{ij}$, we can compute the homogenized elasticity tensor
 with a simple integration over the base cell. We find these by solving the 6 cell problems:
 \begin{align*}
-    -\nabla_{\bf y} \cdot (E({\bf y}) : [e_{\bf y}({\bf w}^{ij}) + e^{ij}]) = {\bf 0} & \quad \text{in } Y \\
+    -\nabla_{\bf y} \cdot (C({\bf y}) : [e_{\bf y}({\bf w}^{ij}) + e^{ij}]) = {\bf 0} & \quad \text{in } Y \\
     {\bf w}^{ij}({\bf y})\ Y \text{-periodic} &     \numberthis \label{eqn:cell} \\
     \int_\omega \! {\bf w}^{ij}({\bf y})  \, \mathrm{d} {\bf y} =  {\bf 0}, 
 \end{align*}
@@ -448,36 +448,36 @@ Intuitively, solving each cell problem (\ref{eqn:cell}) corresponds to probing
 the base cell with 6 constant strain displacements to extract how the
 microstructure geometry $\omega$ reacts (i.e. the fluctuation displacements).
 Then the homogenized elasticity tensor given in (\ref{eqn:Eh}) corresponds to a
-spatial average of $E({\bf y})$ corrected by the fluctuation terms (which
+spatial average of $C({\bf y})$ corrected by the fluctuation terms (which
 happen to be averaged fluctuation stresses). We can get a more physical
 interpretation of (\ref{eqn:Eh}) by realizing that it is equivalent to:
 \begin{equation}
     \label{eqn:EhEnergy}
-    E^H_{ijkl} = \frac{1}{|Y|} \int_Y (e^{ij} + e_{\bf y}({\bf w}^{ij})) : E({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) \, \mathrm{d} {\bf y}.
+    C^H_{ijkl} = \frac{1}{|Y|} \int_Y (e^{ij} + e_{\bf y}({\bf w}^{ij})) : C({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) \, \mathrm{d} {\bf y}.
 \end{equation}
 This means that when we use the homogenized elasticity tensor to compute the
 elastic energy density stored at point ${\bf x}$ by some macroscopic strain
 $\bar{e}$,
 $$
-\frac{1}{2} (\bar{e} : E^H :\bar{e}) =
-\frac{1}{2|Y|} \int_Y \bar{e}_{ij} (e^{ij} + e_{\bf y}({\bf w}^{ij})) : E_({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) \bar{e}_{kl} \, \mathrm{d} {\bf y},
+\frac{1}{2} (\bar{e} : C^H :\bar{e}) =
+\frac{1}{2|Y|} \int_Y \bar{e}_{ij} (e^{ij} + e_{\bf y}({\bf w}^{ij})) : C({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) \bar{e}_{kl} \, \mathrm{d} {\bf y},
 $$
 what we get is the average energy density stored by the macroscopic strain plus
 its fluctuation strain. Proof of this equivalence: start with RHS of
 (\ref{eqn:EhEnergy}) and work backward.
 \begin{gather*}
-\frac{1}{|Y|} \int_Y (e^{ij} + e_{\bf y}({\bf w}^{ij})) : E({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) \, \mathrm{d} {\bf y} \\
-= \frac{1}{|Y|} \int_Y e^{ij} : E({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) +
-    e_{\bf y}({\bf w}^{ij}) : E({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) \, \mathrm{d} {\bf y} \\
-    = \frac{1}{|Y|} \int_Y E_{ijpq}({\bf y}) [e^{kl} + e_{\bf y}({\bf w}^{kl})]_{pq} -
-{{\bf w}}^{ij} \cdot \cancel{\nabla_y \cdot [E({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl}))]} \, \mathrm{d} {\bf y} \\
-+ \cancel{\int_{\partial Y} {\bf w}^{ij} \cdot [E({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl}))] {\bf \hat{n}} \, \mathrm{d} A({\bf y})}
-= \frac{1}{|Y|} \int_Y E_{ijpq}({\bf y}) [e_{\bf y}({\bf w}^{kl})]_{pq} + E_{ijkl}({\bf y}) \, \mathrm{d} {\bf y} = E^H_{ijkl}.
+\frac{1}{|Y|} \int_Y (e^{ij} + e_{\bf y}({\bf w}^{ij})) : C({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) \, \mathrm{d} {\bf y} \\
+= \frac{1}{|Y|} \int_Y e^{ij} : C({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) +
+    e_{\bf y}({\bf w}^{ij}) : C({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) \, \mathrm{d} {\bf y} \\
+    = \frac{1}{|Y|} \int_Y C_{ijpq}({\bf y}) [e^{kl} + e_{\bf y}({\bf w}^{kl})]_{pq} -
+{{\bf w}}^{ij} \cdot \cancel{\nabla_y \cdot [C({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl}))]} \, \mathrm{d} {\bf y} \\
++ \cancel{\int_{\partial Y} {\bf w}^{ij} \cdot [C({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl}))] {\bf \hat{n}} \, \mathrm{d} A({\bf y})}
+= \frac{1}{|Y|} \int_Y C_{ijpq}({\bf y}) [e_{\bf y}({\bf w}^{kl})]_{pq} + C_{ijkl}({\bf y}) \, \mathrm{d} {\bf y} = C^H_{ijkl}.
 \end{gather*}
 Here we used integration by parts (for symmetric tensors) to move the strain
 operator off ${\bf w}^{ij}$. The resulting volume integral vanishes because ${\bf
 w}^{kl}$ solves the $kl^\text{th}$ cell problem. The surface integral vanishes
-because row vector ${\bf w}^{ij} \cdot [E({\bf y}) : (e^{kl} + e_{\bf
+because row vector ${\bf w}^{ij} \cdot [C({\bf y}) : (e^{kl} + e_{\bf
 y}({\bf w}^{kl}))]$ is Y-periodic. Notice that this periodicity only holds
 in the continuous case where $e_{\bf y}({\bf w}^{kl})$ is periodic due to ${\bf
 w}^{kl}$'s
@@ -496,18 +496,18 @@ formalism, such as weak and H-/G-convergence. \cite{allaire2002shape} provides t
 \section{Solving the Cell Problems}
 The homogenization task has now been reduced to solving 6 cell problems:
 \begin{align*}
-    -\nabla \cdot (E({\bf y}) : [e({\bf w}^{ij}) + e^{ij}]) = {\bf 0} & \quad \text{in } Y \\
+    -\nabla \cdot (C({\bf y}) : [e({\bf w}^{ij}) + e^{ij}]) = {\bf 0} & \quad \text{in } Y \\
     {\bf w}^{ij}({\bf y})\ Y \text{-periodic} & \\
     \int_\omega \! {\bf w}^{ij}({\bf y})  \, \mathrm{d} {\bf y} =  {\bf 0}, 
 \end{align*}
 (from here on out we drop the ${\bf y}$ subscripts since only the ${\bf y}$
 variables remain) and computing a volume integral:
 $$
-E^H_{ijkl} = \frac{1}{|Y|} \int_Y E_{ijpq}({\bf y}) [e({\bf w}^{kl})]_{pq} + E_{ijkl}({\bf y}) \, \mathrm{d} {\bf y}.
+C^H_{ijkl} = \frac{1}{|Y|} \int_Y C_{ijpq}({\bf y}) [e({\bf w}^{kl})]_{pq} + C_{ijkl}({\bf y}) \, \mathrm{d} {\bf y}.
 $$
 Recalling that 
 $$
-E ({\bf y}) = \begin{cases} E^\text{base} & \text{if } {\bf y} \in \omega \\
+C ({\bf y}) = \begin{cases} C^\text{base} & \text{if } {\bf y} \in \omega \\
                                  0 & \text{ otherwise,} \end{cases}
 $$
 we should be able to compute all of this with a single-material finite element discretization
@@ -516,11 +516,11 @@ of the microstructure pattern $\omega$ filling cell $Y$:
     \centering
     \includegraphics[width=.16\textwidth]{Images/cell.pdf}
 \end{figure}
-But now we see a problem: $E({\bf y})$ is discontinuous at microstructure boundary $\partial \omega \setminus \partial Y$. Also,
+But now we see a problem: $C({\bf y})$ is discontinuous at microstructure boundary $\partial \omega \setminus \partial Y$. Also,
 the cell problem isn't well-posed since ${\bf w}^{ij}({\bf y})$ can take any
 value outside $\omega$. We can get around this by restricting the cell problem to $\omega$:
 \begin{align*}
-    -\nabla \cdot (E^\text{base} : [e({\bf w}^{ij}) + e^{ij}]) = {\bf 0} & \quad \text{in } \omega \\
+    -\nabla \cdot (C^\text{base} : [e({\bf w}^{ij}) + e^{ij}]) = {\bf 0} & \quad \text{in } \omega \\
     {\bf w}^{ij}({\bf y})\ Y \text{-periodic} & \\
     \int_\omega \! {\bf w}^{ij}({\bf y})  \, \mathrm{d} {\bf y} =  {\bf 0}, 
 \end{align*}
@@ -528,7 +528,7 @@ value outside $\omega$. We can get around this by restricting the cell problem t
 since the homogenized elasticity tensor formula's integral also becomes an
 integral over only $\omega$:
 $$
-E^H_{ijkl} = \frac{1}{|Y|} \int_\omega E_{ijpq}^\text{base} [e({\bf w}^{kl})]_{pq} + E_{ijkl}^\text{base} \, \mathrm{d} {\bf y}.
+C^H_{ijkl} = \frac{1}{|Y|} \int_\omega C_{ijpq}^\text{base} [e({\bf w}^{kl})]_{pq} + C_{ijkl}^\text{base} \, \mathrm{d} {\bf y}.
 $$
 However, we have the question of what boundary conditions to impose on
 $\partial \omega \setminus \partial Y$. We show that the equivalent conditions
@@ -538,7 +538,7 @@ Consider an arbitrary smooth segment $\Gamma \subseteq \partial \omega \setminus
 \partial Y$ (we assume
 $\partial \omega$ is piecewise smooth and can be covered with these segments).
 Create a small volume, $V_\xi$ by extruding in the $\pm \bf \hat{n}$ direction
-by $\xi$. Letting $\sigma = E({\bf y}) : [e({\bf w}^{ij}) + e^{ij}]$, the
+by $\xi$. Letting $\sigma = C({\bf y}) : [e({\bf w}^{ij}) + e^{ij}]$, the
 original cell problem formulation requires:
 $$
 0 = \int_{V_\xi} \! \nabla \cdot \sigma \, \mathrm{d} V
@@ -577,8 +577,8 @@ Since $\Gamma$ was arbitrary, this means ${\bf \hat n} \cdot \sigma({\bf y}) = 0
 everywhere on $\partial \omega \setminus \partial Y$, giving us our full cell
 problem:
 \begin{align*}
-     -\nabla \cdot (E^\text{base} : [e({\bf w}^{ij}) + e^{ij}]) = {\bf 0} & \quad \text{in } \omega \\
-{\bf \hat n} \cdot (E^\text{base} : [e({\bf w}^{ij}) + e^{ij}]) = {\bf 0} & \quad \text{on } \partial \omega \setminus \partial Y \\
+     -\nabla \cdot (C^\text{base} : [e({\bf w}^{ij}) + e^{ij}]) = {\bf 0} & \quad \text{in } \omega \\
+{\bf \hat n} \cdot (C^\text{base} : [e({\bf w}^{ij}) + e^{ij}]) = {\bf 0} & \quad \text{on } \partial \omega \setminus \partial Y \\
     {\bf w}^{ij}({\bf y})\ Y \text{-periodic} & \\
     \int_\omega \! {\bf w}^{ij}({\bf y})  \, \mathrm{d} {\bf y} =  {\bf 0}, 
 \end{align*}
@@ -588,11 +588,11 @@ consistent with our interpretation of the cell problem as finding fluctuation
 displacements that put the microstructure geometry in equilibrium after a
 particular macroscopic strain has been applied.
 
-Since macroscopic stress $E^\text{base} : e^{ij}$ is constant throughout the
+Since macroscopic stress $C^\text{base} : e^{ij}$ is constant throughout the
 base cell, we can actually write this as:
 \begin{align*}
-     -\nabla \cdot (E^\text{base} : e({\bf w}^{ij})]) = {\bf 0} & \quad \text{in } \omega \\
-{\bf \hat n} \cdot \left[ E^\text{base} : e({\bf w}^{ij}) \right]  =  -{\bf \hat{n}} \cdot \left[ E^\text{base} : e^{ij} \right]& \quad \text{on } \partial \omega \setminus \partial Y \\
+     -\nabla \cdot (C^\text{base} : e({\bf w}^{ij})]) = {\bf 0} & \quad \text{in } \omega \\
+{\bf \hat n} \cdot \left[ C^\text{base} : e({\bf w}^{ij}) \right]  =  -{\bf \hat{n}} \cdot \left[ C^\text{base} : e^{ij} \right]& \quad \text{on } \partial \omega \setminus \partial Y \\
     {\bf w}^{ij}({\bf y})\ Y \text{-periodic} & \\
     \int_\omega \! {\bf w}^{ij}({\bf y})  \, \mathrm{d} {\bf y} =  {\bf 0}, 
 \end{align*}
