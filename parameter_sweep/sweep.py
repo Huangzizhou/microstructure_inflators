@@ -7,8 +7,8 @@ import numpy as np
 import os.path
 
 import microstructures_setting
-from wire_generator.WireNetwork import WireNetwork
-from wire_generator.find_file import find_file
+from wire_generator.core.WireNetwork import WireNetwork
+from wire_generator.utils.find_file import find_file
 
 def load_config(config_file):
     """ Syntax:
