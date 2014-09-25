@@ -3,7 +3,7 @@ import numpy as np
 from numpy.linalg import norm
 import os.path
 
-from io.WireReader import WireReader
+from wire_io.WireReader import WireReader
 from attributes.WireAttributes import WireAttributes
 
 class WireNetwork(object):
