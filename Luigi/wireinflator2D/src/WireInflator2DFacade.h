@@ -18,6 +18,8 @@ class WireInflatorFacade {
 
     public:
         WireInflatorFacade(std::string wire_file) : m_inflator(wire_file) {
+            m_rows = 0;
+            m_cols = 0;
             m_t_params.max_area = 0.001;
         }
 
