@@ -4,7 +4,7 @@ import argparse
 import json
 import os.path
 
-from WireNetwork import WireNetwork
+from core.WireNetwork import WireNetwork
 
 def load(wire_file):
     wire_network = WireNetwork();
