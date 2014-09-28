@@ -22,7 +22,7 @@
 #include <MeshIO.hh>
 #include <MSHFieldWriter.hh>
 #include <MSHFieldParser.hh>
-#include <JSFieldWriter.hh>
+#include <EdgeFields.hh>
 #include <LinearElasticity.hh>
 #include <Materials.hh>
 #include <PeriodicHomogenization.hh>
@@ -105,15 +105,14 @@ template<size_t _N>
 using VField = typename LinearElasticityND<_N>::VField;
 typedef ScalarField<Real> SField;
 
-template<size_t _N, class Simulator>
-void writeDescentVectors(JSFieldWriter<_N> &writer,
+template<class Simulator>
+void addNormalVectorField(EdgeFields &ef,
         const string &name, const SField &v_n, const Simulator &sim) {
     size_t numBE = sim.mesh().numBoundaryElements();
-    VField<_N> direction(numBE);
+    VField<2> direction(numBE);
     for (size_t be = 0; be < numBE; ++be)
         direction(be) = v_n[be] * sim.mesh().boundaryElement(be)->normal();
-    writer.addField(name + " direction", direction,
-            JSFieldWriter<_N>::PER_BDRY_ELEM);
+    ef.addField(name + " direction", direction);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -165,9 +164,9 @@ void step(WireInflator2D &inflator, TessellationParameters &t_params,
     // Output geometry .msh
     MeshIO::save(outName + ".msh", sim.mesh());
 
-    JSFieldWriter<_N> *writer = NULL;
+    EdgeFields *eFields = NULL;
     if (outName != "")
-        writer = new JSFieldWriter<_N>(outName, sim.mesh());
+        eFields = new EdgeFields(sim.mesh());
 
     std::vector<VField<_N>> w_ij;
     solveCellProblems(w_ij, sim);
@@ -233,18 +232,17 @@ void step(WireInflator2D &inflator, TessellationParameters &t_params,
             projectedNormalVelocity[bei] += gradp_JS[p] * vn_p[p][bei];
     }
 
-    if (writer)  {
-        writer->addField("gradFit", complianceFitGrad, JSFieldWriter<_N>::PER_BDRY_ELEM);
-        writeDescentVectors(*writer, "gradFit", complianceFitGrad, sim);
+    if (eFields)  {
+        eFields->addField("gradFit", complianceFitGrad);
+        addNormalVectorField(*eFields, "gradFit", complianceFitGrad, sim);
 
-        writer->addField("projectedVn", projectedNormalVelocity,
-                         JSFieldWriter<_N>::PER_BDRY_ELEM);
-        writeDescentVectors(*writer, "projectedVn", projectedNormalVelocity, sim);
+        eFields->addField("projectedVn", projectedNormalVelocity);
+        addNormalVectorField(*eFields, "projectedVn", projectedNormalVelocity, sim);
 
         for (size_t p = 0; p < nParams; ++p) {
             string name("vn_" + to_string(p));
-            writer->addField(name, vn_p[p], JSFieldWriter<_N>::PER_BDRY_ELEM);
-            writeDescentVectors(*writer, name, vn_p[p], sim);
+            eFields->addField(name, vn_p[p]);
+            addNormalVectorField(*eFields, name, vn_p[p], sim);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -264,20 +262,23 @@ void step(WireInflator2D &inflator, TessellationParameters &t_params,
             gradVxy[i] = -gradEx[i] * S.D(1, 0) - moduli[0] * gradEhinv[i].D(1, 0);
              gradmu[i] =  gradEh[i].D(2, 2);
         }
-        writer->addField( "gradEx",  gradEx, JSFieldWriter<_N>::PER_BDRY_ELEM);
-        writer->addField( "gradEy",  gradEy, JSFieldWriter<_N>::PER_BDRY_ELEM);
-        writer->addField("gradVyx", gradVyx, JSFieldWriter<_N>::PER_BDRY_ELEM);
-        writer->addField("gradVxy", gradVxy, JSFieldWriter<_N>::PER_BDRY_ELEM);
-        writer->addField( "gradmu",  gradmu, JSFieldWriter<_N>::PER_BDRY_ELEM);
+        eFields->addField( "gradEx",  gradEx);
+        eFields->addField( "gradEy",  gradEy);
+        eFields->addField("gradVyx", gradVyx);
+        eFields->addField("gradVxy", gradVxy);
+        eFields->addField( "gradmu",  gradmu);
 
-        writeDescentVectors(*writer, "gradEx",  gradEx, sim);
-        writeDescentVectors(*writer, "gradEy",  gradEy, sim);
-        writeDescentVectors(*writer,"gradVyx", gradVyx, sim);
-        writeDescentVectors(*writer,"gradVxy", gradVxy, sim);
-        writeDescentVectors(*writer, "gradmu",  gradmu, sim);
+        addNormalVectorField(*eFields, "gradEx",  gradEx, sim);
+        addNormalVectorField(*eFields, "gradEy",  gradEy, sim);
+        addNormalVectorField(*eFields,"gradVyx", gradVyx, sim);
+        addNormalVectorField(*eFields,"gradVxy", gradVxy, sim);
+        addNormalVectorField(*eFields, "gradmu",  gradmu, sim);
     }
 
-    if (writer) delete writer;
+    if (eFields) {
+        eFields->write(outName);
+        delete eFields;
+    }
 }
 
 template<size_t _N>
