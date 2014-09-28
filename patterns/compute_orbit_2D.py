@@ -8,7 +8,8 @@ ROOT_DIR = os.environ.get("MICROSTRUCTURES_PATH");
 if ROOT_DIR is None:
     raise RuntimeError("Environment variable \"MICROSTRUCTURES_PATH\" is not set!");
 
-exe_name = os.path.join(ROOT_DIR, "Luigi/wireinflator2D/python/extract_symmetry_orbits.py");
+#exe_name = os.path.join(ROOT_DIR, "Luigi/wireinflator2D/python/extract_symmetry_orbits.py");
+exe_name = os.path.join(ROOT_DIR, "wire_generator/extract_symmetry_orbits.py");
 wire_dir = os.path.join(ROOT_DIR, "patterns/2D/");
 
 for wire_file in os.listdir(wire_dir):
