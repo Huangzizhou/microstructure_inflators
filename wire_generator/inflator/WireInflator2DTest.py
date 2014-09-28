@@ -26,6 +26,11 @@ class WireInflator2DTest(unittest.TestCase):
                     "effective_orbits": [0],
                     "thickness": [1.0],
                     "default": 0.5
+                    },
+                "vertex_offset": {
+                    "type": "vertex_orbit",
+                    "effective_orbits": [0],
+                    "offset_percentages": [[0.0, 0.0]]
                     }
                 }
         return config;

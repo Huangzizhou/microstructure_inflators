@@ -68,17 +68,27 @@ class ParameterHandler2DTest(unittest.TestCase):
                     dtype=int)[vertex_orbits == orbit_id];
             self.assertSetEqual(set(affected_vertices), set(affected_vertices_2));
 
-            if inflator.get_parameter_type(i) ==\
-                    PyWireInflator2D.WireInflatorFacade.THICKNESS:
+            param_type = inflator.get_parameter_type(i);
+            if param_type == PyWireInflator2D.WireInflatorFacade.THICKNESS:
                 if orbit_id == 0:
                     self.assertEqual(1.0, param[i]);
                 else:
                     self.assertEqual(10.5, param[i]);
+            elif param_type == PyWireInflator2D.WireInflatorFacade.VERTEX_OFFSET:
+                self.assertEqual(0.0, param[i]);
+            else:
+                self.fail("Unknown parameter type: {}".format(param_type));
 
     def test_const_offset(self):
         wire_network = self.load_wire("patterns/2D/box.wire");
         inflator = self.load_inflator(wire_network);
         config = {
+                "thickness": {
+                    "type": "vertex_orbit",
+                    "effective_orbits": [],
+                    "thickness": [],
+                    "default": 0.5
+                    },
                 "vertex_offset": {
                     "type": "vertex_orbit",
                     "effective_orbits": [0],
@@ -99,10 +109,14 @@ class ParameterHandler2DTest(unittest.TestCase):
             orbit_ids = vertex_orbits[affected_vertices];
             self.assertTrue(np.all(orbit_ids == orbit_ids[0]));
             orbit_id = orbit_ids[0];
-            if inflator.get_parameter_type(i) ==\
-                    PyWireInflator2D.WireInflatorFacade.VERTEX_OFFSET:
-                        if orbit_id == 0:
-                            self.assertEqual(1.0, param[i]);
-                        else:
-                            self.assertEqual(0.0, param[i]);
+            param_type = inflator.get_parameter_type(i);
+            if param_type == PyWireInflator2D.WireInflatorFacade.VERTEX_OFFSET:
+                if orbit_id == 0:
+                    self.assertEqual(1.0, param[i]);
+                else:
+                    self.assertEqual(0.0, param[i]);
+            elif param_type == PyWireInflator2D.WireInflatorFacade.THICKNESS:
+                self.assertEqual(0.5, param[i]);
+            else:
+                self.fail("Unknown parameter type: {}".format(param_type));
 

@@ -87,5 +87,5 @@ class ParameterHandler2D(object):
         vertex_indices = np.arange(self.wire_network.num_vertices, dtype=int);
         affected_vertices = self.vertex_orbits == orbit_id;
         key = tuple(vertex_indices[affected_vertices]);
-        return self.offset_orbit_map.get(key, np.zeros(2, dtype=int));
+        return self.offset_orbit_map.get(key, np.ones(2, dtype=int) * -1);
 
