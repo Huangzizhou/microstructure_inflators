@@ -1,0 +1,36 @@
+unset key;
+set xlabel 'Iteration';
+set term pngcairo size 800,600;
+
+set format y "%g";
+
+set title 'Objective J_S';
+set output 'JS.png';
+plot '< cat out.txt | ./analyze_output.pl' using 1:10 with lines;
+
+set title '||grad_p J_S||';
+set output 'gradp_JS.png';
+plot '< cat out.txt | ./analyze_output.pl' using 1:11 with lines;
+
+set format y "%f";
+
+set title '|E_x - E_x*|';
+set output 'E_x.png';
+plot '< cat out.txt | ./analyze_output.pl' using 1:6 with lines;
+
+set title 'Ex';
+set output 'E_x_absolute.png';
+plot '< cat out.txt | ./analyze_output.pl' using 1:6 with lines, \
+     '< cat out.txt | ./analyze_output.pl' using 1:2 with lines;
+
+set title '|E_y - E_y|*';
+set output 'E_y.png';
+plot '< cat out.txt | ./analyze_output.pl' using 1:7 with lines;
+
+set title '|nu_yx - nu_yx*|';
+set output 'nu_yx.png';
+plot '< cat out.txt | ./analyze_output.pl' using 1:8 with lines;
+
+set title '|mu - mu*|';
+set output 'mu.png';
+plot '< cat out.txt | ./analyze_output.pl' using 1:9 with lines;
