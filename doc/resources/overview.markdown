@@ -1,6 +1,5 @@
 Overview
 ==================
-Note: links to PDFs in this repository require compiling the latex first.
 
 [Algorithm pipeline](images/pipeline.png)  
 In this diagram:  

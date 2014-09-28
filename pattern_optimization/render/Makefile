@@ -1,22 +1,21 @@
 include $(MeshFEM)/platform_defs.mk
 
-PATOPT_OBJS=PatternOptimization_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o \
-			$(MeshFEM)/Materials.o $(MeshFEM)/MSHFieldParser.o $(MeshFEM)/EdgeFields.o
-OBJS=$(PATOPT_OBJS)
+RENDER_OBJS=Render_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o \
+			$(MeshFEM)/MSHFieldParser.o $(MeshFEM)/EdgeFields.o \
+			$(CSGFEM)/draw.o
+OBJS=$(RENDEROPT_OBJS)
+TARGETS=Render_cli
 
-TARGETS=PatternOptimization_cli
-
-INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem $(HOME)/Research/vcglib/
-LIBS+=../Luigi/wireinflator2D/lib/libclipper.a
-LIBS+=../Luigi/wireinflator2D/lib/libtriangle.a
-CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES)
+INCLUDES+=-I$(MeshFEM) -I/opt/local/include/freetype2
+LIBS+=-losmesa -lpng
+CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DUSE_MESA
 CPPFLAGS+=-O2
 # CPPFLAGS+=-O0 -g
 CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
 
 all: $(TARGETS)
 
-PatternOptimization_cli: $(PATOPT_OBJS)
+Render_cli: $(RENDER_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 %.o: %.cc Makefile
