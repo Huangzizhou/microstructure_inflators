@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import unittest
+from attributes.WireSymmetryAttributeTest import WireSymmetryAttributeTest
 from attributes.WireSymmetryVertexOrbitAttributeTest import WireSymmetryVertexOrbitAttributeTest
 from attributes.WireSymmetryEdgeOrbitAttributeTest import WireSymmetryEdgeOrbitAttributeTest
 from core.WireNetworkTest import WireNetworkTest
