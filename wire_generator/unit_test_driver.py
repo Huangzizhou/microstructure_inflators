@@ -4,7 +4,9 @@ from attributes.WireSymmetryVertexOrbitAttributeTest import WireSymmetryVertexOr
 from attributes.WireSymmetryEdgeOrbitAttributeTest import WireSymmetryEdgeOrbitAttributeTest
 from core.WireNetworkTest import WireNetworkTest
 from inflator.ParameterHandlerTest import ParameterHandlerTest
+from inflator.ParameterHandler2DTest import ParameterHandler2DTest
 from inflator.WireInflatorTest import WireInflatorTest
+from inflator.WireInflator2DTest import WireInflator2DTest
 from inflator.WireTilerTest import WireTilerTest
 from parameter.PatternParameterTest import PatternParameterTest
 from parameter.ThicknessParameterTest import ThicknessParameterTest

@@ -22,6 +22,7 @@ class ParameterFactory(object):
         if "thickness" in config:
             thickness_config = config["thickness"];
             thickness_type = thickness_config["type"];
+            self.default_thickness = thickness_config["default"];
             if thickness_type == "vertex_orbit":
                 self.__create_default_vertex_thickness_parameters();
             elif thickness_type == "edge_orbit":

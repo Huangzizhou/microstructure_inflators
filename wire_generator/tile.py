@@ -6,9 +6,7 @@ import numpy as np
 import os.path
 
 from core.WireNetwork import WireNetwork
-from inflator.WireTiler import WireTiler
-from inflator.WireInflator import WireInflator
-from inflator.PeriodicWireInflator import PeriodicWireInflator
+from inflator.InflatorFacade import InflatorFacade
 from parameter.ParameterFactory import ParameterFactory
 from utils.find_file import find_file
 from utils.timethis import timethis
@@ -46,6 +44,28 @@ def parse_config_file(config_file):
         convert_to_abs_path("modifier_file");
     return config;
 
+def load_mesh(mesh_file):
+    factory = PyMesh.MeshFactory();
+    factory.load_file(mesh_file);
+    mesh = factory.create();
+    return mesh;
+
+def save_mesh(mesh, mesh_file):
+    basename, ext = os.path.splitext(mesh_file);
+    writer = PyMesh.MeshWriter.create_writer(mesh_file);
+    if ext in (".msh", ".ply"):
+        attribute_names = mesh.get_attribute_names();
+        for attr_name in attribute_names:
+            writer.with_attribute(attr_name);
+
+    writer.write_mesh(mesh);
+
+def load_wire(wire_file):
+    network = WireNetwork();
+    network.load_from_file(wire_file);
+    network.compute_symmetry_orbits();
+    return network;
+
 def load_parameters(wire_network, default_thickness, modifier_file):
     factory = ParameterFactory(wire_network, default_thickness);
     factory.create_parameters_from_file(modifier_file);
@@ -56,72 +76,18 @@ def tile(config):
     parameters = load_parameters(network,
             config["thickness"], config.get("modifier_file"));
 
-    if config.get("no_tile", False):
-        tiled_network = network;
-    elif "hex_mesh" in config:
-        tiled_network = tile_hex(config, network, parameters);
+    options = {
+            "trim": config.get("trim", False),
+            "periodic": config.get("periodic", False) }
+    inflator_driver = InflatorFacade.create(network, parameters);
+    if "hex_mesh" in config:
+        guide_mesh = load_mesh(config["hex_mesh"]);
+        mesh = inflator_driver.inflate_with_guide_mesh(guide_mesh, options);
     else:
-        tiled_network = tile_box(config, network, parameters);
-
-    if config.get("trim", False):
-        tiled_network.trim();
-
-    inflate_and_save(tiled_network, config.get("periodic", False),
-            str(config["output"]));
-
-def load_mesh(mesh_file):
-    factory = PyMesh.MeshFactory();
-    factory.load_file(mesh_file);
-    mesh = factory.create();
-    return mesh;
-
-def load_wire(wire_file):
-    network = WireNetwork();
-    network.load_from_file(wire_file);
-    network.compute_symmetry_orbits();
-    return network;
-
-def inflate_and_save(tiled_network, periodic, output_file):
-    if not periodic:
-        inflator = WireInflator(tiled_network);
-    else:
-        inflator = PeriodicWireInflator(tiled_network);
-
-    inflator.inflate();
-    inflator.save(output_file);
-
-def tile_hex(config, network, parameters):
-    tiler = WireTiler();
-    tiler.set_single_cell_from_wire_network(network);
-    hex_mesh = load_mesh(str(config["hex_mesh"]));
-    tiler.tile_hex_mesh(hex_mesh, parameters);
-    tiled_network = tiler.wire_network;
-    return tiled_network;
-
-def tile_box(config, network, parameters):
-    dim = network.dim;
-    tiler = WireTiler();
-    tiler.set_single_cell_from_wire_network(network);
-    tiler.x_tile_dir = np.array(config.get("x_tile_dir", [1.0, 0.0, 0.0]))[:dim];
-    tiler.y_tile_dir = np.array(config.get("y_tile_dir", [0.0, 1.0, 0.0]))[:dim];
-    tiler.z_tile_dir = np.array(config.get("z_tile_dir", [0.0, 0.0, 1.0]))[:dim];
-    tiler.tile(config["repeats"][:dim], parameters);
-
-    tiled_network = tiler.wire_network;
-
-    bbox_min, bbox_max = tiled_network.bbox;
-    bbox_size = bbox_max - bbox_min;
-    non_zero_dim = bbox_size > 0.0;
-
-    target_bbox_min = np.array(config["bbox_min"])[:dim];
-    target_bbox_max = np.array(config["bbox_max"])[:dim];
-    target_bbox_size = target_bbox_max - target_bbox_min;
-
-    factor = np.ones(dim);
-    factor[non_zero_dim] = np.divide(
-            target_bbox_size[non_zero_dim], bbox_size[non_zero_dim]);
-    tiled_network.scale(factor);
-    return tiled_network;
+        mesh = inflator_driver.inflate_with_guide_box(
+                config["bbox_min"], config["bbox_max"],
+                config["repeats"], options);
+    save_mesh(mesh, config["output"]);
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tile a given pattern");

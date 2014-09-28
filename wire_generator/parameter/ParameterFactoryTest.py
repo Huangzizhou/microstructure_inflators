@@ -30,7 +30,8 @@ class ParameterFactoryTest(unittest.TestCase):
                 "thickness": {
                     "type": "vertex_orbit",
                     "effective_orbits": [0, 1],
-                    "thickness": [0.1, "{x}"]
+                    "thickness": [0.1, "{x}"],
+                    "default": 0.5
                     }
                 }
         param_factory.create_parameters_from_dict(config);
