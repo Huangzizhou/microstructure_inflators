@@ -22,4 +22,12 @@ class InflatorFacade2D(InflatorFacade):
         return inflator.mesh;
 
     def inflate_with_guide_mesh(self, mesh, options):
-        raise NotImplementedError("Inflate with guide mesh is not supported");
+        inflator = WireInflator2D(self.unit_pattern, self.parameters);
+        if options.get("trim", False):
+            raise NotImplementedError("Trimming is not supported in 2D");
+        if options.get("periodic", False):
+            raise RuntimeError(
+                    "Perodic inflation is not valid when tiling with guide mesh");
+
+        inflator.tile_quad_mesh(mesh);
+        return inflator.mesh;

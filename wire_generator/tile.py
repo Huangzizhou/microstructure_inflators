@@ -21,7 +21,7 @@ def parse_config_file(config_file):
         "bbox_min": [min_x, min_y, min_z],
         "bbox_max": [max_x, max_y, max_z],
         "repeats": [x_reps, y_reps, z_reps],
-        "hex_mesh": hex_mesh,
+        "guide_mesh": guide_mesh,
         "no_tile": bool,
         "trim": bool,
         "periodic": bool,
@@ -38,15 +38,16 @@ def parse_config_file(config_file):
             config[field_name] = find_file(field, config_dir);
 
     convert_to_abs_path("wire_network");
-    if "hex_mesh" in config:
-        convert_to_abs_path("hex_mesh");
+    if "guide_mesh" in config:
+        convert_to_abs_path("guide_mesh");
     if "modifier_file" in config:
         convert_to_abs_path("modifier_file");
     return config;
 
 def load_mesh(mesh_file):
     factory = PyMesh.MeshFactory();
-    factory.load_file(mesh_file);
+    factory.load_file(str(mesh_file));
+    factory.drop_zero_dim();
     mesh = factory.create();
     return mesh;
 
@@ -80,8 +81,8 @@ def tile(config):
             "trim": config.get("trim", False),
             "periodic": config.get("periodic", False) }
     inflator_driver = InflatorFacade.create(network, parameters);
-    if "hex_mesh" in config:
-        guide_mesh = load_mesh(config["hex_mesh"]);
+    if "guide_mesh" in config:
+        guide_mesh = load_mesh(config["guide_mesh"]);
         mesh = inflator_driver.inflate_with_guide_mesh(guide_mesh, options);
     else:
         mesh = inflator_driver.inflate_with_guide_box(

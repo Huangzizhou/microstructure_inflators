@@ -25,7 +25,7 @@ class WireInflator2D(object):
         self.inflator.set_dimension(1, 1);
         p = self.parameter_handler.convert_to_flattened_parameters(
                 self.parameters);
-        self.__scale_thickness_parameters(p);
+        self.__scale_thickness_parameters(p, self.scale_factor);
         self.inflator.set_parameter(0, 0, p);
         self.inflator.set_max_triangle_area(0.0001);
         self.inflator.generate_periodic_pattern();
@@ -38,7 +38,7 @@ class WireInflator2D(object):
             for j in range(cols):
                 p = self.parameter_handler.convert_to_flattened_parameters(
                         self.parameters);
-                self.__scale_thickness_parameters(p);
+                self.__scale_thickness_parameters(p, self.scale_factor);
                 self.inflator.set_parameter(i, j, p);
 
         self.inflator.set_max_triangle_area(0.001);
@@ -58,21 +58,22 @@ class WireInflator2D(object):
             if len(values) == num_cells:
                 attribute_names.append(name);
                 attribute_values.append(values);
+        assert(len(attribute_names) == len(attribute_values));
         attribute_dict = [{
-            name[i]:value[i]
+            name:value[i]
             for name, value in zip(attribute_names, attribute_values)}
             for i in range(num_cells)];
 
-        quad_mesh.add_attribute("face_area");
-        areas = quad_mesh.get_attribute("face_area").ravel();
+        #quad_mesh.add_attribute("face_area");
+        #areas = quad_mesh.get_attribute("face_area").ravel();
         vertices = quad_mesh.get_vertices().reshape((-1,2), order="C");
         parameters = [];
         for i in range(num_cells):
-            area = areas[i];
-            self.scale_factor = sqrt(area);
+            #area = areas[i];
+            #scale_factor = sqrt(area);
             p = self.parameter_handler.convert_to_flattened_parameters(
                     self.parameters, **attribute_dict[i]);
-            self.__scale_thickness_parameters(p);
+            self.__scale_thickness_parameters(p, 1.0);
             parameters.append(p);
         parameters = np.array(parameters, order="C");
 
@@ -110,7 +111,7 @@ class WireInflator2D(object):
             raise RuntimeError("Non-uniform scaling {} is not supported!".format(
                 scale_factor));
 
-    def __scale_thickness_parameters(self, p):
+    def __scale_thickness_parameters(self, p, scale_factor):
         for i,value in enumerate(p):
             if self.inflator.get_parameter_type(i) ==\
                     PyWireInflator2D.WireInflatorFacade.THICKNESS:
@@ -118,12 +119,13 @@ class WireInflator2D(object):
                         # output: ratio of radius (thickness * 0.5) to cell
                         # size.  In other words, the wire radius if we scale the
                         # cell into a unit box.
-                        p[i] = value / self.scale_factor * 0.5;
+                        p[i] = value / scale_factor * 0.5;
 
     @property
     def mesh(self):
         vertices = self.inflator.get_vertices().reshape((-1, 2), order="C");
-        vertices = vertices * self.scale_factor;
+        if hasattr(self, "scale_factor"):
+            vertices = vertices * self.scale_factor;
         faces = self.inflator.get_triangles().reshape((-1, 3), order="C");
 
         mesh = form_mesh(vertices, faces);
