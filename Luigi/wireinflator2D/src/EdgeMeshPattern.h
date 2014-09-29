@@ -2,7 +2,9 @@
 #define EDGEMESHPATTERN_H
 
 #include "Pattern2D.h"
-#include "EdgeMeshType.h"
+#include "PolyMeshUtils.h"
+#include "WireMesh2D.h"
+#include "WireMeshEmbedding.h"
 #include "InflatorParameters.h"
 
 #include "tessellator2d.h"
@@ -18,6 +20,7 @@
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/position.h>
 #include <vcg/space/index/index2D/grid_static_ptr_2D.h>
+#include <vcg/complex/algorithms/local_optimization/tri_edge_collapse.h>
 
 namespace std
 {
@@ -82,14 +85,19 @@ private:
 };
 
 
-template <class TriMesh, class WireMesh>
+template <class TriMesh, class EMesh>
 class EdgeMeshPattern : public Pattern2D<TriMesh>
 {
 public:
-	typedef EdgeMeshPattern<TriMesh, WireMesh> ThisType;
+	typedef WireMesh2D<EMesh>                  WireMesh;
+	typedef EdgeMeshPattern<TriMesh, EMesh> ThisType;
 	typedef Pattern2D<TriMesh>                 BaseType;
 	typedef typename BaseType::ScalarType      ScalarType;
 	typedef typename BaseType::Coord2Type      Coord2Type;
+
+	typedef typename EMesh::CoordType           ECoordType;
+	typedef typename EMesh::EdgeType            EEdgeType;
+	typedef typename EMesh::VertexType          EVertexType;
 
 	typedef Tessellator2DSettings              TessellatorSettings;
 
@@ -155,7 +163,11 @@ public:
 		this->setTessellationParameters();
 
 		this->m_paths.clear();
+
 		generateOneElement();
+		// optimize path removing small edges
+		optimizeContours(this->m_base_paths);
+
 		this->m_paths = this->m_base_paths;
 
 		splitAllCountourEdges(this->m_paths);
@@ -164,10 +176,10 @@ public:
 		return true;
 	}
 
+	// works only when generating a single axis-aligned cell
 	void computeVelocityField(TriMesh & mesh,
 	                          std::unordered_map<std::pair<int, int>, std::vector<ScalarType> > & fields)
 	{                                                              // contains one scalar for each pattern parameter
-		typedef typename EMesh::CoordType        CoordType;
 		typedef typename ParameterOperation::NodeID NodeID;
 
 		if (!m_wire.isValid())
@@ -200,7 +212,7 @@ public:
 					if (edges.count(e) == 0)
 					{
 						// compute normal of edge
-						CoordType n = CoordType::Construct((v1->cP() - v0->cP()).Normalize());
+						ECoordType n = ECoordType::Construct((v1->cP() - v0->cP()).Normalize());
 						edges[e] = vcg::Point2d(n[1], -n[0]); // rotated by -90 degrees
 					}
 				}
@@ -224,13 +236,13 @@ public:
 			for (size_t i=0; i<em.edge.size(); ++i)
 			{
 				// get the edge
-				const EMesh::EdgeType & e = em.edge[i];
+				const EEdgeType & e = em.edge[i];
 				if (e.IsD())
 					continue;
 
 				// get their vertices
-				const EMesh::VertexType & v0 = *e.cV(0);
-				const EMesh::VertexType & v1 = *e.cV(1);
+				const EVertexType & v0 = *e.cV(0);
+				const EVertexType & v1 = *e.cV(1);
 
 				// get the vertices coordinate
 				Coord2Type p0(ScalarType(v0.cP()[0]), ScalarType(v0.cP()[1]));
@@ -261,7 +273,7 @@ public:
 			// generate vertex circles
 			for (size_t i=0; i<em.vert.size(); ++i)
 			{
-				const EMesh::VertexType & v = em.vert[i];
+				const EVertexType & v = em.vert[i];
 				if (v.IsD())
 					continue;
 
@@ -315,11 +327,11 @@ public:
 					{
 						NormalType n0 = (std::find(par.nodes.begin(), par.nodes.end(), NodeID(s->index0)) == par.nodes.end()) ?
 						                    NormalType(0,0,0) :
-						                    NormalType::Construct(CoordType(s->P0()[0], s->P0()[1], 0) - em.vert[s->index0].cP()).Normalize();
+						                    NormalType::Construct(ECoordType(s->P0()[0], s->P0()[1], 0) - em.vert[s->index0].cP()).Normalize();
 
 						NormalType n1 = (std::find(par.nodes.begin(), par.nodes.end(), NodeID(s->index1)) == par.nodes.end()) ?
 						                    NormalType(0,0,0) :
-						                    NormalType::Construct(CoordType(s->P1()[0], s->P1()[1], 0) - em.vert[s->index1].cP()).Normalize();
+						                    NormalType::Construct(ECoordType(s->P1()[0], s->P1()[1], 0) - em.vert[s->index1].cP()).Normalize();
 
 						ScalarType t =  s->interpolationParameter(closest);
 						v->N() = n0 * (1-t) + n1 * t;
@@ -406,8 +418,6 @@ public:
 
 		this->m_paths.clear();
 
-//		assert(m_scale > 0);
-
 		ClipperLib::Clipper clipper;
 
 		for (unsigned int x=0; x<grid.width(); ++x)
@@ -418,6 +428,8 @@ public:
 					continue;
 
 				generateOneElement(*grid(x,y));
+				// optimize path removing small edges
+				optimizeContours(this->m_base_paths);
 
 				ClipperLib::IntRect bounds = getBounds(this->m_base_paths);
 				ClipperLib::IntPoint t((bounds.right - bounds.left) * x, (bounds.top - bounds.bottom) * y);
@@ -426,19 +438,75 @@ public:
 		}
 
 		clipper.Execute(ClipperLib::ctUnion, this->m_paths, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
-
 		splitAllCountourEdges(this->m_paths);
-//		this->m_paths *= m_scale;
 
 		auto singleElemScale = m_wire.getOriginalScale();
 		m_final_scale = Coord2Type(singleElemScale.X() * grid.width(), singleElemScale.Y() * grid.height());
 		return true;
 	}
 
+	static std::string CellParametersAttributeName(void)
+	{
+		return "cell_parameters";
+	}
+
+	template <class PolyMesh>
+	bool generateFromQuads(PolyMesh & pmesh)
+	{
+		typedef WireMeshEmbedding<EMesh, PolyMesh> WireEmbedding;
+
+		if (!m_wire.isValid())
+			return false;
+
+		if (!PolyMeshUtils<PolyMesh>::isQuadMesh(pmesh))
+			return false;
+
+		this->setTessellationParameters();
+		this->m_paths.clear();
+
+		WireEmbedding::preprocessQuadMesh(pmesh);
+
+		ClipperLib::Clipper clipper;
+		for (size_t i=0; i<pmesh.face.size(); ++i)
+		{
+			// generate one element per face (quad)
+			typename PolyMesh::FaceType & f = pmesh.face[i];
+
+			// retrieve cell parameters
+			CellParameters params;
+			auto faceParams = vcg::tri::Allocator<PolyMesh>::template FindPerFaceAttribute<CellParameters>(pmesh, CellParametersAttributeName());
+			if (vcg::tri::Allocator<PolyMesh>::template IsValidHandle<CellParameters>(pmesh, faceParams))
+			{
+				params = faceParams[&f];
+			}
+			else
+			{
+				params = m_wire.createCellParameters();
+			}
+
+			this->generateOneElement(params, pmesh, f);
+			this->optimizeContours<PolyMesh>(this->m_base_paths, f);
+
+			clipper.AddPaths(this->m_base_paths, ClipperLib::ptSubject, true);
+		}
+
+		clipper.Execute(ClipperLib::ctUnion, this->m_paths, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
+		splitAllCountourEdges(this->m_paths);
+
+		m_final_scale = Coord2Type(0,0);
+		return true;
+	}
+
 	bool tessellate(TriMesh & mesh)
 	{
 		bool ret = Tessellator2D<TriMesh>::execute(m_tri_settings, this->m_paths, this->ScaleFactor, mesh);
-		scaleTessellatedMesh(mesh);
+		if (ret)
+		{
+			this->decimateMesh(mesh);
+			vcg::tri::Allocator<TriMesh>::CompactEveryVector(mesh);
+
+			this->scaleTessellatedMesh(mesh); // just for grid or single cell
+		}
 		return ret;
 	}
 
@@ -462,6 +530,79 @@ protected:
 		generateOneElement(this->m_params.patternParams);
 	}
 
+	template <class PolyMesh>
+	void generateOneElement(const CellParameters & pars, PolyMesh & pmesh, const typename PolyMesh::FaceType & f)
+	{
+		typedef WireMeshEmbedding<EMesh, PolyMesh> WireEmbedding;
+
+		if (!m_wire.isValid())
+			return;
+
+		this->m_base_paths.clear();
+
+		// get the edge mesh embedded within the quad
+		EMesh em;
+		m_wire.getNormalizedMesh(em, pars);
+		WireEmbedding::embedWireMesh(em, f, pmesh);
+
+		vcg::tri::RequireVEAdjacency(em);
+		vcg::tri::RequireEEAdjacency(em);
+
+		ClipperLib::Paths profile;
+		inflateEdgeMesh(em, profile);
+
+		// get the clipping quad
+		ClipperLib::Path clip_poly;
+		for (char i=0; i<4; i++)
+		{
+			clip_poly.push_back(ThisType::convertToIntPoint(Coord2Type(f.cP(i)[0], f.cP(i)[1])));
+		}
+
+		// clip with the quad
+		ClipperLib::Clipper clip;
+		clip.AddPaths(profile, ClipperLib::ptSubject, true);
+		clip.AddPath(clip_poly, ClipperLib::ptClip, true);
+		clip.Execute(ClipperLib::ctIntersection, this->m_base_paths, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
+
+		// get the border segments adjacenct to another quad
+		clip_poly.push_back(clip_poly.back());
+		ClipperLib::Paths tmp;
+		for (int i=0; i<f.VN(); ++i)
+		{
+			if (!f.IsB(i))
+			{
+				ClipperLib::Path edge;
+				edge.push_back(clip_poly[i]);
+				edge.push_back(clip_poly[(i+1)%f.VN()]);
+				tmp.push_back(edge);
+			}
+		}
+		ClipperLib::PolyTree pt;
+		clip.Clear();
+		clip.AddPaths(tmp, ClipperLib::ptSubject, false);
+		clip.AddPaths(profile, ClipperLib::ptClip, true);
+		clip.Execute(ClipperLib::ctIntersection, pt, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
+
+		ClipperLib::ClipperOffset offset;
+		for (int i=0; i<pt.ChildCount(); i++)
+		{
+			this->m_base_paths.push_back(ClipperLib::Path());
+			ClipperLib::PolyNode & pn = *pt.Childs.at(i);
+			if (!pn.IsOpen())
+			{
+				assert(0);
+				continue;
+			}
+			offset.AddPath(pn.Contour, ClipperLib::jtSquare, ClipperLib::etOpenButt);
+		}
+		offset.Execute(tmp, 0.0001 * ThisType::ScaleFactor);
+
+		clip.Clear();
+		clip.AddPaths(tmp, ClipperLib::ptSubject, true);
+		clip.AddPaths(this->m_base_paths, ClipperLib::ptSubject, true);
+		clip.Execute(ClipperLib::ctUnion, this->m_base_paths, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
+	}
+
 	void generateOneElement(const CellParameters & pars)
 	{
 		if (!m_wire.isValid())
@@ -476,19 +617,35 @@ protected:
 		vcg::tri::RequireVEAdjacency(em);
 		vcg::tri::RequireEEAdjacency(em);
 
+		ClipperLib::Paths profile;
+		inflateEdgeMesh(em, profile);
+
+		// get the bbox
+		ClipperLib::IntRect intBbox = getClipperBbox(em.bbox);
+		ClipperLib::Path clip_bbox = convertToPath(intBbox);
+
+		// clip to bounding box
+		ClipperLib::Clipper clip;
+		clip.AddPaths(profile, ClipperLib::ptSubject, true);
+		clip.AddPath(clip_bbox, ClipperLib::ptClip, true);
+		clip.Execute(ClipperLib::ctIntersection, this->m_base_paths, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
+	}
+
+	void inflateEdgeMesh(EMesh & em, ClipperLib::Paths & profile)
+	{
 		ClipperLib::Clipper clip;
 
 		// generate the isosceles trapezoids corresponding to the edges
 		for (size_t i=0; i<em.edge.size(); ++i)
 		{
 			// get the edge
-			const EMesh::EdgeType & e = em.edge[i];
+			const EEdgeType & e = em.edge[i];
 			if (e.IsD())
 				continue;
 
 			// get their vertices
-			const EMesh::VertexType & v0 = *e.cV(0);
-			const EMesh::VertexType & v1 = *e.cV(1);
+			const EVertexType & v0 = *e.cV(0);
+			const EVertexType & v1 = *e.cV(1);
 
 			// get the vertices coordinate
 			Coord2Type p0(ScalarType(v0.cP()[0]), ScalarType(v0.cP()[1]));
@@ -523,14 +680,10 @@ protected:
 			clip.AddPath(edge_path, ClipperLib::ptSubject, true);
 		}
 
-		// get the bbox
-		ClipperLib::IntRect intBbox = getClipperBbox(em.bbox);
-		ClipperLib::Path clip_bbox = convertToPath(intBbox);
-
 		// generate vertex circles
 		for (size_t i=0; i<em.vert.size(); ++i)
 		{
-			const EMesh::VertexType & v = em.vert[i];
+			const EVertexType & v = em.vert[i];
 			if (v.IsD())
 				continue;
 
@@ -543,18 +696,8 @@ protected:
 		}
 
 		// union all vertices circles and edges trapezoids
-		ClipperLib::Paths tmp;
-		clip.Execute(ClipperLib::ctUnion, tmp, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
-		clip.Clear();
-
-		// clip to bounding box
-		clip.AddPaths(tmp, ClipperLib::ptSubject, true);
-		clip.AddPath(clip_bbox, ClipperLib::ptClip, true);
-		tmp.clear();
-		clip.Execute(ClipperLib::ctIntersection, this->m_base_paths, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
-
-		// optimize path removing small edges
-		optimizeContours(this->m_base_paths);
+		profile.clear();
+		clip.Execute(ClipperLib::ctUnion, profile, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
 	}
 
 	double maxEdgeLength(void)
@@ -570,7 +713,7 @@ protected:
 	{
 		// set tesselation settings from tessellation parameters
 		this->m_tri_settings.area_constrained = true;
-		this->m_tri_settings.max_area = m_params.tessellationParams.max_area;
+		this->m_tri_settings.max_area = m_params.tessellationParams.max_area; //  change to account for real dimension
 		this->m_tri_settings.angle_constrained = true;
 		this->m_tri_settings.min_angle = m_params.tessellationParams.min_angle;
 
@@ -581,6 +724,8 @@ protected:
 
 	void scaleTessellatedMesh(TriMesh & mesh)
 	{
+		if (m_final_scale.X() == 0 || m_final_scale.Y() == 0)
+			return;
 		vcg::tri::UpdateBounding<TriMesh>::Box(mesh);
 		vcg::tri::UpdatePosition<TriMesh>::Scale(mesh,typename TriMesh::CoordType(m_final_scale.X()/mesh.bbox.DimX(),
 		                                                                          m_final_scale.X()/mesh.bbox.DimX(),
@@ -646,12 +791,34 @@ protected:
 
 		for (ClipperLib::Path & p : profile)
 		{
-			reverse(p);
+			ClipperLib::ReversePath(p);
 			simplifyPath(epsilon, bounds, p);
-			reverse(p);
+			ClipperLib::ReversePath(p);
 			simplifyPath(epsilon, bounds, p);
 		}
 	}
+
+	template <class PolyMesh>
+	void optimizeContours(ClipperLib::Paths & profile, const typename PolyMesh::FaceType & f)
+	{
+		ClipperLib::cInt epsilon = ClipperLib::cInt(this->maxEdgeLength() * 0.4 * ThisType::ScaleFactor);
+
+		// get the clipping quad
+		ClipperLib::Path clip_poly;
+		for (char i=0; i<f.VN(); i++)
+		{
+			clip_poly.push_back(ThisType::convertToIntPoint(Coord2Type(f.cP(i)[0], f.cP(i)[1])));
+		}
+
+		for (ClipperLib::Path & p : profile)
+		{
+			ClipperLib::ReversePath(p);
+			simplifyPath(epsilon, clip_poly, p);
+			ClipperLib::ReversePath(p);
+			simplifyPath(epsilon, clip_poly, p);
+		}
+	}
+
 
 	static void simplifyPath(ClipperLib::cInt epsilon, const ClipperLib::IntRect & bounds, ClipperLib::Path & path)
 	{
@@ -699,6 +866,107 @@ protected:
 		path = newPath;
 	}
 
+	static void simplifyPath(ClipperLib::cInt epsilon, const ClipperLib::Path & bounds, ClipperLib::Path & path)
+	{
+		ClipperLib::Path newPath;
+
+		size_t idx = 0;
+		for (size_t i=0; i<path.size(); i++)
+		{
+			const ClipperLib::IntPoint p0 = path[idx];
+			const ClipperLib::IntPoint p1 = path[(i+1)%path.size()];
+
+			// choose to preserve the points on the boundary
+			bool boundary = (ClipperLib::PointInPolygon(p0, bounds) <= 0);
+
+			if (ClipperLib::cInt(distance(p0, p1)) >= epsilon)
+			{
+				// points are far apart or p0 is on the boundary
+				newPath.push_back(p0);
+				idx = i+1;
+			}
+			else
+			{
+				if (boundary)
+				{
+					newPath.push_back(p0);
+					idx = i+1;
+				}
+				else
+					if (ClipperLib::PointInPolygon(p1, bounds) <= 0)
+					{
+						if (boundary)
+						{
+							newPath.push_back(p0);
+						}
+						idx = i+1;
+
+						if (i+1 == path.size())
+							newPath.push_back(p1);
+					}
+			}
+		}
+
+		path = newPath;
+	}
+
+	// decimations utility
+	class SimplifyParameter : public vcg::BaseParameterClass
+	{
+	public:
+		double maxLength;
+	};
+
+	typedef BasicVertexPair<typename TriMesh::VertexType> VertexPair;
+	class EdgeCollapse2D : public vcg::tri::TriEdgeCollapse<TriMesh, VertexPair, EdgeCollapse2D>
+	{
+	public:
+		typedef vcg::tri::TriEdgeCollapse<TriMesh, VertexPair, EdgeCollapse2D> BaseType;
+		typedef typename BaseType::ScalarType                                  ScalarType;
+		typedef vcg::BaseParameterClass                                        BaseParameterClass;
+		inline EdgeCollapse2D(const VertexPair &p, int mark, BaseParameterClass * pp) : BaseType(p, mark, pp) {}
+
+		inline ScalarType ComputePriority(BaseParameterClass *)
+		{
+			auto dist = vcg::SquaredDistance(this->pos.V(0)->cP(), this->pos.V(1)->cP());
+			this->_priority = dist;
+			return this->_priority;
+		}
+
+		inline bool IsFeasible(BaseParameterClass * p)
+		{
+			SimplifyParameter * sp = (SimplifyParameter *)p;
+			bool distOk = (vcg::Distance(this->pos.V(0)->cP(), this->pos.V(1)->cP()) < sp->maxLength);
+			if (!distOk)
+				return false;
+
+			if (EdgeCollapser<TriMesh,VertexPair>::LinkConditions(this->pos))
+				return true;
+
+			// check if the edge is border and belongs to a face with exaclty 2 border edges
+			int countF[2] = {0, 0};
+			for (int i=0; i<2; ++i)
+			{
+				for(vcg::face::VFIterator<typename TriMesh::FaceType> vfi(this->pos.V(i)); !vfi.End(); ++vfi)
+				{
+					countF[i]++;
+				}
+			}
+			return (countF[0] == 1 && countF[1] > 1) || (countF[1] == 1 && countF[0] > 1);
+		}
+	};
+
+	void decimateMesh(TriMesh & mesh)
+	{
+		SimplifyParameter sp;
+		sp.maxLength = this->maxEdgeLength() * 0.25;
+		vcg::LocalOptimization<TriMesh> decimator(mesh, &sp);
+
+		decimator.template Init<EdgeCollapse2D>();
+		decimator.DoOptimization();
+	}
+
+	// clipper related functions
 	typedef vcg::Box3<typename EMesh::ScalarType> EMeshBoxType;
 
 	static ClipperLib::IntRect getClipperBbox(const EMeshBoxType & bbox)

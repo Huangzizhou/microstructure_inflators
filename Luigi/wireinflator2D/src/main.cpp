@@ -1,5 +1,7 @@
 #include "WireInflator2D.h"
 #include <cassert>
+#include <ctime>
+#include <cstdlib>
 #include <iostream>
 
 typedef WireInflator2D::PatternGen PatternGen;
@@ -17,24 +19,22 @@ CellParameters rand_param(const PatternGen & pg)
 
 int main(int argc, char* argv[])
 {
-	(void)argc;
-	(void)argv;
-
-    if (argc != 2) {
-        std::cerr << "Usage:" << std::endl;
-        std::cerr << argv[0] << " wire_file" << std::endl;
-        return -1;
-    }
-    static const std::string wireMeshPath(argv[1]);
+	if (argc < 2)
+	{
+		std::cerr << "Usage:" << std::endl;
+		std::cerr << argv[0] << " <wire_file> [<quads_file>]" << std::endl;
+		return -1;
+	}
+	static const std::string wireMeshPath(argv[1]);
 
 	WireInflator2D wi(wireMeshPath);
-    WireInflator2D::OutMeshType mesh;
+	WireInflator2D::OutMeshType mesh;
 
 	// single cell generations
 	{
 		TessellationParameters t_params;
 		CellParameters         p_params = wi.createParameters();
-        std::cout << p_params.numberOfParameters() << " parameters" << std::endl;
+		std::cout << p_params.numberOfParameters() << " parameters" << std::endl;
 
 		for (size_t i=0; i<p_params.numberOfParameters(); ++i)
 		{
@@ -52,6 +52,7 @@ int main(int argc, char* argv[])
 
 		const int w=10, h=10;
 		Array2D<CellParameters *> grid(w,h);
+		srand(time(NULL));
 		for (int x=0; x<w; ++x)
 			for (int y=0; y<h; ++y)
 			{
@@ -69,10 +70,22 @@ int main(int argc, char* argv[])
 				delete grid(x,y);
 	}
 
-    WireInflator2D::OutMeshType::NodeVector nodes = mesh.nodes;
-    WireInflator2D::OutMeshType::ElementVector elements = mesh.elements;
-    std::cout << nodes.size() << " vertices" << std::endl;
-    std::cout << elements.size() << " elements" << std::endl;
+	if (argc <= 2)
+		return 0;
 
+	// quads generation
+	static const std::string quadMeshFile(argv[2]);
+	{
+		TessellationParameters t_params;
+
+		srand(time(NULL));
+		std::vector<CellParameters> quadParams;
+		for (size_t i=0; i<15; ++i)
+		{
+			quadParams.push_back(rand_param(wi.patternGenerator()));
+		}
+
+		wi.generateQuadsPattern(quadMeshFile, quadParams, t_params, mesh);
+	}
 	return 0;
 }
