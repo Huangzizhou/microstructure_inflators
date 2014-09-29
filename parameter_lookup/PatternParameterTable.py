@@ -6,9 +6,10 @@ import numpy as np
 import pyflann
 
 class PatternParameterTable:
-    def __init__(self, index_dir):
+    def __init__(self, index_dir, key="compliance"):
+        self.key = key;
         self.index_dir = index_dir;
-        self.compliance_table = self.__load_index("compliance");
+        self.lookup_table = self.__load_index(key);
         self.header, self.pattern = self.__load_data("pattern.csv");
 
         self.young = self.__load_dataset("young");
@@ -16,9 +17,8 @@ class PatternParameterTable:
         self.shear = self.__load_dataset("shear");
 
     def lookup(self, materials):
-        target_tensors = np.array([material.compliance_tensor.ravel(order="C")
-            for material in materials ]);
-        index, dist = self.compliance_table.nn_index(target_tensors, 1);
+        target_tensors = self.__extract_lookup_keys(materials);
+        index, dist = self.lookup_table.nn_index(target_tensors, 1);
 
         param_values = self.pattern[index];
         young = self.young[index];
@@ -28,9 +28,8 @@ class PatternParameterTable:
         return param_values, young, poisson, shear, dist.ravel();
 
     def lookup_and_interpolate(self, materials):
-        target_tensors = np.array([material.compliance_tensor.ravel(order="C")
-            for material in materials ]);
-        index, dist = self.compliance_table.nn_index(target_tensors, 3);
+        target_tensors = self.__extract_lookup_keys(materials);
+        index, dist = self.lookup_table.nn_index(target_tensors, 3);
 
         weights = np.ones_like(dist) / dist;
         weights = weights / np.sum(weights, axis=1)[:,np.newaxis];
@@ -69,3 +68,15 @@ class PatternParameterTable:
             for row in reader:
                 data.append(row);
         return header, np.array(data);
+
+    def __extract_lookup_keys(self, materials):
+        if self.key == "compliance":
+            target_tensors = np.array([material.compliance_tensor.ravel(order="C")
+                for material in materials ]);
+        elif self.key == "elasticity":
+            target_tensors = np.array([material.elasticity_tensor.ravel(order="C")
+                for material in materials ]);
+        else:
+            raise NotImplementedError("Unknow lookup key: {}".format(self.key));
+
+        return target_tensors;

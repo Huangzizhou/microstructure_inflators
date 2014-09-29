@@ -2,6 +2,7 @@
 
 import argparse
 import numpy as np
+import os.path
 
 import PyMeshSetting
 import PyMesh
@@ -44,7 +45,7 @@ def main():
     materials = [IsotropicMaterial(mesh.get_dim(), E, nu)
             for E, nu in zip(young, poisson)];
 
-    param_table = PatternParameterTable(args.index_dir);
+    param_table = PatternParameterTable(args.index_dir, "elasticity");
     header = param_table.header;
 
     #param_values, fitted_young, fitted_poisson, fitted_shear, dist =\

@@ -66,9 +66,11 @@ def generate_and_save_index(dim, materials, out_dir):
     shears = [];
     poissons = [];
     compliance_tensors = [];
+    elasticity_tensors = [];
     for param in materials:
         parameters.append(param.values);
         compliance_tensors.append(param.compliance_tensor.ravel(order="C"));
+        elasticity_tensors.append(param.elasticity_tensor.ravel(order="C"));
         if dim == 3:
             youngs.append([param.young_x, param.young_y, param.young_z]);
             shears.append([param.shear_yz, param.shear_zx, param.shear_xy]);
@@ -82,18 +84,21 @@ def generate_and_save_index(dim, materials, out_dir):
             poissons.append([param.poisson_xy, param.poisson_yx ]);
     parameters = np.array(parameters);
     compliance_tensors = np.array(compliance_tensors);
+    elasticity_tensors = np.array(elasticity_tensors);
     youngs = np.array(youngs);
     shears = np.array(shears);
     poissons = np.array(poissons);
 
     generate_and_save(parameters, os.path.join(out_dir, "all.index"));
     generate_and_save(compliance_tensors, os.path.join(out_dir, "compliance.index"));
+    generate_and_save(elasticity_tensors, os.path.join(out_dir, "elasticity.index"));
     generate_and_save(youngs, os.path.join(out_dir, "young.index"));
     generate_and_save(shears, os.path.join(out_dir, "shear.index"));
     generate_and_save(poissons, os.path.join(out_dir, "poisson.index"));
 
     save_dataset(parameters, os.path.join(out_dir, "all.npy"));
     save_dataset(compliance_tensors, os.path.join(out_dir, "compliance.npy"));
+    save_dataset(elasticity_tensors, os.path.join(out_dir, "elasticity.npy"));
     save_dataset(youngs, os.path.join(out_dir, "young.npy"));
     save_dataset(shears, os.path.join(out_dir, "shear.npy"));
     save_dataset(poissons, os.path.join(out_dir, "poisson.npy"));
