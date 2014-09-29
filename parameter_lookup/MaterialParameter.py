@@ -88,3 +88,7 @@ class MaterialParameter(object):
     def elasticity_tensor(self):
         return self.material.elasticity_tensor;
 
+    @property
+    def compliance_tensor(self):
+        return self.material.compliance_tensor;
+

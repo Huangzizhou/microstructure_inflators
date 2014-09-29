@@ -8,7 +8,7 @@ import pyflann
 class PatternParameterTable:
     def __init__(self, index_dir):
         self.index_dir = index_dir;
-        self.elasticity_table = self.__load_index("elasticity");
+        self.compliance_table = self.__load_index("compliance");
         self.header, self.pattern = self.__load_data("pattern.csv");
 
         self.young = self.__load_dataset("young");
@@ -16,9 +16,9 @@ class PatternParameterTable:
         self.shear = self.__load_dataset("shear");
 
     def lookup(self, materials):
-        target_tensors = np.array([material.elasticity_tensor.ravel(order="C")
+        target_tensors = np.array([material.compliance_tensor.ravel(order="C")
             for material in materials ]);
-        index, dist = self.elasticity_table.nn_index(target_tensors, 1);
+        index, dist = self.compliance_table.nn_index(target_tensors, 1);
 
         param_values = self.pattern[index];
         young = self.young[index];
@@ -28,9 +28,9 @@ class PatternParameterTable:
         return param_values, young, poisson, shear, dist.ravel();
 
     def lookup_and_interpolate(self, materials):
-        target_tensors = np.array([material.elasticity_tensor.ravel(order="C")
+        target_tensors = np.array([material.compliance_tensor.ravel(order="C")
             for material in materials ]);
-        index, dist = self.elasticity_table.nn_index(target_tensors, 3);
+        index, dist = self.compliance_table.nn_index(target_tensors, 3);
 
         weights = np.ones_like(dist) / dist;
         weights = weights / np.sum(weights, axis=1)[:,np.newaxis];
