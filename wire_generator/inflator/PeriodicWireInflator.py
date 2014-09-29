@@ -319,7 +319,7 @@ class PeriodicWireInflator(WireInflator):
                 vertices.ravel(order="C"),
                 faces.ravel(order="C"),
                 voxels,
-                self.original_wire_network.dim, 3, 0);
+                self.original_wire_network.dim, 3, 4);
         return factory.create();
 
     def _map(self, from_pts, to_pts):

@@ -181,6 +181,8 @@ class WireTiler(object):
 
         # Update vertex attributes
         for key,val in self.wire_attributes.iteritems():
+            # TODO: this seems a bit hackish.
+            if "edge" in key: continue;
             if len(val) % num_vertices == 0:
                 per_vertex_size = len(val) / num_vertices;
                 attr_val = [[] for i in range(len(self.wire_vertices))];
@@ -188,7 +190,7 @@ class WireTiler(object):
                     attr_val[vi].append(val[
                         i*per_vertex_size:(i+1)*per_vertex_size]);
                 attr_val = [np.mean(val, axis=0).ravel() for val in attr_val];
-                self.wire_attributes[key] = np.array(attr_val);
+                self.wire_attributes[key] = np.array(attr_val).reshape((num_vertices, -1), order="C");
 
 
                 #attr_val = np.zeros(len(self.wire_vertices))
@@ -205,6 +207,8 @@ class WireTiler(object):
         edge_index_map = [edge_map[edge] for edge in edges];
 
         for key,val in self.wire_attributes.iteritems():
+            # TODO: this seems a bit hackish.
+            if "vertex" in key: continue;
             if len(val) % num_edges == 0:
                 per_edge_size = len(val) / num_edges;
                 attr_val = [[] for i in range(len(self.wire_edges))];
@@ -212,7 +216,7 @@ class WireTiler(object):
                     attr_val[ei].append(val[
                         i*per_edge_size:(i+1)*per_edge_size]);
                 attr_val = [np.mean(val, axis=0) for val in attr_val];
-                self.wire_attributes[key] = np.array(attr_val);
+                self.wire_attributes[key] = np.array(attr_val).reshape((num_edges, -1), order="C");
 
     @timethis
     def __center_at_origin(self):
