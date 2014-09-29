@@ -77,7 +77,7 @@ class WireInflator2D(object):
             parameters.append(p);
         parameters = np.array(parameters, order="C");
 
-        self.inflator.set_max_triangle_area(0.001);
+        self.inflator.set_max_triangle_area(0.1);
         self.inflator.generate_pattern_with_guide_mesh(
                 tmp_mesh_file, parameters);
 
