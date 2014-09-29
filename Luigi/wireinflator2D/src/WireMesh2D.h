@@ -1,7 +1,6 @@
 #ifndef WIREMESH2D_H
 #define WIREMESH2D_H
 
-#include "EdgeMeshType.h"
 #include "EdgeMeshUtils.h"
 #include "InflatorParameters.h"
 
@@ -15,12 +14,13 @@
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/position.h>
 
+template <class EMesh>
 class WireMesh2D
 {
 public:
-	typedef EMesh::VertexType      VertexType;
-	typedef VertexType::ScalarType ScalarType;
-	typedef VertexType::CoordType  CoordType;
+	typedef typename EMesh::VertexType      VertexType;
+	typedef typename VertexType::ScalarType ScalarType;
+	typedef typename VertexType::CoordType  CoordType;
 
 	WireMesh2D(void) {;}
 
@@ -37,7 +37,9 @@ public:
 	WireMesh2D(WireMesh2D & wm)
 	    : m_operations(wm.m_operations)
 	{
-		vcg::tri::Append<EMesh,EMesh>::MeshCopy(m_em, wm.m_em, false, true);
+		vcg::tri::Append<EMesh,EMesh>::MeshCopy(m_em,            wm.m_em,            false, true);
+		vcg::tri::Append<EMesh,EMesh>::MeshCopy(m_normalized_em, wm.m_normalized_em, false, true);
+		m_bbox = wm.m_bbox;
 	}
 
 	void setMesh(const std::string & edgeMeshPath)
@@ -48,6 +50,7 @@ public:
 		if (!done)
 		{
 			m_em.Clear();
+			m_normalized_em.Clear();
 			m_bbox.SetNull();
 			return;
 		}
@@ -132,6 +135,14 @@ public:
 		return std::make_pair(0,0);
 	}
 
+	void getUnmodifiedNormalizedEdgeMesh(EMesh & em)
+	{
+		if (!this->isValid())
+			return;
+
+		vcg::tri::Append<EMesh,EMesh>::MeshCopy(em, m_normalized_em, false, true);
+	}
+
 	void getUnmodifiedEdgeMesh(EMesh & em)
 	{
 		if (!this->isValid())
@@ -151,18 +162,30 @@ public:
 		this->applyParameterOperations(em, params);
 	}
 
+	void getNormalizedMesh(EMesh & em, const CellParameters & params)
+	{
+		if (!this->isValid())
+			return;
+
+		assert(this->parametersValid(params));
+
+		this->getUnmodifiedNormalizedEdgeMesh(em);
+		this->applyParameterOperations(em, params);
+	}
+
 	vcg::Point2<ScalarType> getOriginalScale(void) const
 	{
 		return vcg::Point2<ScalarType>(m_bbox.DimX(), m_bbox.DimY());
 	}
 
-	const std::vector<ParameterOperation> &  getParameterOperations(void) const
+	const std::vector<ParameterOperation> & getParameterOperations(void) const
 	{
 		return m_operations;
 	}
 
 protected:
 	EMesh                           m_em;
+	EMesh                           m_normalized_em;
 	vcg::Box3<ScalarType>           m_bbox; // the original bounding box
 	std::vector<ParameterOperation> m_operations;
 
@@ -173,14 +196,15 @@ protected:
 		if (!this->isValid())
 		{
 			m_em.Clear();
+			m_normalized_em.Clear();
 			m_bbox.SetNull();
 			return;
 		}
 
-		this->normalizeMesh();
-
 		vcg::tri::UpdateTopology<EMesh>::VertexEdge(m_em);
 		vcg::tri::UpdateTopology<EMesh>::EdgeEdge(m_em);
+
+		this->normalizeMesh();
 
 		std::vector<std::vector<int> > symmetryOrbits;
 		this->computeSymmetryOrbits(symmetryOrbits);
@@ -211,6 +235,8 @@ protected:
 
 		assert(m_em.bbox.Dim()[0] != 0 && m_em.bbox.Dim()[1] != 0);
 
+		vcg::tri::Append<EMesh,EMesh>::MeshCopy(m_normalized_em, m_em, false, true);
+
 		// custom normalization ( keep width equal to 1)
 		static const unsigned char ax_to_one = 0; //
 		for (size_t i=0; i<m_em.vert.size(); ++i)
@@ -220,8 +246,17 @@ protected:
 			p[1] /= m_bbox.max[ax_to_one];
 			p[2] = 0;
 		}
-
 		vcg::tri::UpdateBounding<EMesh>::Box(m_em);
+
+		// real normalization
+		for (size_t i=0; i<m_normalized_em.vert.size(); ++i)
+		{
+			CoordType & p = m_normalized_em.vert[i].P();
+			p[0] /= m_bbox.max[0];
+			p[1] /= m_bbox.max[1];
+			p[2] = 0;
+		}
+		vcg::tri::UpdateBounding<EMesh>::Box(m_normalized_em);
 	}
 
 	// compute symmetry orbits clusters
@@ -234,7 +269,7 @@ protected:
 		static const std::string AttrName = "tag";
 
 		// tag each vertex
-		auto tag = vcg::tri::Allocator<EMesh>::AddPerVertexAttribute<int>(m_em, AttrName);
+		auto tag = vcg::tri::Allocator<EMesh>::template AddPerVertexAttribute<int>(m_em, AttrName);
 		for (int i=0; i<int(m_em.vert.size()); ++i)
 		{
 			tag[i] = i;

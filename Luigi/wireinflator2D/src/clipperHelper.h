@@ -88,16 +88,6 @@ inline ClipperLib::Path & operator *= (ClipperLib::Path & lhs, const double rhs)
 	return lhs;
 }
 
-inline void reverse(ClipperLib::Path & path)
-{
-	ClipperLib::Path newPath;
-	for (int i=int(path.size()-1); i>=0; --i)
-	{
-		newPath.push_back(path[i]);
-	}
-	path = newPath;
-}
-
 /// PATHS
 inline ClipperLib::Paths operator + (const ClipperLib::Paths & paths, const ClipperLib::IntPoint & t)
 {

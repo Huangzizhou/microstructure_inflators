@@ -22,17 +22,22 @@ INCLUDEPATH += $$VCGLIBDIR
 HEADERS += \
     src/clipper.hpp \
     src/clipperHelper.h \
-    src/EdgeMeshPattern.h \
-    src/EdgeMeshType.h \
-    src/InflatorParameters.h \
-    src/OutMesh.h \
-    src/Pattern2D.h \
-    src/tessellator2d.h \
     src/triangle.h \
-    src/TriMeshType.h \
+    src/tessellator2d.h \
+    src/Pattern2D.h \
+    src/EdgeMeshPattern.h \
+    src/InflatorParameters.h \
+    src/WireMesh2D.h \
+    src/WireMeshEmbedding.h \
     src/WireInflator2D.h \
+    src/EdgeMeshType.h \
     src/EdgeMeshUtils.h \
-    src/WireMesh2D.h
+    src/TriMeshType.h \
+    src/PolyMeshType.h \
+    src/PolyMeshUtils.h \
+    src/mshLoader.h \
+    src/EigenTypes.h \
+    src/OutMesh.h
 
 SOURCES += \
     src/clipper.cpp \
@@ -40,4 +45,5 @@ SOURCES += \
     src/main.cpp
 
 OTHER_FILES += \
-	meshes/octa_cell.obj
+	meshes/octa_cell.obj \
+	meshes/bent_quads.obj
