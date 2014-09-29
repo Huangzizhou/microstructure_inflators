@@ -107,12 +107,40 @@ void WireInflatorFacade::set_parameter(size_t row, size_t col, const VectorF& pa
             err_msg << "param " << i << "=" << param[i]
                 << " is out of range ["
                 << range.first << ", " << range.second << "]";
-            std::cerr << err_msg.str() << std::endl;
             throw RuntimeError(err_msg.str());
         }
     }
 
     (*m_p_params)(col, row) = p;
+}
+
+void WireInflatorFacade::generate_pattern_with_guide_mesh(
+        const std::string& mesh_file, const MatrixFr& raw_parameters) {
+    const size_t num_cells = raw_parameters.rows();
+    const size_t num_params = get_num_parameters();
+    assert(raw_parameters.cols() == num_params);
+    const WireInflator2D::PatternGen& pattern_gen = m_inflator.patternGenerator();
+
+    ParameterVector parameters(num_cells);
+    for (size_t i=0; i<num_cells; i++) {
+        const VectorF& param = raw_parameters.row(i);
+        parameters[i] = CellParameters(num_params);
+        for (size_t j=0; j<num_params; j++) {
+            std::pair<double, double> range = pattern_gen.getParameterRange(j);
+            if (param[j] >= range.first && param[j] <= range.second) {
+                parameters[i].parameter(j) = param[j];
+            } else {
+                std::stringstream err_msg;
+                err_msg << "param " << j << "=" << param[j]
+                    << " of cell " << i
+                    << " is out of range ["
+                    << range.first << ", " << range.second << "]";
+                throw RuntimeError(err_msg.str());
+            }
+        }
+    }
+
+    m_inflator.generateQuadsPattern(mesh_file, parameters, m_t_params, m_mesh);
 }
 
 VectorF WireInflatorFacade::get_vertices() {

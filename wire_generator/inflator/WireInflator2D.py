@@ -1,9 +1,12 @@
+from math import sqrt
 import numpy as np
 from numpy.linalg import norm
 import os
 import os.path
 import core.PyWireInflator2DSetting
 from wire_io.WireWriter import WireWriter
+from utils.mesh_io import form_mesh, save_mesh
+from utils.stamp import get_time_stamp
 import PyMesh
 import PyWireInflator2D
 
@@ -42,7 +45,42 @@ class WireInflator2D(object):
         self.inflator.generate_tiled_pattern();
 
     def tile_quad_mesh(self, quad_mesh):
-        raise NotImplementedError("Tiling with quad mesh is not supported.");
+        # TODO: this is quite round about way of doing thing.
+        stamp = get_time_stamp();
+        tmp_mesh_file = os.path.join("/tmp", "{}.msh".format(stamp));
+        save_mesh(tmp_mesh_file, quad_mesh);
+
+        num_cells = quad_mesh.get_num_faces();
+        attribute_names = [];
+        attribute_values = [];
+        for name in quad_mesh.get_attribute_names():
+            values = quad_mesh.get_attribute(name).ravel();
+            if len(values) == num_cells:
+                attribute_names.append(name);
+                attribute_values.append(values);
+        attribute_dict = [{
+            name[i]:value[i]
+            for name, value in zip(attribute_names, attribute_values)}
+            for i in range(num_cells)];
+
+        quad_mesh.add_attribute("face_area");
+        areas = quad_mesh.get_attribute("face_area").ravel();
+        vertices = quad_mesh.get_vertices().reshape((-1,2), order="C");
+        parameters = [];
+        for i in range(num_cells):
+            area = areas[i];
+            self.scale_factor = sqrt(area);
+            p = self.parameter_handler.convert_to_flattened_parameters(
+                    self.parameters, **attribute_dict[i]);
+            self.__scale_thickness_parameters(p);
+            parameters.append(p);
+        parameters = np.array(parameters, order="C");
+
+        self.inflator.set_max_triangle_area(0.001);
+        self.inflator.generate_pattern_with_guide_mesh(
+                tmp_mesh_file, parameters);
+
+        os.remove(tmp_mesh_file);
 
     def __create_2D_inflator(self):
         tmp_dir = "/tmp";
@@ -88,13 +126,7 @@ class WireInflator2D(object):
         vertices = vertices * self.scale_factor;
         faces = self.inflator.get_triangles().reshape((-1, 3), order="C");
 
-        factory = PyMesh.MeshFactory();
-        factory.load_data(
-                vertices.ravel(order="C"),
-                faces.ravel(order="C"),
-                np.zeros(0),
-                2, 3, 0);
-        mesh = factory.create_shared();
+        mesh = form_mesh(vertices, faces);
 
         attr_names = [];
         if hasattr(self, "is_periodic") and self.is_periodic:

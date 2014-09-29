@@ -1,5 +1,7 @@
 #pragma once
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "InflatorParameters.h"
 #include "WireInflator2D.h"
@@ -46,12 +48,16 @@ class WireInflatorFacade {
             m_inflator.generateTiledPattern(*m_p_params, m_t_params, m_mesh);
         }
 
+        void generate_pattern_with_guide_mesh(
+                const std::string& mesh_file, const MatrixFr& raw_parameters);
+
         VectorF get_vertices();
         VectorI get_triangles();
         MatrixFr get_boundary_velocity();
 
     private:
         typedef Array2D<CellParameters*> ParameterGrid;
+        typedef std::vector<CellParameters> ParameterVector;
         typedef std::shared_ptr<ParameterGrid> ParameterGridPtr;
         size_t m_rows;
         size_t m_cols;
