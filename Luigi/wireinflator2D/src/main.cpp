@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
 
 		srand(time(NULL));
 		std::vector<CellParameters> quadParams;
-		for (size_t i=0; i<4; ++i)
+		for (size_t i=0; i<15; ++i)
 		{
 			quadParams.push_back(rand_param(wi.patternGenerator()));
 		}

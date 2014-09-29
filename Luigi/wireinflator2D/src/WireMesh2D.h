@@ -213,7 +213,7 @@ protected:
 
 	virtual std::pair<double,double> getRadiusParameterRange(void) const
 	{
-		return std::make_pair( 0.01, 0.1 );
+		return std::make_pair( 0.01, 10.1 );
 	}
 
 	virtual std::pair<double,double> getTranslationParameterRange(void) const
