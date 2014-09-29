@@ -16,4 +16,4 @@ class PatternParameter(object):
 
     @property
     def dof_mask(self):
-        return np.zeros(len(self.names), dtype=True);
+        return np.zeros(len(self.names), dtype=bool);

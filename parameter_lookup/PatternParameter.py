@@ -4,106 +4,81 @@ import os.path
 import numpy as np
 from numpy.linalg import norm
 
-class PatternParameter:
-    def __init__(self, dim, modifier_file):
-        self.dim = dim;
-        self.root_dir = os.path.dirname(modifier_file);
+import microstructures_setting
+from wire_generator.utils.find_file import find_file
+from wire_generator.core.WireNetwork import WireNetwork
+from wire_generator.parameter.ParameterFactory import ParameterFactory
+from wire_generator.parameter.EdgeThicknessParameter import EdgeThicknessParameter
+from wire_generator.parameter.VertexOffsetParameter import VertexOffsetParameter
+from wire_generator.parameter.VertexThicknessParameter import VertexThicknessParameter
 
-        with open(modifier_file, 'r') as fin:
-            config = json.load(fin);
-            config["root_dir"] = self.root_dir;
-            if "thickness" in config:
-                self.thickness_parameter = \
-                        ThicknessParameter(config);
-            if "vertex_offset" in config:
-                self.vertex_offset_parameter =\
-                        VertexOffsetParameter(dim, config);
+class PatternParameter:
+    def __init__(self, config_file):
+        self.__load_config(config_file);
+        self.__load_wire();
+        self.__load_parameters();
+
+    def __load_config(self, config_file):
+        self.config_dir = os.path.dirname(config_file);
+        with open(config_file, 'r') as fin:
+            self.config = json.load(fin);
+
+    def __load_wire(self):
+        wire_file = find_file(self.config["wire_network"], self.config_dir);
+        self.wire_network = WireNetwork();
+        self.wire_network.load_from_file(wire_file);
+
+    def __load_parameters(self):
+        modifier_file = self.config.get("modifier_file");
+        if modifier_file is not None:
+            modifier_file = find_file(modifier_file, self.config_dir);
+        factory = ParameterFactory(self.wire_network, self.config["thickness"]);
+        factory.create_parameters_from_file(modifier_file);
+        self.parameters = factory.parameters;
 
     @property
     def names(self):
         names = [];
-        if hasattr(self, "thickness_parameter"):
-            names += self.thickness_parameter.names;
-        if hasattr(self, "vertex_offset_parameter"):
-            names += self.vertex_offset_parameter.names;
+        for param in self.parameters:
+            names += param.names;
         return names;
 
     @property
     def values(self):
         values = [];
-        if hasattr(self, "thickness_parameter"):
-            values += self.thickness_parameter.values;
-        if hasattr(self, "vertex_offset_parameter"):
-            values += self.vertex_offset_parameter.values;
+        for param in self.parameters:
+            values += param.evaluate().tolist();
         return values;
 
-class ThicknessParameter(PatternParameter):
-    def __init__(self, config):
-        self.root_dir = config["root_dir"]
-        self.thickness_config = config["thickness"];
-        self.load_orbits();
-        self.load_thickness_parameters();
+    @property
+    def modifier_config(self):
+        thickness_config = {
+                "type": "vertex_orbit",
+                "effective_orbits": [],
+                "thickness": [],
+                "default": 0.5
+                };
+        offset_config ={
+                    "type": "vertex_orbit",
+                    "effective_orbits": [],
+                    "offset_percentages": []
+                };
+        for param in self.parameters:
+            if isinstance(param, VertexThicknessParameter):
+                thickness_config["type"] = "vertex_orbit"
+                thickness_config["effective_orbits"].append(param.orbit_id);
+                thickness_config["thickness"].append("{{{}}}".format(param.names[0]));
+            elif isinstance(param, EdgeThicknessParameter):
+                thickness_config["type"] = "edge_orbit"
+                thickness_config["effective_orbits"].append(param.orbit_id);
+                thickness_config["thickness"].append("{{{}}}".format(param.names[0]));
+            elif isinstance(param, VertexOffsetParameter):
+                offset_config["effective_orbits"].append(param.orbit_id);
+                offset_values = ["{{{}}}".format(val) for val in param.names];
+                offset_config["offset_percentages"].append(offset_values);
+            else:
+                raise NotImplementedError("Unknown parameter of type {}".format(
+                    type(param)));
 
-    def load_orbits(self):
-        orbit_file = os.path.join(self.root_dir,
-                self.thickness_config["orbit_file"]);
-        with open(orbit_file, 'r') as fin:
-            self.orbit_config = json.load(fin);
-            self.num_vertex_orbits = len(self.orbit_config["vertex_orbits"]);
-            self.num_edge_orbits = len(self.orbit_config["edge_orbits"]);
-
-    def load_thickness_parameters(self):
-        if self.thickness_config["type"] == "edge_orbit":
-            self.load_edge_thickness_parameters();
-        else:
-            self.load_vertex_thickness_parameters();
-
-    def load_edge_thickness_parameters(self):
-        self.values = np.ones(self.num_edge_orbits) *\
-                self.thickness_config["default"];
-        effective_orbits = self.thickness_config["effective_orbits"];
-        thickness = self.thickness_config["thickness"];
-        self.values[effective_orbits] = thickness;
-
-        self.values = self.values.tolist();
-        self.names = ["edge_orbit_{}_thickness".format(i) for i in
-                range(self.num_edge_orbits)];
-
-    def load_vertex_thickness_parameters(self):
-        self.values = np.ones(self.num_vertex_orbits) *\
-                self.thickness_config["default"];
-        effective_orbits = self.thickness_config["effective_orbits"];
-        thickness = self.thickness_config["thickness"];
-        self.values[effective_orbits] = thickness;
-
-        self.values = self.values.tolist();
-        self.names = ["vertex_orbit_{}_thickness".format(i) for i in
-                range(self.num_vertex_orbits)];
-
-class VertexOffsetParameter(PatternParameter):
-    def __init__(self, dim, config):
-        self.dim = dim;
-        self.root_dir = config["root_dir"];
-        self.offset_config = config["vertex_offset"];
-        self.load_orbits();
-        self.load_offset_parameters();
-
-    def load_orbits(self):
-        orbit_file = os.path.join(self.root_dir,
-                self.offset_config["orbit_file"]);
-        with open(orbit_file, 'r') as fin:
-            self.orbit_config = json.load(fin);
-            self.num_vertex_orbits = len(self.orbit_config["vertex_orbits"]);
-            self.num_edge_orbits = len(self.orbit_config["edge_orbits"]);
-
-    def load_offset_parameters(self):
-        self.values = np.zeros((self.num_vertex_orbits, self.dim));
-        effective_orbits = self.offset_config["effective_orbits"];
-        offsets = self.offset_config["offset_percentages"];
-
-        self.values[effective_orbits] = offsets;
-        self.values = self.values.ravel(order="C").tolist();
-        self.names = ["vertex_orbit_{}_offset_{}".format(i, j)
-                for i in range(self.num_vertex_orbits)
-                for j in range(self.dim) ];
+        return {"thickness": thickness_config, "vertex_offset": offset_config};
 

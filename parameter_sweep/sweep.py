@@ -187,6 +187,7 @@ def save_setting(out_dir, sweep_config, settings):
         with open(modifier_file, 'w') as fout:
             json.dump(contents, fout, indent=4);
 
+        modifier_file = os.path.relpath(modifier_file, out_dir);
         config = generate_inflator_config(sweep_config, modifier_file);
         config_file = os.path.join(out_dir, "{}.config".format(basename));
         with open(config_file, 'w') as fout:

@@ -4,6 +4,7 @@ import numpy as np
 from core.WireNetwork import WireNetwork
 from parameter.ParameterFactory import ParameterFactory
 from utils.find_file import find_file
+from utils.mesh_io import load_mesh
 
 from WireInflator2D import WireInflator2D
 
@@ -18,6 +19,11 @@ class WireInflator2DTest(unittest.TestCase):
         factory = ParameterFactory(wire_network);
         factory.create_parameters_from_dict(config);
         return factory.parameters;
+
+    def create_quad_mesh(self, mesh_file):
+        mesh_file = find_file(mesh_file);
+        mesh = load_mesh(mesh_file);
+        return mesh;
 
     def create_config(self):
         config = {
@@ -54,3 +60,12 @@ class WireInflator2DTest(unittest.TestCase):
         mesh = inflator.mesh;
         self.assertGreater(mesh.get_num_vertices(), 0);
         self.assertGreater(mesh.get_num_faces(), 0);
+
+    def test_quad(self):
+        wire_network = self.load_wire("patterns/2D/box.wire");
+        config = self.create_config();
+        parameters = self.create_parameters(wire_network, config);
+        quad_mesh = self.create_quad_mesh("examples/quad.obj");
+        inflator = WireInflator2D(wire_network, parameters);
+        inflator.tile_quad_mesh(quad_mesh);
+
