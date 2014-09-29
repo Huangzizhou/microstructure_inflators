@@ -81,14 +81,48 @@ public:
 		if (checkFileExt(quadMeshPath, ".OBJ"))
 		{
 			ok = PMU::importFromOBJ(quadMeshPath, pmesh);
+			if (ok)
+				generateQuadsPattern(pmesh, quadParameters, inT, out);
 		}
 		else if (checkFileExt(quadMeshPath, ".MSH"))
 		{
-			ok = loadQuadMsh(quadMeshPath, pmesh);
+			VectorF nodes;
+			VectorI elements;
+
+			ok = loadQuadMsh(quadMeshPath, nodes, elements);
+			if (ok)
+				generateQuadsPattern(nodes, elements, quadParameters, inT, out);
 		}
 
 		if (!ok)
+		{
+			std::cout << "Unable to process."<< std::endl
+			          << "Input mesh is invalid." << std::endl;
+		}
+	}
+
+	/*!
+	 * \brief generateQuadsPattern generates a wiremesh pattern over a quad mesh.
+	 * \param nodes vector of nodes (coordinates)
+	 * \param elements vector of elements (node indices)
+	 * \param quadParameters the vector of cell parameters, one per quad.
+	 * \param inT the tessellation parameters
+	 * \param out the output mesh structure
+	 */
+	void generateQuadsPattern(const VectorF & nodes,
+	                          const VectorI & elements,
+	                          const std::vector<CellParameters> & quadParameters,
+	                          const TessellationParameters & inT,
+	                          OutMeshType & out)
+	{
+		PolyMesh pmesh;
+		bool ok = vectorsToPolyMesh(nodes, elements, pmesh);
+		if (!ok)
+		{
+			std::cout << "Unable to process."<< std::endl
+			          << "Input mesh is invalid." << std::endl;
 			return;
+		}
 
 		generateQuadsPattern(pmesh, quadParameters, inT, out);
 	}
@@ -199,48 +233,59 @@ private:
 		return (strncasecmp(cfile , cext, ext.length()) == 0);
 	}
 
-	static bool loadQuadMsh(const std::string & file_name, PolyMesh & pmesh)
+	static bool loadQuadMsh(const std::string & file_name, VectorF & nodes, VectorI & elements)
 	{
-		pmesh.Clear();
-
 		try
 		{
 			MshLoader loader(file_name);
 			if (loader.get_nodes_per_element() != 4)
 				return false;
 
-			const VectorI & elements = loader.get_elements();
-			const VectorF & nodes    = loader.get_nodes();
+			nodes    = loader.get_nodes();
+			elements = loader.get_elements();
 
-			assert(nodes.size()    % 3 == 0);
-			assert(elements.size() % 4 == 0);
-
-			// fill nodes
-			vcg::tri::Allocator<PolyMesh>::AddVertices(pmesh, nodes.size() / 3);
-			for (size_t i=0; i<pmesh.vert.size(); ++i)
-			{
-				PolyMesh::CoordType & p = pmesh.vert[i].P();
-				for (int k=0; k<3; k++)
-				{
-					p[k] = nodes[i*3 + k];
-				}
-			}
-
-			// fill faces
-			vcg::tri::Allocator<PolyMesh>::AddFaces(pmesh, elements.size() / 4);
-			for (size_t i=0; i<pmesh.face.size(); ++i)
-			{
-				PolyMesh::FaceType & f = pmesh.face[i];
-				f.Alloc(4);
-				for (int k=0; k<4; k++)
-				{
-					f.V(k) = &pmesh.vert[elements[i*4 + k]];
-				}
-			}
 		} catch (MshLoader::ErrorCode e) { (void)e; return false; }
 
+		return true;
+	}
+
+	static bool vectorsToPolyMesh(const VectorF & nodes, const VectorI & elements, PolyMesh & pmesh)
+	{
+		pmesh.Clear();
+
+		static const int NodeDim   = 3;
+		static const int FaceArity = 4;
+
+		if ((nodes.size()    % NodeDim   != 0) ||
+		    (elements.size() % FaceArity != 0))
+			return false;
+
+		// fill nodes
+		vcg::tri::Allocator<PolyMesh>::AddVertices(pmesh, nodes.size() / NodeDim);
+		for (size_t i=0; i<pmesh.vert.size(); ++i)
+		{
+			PolyMesh::CoordType & p = pmesh.vert[i].P();
+			for (int k=0; k<NodeDim; k++)
+			{
+				p[k] = nodes[i*NodeDim + k];
+			}
+		}
+
+		// fill faces
+		vcg::tri::Allocator<PolyMesh>::AddFaces(pmesh, elements.size() / FaceArity);
+		for (size_t i=0; i<pmesh.face.size(); ++i)
+		{
+			PolyMesh::FaceType & f = pmesh.face[i];
+			f.Alloc(FaceArity);
+			for (int k=0; k<FaceArity; k++)
+			{
+				int nodeIdx = elements[i*FaceArity + k];
+				assert(nodeIdx >= 0 && nodeIdx < pmesh.VN());
+				f.V(k) = &pmesh.vert[nodeIdx];
+			}
+		}
+
 		vcg::tri::UpdateBounding<PolyMesh>::Box(pmesh);
-		vcg::tri::UpdateTopology<PolyMesh>::FaceFace(pmesh);
 
 		return true;
 	}
