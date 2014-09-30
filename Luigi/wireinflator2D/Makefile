@@ -7,7 +7,10 @@ CPPFLAGS+=-O2
 build_dir:
 	mkdir -p build
 
-libtriangle.a: src/triangle.c src/triangle.h build_dir
+lib_dir:
+	mkdir -p lib
+
+libtriangle.a: src/triangle.c src/triangle.h build_dir lib_dir
 	$(CC) $(CFLAGS) -c src/triangle.c -o build/triangle.o
 	ar rvs lib/libtriangle.a build/triangle.o
 libclipper.a: src/clipper.cpp src/clipper.hpp build_dir
