@@ -39,9 +39,11 @@
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
+#include "PatternOptimization.hh"
+
 namespace po = boost::program_options;
 using namespace std;
-using namespace PeriodicHomogenization;
+using namespace PatternOptimization;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
     cout << "Usage: PatternOptimization_cli [options] input.msh" << endl;
@@ -105,182 +107,6 @@ template<size_t _N>
 using VField = typename LinearElasticityND<_N>::VField;
 typedef ScalarField<Real> SField;
 
-template<class Simulator>
-void addNormalVectorField(EdgeFields &ef,
-        const string &name, const SField &v_n, const Simulator &sim) {
-    size_t numBE = sim.mesh().numBoundaryElements();
-    VField<2> direction(numBE);
-    for (size_t be = 0; be < numBE; ++be)
-        direction(be) = v_n[be] * sim.mesh().boundaryElement(be)->normal();
-    ef.addField(name + " direction", direction);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-/*! Computes grad(1/2 sum_ijkl (curr_ijkl - target_ijlk|)^2) =
-//      (curr_ijkl - target_ijlk) * grad(curr_ikjl)) =
-//  @param[in]  target, curr target and current rank 4 tensors
-//  @param[in]  gradCurr     Shape derivative of the current tensor. This is a
-//                           per-boundary-edge tensor field. Each component
-//                           gives the average normal velocity a boundary edge
-//                           should be advected with to most rapidly increase
-//                           the corresponding component of the current tensor.
-//  @return     SField       Per-boundary-edge scalar field giving the steepest
-//                           ascent normal velocity perturbation for the fitting
-//                           objective.
-*///////////////////////////////////////////////////////////////////////////////
-template<class _ETensor>
-SField targetTensorShapeDerivative(const _ETensor &target,
-                const _ETensor &curr, const vector<_ETensor> &gradCurr) {
-    auto diff = curr - target;
-    SField v_n(gradCurr.size());
-
-    for (size_t be = 0; be < gradCurr.size(); ++be)
-        v_n[be] = diff.quadrupleContract(gradCurr[be]);
-
-    return v_n;
-}
-
-template<size_t _N>
-void step(WireInflator2D &inflator, TessellationParameters &t_params,
-        CellParameters &p_params, const ETensor<_N> &targetS,
-        const string outName, Real alpha) {
-    size_t nParams = p_params.numberOfParameters();
-    cout << "p = [" << p_params.parameter(0);
-    for (size_t p = 1; p < nParams; ++p)
-        cout << ", " << p_params.parameter(p);
-    cout << "]" << endl;
-
-    if (!inflator.patternGenerator().parametersValid(p_params))
-        throw runtime_error("Invalid parameters specified.");
-
-    WireInflator2D::OutMeshType inflatedMesh;
-    inflator.generatePattern(p_params, t_params, inflatedMesh);
-
-
-    typename LinearElasticityND<_N>:: template
-        HomogenousSimulator<Materials::Constant> sim(inflatedMesh.elements,
-                                                     inflatedMesh.nodes);
-
-    // Output geometry .msh
-    MeshIO::save(outName + ".msh", sim.mesh());
-
-    EdgeFields *eFields = NULL;
-    if (outName != "")
-        eFields = new EdgeFields(sim.mesh());
-
-    std::vector<VField<_N>> w_ij;
-    solveCellProblems(w_ij, sim);
-    ETensor<_N> C = homogenizedElasticityTensor(w_ij, sim);
-
-    ETensor<_N> S = C.inverse();
-    vector<Real> moduli(flatLen(_N));
-
-    // Shear moduli are multiplied by 4 in flattened compliance tensor...
-    for (size_t i = 0; i < flatLen(_N); ++i)
-        moduli[i] = ((i < _N) ? 1.0 : 0.25) / S.D(i, i);
-
-    vector<Real> poisson = { -S.D(0, 1) / S.D(1, 1),   // v_yx
-                             -S.D(1, 0) / S.D(0, 0) }; // v_xy
-
-    cout << setprecision(16) << endl;
-    cout << "Current moduli:\t"  << moduli[0] << "\t" << moduli[1] << "\t"
-         << poisson[0] << "\t" << moduli[2] << endl;
-
-    std::vector<ETensor<_N>> gradEh = homogenizedTensorGradient(w_ij, sim);
-    std::vector<ETensor<_N>> gradS; gradS.reserve(gradEh.size());
-    for (const auto &G : gradEh)
-        gradS.push_back(-S.doubleDoubleContract(G));
-
-    SField complianceFitGrad = targetTensorShapeDerivative(targetS,
-            S, gradS);
-
-    size_t numBE = sim.mesh().numBoundaryElements();
-    std::vector<SField> vn_p(nParams, SField(numBE));
-    std::vector<Real> gradp_JS(nParams, 0.0);
-    for (size_t bei = 0; bei < numBE; ++bei) {
-        auto be = sim.mesh().boundaryElement(bei);
-        auto edge = make_pair(be.tip(). volumeVertex().index(),
-                              be.tail().volumeVertex().index());
-        const auto &field = inflatedMesh.edge_fields.at(edge);
-        assert(field.size() == nParams);
-        for (size_t p = 0; p < nParams; ++p) {
-            vn_p[p][bei] = field[p];
-            gradp_JS[p] += vn_p[p][bei] * complianceFitGrad[bei] * be->area();
-        }
-    }
-
-    auto diffS = S - targetS;
-    cout << "J_S = " << diffS.quadrupleContract(diffS) << endl;
-    cout << "grad_p(J_S) = [" << gradp_JS[0];
-    for (size_t p = 1; p < nParams; ++p)
-        cout << ", " << gradp_JS[p];
-    cout << "]" << endl;
-
-    Real normSq = 0;
-    for (size_t p = 0; p < nParams; ++p) normSq += gradp_JS[p] * gradp_JS[p];
-    cout << "||grad_p||:\t" << sqrt(normSq) << endl;
-
-    // Step parameters
-    for (size_t p = 0; p < nParams; ++p)
-        p_params.parameter(p) -= alpha * gradp_JS[p];
-
-    // Compute effective boundary velocity for visualization
-    SField projectedNormalVelocity(numBE);
-    for (size_t bei = 0; bei < numBE; ++bei) {
-        projectedNormalVelocity[bei] = 0;
-        for (size_t p = 0; p < nParams; ++p)
-            projectedNormalVelocity[bei] += gradp_JS[p] * vn_p[p][bei];
-    }
-
-    if (eFields)  {
-        eFields->addField("gradFit", complianceFitGrad);
-        addNormalVectorField(*eFields, "gradFit", complianceFitGrad, sim);
-
-        eFields->addField("projectedVn", projectedNormalVelocity);
-        addNormalVectorField(*eFields, "projectedVn", projectedNormalVelocity, sim);
-
-        for (size_t p = 0; p < nParams; ++p) {
-            string name("vn_" + to_string(p));
-            eFields->addField(name, vn_p[p]);
-            addNormalVectorField(*eFields, name, vn_p[p], sim);
-        }
-
-        ////////////////////////////////////////////////////////////////////////
-        // Moduli Derivatives - for orthotropic only!
-        ////////////////////////////////////////////////////////////////////////
-        // Gradient of the compliance tensor--useful for moduli derivatives.
-        std::vector<ETensor<_N>> gradEhinv;
-        for (const auto &G : gradEh)
-            gradEhinv.push_back(-S.doubleDoubleContract(G));
-
-        SField gradEx(numBE), gradEy(numBE), gradVyx(numBE), gradVxy(numBE),
-               gradmu(numBE);
-        for (size_t i = 0; i < numBE; ++i) {
-             gradEx[i] = -moduli[0] * moduli[0] * gradEhinv[i].D(0, 0);
-             gradEy[i] = -moduli[1] * moduli[1] * gradEhinv[i].D(1, 1);
-            gradVyx[i] = -gradEy[i] * S.D(0, 1) - moduli[1] * gradEhinv[i].D(0, 1);
-            gradVxy[i] = -gradEx[i] * S.D(1, 0) - moduli[0] * gradEhinv[i].D(1, 0);
-             gradmu[i] =  gradEh[i].D(2, 2);
-        }
-        eFields->addField( "gradEx",  gradEx);
-        eFields->addField( "gradEy",  gradEy);
-        eFields->addField("gradVyx", gradVyx);
-        eFields->addField("gradVxy", gradVxy);
-        eFields->addField( "gradmu",  gradmu);
-
-        addNormalVectorField(*eFields, "gradEx",  gradEx, sim);
-        addNormalVectorField(*eFields, "gradEy",  gradEy, sim);
-        addNormalVectorField(*eFields,"gradVyx", gradVyx, sim);
-        addNormalVectorField(*eFields,"gradVxy", gradVxy, sim);
-        addNormalVectorField(*eFields, "gradmu",  gradmu, sim);
-    }
-
-    if (eFields) {
-        eFields->write(outName);
-        delete eFields;
-    }
-}
-
 template<size_t _N>
 void execute(const po::variables_map &args,
              const vector<MeshIO::IOVertex> &inVertices, 
@@ -318,6 +144,8 @@ void execute<2>(const po::variables_map &args,
         }
     }
 
+    cout << setprecision(16) << endl;
+
     cout << "Optimizing worst-fit on element " << optElement << endl
          << "initial distance:\t" << worstDist << endl;
 
@@ -338,7 +166,6 @@ void execute<2>(const po::variables_map &args,
 	WireInflator2D inflator(args["pattern"].as<string>());
     TessellationParameters t_params;
     t_params.max_area = args["max_area"].as<double>();
-    CellParameters         p_params = inflator.createParameters();
 
     // Current mapping of parameters...
     // vertex_orbit_0_thickness: 1
@@ -350,28 +177,36 @@ void execute<2>(const po::variables_map &args,
     // average vertex_orbit_2_offset_[01]: 5
     // average vertex_orbit_4_offset_[01]: 7 and 8
     Real scale = (1 / 5.0) / 2.0;
-    p_params.parameter(1) = scale * parser.scalarField("vertex_orbit_0_thickness")[optElement];
-    p_params.parameter(3) = scale * parser.scalarField("vertex_orbit_1_thickness")[optElement];
-    p_params.parameter(0) = scale * parser.scalarField("vertex_orbit_2_thickness")[optElement];
-    p_params.parameter(2) = scale * parser.scalarField("vertex_orbit_3_thickness")[optElement];
-    p_params.parameter(4) = scale * parser.scalarField("vertex_orbit_4_thickness")[optElement];
-    p_params.parameter(5) = 0.5 * (parser.scalarField("vertex_orbit_2_offset_0")[optElement] + parser.scalarField("vertex_orbit_2_offset_1")[optElement]);
-    p_params.parameter(6) = 0.5 * (parser.scalarField("vertex_orbit_0_offset_0")[optElement] + parser.scalarField("vertex_orbit_0_offset_1")[optElement]);
-    p_params.parameter(7) = 0.5 * (parser.scalarField("vertex_orbit_4_offset_0")[optElement] + parser.scalarField("vertex_orbit_4_offset_1")[optElement]) / sqrt(2);
-    p_params.parameter(8) = p_params.parameter(7);
+    size_t nParams = inflator.patternGenerator().numberOfParameters();
+    SField params(nParams);
+    params[1] = scale * parser.scalarField("vertex_orbit_0_thickness")[optElement];
+    params[3] = scale * parser.scalarField("vertex_orbit_1_thickness")[optElement];
+    params[0] = scale * parser.scalarField("vertex_orbit_2_thickness")[optElement];
+    params[2] = scale * parser.scalarField("vertex_orbit_3_thickness")[optElement];
+    params[4] = scale * parser.scalarField("vertex_orbit_4_thickness")[optElement];
+    params[5] = 0.5 * (parser.scalarField("vertex_orbit_2_offset_0")[optElement] + parser.scalarField("vertex_orbit_2_offset_1")[optElement]);
+    params[6] = 0.5 * (parser.scalarField("vertex_orbit_0_offset_0")[optElement] + parser.scalarField("vertex_orbit_0_offset_1")[optElement]);
+    params[7] = 0.5 * (parser.scalarField("vertex_orbit_4_offset_0")[optElement] + parser.scalarField("vertex_orbit_4_offset_1")[optElement]) / sqrt(2);
+    params[8] = params[7];
 
     // Set up material
     auto &mat = LinearElasticityND<_N>::
         template homogenousMaterial<Materials::Constant>();
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
-    for (size_t i = 0; i < args["nIters"].as<size_t>(); ++i) {
-        string outName = "";
-        if (args.count("output"))
-            outName = to_string(i) + "_" + args["output"].as<string>();
-        step<_N>(inflator, t_params, p_params, targetC.inverse(),
-                 outName, args["step"].as<double>());
-    }
+    // // Gradient Descent Version
+    // for (size_t i = 0; i < args["nIters"].as<size_t>(); ++i) {
+    //     typename Optimizer<_N>::Iterate iterate(inflator, t_params, nParams, params.data(),
+    //                                    targetC.inverse());
+    //     SField gradP = iterate.gradp_JS();
+    //     params -= gradP * args["step"].as<double>();
+    //     iterate.writeDescription(cout);
+
+    //     if (args.count("output"))
+    //         iterate.writeMeshAndFields(to_string(i) + "_" + args["output"].as<string>());
+    // }
+    Optimizer<_N> optimizer(inflator, t_params);
+    optimizer.optimize(params, targetC.inverse(), "");
 }
 
 ////////////////////////////////////////////////////////////////////////////////

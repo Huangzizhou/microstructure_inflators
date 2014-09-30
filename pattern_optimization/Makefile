@@ -1,5 +1,6 @@
 include $(MeshFEM)/platform_defs.mk
 
+SOURCES=PatternOptimization_cli.cc
 PATOPT_OBJS=PatternOptimization_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o \
 			$(MeshFEM)/Materials.o $(MeshFEM)/MSHFieldParser.o $(MeshFEM)/EdgeFields.o
 OBJS=$(PATOPT_OBJS)
