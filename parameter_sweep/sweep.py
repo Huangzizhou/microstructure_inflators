@@ -196,6 +196,7 @@ def save_setting(out_dir, sweep_config, settings):
         count += 1;
 
     job_file = os.path.join(out_dir, "jobs.txt");
+    config_files = [os.path.relpath(filename, out_dir) for filename in config_files];
     with open(job_file, 'w') as fout:
         fout.write("\n".join(config_files));
 
