@@ -80,12 +80,17 @@ class ParameterHandler2D(object):
         vertex_indices = np.arange(self.wire_network.num_vertices, dtype=int);
         affected_vertices = self.vertex_orbits == orbit_id;
         key = tuple(vertex_indices[affected_vertices]);
-        assert(key in self.thickness_orbit_map);
+        if key not in self.thickness_orbit_map:
+            raise RuntimeError(
+                    "Thickness parameter of vertex orbit {} is not valid.".format(orbit_id));
         return self.thickness_orbit_map[key];
 
     def __lookup_offset_vertex_orbit_map(self, orbit_id):
         vertex_indices = np.arange(self.wire_network.num_vertices, dtype=int);
         affected_vertices = self.vertex_orbits == orbit_id;
         key = tuple(vertex_indices[affected_vertices]);
+        if key not in self.offset_orbit_map:
+            raise RuntimeError(
+                    "Offset parameter of vertex orbit {} is not valid.".format(orbit_id));
         return self.offset_orbit_map.get(key, np.ones(2, dtype=int) * -1);
 

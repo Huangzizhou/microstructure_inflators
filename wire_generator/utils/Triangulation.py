@@ -197,6 +197,6 @@ class Triangulation(object):
                 vertices.ravel(order="C"),
                 faces.ravel(order="C"),
                 voxels,
-                3, 3, 0);
+                3, 3, 4);
         return factory.create();
 
