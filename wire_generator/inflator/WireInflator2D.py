@@ -82,11 +82,12 @@ class WireInflator2D(object):
 
     def __create_2D_inflator(self):
         tmp_dir = "/tmp";
-        path,name = os.path.split(self.wire_network.source_file);
-        tmp_wire_file = os.path.join(tmp_dir, name);
+        stamp = get_time_stamp();
+        tmp_wire_file = os.path.join(tmp_dir, stamp + ".wire");
         dim = self.wire_network.dim;
 
         if dim == 2:
+            # TODO: saving and reloading wire file is redundant.
             vertices = np.hstack((self.wire_network.vertices,
                 np.zeros((self.wire_network.num_vertices, 1))));
             edges = self.wire_network.edges;
