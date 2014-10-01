@@ -45,11 +45,6 @@ class WireInflator2D(object):
         self.inflator.generate_tiled_pattern();
 
     def tile_quad_mesh(self, quad_mesh):
-        # TODO: this is quite round about way of doing thing.
-        stamp = get_time_stamp();
-        tmp_mesh_file = os.path.join("/tmp", "{}.msh".format(stamp));
-        save_mesh(tmp_mesh_file, quad_mesh);
-
         num_cells = quad_mesh.get_num_faces();
         attribute_names = [];
         attribute_values = [];
@@ -78,10 +73,12 @@ class WireInflator2D(object):
         parameters = np.array(parameters, order="C");
 
         self.inflator.set_max_triangle_area(0.1);
-        self.inflator.generate_pattern_with_guide_mesh(
-                tmp_mesh_file, parameters);
 
-        os.remove(tmp_mesh_file);
+        num_vertices = quad_mesh.get_num_vertices();
+        vertices = np.hstack((vertices,
+            np.zeros((num_vertices, 1)))).ravel(order="C");
+        self.inflator.generate_pattern_with_guide_mesh(
+                vertices, quad_mesh.get_faces().ravel(order="C"), parameters);
 
     def __create_2D_inflator(self):
         tmp_dir = "/tmp";

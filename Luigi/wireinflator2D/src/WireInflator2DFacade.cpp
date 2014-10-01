@@ -115,7 +115,8 @@ void WireInflatorFacade::set_parameter(size_t row, size_t col, const VectorF& pa
 }
 
 void WireInflatorFacade::generate_pattern_with_guide_mesh(
-        const std::string& mesh_file, const MatrixFr& raw_parameters) {
+        const VectorF& vertices, const VectorI& faces,
+        const MatrixFr& raw_parameters) {
     const size_t num_cells = raw_parameters.rows();
     const size_t num_params = get_num_parameters();
     assert(raw_parameters.cols() == num_params);
@@ -140,7 +141,7 @@ void WireInflatorFacade::generate_pattern_with_guide_mesh(
         }
     }
 
-    m_inflator.generateQuadsPattern(mesh_file, parameters, m_t_params, m_mesh);
+    m_inflator.generateQuadsPattern(vertices, faces, parameters, m_t_params, m_mesh);
 }
 
 VectorF WireInflatorFacade::get_vertices() {

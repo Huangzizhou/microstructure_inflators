@@ -49,7 +49,8 @@ class WireInflatorFacade {
         }
 
         void generate_pattern_with_guide_mesh(
-                const std::string& mesh_file, const MatrixFr& raw_parameters);
+                const VectorF& vertices, const VectorI& faces,
+                const MatrixFr& raw_parameters);
 
         VectorF get_vertices();
         VectorI get_triangles();
