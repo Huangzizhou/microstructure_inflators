@@ -168,6 +168,7 @@ public:
 		// optimize path removing small edges
 		optimizeContours(this->m_base_paths);
 
+		ClipperLib::SimplifyPolygons(this->m_base_paths);
 		this->m_paths = this->m_base_paths;
 
 		splitAllCountourEdges(this->m_paths);
@@ -431,9 +432,12 @@ public:
 				// optimize path removing small edges
 				optimizeContours(this->m_base_paths);
 
+				ClipperLib::SimplifyPolygons(this->m_base_paths);
+
 				ClipperLib::IntRect bounds = getBounds(this->m_base_paths);
 				ClipperLib::IntPoint t((bounds.right - bounds.left) * x, (bounds.top - bounds.bottom) * y);
 				clipper.AddPaths((this->m_base_paths + t), ClipperLib::ptSubject, true);
+
 			}
 		}
 
@@ -486,6 +490,8 @@ public:
 
 			this->generateOneElement(params, pmesh, f);
 			this->optimizeContours<PolyMesh>(this->m_base_paths, f);
+
+			ClipperLib::SimplifyPolygons(this->m_base_paths);
 
 			clipper.AddPaths(this->m_base_paths, ClipperLib::ptSubject, true);
 		}
@@ -564,7 +570,7 @@ protected:
 		clip.AddPath(clip_poly, ClipperLib::ptClip, true);
 		clip.Execute(ClipperLib::ctIntersection, this->m_base_paths, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
 
-		// get the border segments adjacenct to another quad
+		// get the border segments adjacent to another quad
 		clip_poly.push_back(clip_poly.back());
 		ClipperLib::Paths tmp;
 		for (int i=0; i<f.VN(); ++i)
