@@ -60,7 +60,7 @@ def parse_shear(result):
     return [shear_xy];
 
 def parse_poisson(result):
-    poisson_1_pattern = "v_yx, v_xy:\s*(\d+\.?\d+)\s*(\d+\.?\d+)";
+    poisson_1_pattern = "v_yx, v_xy:\s*([+-]?\d+\.?\d+)\s*([+-]?\d+\.?\d+)";
     poisson_1_matcher = re.compile(poisson_1_pattern, re.M);
     poisson_1_result = poisson_1_matcher.search(result);
     assert(poisson_1_result is not None);

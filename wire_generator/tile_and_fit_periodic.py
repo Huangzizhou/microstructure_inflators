@@ -66,12 +66,12 @@ def parse_shear(result):
     return [shear_yz, shear_zx, shear_xy];
 
 def parse_poisson(result):
-    poisson_1_pattern = "v_yx, v_zx, v_zy:\s*(\d+\.?\d+)\s*(\d+\.?\d+)\s*(\d+\.?\d+)";
+    poisson_1_pattern = "v_yx, v_zx, v_zy:\s*([+-]?\d+\.?\d+)\s*([+-]?\d+\.?\d+)\s*([+-]?\d+\.?\d+)";
     poisson_1_matcher = re.compile(poisson_1_pattern, re.M);
     poisson_1_result = poisson_1_matcher.search(result);
     assert(poisson_1_result is not None);
 
-    poisson_2_pattern = "v_xy, v_xz, v_yz:\s*(\d+\.?\d+)\s*(\d+\.?\d+)\s*(\d+\.?\d+)";
+    poisson_2_pattern = "v_xy, v_xz, v_yz:\s*([+-]?\d+\.?\d+)\s*([+-]?\d+\.?\d+)\s*([+-]?\d+\.?\d+)";
     poisson_2_matcher = re.compile(poisson_2_pattern, re.M);
     poisson_2_result = poisson_2_matcher.search(result);
     assert(poisson_2_result is not None);
