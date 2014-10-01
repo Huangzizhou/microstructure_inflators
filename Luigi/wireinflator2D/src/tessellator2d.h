@@ -9,7 +9,9 @@
 #include <vcg/complex/algorithms/clean.h>
 
 #include <iostream>
+#include <cstring>
 #include <iomanip>
+#include <unordered_map>
 
 struct Tessellator2DSettings
 {
@@ -77,50 +79,70 @@ public:
 	typedef typename VcgMesh::ScalarType ScalarType;
 	typedef typename VcgMesh::CoordType  CoordType;
 
-	static bool execute(const Tessellator2DSettings & settings, const ClipperLib::Paths & polygon, const ScalarType clipperScaleFactor, VcgMesh & out_mesh)
+	static bool execute(const Tessellator2DSettings & settings, const ClipperLib::Paths & polygons, const ScalarType clipperScaleFactor, VcgMesh & out_mesh)
 	{
 		// Do triangulation using only boundary segments (a Planar Straight Line Graph)
-		if (polygon.size() == 0) return false;
+		if (polygons.size() == 0) return false;
 
 		// create in and out structs for triangle
 		triangulateio in, out;
 		memset(&in , 0, sizeof(triangulateio));
 		memset(&out, 0, sizeof(triangulateio));
 
-		// count points
-		for (size_t i=0; i<polygon.size(); ++i)
+		// count and allocate vertices and indices
+		std::unordered_map<ClipperLib::IntPoint, size_t> v_idx;
+		std::vector<ClipperLib::IntPoint>                vertices;
+		size_t totalVertices = 0;
+
+		for (size_t i=0; i<polygons.size(); ++i)
 		{
-			const ClipperLib::Path & p = polygon[i];
-			in.numberofpoints   += p.size();
+			const ClipperLib::Path & path = polygons[i];
+			totalVertices += path.size();
+			for (size_t k=0; k<path.size(); ++k)
+			{
+				const ClipperLib::IntPoint & p = path[k];
+				if (v_idx.count(p) == 0)
+				{
+					size_t idx = vertices.size();
+					v_idx[p] = idx;
+					vertices.push_back(p);
+				}
+			}
 		}
-		in.numberofsegments  = in.numberofpoints;
+		in.numberofpoints   = vertices.size();
+		in.numberofsegments = totalVertices;
 
 		// initialize lists
 		in.pointlist         = (REAL *) malloc(in.numberofpoints   * 2 * sizeof(REAL));
 		in.segmentlist       = (int *)  malloc(in.numberofsegments * 2 * sizeof(int));
 		in.segmentmarkerlist = (int *)  malloc(in.numberofsegments * sizeof(int));
 
-		// fill triangle input structure with points and segments
-		int startIdx = 0;
-		for (size_t i=0; i<polygon.size(); ++i)
+		// fill triangle input structure with points
+		for (size_t i=0; i<vertices.size(); ++i)
 		{
-			const ClipperLib::Path & p = polygon[i];
-			for (size_t j=0; j<p.size(); ++j)
+			const ClipperLib::IntPoint & p = vertices[i];
+			in.pointlist[i*2]     = REAL(p.X) / clipperScaleFactor;
+			in.pointlist[i*2 + 1] = REAL(p.Y) / clipperScaleFactor;
+		}
+
+		// fill triangle input structure with boundary segments
+		size_t sidx = 0;
+		for (size_t i=0; i<polygons.size(); ++i)
+		{
+			const ClipperLib::Path & path = polygons[i];
+			for (size_t k=0; k<path.size(); ++k)
 			{
-				int idx = startIdx + j;
-				in.pointlist[idx*2]     = REAL(p[j].X) / clipperScaleFactor;
-				in.pointlist[idx*2 + 1] = REAL(p[j].Y) / clipperScaleFactor;
-
-				in.segmentlist[idx*2]     = startIdx + j;
-				in.segmentlist[idx*2 + 1] = startIdx + ((j+1)%p.size());
-				in.segmentmarkerlist[idx]   = 1; // mark each segment as boundary
+				const ClipperLib::IntPoint & p      = path[k];
+				const ClipperLib::IntPoint & next_p = path[(k+1)%path.size()];
+				in.segmentlist[sidx*2]     = v_idx[p];
+				in.segmentlist[sidx*2 + 1] = v_idx[next_p];
+				in.segmentmarkerlist[sidx] = 1; // mark each segment as boundary
+				sidx++;
 			}
-
-			startIdx += p.size();
 		}
 
 		//find holes
-		ClipperLib::Path holePoints = getPointsInHoles(polygon);
+		ClipperLib::Path holePoints = getPointsInHoles(polygons);
 		if (holePoints.size() > 0)
 		{
 			in.numberofholes = holePoints.size();
@@ -139,7 +161,7 @@ public:
 		// output check
 		if (out.numberoftriangles <= 0)
 		{
-			std::cout << "unable to perform trianglulation!" << std::endl << std::flush;
+			std::cout << "unable to perform triangulation!" << std::endl << std::flush;
 			return false;
 		}
 

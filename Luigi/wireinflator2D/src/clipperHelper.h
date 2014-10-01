@@ -6,6 +6,22 @@
 #include <vcg/space/point3.h>
 #include <cmath>
 
+namespace std
+{
+template <>
+struct hash<ClipperLib::IntPoint>
+{
+	typedef ClipperLib::IntPoint argument_type;
+	typedef size_t               result_type;
+
+	result_type operator()(const argument_type& a) const
+	{
+		hash<ClipperLib::cInt> hasher;
+		return hasher(a.X) * 31 + hasher(a.Y);
+	}
+};
+}
+
 template <typename ScalarType>
 inline ClipperLib::IntPoint scaleToIntPoint(const vcg::Point2<ScalarType> & a, ScalarType scaleF = 1)
 {
