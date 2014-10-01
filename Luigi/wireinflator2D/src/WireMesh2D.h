@@ -295,7 +295,7 @@ protected:
 					    delta[1] <= Epsilon() &&
 					    delta[2] <= Epsilon())
 					{
-						tag[j] = tag[i];
+						tag[j] = tag[i] = std::min(tag[i], tag[j]);
 					}
 				}
 			}
