@@ -40,34 +40,28 @@ def run_material_fit(input_file, material_file, output_file):
         json.dump(mat_config, fout, indent=4);
     print("material property written in {}".format(json_file));
 
-def parse_young(result):
-    young_pattern = "Approximate Young moduli:\s*(\d+\.?\d+)\s*(\d+\.?\d+)";
-    young_matcher = re.compile(young_pattern, re.M);
-    young_result = young_matcher.search(result);
-    assert(young_result is not None);
+def parse_field(input_text, header, num_entries):
+    pattern = "^{}(.*)$".format(header);
+    matcher = re.compile(pattern, re.M);
+    match_result = matcher.search(input_text);
+    assert(match_result is not None);
+    result = map(float, match_result.group(1).split());
+    assert(len(result) == num_entries);
+    return result;
 
-    young_x = float(young_result.group(1));
-    young_y = float(young_result.group(2));
+def parse_young(result):
+    header = "Approximate Young moduli:"
+    young_x, young_y = parse_field(result, header, 2);
     return [young_x, young_y];
 
 def parse_shear(result):
-    shear_pattern = "Approximate shear modulus:\s*(\d+\.?\d+)";
-    shear_matcher = re.compile(shear_pattern, re.M);
-    shear_result = shear_matcher.search(result);
-    assert(shear_result is not None);
-
-    shear_xy = float(shear_result.group(1));
-    return [shear_xy];
+    header = "Approximate shear modulus:";
+    shear_xy = parse_field(result, header, 1);
+    return shear_xy;
 
 def parse_poisson(result):
-    poisson_1_pattern = "v_yx, v_xy:\s*([+-]?\d+\.?\d+)\s*([+-]?\d+\.?\d+)";
-    poisson_1_matcher = re.compile(poisson_1_pattern, re.M);
-    poisson_1_result = poisson_1_matcher.search(result);
-    assert(poisson_1_result is not None);
-
-    v_yx = float(poisson_1_result.group(1));
-    v_xy = float(poisson_1_result.group(2));
-
+    header = "v_yx, v_xy:";
+    v_yx, v_xy = parse_field(result, header, 2);
     return [v_xy, v_yx];
 
 def parse_result(result):

@@ -43,47 +43,30 @@ def run_material_fit(input_file, material_file, output_file):
         json.dump(mat_config, fout, indent=4);
     print("material property written in {}".format(json_file));
 
-def parse_young(result):
-    young_pattern = "Approximate Young moduli:\s*(\d+\.?\d+)\s*(\d+\.?\d+)\s*(\d+\.?\d+)";
-    young_matcher = re.compile(young_pattern, re.M);
-    young_result = young_matcher.search(result);
-    assert(young_result is not None);
+def parse_field(input_text, header, num_entries):
+    pattern = "^{}(.*)$".format(header);
+    matcher = re.compile(pattern, re.M);
+    match_result = matcher.search(input_text);
+    assert(match_result is not None);
+    result = map(float, match_result.group(1).split());
+    assert(len(result) == num_entries);
+    return result;
 
-    young_x = float(young_result.group(1));
-    young_y = float(young_result.group(2));
-    young_z = float(young_result.group(3));
+def parse_young(result):
+    header = "Approximate Young moduli:";
+    young_x, young_y, young_z = parse_field(result, header, 3);
     return [young_x, young_y, young_z];
 
 def parse_shear(result):
-    shear_pattern = "Approximate shear moduli:\s*(\d+\.?\d+)\s*(\d+\.?\d+)\s*(\d+\.?\d+)";
-    shear_matcher = re.compile(shear_pattern, re.M);
-    shear_result = shear_matcher.search(result);
-    assert(shear_result is not None);
-
-    shear_yz = float(shear_result.group(1));
-    shear_zx = float(shear_result.group(2));
-    shear_xy = float(shear_result.group(3));
+    header = "Approximate shear moduli:"
+    shear_yz, shear_zx, shear_xy = parse_field(result, header, 3);
     return [shear_yz, shear_zx, shear_xy];
 
 def parse_poisson(result):
-    poisson_1_pattern = "v_yx, v_zx, v_zy:\s*([+-]?\d+\.?\d+)\s*([+-]?\d+\.?\d+)\s*([+-]?\d+\.?\d+)";
-    poisson_1_matcher = re.compile(poisson_1_pattern, re.M);
-    poisson_1_result = poisson_1_matcher.search(result);
-    assert(poisson_1_result is not None);
-
-    poisson_2_pattern = "v_xy, v_xz, v_yz:\s*([+-]?\d+\.?\d+)\s*([+-]?\d+\.?\d+)\s*([+-]?\d+\.?\d+)";
-    poisson_2_matcher = re.compile(poisson_2_pattern, re.M);
-    poisson_2_result = poisson_2_matcher.search(result);
-    assert(poisson_2_result is not None);
-
-    v_yx = float(poisson_1_result.group(1));
-    v_zx = float(poisson_1_result.group(2));
-    v_zy = float(poisson_1_result.group(3));
-
-    v_xy = float(poisson_2_result.group(1));
-    v_xz = float(poisson_2_result.group(2));
-    v_yz = float(poisson_2_result.group(3));
-
+    header1 = "v_yx, v_zx, v_zy:";
+    header2 = "v_xy, v_xz, v_yz:";
+    v_yx, v_zx, v_zy = parse_field(result, header1, 3);
+    v_xy, v_xz, v_yz = parse_field(result, header2, 3);
     return [v_yz, v_zy, v_zx, v_xz, v_xy, v_yx];
 
 def parse_result(result):

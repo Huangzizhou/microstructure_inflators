@@ -29,7 +29,7 @@ class PeriodicWireInflator(WireInflator):
                 self.wire_network.bbox_center - phantom_wire_network.bbox_center);
         self.phantom_wire_network = phantom_wire_network;
 
-    def inflate(self, clean_up=True, subdivide_order=3):
+    def inflate(self, clean_up=True, subdivide_order=2):
         if not clean_up:
             raise NotImplementedError("Clean up is required for periodic wires");
         super(PeriodicWireInflator, self).inflate(clean_up, 0);
