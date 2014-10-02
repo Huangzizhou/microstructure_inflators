@@ -7,7 +7,7 @@ OBJS=$(PATOPT_OBJS)
 
 TARGETS=PatternOptimization_cli
 
-INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem $(HOME)/Research/vcglib/
+INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src
 LIBS+=../Luigi/wireinflator2D/lib/libclipper.a
 LIBS+=../Luigi/wireinflator2D/lib/libtriangle.a
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES)
