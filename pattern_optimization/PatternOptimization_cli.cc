@@ -65,7 +65,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     visible_opts.add_options()("help", "Produce this help message")
         ("pattern,p",   po::value<string>(), "Pattern wire mesh (.obj)")
         ("material,m",  po::value<string>(), "base material")
-        ("output,o",    po::value<string>(), "output .js mesh + fields")
+        ("output,o",    po::value<string>()->default_value(""), "output .js mesh + fields")
         ("max_area,a",  po::value<double>()->default_value(0.0001), "max_area parameter for wire inflator")
         ("solver",      po::value<string>()->default_value("gradient_descent"), "solver to use: gradient_descent, bfgs, lbfgs, levenberg_marquardt")
         ("step,s",      po::value<double>()->default_value(0.0001), "gradient step size")
@@ -204,16 +204,18 @@ void execute<2>(const po::variables_map &args,
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
     Optimizer<_N> optimizer(inflator, t_params);
-    string solver = args["solver"].as<string>();
+    string solver = args["solver"].as<string>(),
+           output = args["output"].as<string>();
+    size_t niters = args["nIters"].as<size_t>();
     if (solver == "levenberg_marquardt")
-        optimizer.optimize_lm(params, targetS, args["output"].as<string>());
+        optimizer.optimize_lm(params, targetS, output);
     else if (solver == "gradient_descent")
-        optimizer.optimize_gd(params, targetS, args["nIters"].as<size_t>(),
-                          args["step"].as<double>(), args["output"].as<string>());
+        optimizer.optimize_gd(params, targetS, niters,
+                          args["step"].as<double>(), output);
     else if (solver == "bfgs")
-        optimizer.optimize_bfgs(params, targetS, args["output"].as<string>());
+        optimizer.optimize_bfgs(params, targetS, niters, output);
     else if (solver == "lbfgs")
-        optimizer.optimize_bfgs(params, targetS, args["output"].as<string>(), 10);
+        optimizer.optimize_bfgs(params, targetS, niters, output, 10);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

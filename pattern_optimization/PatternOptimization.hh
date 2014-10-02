@@ -186,7 +186,6 @@ public:
             os << "moduli:\t";
             C.printOrthotropic(os);
             os << "JS:\t" << evaluateJS() << std::endl;
-            os << "residual JS:\t";
 
             SField gradP = gradp_JS();
             os << "grad_p(J_S):\t";
@@ -295,8 +294,10 @@ public:
 
     class IterationCallback : public ceres::IterationCallback {
     public:
-        IterationCallback(TensorFitCost &evalulator, SField &params)
-            : m_evaluator(evalulator), m_params(params) {}
+        IterationCallback(TensorFitCost &evalulator, SField &params,
+                const std::string &outPath)
+            : m_evaluator(evalulator), m_params(params), m_outPath(outPath),
+            m_iter(0) {}
         ceres::CallbackReturnType operator()(const ceres::IterationSummary &sum)
         {
             size_t nParams = m_params.domainSize();
@@ -308,6 +309,11 @@ public:
             }
             curr->writeDescription(std::cout);
             std::cout << std::endl;
+
+            if (m_outPath != "")
+                curr->writeMeshAndFields(std::to_string(m_iter) + "_" + m_outPath);
+
+            ++m_iter;
             return ceres::SOLVER_CONTINUE;
         }
 
@@ -315,10 +321,12 @@ public:
     private:
         TensorFitCost &m_evaluator;
         SField &m_params;
+        std::string m_outPath;
+        size_t m_iter;
     };
 
     void optimize_lm(SField &params, const _ETensor &targetS,
-                  const string outName) {
+                  const string &outPath) {
         TensorFitCost *fitCost = new TensorFitCost(m_inflator, m_tparams,
                                                    targetS);
         ceres::Problem problem;
@@ -334,7 +342,7 @@ public:
 
         ceres::Solver::Options options;
         options.update_state_every_iteration = true;
-        IterationCallback cb(*fitCost, params);
+        IterationCallback cb(*fitCost, params, outPath);
         options.callbacks.push_back(&cb);
         // options.minimizer_type = ceres::LINE_SEARCH;
         // options.line_search_direction_type = ceres::BFGS;
@@ -349,7 +357,7 @@ public:
     }
 
     void optimize_gd(SField &params, const _ETensor &targetS,
-            size_t niters, double alpha, const string outName) {
+            size_t niters, double alpha, const string &outName) {
         size_t nParams = params.domainSize();
         SField lowerBounds(nParams), upperBounds(nParams);
         getParameterBounds(lowerBounds, upperBounds);
@@ -368,7 +376,7 @@ public:
             params.maxRelax(lowerBounds);
 
             if (outName != "")
-                iterate.writeMeshAndFields(to_string(i) + "_" + outName);
+                iterate.writeMeshAndFields(std::to_string(i) + "_" + outName);
         }
     }
 
@@ -428,10 +436,37 @@ public:
         const DLibObjectiveEvaluator &m_obj;
     };
 
+    // Hack to get notified at the end of each iteration: subclass the stop
+    // strategy.
+    class ReportingStopStrategy : public dlib::objective_delta_stop_strategy {
+        typedef dlib::objective_delta_stop_strategy Base;
+    public:
+        ReportingStopStrategy(double min_delta, unsigned long max_iter,
+                              DLibObjectiveEvaluator &obj, const std::string &outPath)
+            : Base(min_delta, max_iter), m_obj(obj), m_outPath(outPath), m_iter(0) { }
+
+        template <typename T>
+        bool should_continue_search(const T& x, const double funct_value,
+            const T& funct_derivative) {
+            m_obj.currentIterate().writeDescription(std::cout);
+            cout << endl;
+            if (m_outPath != "")
+                m_obj.currentIterate().writeMeshAndFields(std::to_string(m_iter)
+                        + "_" + m_outPath);
+            ++m_iter;
+            return Base::should_continue_search(x, funct_value, funct_derivative);
+        }
+
+    private:
+        const DLibObjectiveEvaluator &m_obj;
+        std::string m_outPath;
+        size_t m_iter;
+    };
+
     // If max_size = 0, plain bfgs is used
     // otherwise l-bfgs is used.
-    void optimize_bfgs(SField &params, const _ETensor &targetS,
-                       const string outName, size_t max_size = 0) {
+    void optimize_bfgs(SField &params, const _ETensor &targetS, size_t niters,
+                       const string &outPath, size_t max_size = 0) {
         DLibObjectiveEvaluator obj(m_inflator, m_tparams, targetS);
         DLibGradientEvaluator grad(obj);
 
@@ -444,16 +479,15 @@ public:
         dlib_vector lowerBounds(nParams), upperBounds(nParams);
         getParameterBounds(lowerBounds, upperBounds);
 
-        // TODO: subclass dlib::objective_delta_stop_strategy to output
-        // iterates...
         if (max_size == 0)
             dlib::find_min_box_constrained(dlib::bfgs_search_strategy(),
-                    dlib::objective_delta_stop_strategy(0).be_verbose(),
+                    ReportingStopStrategy(1e-16, niters, obj, outPath),
                     obj, grad, optParams, lowerBounds, upperBounds);
         else
             dlib::find_min_box_constrained(dlib::lbfgs_search_strategy(max_size),
-                    dlib::objective_delta_stop_strategy(0).be_verbose(),
+                    ReportingStopStrategy(1e-16, niters, obj, outPath),
                     obj, grad, optParams, lowerBounds, upperBounds);
+
         // convert solution
         for (size_t p = 0; p < nParams; ++p)
             params[p] = optParams(p);
