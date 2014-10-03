@@ -117,6 +117,22 @@ def save_modifier(config, out_dir):
     with open(modifier_file, 'w') as fout:
         json.dump(config, fout, indent=4);
 
+def print_summary(properties):
+    if len(properties) == 0: return;
+    names = properties[0].names;
+    num_fields = len(names);
+
+    values = np.array([p.values for p in properties]);
+    assert(values.shape[1] == num_fields);
+    min_values = np.amin(values, axis=0);
+    max_values = np.amax(values, axis=0);
+
+    header_fmt = "{:>10}:" + " ".join(["{:>10}"] * num_fields);
+    content_fmt = "{:>10}:" + " ".join(["{:10.3f}"] * num_fields);
+    print(header_fmt.format("name", *names));
+    print(content_fmt.format("min", *min_values));
+    print(content_fmt.format("max", *max_values));
+
 def parse_args():
     parser = argparse.ArgumentParser(
             description="generate material to pattern parameter lookup table");
@@ -150,6 +166,7 @@ def main():
     save_data(materials, args.output, "material.csv");
     save_data(patterns, args.output, "pattern.csv");
     save_modifier(patterns[0].modifier_config, args.output);
+    print_summary(materials);
 
 if __name__ == "__main__":
     main();
