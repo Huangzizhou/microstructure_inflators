@@ -32,24 +32,15 @@ def gather_result_files(result_dir):
     result_name_pattern = ".*_param\.json";
     return gather_files(result_dir, result_name_pattern);
 
-def pair_up(config_files, result_files):
-    config_matcher = re.compile("(.*)\.config");
-    result_matcher = re.compile("(.*)_param\.json");
-
-    config_basename = lambda f: config_matcher.match(os.path.basename(f)).group(1)
-    result_basename = lambda f : result_matcher.match(os.path.basename(f)).group(1)
-
-    config_dict = {config_basename(f):f for f in config_files};
-    result_dict = {result_basename(f):f for f in result_files};
-
-    keys = set();
-    keys.update(config_dict.keys());
-    keys.update(result_dict.keys());
-
-    pairs = []
-    for key in keys:
-        if key in config_dict and key in result_dict:
-            pairs.append((config_dict[key], result_dict[key]));
+def pair_up(config_files, result_dir):
+    pairs = [];
+    for config_file in config_files:
+        basename = os.path.splitext(os.path.basename(config_file))[0];
+        result_file = os.path.join(result_dir, basename + "_param.json");
+        if os.path.exists(result_file):
+            pairs.append((config_file, result_file));
+        else:
+            print("Warning: {} is missing".format(result_file));
     return pairs;
 
 def generate_and_save(data, output_name):
@@ -141,8 +132,7 @@ def main():
     args = parse_args();
 
     config_files = gather_config_files(args.config_dir);
-    result_files = gather_result_files(args.result_dir);
-    file_pairs = pair_up(config_files, result_files);
+    file_pairs = pair_up(config_files, args.result_dir);
 
     if len(file_pairs) == 0:
         raise RuntimeError("No data extracted from inputs");
