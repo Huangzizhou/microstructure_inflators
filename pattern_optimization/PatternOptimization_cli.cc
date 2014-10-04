@@ -35,6 +35,7 @@
 #include <iomanip>
 #include <memory>
 #include <cmath>
+#include <set>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -64,8 +65,9 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     visible_opts.add_options()("help", "Produce this help message")
         ("pattern,p",   po::value<string>(), "Pattern wire mesh (.obj)")
         ("material,m",  po::value<string>(), "base material")
-        ("output,o",    po::value<string>(), "output .js mesh + fields")
+        ("output,o",    po::value<string>()->default_value(""), "output .js mesh + fields")
         ("max_area,a",  po::value<double>()->default_value(0.0001), "max_area parameter for wire inflator")
+        ("solver",      po::value<string>()->default_value("gradient_descent"), "solver to use: gradient_descent, bfgs, lbfgs, levenberg_marquardt")
         ("step,s",      po::value<double>()->default_value(0.0001), "gradient step size")
         ("nIters,n",    po::value<size_t>()->default_value(20), "number of iterations")
         ;
@@ -92,6 +94,12 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     if (vm.count("pattern") == 0) {
         cout << "Error: must specify pattern mesh" << endl;
+        fail = true;
+    }
+
+    set<string> solvers = {"gradient_descent", "bfgs", "lbfgs", "levenberg_marquardt"};
+    if (solvers.count(vm["solver"].as<string>()) == 0) {
+        cout << "Illegal solver specified" << endl;
         fail = true;
     }
 
@@ -143,6 +151,7 @@ void execute<2>(const po::variables_map &args,
             optElement = i;
         }
     }
+    ETensor<2> targetS = targetC.inverse();
 
     cout << setprecision(16) << endl;
 
@@ -150,7 +159,7 @@ void execute<2>(const po::variables_map &args,
          << "initial distance:\t" << worstDist << endl;
 
     cout << "LUT tensors:" << endl << currentC << endl << endl << currentC.inverse() << endl << endl;
-    cout << "Target tensor:" << endl << targetC << endl << endl << targetC.inverse() << endl << endl;
+    cout << "Target tensor:" << endl << targetC << endl << endl << targetS << endl << endl;
     cout << "LUT moduli: "
          << lut_Ex[optElement] << ", " << lut_Ey[optElement] << ", "
          << lut_nu_yx[optElement] << ", " << lut_mu[optElement] << endl;
@@ -194,19 +203,19 @@ void execute<2>(const po::variables_map &args,
         template homogenousMaterial<Materials::Constant>();
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
-    // // Gradient Descent Version
-    // for (size_t i = 0; i < args["nIters"].as<size_t>(); ++i) {
-    //     typename Optimizer<_N>::Iterate iterate(inflator, t_params, nParams, params.data(),
-    //                                    targetC.inverse());
-    //     SField gradP = iterate.gradp_JS();
-    //     params -= gradP * args["step"].as<double>();
-    //     iterate.writeDescription(cout);
-
-    //     if (args.count("output"))
-    //         iterate.writeMeshAndFields(to_string(i) + "_" + args["output"].as<string>());
-    // }
     Optimizer<_N> optimizer(inflator, t_params);
-    optimizer.optimize(params, targetC.inverse(), "");
+    string solver = args["solver"].as<string>(),
+           output = args["output"].as<string>();
+    size_t niters = args["nIters"].as<size_t>();
+    if (solver == "levenberg_marquardt")
+        optimizer.optimize_lm(params, targetS, output);
+    else if (solver == "gradient_descent")
+        optimizer.optimize_gd(params, targetS, niters,
+                          args["step"].as<double>(), output);
+    else if (solver == "bfgs")
+        optimizer.optimize_bfgs(params, targetS, niters, output);
+    else if (solver == "lbfgs")
+        optimizer.optimize_bfgs(params, targetS, niters, output, 10);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -15,6 +15,7 @@
 
 #include <ceres/ceres.h>
 #include <glog/logging.h>
+#include <dlib/optimization.h>
 
 #include <cassert>
 #include <memory>
@@ -30,10 +31,29 @@ class Optimizer {
     typedef typename LinearElasticityND<_N>::VField VField;
     typedef ScalarField<Real> SField;
     typedef typename LinearElasticityND<_N>::ETensor _ETensor;
+    typedef dlib::matrix<double,0,1> dlib_vector;
 public:
     Optimizer(WireInflator2D &inflator,
             const TessellationParameters &tparams)
         : m_inflator(inflator), m_tparams(tparams) {
+    }
+
+    template<class _Vector>
+    void getParameterBounds(_Vector &lowerBounds, _Vector &upperBounds) {
+        auto ops = m_inflator.patternGenerator().getParameterOperations();
+        for (size_t p = 0; p < ops.size(); ++p) {
+            switch (ops.at(p).type) {
+                case ParameterOperation::Radius:
+                    lowerBounds(p) = 0.05;
+                    upperBounds(p) = 0.1;
+                    break;
+                case ParameterOperation::Translation:
+                    lowerBounds(p) = -0.15;
+                    upperBounds(p) =  0.15;
+                    break;
+                default: assert(false);
+            }
+        }
     }
 
     struct Iterate {
@@ -41,23 +61,22 @@ public:
             HomogenousSimulator<Materials::Constant>       Simulator;
         Iterate(WireInflator2D &inflator, const TessellationParameters &tparams,
                 size_t nParams, const double *params, const _ETensor &targetS)
-            : m_sim(NULL), m_targetS(targetS)
+            : m_targetS(targetS)
         {
             m_params.resize(nParams);
             CellParameters p_params = inflator.createParameters();
             for (size_t i = 0; i < m_params.size(); ++i) {
                 m_params[i] = params[i];
                 p_params.parameter(i) = params[i];
-                std::cout << params[i] << "\t";
             }
-            std::cout << endl;
 
             if (!inflator.patternGenerator().parametersValid(p_params))
                 throw runtime_error("Invalid parameters specified.");
             
             WireInflator2D::OutMeshType inflatedMesh;
             inflator.generatePattern(p_params, tparams, inflatedMesh);
-            m_sim = new Simulator(inflatedMesh.elements, inflatedMesh.nodes);
+            m_sim = std::make_shared<Simulator>(inflatedMesh.elements,
+                                                inflatedMesh.nodes);
 
             size_t numBE = m_sim->mesh().numBoundaryElements();
             vn_p.assign(nParams, SField(numBE));
@@ -167,7 +186,6 @@ public:
             os << "moduli:\t";
             C.printOrthotropic(os);
             os << "JS:\t" << evaluateJS() << std::endl;
-            os << "residual JS:\t";
 
             SField gradP = gradp_JS();
             os << "grad_p(J_S):\t";
@@ -197,7 +215,8 @@ public:
             ef.write(name + ".ef");
         }
 
-        bool paramsDiffer(size_t nParams, Real *params) const {
+        bool paramsDiffer(size_t nParams, const Real *params) const {
+            assert(nParams = m_params.size());
             for (size_t i = 0; i < nParams; ++i)
                 if (m_params[i] != params[i])
                     return true;
@@ -205,7 +224,7 @@ public:
         }
 
     private:
-        Simulator *m_sim;
+        std::shared_ptr<Simulator> m_sim;
         _ETensor C, S, m_targetS;
         std::vector<_ETensor> gradS;
 
@@ -214,6 +233,9 @@ public:
 
         std::vector<Real> m_params;
     };
+
+    // Forward declaration so friend-ing can happen
+    class IterationCallback;
 
     struct TensorFitCost : public ceres::CostFunction {
         typedef ceres::CostFunction Base;
@@ -229,13 +251,17 @@ public:
         virtual bool Evaluate(double const * const *parameters,
                 double *residuals, double **jacobians) const {
             size_t nParams = parameter_block_sizes()[0];
-            Iterate it(m_inflator, m_tparams, nParams,
-                       parameters[0], m_targetS);
+            // Ceres seems to like re-evaluating at the same point, so we detect
+            // this to avoid re-solving.
+            if (!m_iterate || m_iterate->paramsDiffer(nParams, parameters[0])) {
+                m_iterate = std::make_shared<Iterate>(m_inflator, m_tparams,
+                        nParams, parameters[0], m_targetS);
+            }
 
             size_t r = 0;
             for (size_t i = 0; i < flatLen(_N); ++i)
                 for (size_t j = i; j < flatLen(_N); ++j)
-                    residuals[r++] = it.residual(i, j);
+                    residuals[r++] = m_iterate->residual(i, j);
 
             if (jacobians == NULL) return true;
 
@@ -243,7 +269,7 @@ public:
             for (size_t i = 0; i < flatLen(_N); ++i) {
                 for (size_t j = i; j < flatLen(_N); ++j) {
                     for (size_t p = 0; p < nParams; ++p)
-                        jacobians[0][r * nParams + p] = it.jacobian(i, j, p);
+                        jacobians[0][r * nParams + p] = m_iterate->jacobian(i, j, p);
                     ++r;
                 }
             }
@@ -251,36 +277,220 @@ public:
             return true;
         }
 
+        std::shared_ptr<const Iterate> currentIterate() const { return m_iterate; }
+
+        virtual ~TensorFitCost() { }
+
+    private:
         WireInflator2D &m_inflator;
         TessellationParameters m_tparams;
         _ETensor m_targetS;
+        // Ceres requires Evaluate to be constant, so this caching pointer must
+        // be made mutable.
+        mutable std::shared_ptr<Iterate> m_iterate;
+
+        friend class IterationCallback;
     };
 
-    void optimize(SField &params, const _ETensor &targetS,
-                  const string outName) {
-        ceres::CostFunction *fitCost =
-                new TensorFitCost(m_inflator, m_tparams, targetS);
+    class IterationCallback : public ceres::IterationCallback {
+    public:
+        IterationCallback(TensorFitCost &evalulator, SField &params,
+                const std::string &outPath)
+            : m_evaluator(evalulator), m_params(params), m_outPath(outPath),
+            m_iter(0) {}
+        ceres::CallbackReturnType operator()(const ceres::IterationSummary &sum)
+        {
+            size_t nParams = m_params.domainSize();
+            auto curr = m_evaluator.currentIterate();
+            if (curr->paramsDiffer(nParams, &m_params[0])) {
+                curr = std::make_shared<Iterate>(m_evaluator.m_inflator,
+                        m_evaluator.m_tparams, nParams, &m_params[0],
+                        m_evaluator.m_targetS);
+            }
+            curr->writeDescription(std::cout);
+            std::cout << std::endl;
+
+            if (m_outPath != "")
+                curr->writeMeshAndFields(std::to_string(m_iter) + "_" + m_outPath);
+
+            ++m_iter;
+            return ceres::SOLVER_CONTINUE;
+        }
+
+        virtual ~IterationCallback() { }
+    private:
+        TensorFitCost &m_evaluator;
+        SField &m_params;
+        std::string m_outPath;
+        size_t m_iter;
+    };
+
+    void optimize_lm(SField &params, const _ETensor &targetS,
+                  const string &outPath) {
+        TensorFitCost *fitCost = new TensorFitCost(m_inflator, m_tparams,
+                                                   targetS);
         ceres::Problem problem;
         problem.AddResidualBlock(fitCost, NULL, params.data());
 
+        size_t nParams = params.domainSize();
+        SField lowerBounds(nParams), upperBounds(nParams);
+        getParameterBounds(lowerBounds, upperBounds);
         for (size_t p = 0; p < params.domainSize(); ++p) {
-            auto range = m_inflator.patternGenerator().getParameterRange(p);
-            std::cout << "setting bound on variable " << p << ": " << range.first << ", " << range.second << std::endl;
-            problem.SetParameterLowerBound(params.data(), p, range.first);
-            problem.SetParameterUpperBound(params.data(), p, range.second);
+            problem.SetParameterLowerBound(params.data(), p, lowerBounds[p]);
+            problem.SetParameterUpperBound(params.data(), p, upperBounds[p]);
         }
 
         ceres::Solver::Options options;
+        options.update_state_every_iteration = true;
+        IterationCallback cb(*fitCost, params, outPath);
+        options.callbacks.push_back(&cb);
         // options.minimizer_type = ceres::LINE_SEARCH;
         // options.line_search_direction_type = ceres::BFGS;
         // options.trust_region_strategy_type = ceres::DOGLEG;
         // options.dogleg_type = ceres::SUBSPACE_DOGLEG;
-        options.use_nonmonotonic_steps = true;
-        options.minimizer_progress_to_stdout = true;
-        options.initial_trust_region_radius = 0.01;
+        // options.use_nonmonotonic_steps = true;
+        // options.minimizer_progress_to_stdout = true;
+        // options.initial_trust_region_radius = 0.01;
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
-        cout << summary.BriefReport() << "\n";
+        std::cout << summary.BriefReport() << "\n";
+    }
+
+    void optimize_gd(SField &params, const _ETensor &targetS,
+            size_t niters, double alpha, const string &outName) {
+        size_t nParams = params.domainSize();
+        SField lowerBounds(nParams), upperBounds(nParams);
+        getParameterBounds(lowerBounds, upperBounds);
+        // Gradient Descent Version
+        for (size_t i = 0; i < niters; ++i) {
+            typename Optimizer<_N>::Iterate iterate(m_inflator, m_tparams,
+                    params.size(), params.data(), targetS);
+            SField gradP = iterate.gradp_JS();
+            iterate.writeDescription(std::cout);
+            std::cout << std::endl;
+
+            params -= gradP * alpha;
+
+            // Apply bound constraints
+            params.minRelax(upperBounds);
+            params.maxRelax(lowerBounds);
+
+            if (outName != "")
+                iterate.writeMeshAndFields(std::to_string(i) + "_" + outName);
+        }
+    }
+
+    // Evaluates the objective by inflating the wire mesh and homogenizing.
+    // The iterate stored internally also knows how to evaluate the gradient
+    // efficiently, so our GradientEvaluator below just accesses it.
+    struct DLibObjectiveEvaluator {
+        DLibObjectiveEvaluator(WireInflator2D &inflator,
+                const TessellationParameters &tparams, const _ETensor &targetS)
+            : m_iterate(NULL), m_inflator(inflator), m_tparams(tparams),
+              m_targetS(targetS) {
+            nParams = m_inflator.patternGenerator().numberOfParameters();
+        };
+
+        double operator()(const dlib_vector &x) const {
+            vector<Real> x_vec(nParams);
+            for (size_t p = 0; p < nParams; ++p)
+                x_vec[p] = x(p);
+
+            m_iterate = std::make_shared<Iterate>(m_inflator, m_tparams,
+                    nParams, &x_vec[0], m_targetS);
+            return m_iterate->evaluateJS();
+        }
+
+        const Iterate &currentIterate() const {
+            assert(m_iterate); return *m_iterate;
+        };
+
+        size_t nParams;
+    private:
+        // Iterate is mutable so that operator() can be const as dlib requires
+        mutable std::shared_ptr<Iterate> m_iterate;
+        WireInflator2D &m_inflator;
+        TessellationParameters m_tparams;
+        _ETensor m_targetS;
+    };
+    
+    // Extracts gradient from the iterate constructed by DLibObjectiveEvaluator.
+    struct DLibGradientEvaluator {
+        DLibGradientEvaluator(const DLibObjectiveEvaluator &obj) : m_obj(obj) { }
+
+        dlib_vector operator()(const dlib_vector &x) const {
+            size_t nParams = m_obj.nParams;
+            vector<Real> x_vec(nParams);
+            for (size_t p = 0; p < nParams; ++p)
+                x_vec[p] = x(p);
+            if (m_obj.currentIterate().paramsDiffer(nParams, &x_vec[0]))
+                throw std::runtime_error("Objective must be evaluated first");
+            SField gradp(m_obj.currentIterate().gradp_JS());
+
+            dlib_vector result(nParams);
+            for (size_t p = 0; p < nParams; ++p)
+                result(p) = gradp[p];
+            return result;
+        }
+    private:
+        const DLibObjectiveEvaluator &m_obj;
+    };
+
+    // Hack to get notified at the end of each iteration: subclass the stop
+    // strategy.
+    class ReportingStopStrategy : public dlib::objective_delta_stop_strategy {
+        typedef dlib::objective_delta_stop_strategy Base;
+    public:
+        ReportingStopStrategy(double min_delta, unsigned long max_iter,
+                              DLibObjectiveEvaluator &obj, const std::string &outPath)
+            : Base(min_delta, max_iter), m_obj(obj), m_outPath(outPath), m_iter(0) { }
+
+        template <typename T>
+        bool should_continue_search(const T& x, const double funct_value,
+            const T& funct_derivative) {
+            m_obj.currentIterate().writeDescription(std::cout);
+            cout << endl;
+            if (m_outPath != "")
+                m_obj.currentIterate().writeMeshAndFields(std::to_string(m_iter)
+                        + "_" + m_outPath);
+            ++m_iter;
+            return Base::should_continue_search(x, funct_value, funct_derivative);
+        }
+
+    private:
+        const DLibObjectiveEvaluator &m_obj;
+        std::string m_outPath;
+        size_t m_iter;
+    };
+
+    // If max_size = 0, plain bfgs is used
+    // otherwise l-bfgs is used.
+    void optimize_bfgs(SField &params, const _ETensor &targetS, size_t niters,
+                       const string &outPath, size_t max_size = 0) {
+        DLibObjectiveEvaluator obj(m_inflator, m_tparams, targetS);
+        DLibGradientEvaluator grad(obj);
+
+        size_t nParams = m_inflator.patternGenerator().numberOfParameters();
+        // convert initial parameter vector
+        dlib_vector optParams(nParams);
+        for (size_t p = 0; p < nParams; ++p)
+            optParams(p) = params[p];
+
+        dlib_vector lowerBounds(nParams), upperBounds(nParams);
+        getParameterBounds(lowerBounds, upperBounds);
+
+        if (max_size == 0)
+            dlib::find_min_box_constrained(dlib::bfgs_search_strategy(),
+                    ReportingStopStrategy(1e-16, niters, obj, outPath),
+                    obj, grad, optParams, lowerBounds, upperBounds);
+        else
+            dlib::find_min_box_constrained(dlib::lbfgs_search_strategy(max_size),
+                    ReportingStopStrategy(1e-16, niters, obj, outPath),
+                    obj, grad, optParams, lowerBounds, upperBounds);
+
+        // convert solution
+        for (size_t p = 0; p < nParams; ++p)
+            params[p] = optParams(p);
     }
 
 private:
