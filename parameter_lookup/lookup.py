@@ -30,6 +30,8 @@ def extract_material_properties(mesh):
 def parse_args():
     parser = argparse.ArgumentParser(
             description="lookup pattern parameter from material properties");
+    parser.add_argument("--metric", help="metric of proximity",
+            default="compliance", choices=("compliance", "elasticity"));
     parser.add_argument("--index-dir", help="index directory");
     parser.add_argument("input_mesh", help="input mesh");
     parser.add_argument("output_mesh", help="output mesh");
@@ -45,7 +47,7 @@ def main():
     materials = [IsotropicMaterial(mesh.get_dim(), E, nu)
             for E, nu in zip(young, poisson)];
 
-    param_table = PatternParameterTable(args.index_dir, "elasticity");
+    param_table = PatternParameterTable(args.index_dir, args.metric);
     header = param_table.header;
 
     #param_values, fitted_young, fitted_poisson, fitted_shear, dist =\
