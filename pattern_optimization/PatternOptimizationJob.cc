@@ -47,20 +47,26 @@ JobBase *parseJobFile(const string &jobFile) {
     size_t dim = pt.get<size_t>("dim");
     auto materialSpec = pt.get_child("target");
     auto paramVals = pt.get_child("initial_params");
+    auto radiusBounds = pt.get_child("radiusBounds");
+    auto translationBounds = pt.get_child("translationBounds");
 
+    JobBase *job;
     if (dim == 2) {
         auto job2D = new Job<2>();
         job2D->targetMaterial.setFromPTree(materialSpec);
-        parseVector(paramVals, job2D->initialParams);
-        return job2D;
+        job = job2D;
     }
     else if (dim == 3) {
         auto job3D = new Job<3>();
         job3D->targetMaterial.setFromPTree(materialSpec);
-        parseVector(paramVals, job3D->initialParams);
-        return job3D;
+        job = job3D;
     }
     else throw runtime_error("Invalid dimension.");
+
+    parseVector(paramVals, job->initialParams);
+    parseVector(radiusBounds, job->radiusBounds);
+    parseVector(translationBounds, job->translationBounds);
+    return job;
 }
 
 }

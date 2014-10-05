@@ -199,7 +199,9 @@ void execute<2>(const po::variables_map &args) {
        << ", " << params[5] 
        << ", " << params[6] 
        << ", " << params[7] 
-       << ", " << params[8] << "]" << endl;
+       << ", " << params[8] << "]," << endl;
+    of << "\t\"radiusBounds\": [0.05, 0.1]," << endl;
+    of << "\t\"translationBounds\": [-0.15, 0.15]" << endl;
     of << "}" << endl;
 }
 

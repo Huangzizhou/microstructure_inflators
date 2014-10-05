@@ -21,6 +21,10 @@ class MaterialParameter(object):
         self.shear_xy = self.config["shear_modulus"][0];
         self.poisson_xy = self.config["poisson_ratio"][0];
         self.poisson_yx = self.config["poisson_ratio"][1];
+        if self.poisson_xy > 1.0 or self.poisson_xy < -1.0 or\
+                self.poisson_yx > 1.0 or self.poisson_yx < -1.0:
+            print("In {}, (v_xy={} v_yx={}) outside of [-1, 1]".format(
+                param_file, self.poisson_xy, self.poisson_yx));
 
         self.names = [
                 "young_x",
@@ -49,6 +53,21 @@ class MaterialParameter(object):
         self.poisson_xz = self.config["poisson_ratio"][3];
         self.poisson_xy = self.config["poisson_ratio"][4];
         self.poisson_yx = self.config["poisson_ratio"][5];
+
+        if self.poisson_xy > 0.5 or self.poisson_xy < -1.0 or\
+                self.poisson_yx > 1.0 or self.poisson_yx < -1.0:
+            print("In {}, (v_xy={} v_yx={}) outside of [-1, 0.5]".format(
+                param_file, self.poisson_xy, self.poisson_yx));
+
+        if self.poisson_yz > 0.5 or self.poisson_yz < -1.0 or\
+                self.poisson_zy > 1.0 or self.poisson_zy < -1.0:
+            print("In {}, (v_yz={} v_zy={}) outside of [-1, 0.5]".format(
+                param_file, self.poisson_yz, self.poisson_zy));
+
+        if self.poisson_zx > 0.5 or self.poisson_zx < -1.0 or\
+                self.poisson_xz > 1.0 or self.poisson_xz < -1.0:
+            print("In {}, (v_zx={} v_xz={}) outside of [-1, 0.5]".format(
+                param_file, self.poisson_zx, self.poisson_xz));
 
         self.names = [
                 "young_x",

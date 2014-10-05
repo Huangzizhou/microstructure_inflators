@@ -32,24 +32,15 @@ def gather_result_files(result_dir):
     result_name_pattern = ".*_param\.json";
     return gather_files(result_dir, result_name_pattern);
 
-def pair_up(config_files, result_files):
-    config_matcher = re.compile("(.*)\.config");
-    result_matcher = re.compile("(.*)_param\.json");
-
-    config_basename = lambda f: config_matcher.match(os.path.basename(f)).group(1)
-    result_basename = lambda f : result_matcher.match(os.path.basename(f)).group(1)
-
-    config_dict = {config_basename(f):f for f in config_files};
-    result_dict = {result_basename(f):f for f in result_files};
-
-    keys = set();
-    keys.update(config_dict.keys());
-    keys.update(result_dict.keys());
-
-    pairs = []
-    for key in keys:
-        if key in config_dict and key in result_dict:
-            pairs.append((config_dict[key], result_dict[key]));
+def pair_up(config_files, result_dir):
+    pairs = [];
+    for config_file in config_files:
+        basename = os.path.splitext(os.path.basename(config_file))[0];
+        result_file = os.path.join(result_dir, basename + "_param.json");
+        if os.path.exists(result_file):
+            pairs.append((config_file, result_file));
+        else:
+            print("Warning: {} is missing".format(result_file));
     return pairs;
 
 def generate_and_save(data, output_name):
@@ -126,6 +117,22 @@ def save_modifier(config, out_dir):
     with open(modifier_file, 'w') as fout:
         json.dump(config, fout, indent=4);
 
+def print_summary(properties):
+    if len(properties) == 0: return;
+    names = properties[0].names;
+    num_fields = len(names);
+
+    values = np.array([p.values for p in properties]);
+    assert(values.shape[1] == num_fields);
+    min_values = np.amin(values, axis=0);
+    max_values = np.amax(values, axis=0);
+
+    header_fmt = "{:>10}:" + " ".join(["{:>10}"] * num_fields);
+    content_fmt = "{:>10}:" + " ".join(["{:10.3f}"] * num_fields);
+    print(header_fmt.format("name", *names));
+    print(content_fmt.format("min", *min_values));
+    print(content_fmt.format("max", *max_values));
+
 def parse_args():
     parser = argparse.ArgumentParser(
             description="generate material to pattern parameter lookup table");
@@ -141,8 +148,7 @@ def main():
     args = parse_args();
 
     config_files = gather_config_files(args.config_dir);
-    result_files = gather_result_files(args.result_dir);
-    file_pairs = pair_up(config_files, result_files);
+    file_pairs = pair_up(config_files, args.result_dir);
 
     if len(file_pairs) == 0:
         raise RuntimeError("No data extracted from inputs");
@@ -160,6 +166,7 @@ def main():
     save_data(materials, args.output, "material.csv");
     save_data(patterns, args.output, "pattern.csv");
     save_modifier(patterns[0].modifier_config, args.output);
+    print_summary(materials);
 
 if __name__ == "__main__":
     main();

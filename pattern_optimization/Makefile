@@ -15,8 +15,8 @@ INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem $(VCG_INC) -isyste
 LIBS+=../Luigi/wireinflator2D/lib/libclipper.a
 LIBS+=../Luigi/wireinflator2D/lib/libtriangle.a
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES)
-# CPPFLAGS+=-O2
-CPPFLAGS+=-O0 -g
+CPPFLAGS+=-O2
+# CPPFLAGS+=-O0 -g
 CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
 
 all: $(TARGETS)

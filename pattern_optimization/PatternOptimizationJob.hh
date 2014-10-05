@@ -29,6 +29,8 @@ namespace PatternOptimization  {
 class JobBase {
 public:
     virtual ~JobBase() { }
+
+    std::vector<Real> initialParams, radiusBounds, translationBounds;
 };
 
 template<size_t _N>
@@ -38,7 +40,6 @@ public:
     virtual ~Job() { }
 
     Materials::Constant<_N> targetMaterial;
-    std::vector<Real> initialParams;
 };
 
 JobBase *parseJobFile(const std::string &jobFile);

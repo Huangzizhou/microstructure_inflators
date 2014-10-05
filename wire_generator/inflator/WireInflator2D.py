@@ -72,7 +72,7 @@ class WireInflator2D(object):
             parameters.append(p);
         parameters = np.array(parameters, order="C");
 
-        self.inflator.set_max_triangle_area(0.1);
+        self.inflator.set_max_triangle_area(0.025);
 
         num_vertices = quad_mesh.get_num_vertices();
         vertices = np.hstack((vertices,

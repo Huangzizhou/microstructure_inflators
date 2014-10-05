@@ -129,7 +129,7 @@ void execute<2>(const po::variables_map &args,
     if (job->numParams() != nParams)
         throw runtime_error("Invalid number of parameters.");
 
-    // Set up material
+    // Set up simulator's (base) material
     auto &mat = LinearElasticityND<_N>::
         template homogenousMaterial<Materials::Constant>();
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
@@ -137,18 +137,20 @@ void execute<2>(const po::variables_map &args,
     SField params(nParams);
     params = job->initialParams;
 
-    Optimizer<_N> optimizer(inflator, t_params);
+    Optimizer<_N> optimizer(inflator, t_params, job->radiusBounds,
+            job->translationBounds);
     string solver = args["solver"].as<string>(),
            output = args["output"].as<string>();
+    size_t niters = args["nIters"].as<size_t>();
     if (solver == "levenberg_marquardt")
         optimizer.optimize_lm(params, targetS, output);
     else if (solver == "gradient_descent")
-        optimizer.optimize_gd(params, targetS, args["nIters"].as<size_t>(),
+        optimizer.optimize_gd(params, targetS, niters,
                           args["step"].as<double>(), output);
     else if (solver == "bfgs")
-        optimizer.optimize_bfgs(params, targetS, output);
+        optimizer.optimize_bfgs(params, targetS, niters, output);
     else if (solver == "lbfgs")
-        optimizer.optimize_bfgs(params, targetS, output, 10);
+        optimizer.optimize_bfgs(params, targetS, niters, output, 10);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
