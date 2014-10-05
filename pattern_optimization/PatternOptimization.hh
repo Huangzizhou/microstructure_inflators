@@ -21,6 +21,7 @@
 #include <memory>
 
 #include <WireInflator2D.h>
+#include <EdgeFields.hh>
 
 namespace PatternOptimization {
 
@@ -191,7 +192,7 @@ public:
             SField gradP = gradp_JS();
             os << "grad_p(J_S):\t";
             gradP.print(os, "", "", "", "\t");
-            os << std::endl << "||grad_p)||:\t" << gradP.norm() << std::endl;
+            os << std::endl << "||grad_p||:\t" << gradP.norm() << std::endl;
         }
 
         VField directionField(const SField &v_n) const {

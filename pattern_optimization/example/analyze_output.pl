@@ -6,13 +6,13 @@ while (<>) {
     if (/Target moduli \(tensor\):\t(.*)/) {
         @targetModuli = split("\t", $1);
     }
-    if (/Current moduli:\t(.*)/) {
+    if (/^moduli:\t(.*)/) {
         push(@currentModuli, [split("\t", $1)]);
     }
-    if (/J_S = (.*)/) {
+    if (/^JS:\t(.*)/) {
         push(@JS, $1);
     }
-    if (/\|\|grad_p\|\|:\t(.*)/) {
+    if (/\|\|grad_p\)\|\|:\t(.*)/) {
         push(@gradPNorm, $1);
     }
 }
