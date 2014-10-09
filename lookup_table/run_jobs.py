@@ -31,6 +31,12 @@ def generate_index(config_dir, out_dir, index_dir):
     print(command);
     check_call(command.split());
 
+def plot_material_distribution(index_dir):
+    microstructure_path = os.environ["MICROSTRUCTURES_PATH"];
+    command = "{}/parameter_lookup/analyze_distribution.py --index-dir {}".format(microstructure_path, index_dir);
+    print(command);
+    check_call(command.split());
+
 def get_out_dir(setting, job_dir):
     out_dir = os.path.join(setting["root_dir"], setting["out_dir"]);
     if not os.path.isabs(out_dir):
@@ -40,7 +46,8 @@ def get_out_dir(setting, job_dir):
 def parse_args():
     parser = argparse.ArgumentParser(
             description="Process and run given job script");
-    parser.add_argument("action", type=str, choices=("run", "clean", "index"));
+    parser.add_argument("action", type=str,
+            choices=("run", "clean", "index", "plot"));
     parser.add_argument("job_files", nargs="+");
     args = parser.parse_args();
     return args;
@@ -62,6 +69,9 @@ def main():
             index_dir = os.path.join(base_dir, "index");
             clean(index_dir);
             generate_index(config_dir, out_dir, index_dir);
+        elif args.action == "plot":
+            index_dir = os.path.join(base_dir, "index");
+            plot_material_distribution(index_dir);
         else:
             raise NotImplementedError("Unknown action: {}".format(args.action));
 
