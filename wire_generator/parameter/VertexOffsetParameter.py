@@ -19,8 +19,9 @@ class VertexOffsetParameter(PatternParameter):
         orbit_bbox_min = np.amin(orbit_vertices, axis=0);
         orbit_bbox_max = np.amax(orbit_vertices, axis=0);
 
-        self.__dof_mask = np.logical_or(
-                orbit_bbox_min <= bbox_min, orbit_bbox_max >= bbox_max);
+        self.__dof_mask = np.logical_or(np.logical_or(
+                orbit_bbox_min <= bbox_min, orbit_bbox_max >= bbox_max),
+                orbit_bbox_max == orbit_bbox_min);
 
     def evaluate(self, **kwargs):
         if hasattr(self, "formula"):
