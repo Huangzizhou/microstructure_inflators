@@ -1,11 +1,15 @@
 include $(MeshFEM)/platform_defs.mk
 
-SOURCES=PatternOptimization_cli.cc
-PATOPT_OBJS=PatternOptimization_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o \
-			$(MeshFEM)/Materials.o $(MeshFEM)/MSHFieldParser.o $(MeshFEM)/EdgeFields.o
-OBJS=$(PATOPT_OBJS)
+SOURCES=PatternOptimization_cli.cc PatternOptimizationJob.cc
+PATOPT_OBJS=PatternOptimization_cli.o PatternOptimizationJob.o \
+			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
+			$(MeshFEM)/EdgeFields.o
+CREATJOB_OBJS=CreateJob.o \
+			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
+			$(MeshFEM)/MSHFieldParser.o
+OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS)
 
-TARGETS=PatternOptimization_cli
+TARGETS=PatternOptimization_cli CreateJob
 
 INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem $(VCG_INC) -isystem $(DLIB_INC)
 LIBS+=../Luigi/wireinflator2D/lib/libclipper.a
@@ -18,6 +22,9 @@ CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
 all: $(TARGETS)
 
 PatternOptimization_cli: $(PATOPT_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
+CreateJob: $(CREATJOB_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 %.o: %.cc Makefile

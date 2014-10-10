@@ -7,7 +7,7 @@ OBJS=$(RENDEROPT_OBJS)
 TARGETS=Render_cli
 
 INCLUDES+=-I$(MeshFEM) -I/opt/local/include/freetype2
-LIBS+=-losmesa -lpng
+LIBS+=$(RENDER_LIBS)
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DUSE_MESA
 CPPFLAGS+=-O2
 # CPPFLAGS+=-O0 -g

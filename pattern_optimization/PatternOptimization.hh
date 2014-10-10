@@ -21,6 +21,7 @@
 #include <memory>
 
 #include <WireInflator2D.h>
+#include <EdgeFields.hh>
 
 namespace PatternOptimization {
 
@@ -34,9 +35,10 @@ class Optimizer {
     typedef dlib::matrix<double,0,1> dlib_vector;
 public:
     Optimizer(WireInflator2D &inflator,
-            const TessellationParameters &tparams)
-        : m_inflator(inflator), m_tparams(tparams) {
-    }
+            const TessellationParameters &tparams, std::vector<Real> radiusBounds,
+            std::vector<Real> translationBounds)
+        : m_inflator(inflator), m_tparams(tparams), m_radiusBounds(radiusBounds),
+          m_transBounds(translationBounds) { }
 
     template<class _Vector>
     void getParameterBounds(_Vector &lowerBounds, _Vector &upperBounds) {
@@ -44,12 +46,12 @@ public:
         for (size_t p = 0; p < ops.size(); ++p) {
             switch (ops.at(p).type) {
                 case ParameterOperation::Radius:
-                    lowerBounds(p) = 0.05;
-                    upperBounds(p) = 0.1;
+                    lowerBounds(p) = m_radiusBounds.at(0);
+                    upperBounds(p) = m_radiusBounds.at(1);
                     break;
                 case ParameterOperation::Translation:
-                    lowerBounds(p) = -0.15;
-                    upperBounds(p) =  0.15;
+                    lowerBounds(p) = m_transBounds.at(0);
+                    upperBounds(p) = m_transBounds.at(1);
                     break;
                 default: assert(false);
             }
@@ -190,7 +192,7 @@ public:
             SField gradP = gradp_JS();
             os << "grad_p(J_S):\t";
             gradP.print(os, "", "", "", "\t");
-            os << std::endl << "||grad_p)||:\t" << gradP.norm() << std::endl;
+            os << std::endl << "||grad_p||:\t" << gradP.norm() << std::endl;
         }
 
         VField directionField(const SField &v_n) const {
@@ -496,7 +498,7 @@ public:
 private:
     WireInflator2D &m_inflator;
     TessellationParameters m_tparams;
-    std::vector<Real> m_patternParams;
+    std::vector<Real> m_patternParams, m_radiusBounds, m_transBounds;
 };
 
 }
