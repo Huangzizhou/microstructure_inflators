@@ -2,34 +2,27 @@ import os.path
 
 import csv
 import numpy as np
+from HomogenizationWrapper import HomogenizationWrapper
 
 import pyflann
 
 class PatternParameterTable:
-    def __init__(self, index_dir, key="compliance"):
+    def __init__(self, index_dir, key="compliance", material_file=None):
         self.key = key;
         self.index_dir = index_dir;
+        self.material_file = material_file;
+
         self.lookup_table = self.__load_index(key);
         self.header, self.pattern = self.__load_data("pattern.csv");
+        self.material_header, self.materials = self.__load_data("material.csv");
 
-        self.young = self.__load_dataset("young");
-        self.poisson = self.__load_dataset("poisson");
-        self.shear = self.__load_dataset("shear");
+        self.homogenizer = HomogenizationWrapper(
+                self.index_dir, self.header, self.material_file);
 
-    def lookup(self, materials):
+    def lookup_and_interpolate(self, materials, num_candidates=3,
+            rehomogenize=False):
         target_tensors = self.__extract_lookup_keys(materials);
-        index, dist = self.lookup_table.nn_index(target_tensors, 1);
-
-        param_values = self.pattern[index];
-        young = self.young[index];
-        poisson = self.poisson[index];
-        shear = self.shear[index];
-
-        return param_values, young, poisson, shear, dist.ravel();
-
-    def lookup_and_interpolate(self, materials):
-        target_tensors = self.__extract_lookup_keys(materials);
-        index, dist = self.lookup_table.nn_index(target_tensors, 3);
+        index, dist = self.lookup_table.nn_index(target_tensors, num_candidates);
 
         weights = np.ones_like(dist) / dist;
         weights = weights / np.sum(weights, axis=1)[:,np.newaxis];
@@ -37,17 +30,26 @@ class PatternParameterTable:
         param_values = self.pattern[index].astype(float);
         param_values = np.sum(param_values * weights[:,:,np.newaxis], axis=1);
 
-        index = index[:,0];
-        dist = dist[:,0];
-        young = self.young[index];
-        poisson = self.poisson[index];
-        shear = self.shear[index];
+        if rehomogenize:
+            assert(self.material_file is not None);
+            assert(os.path.exists(self.material_file));
+            materials = self.compute_homogenized_materials(param_values);
+            material_values = np.array([m.values for m in materials], order="C");
+            material_header = ["fitted_{}".format(name)
+                    for name in materials[0].names];
+        else:
+            material_header = ["fitted_{}".format(name)
+                    for name in self.material_header];
+            material_values = self.materials[index[:,0],:];
 
-        return param_values,  young, poisson, shear, dist.ravel();
+        return param_values, material_header, material_values;
 
     def compute_homogenized_materials(self, param_values):
-        # TODO
-        pass;
+        materials = [];
+        for param in param_values:
+            self.homogenizer.homogenize(param);
+            materials.append(self.homogenizer.material);
+        return materials;
 
     def __load_index(self, index_name):
         data = self.__load_dataset(index_name);

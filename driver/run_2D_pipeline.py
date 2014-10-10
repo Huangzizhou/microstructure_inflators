@@ -33,6 +33,10 @@ def parse_args():
             default=0.5);
     parser.add_argument("--metric", help="material metric",
             choices=("compliance", "elasticity"));
+    parser.add_argument("--rehomogenize", action="store_true",
+            help="run homogenization on interpolated pattern parameters");
+    parser.add_argument("--material", default=None,
+            help="material filed used");
     parser.add_argument("quad_mesh", help="quad mesh defining cell layout");
     parser.add_argument("material_mesh",
             help="material mesh containt material property attributes");
@@ -74,8 +78,16 @@ def main():
                     .format(args.pattern, int(args.cell_size)));
     assert(os.path.isdir(index_dir));
     exe_name = os.path.join(PROJECT_DIR, "parameter_lookup/lookup.py");
-    command = "{} --metric {} --index-dir {} {} {}".format(exe_name,
-            args.metric, index_dir, tmp_material_mesh, tmp_pattern_mesh);
+    if args.rehomogenize:
+        if args.material is None or not os.path.exists(args.material):
+            raise RuntimeError("Material file ({}) is invalid".format(
+                args.material));
+        command = "{} --rehomogenize --material {} --metric {} --index-dir {} {} {}".format(
+                exe_name, args.material, args.metric, index_dir,
+                tmp_material_mesh, tmp_pattern_mesh);
+    else:
+        command = "{} --metric {} --index-dir {} {} {}".format(exe_name,
+                args.metric, index_dir, tmp_material_mesh, tmp_pattern_mesh);
     check_call(command.split());
 
     # Tile microstructure according to pattern parameter

@@ -33,6 +33,10 @@ def parse_args():
     parser.add_argument("--metric", help="metric of proximity",
             default="compliance", choices=("compliance", "elasticity"));
     parser.add_argument("--index-dir", help="index directory");
+    parser.add_argument("--rehomogenize", action="store_true",
+            help="rerun homogenization on fitted pattern parameters");
+    parser.add_argument("--material", default=None,
+            help="material filed used for homogenization");
     parser.add_argument("input_mesh", help="input mesh");
     parser.add_argument("output_mesh", help="output mesh");
     args = parser.parse_args();
@@ -40,6 +44,9 @@ def parse_args():
 
 def main():
     args = parse_args();
+    if args.rehomogenize and args.material is None:
+        raise RuntimeError("Please specify a material file to use in homogenization");
+
     mesh = load_mesh(args.input_mesh);
 
     young, poisson = extract_material_properties(mesh);
@@ -47,68 +54,24 @@ def main():
     materials = [IsotropicMaterial(mesh.get_dim(), E, nu)
             for E, nu in zip(young, poisson)];
 
-    param_table = PatternParameterTable(args.index_dir, args.metric);
+    param_table = PatternParameterTable(
+            args.index_dir, args.metric, args.material);
     header = param_table.header;
 
-    #param_values, fitted_young, fitted_poisson, fitted_shear, dist =\
-    #        param_table.lookup(materials);
-    param_values, fitted_young, fitted_poisson, fitted_shear, dist =\
-            param_table.lookup_and_interpolate(materials);
+    param_values, material_header, material_values =\
+            param_table.lookup_and_interpolate(materials,
+                    rehomogenize=args.rehomogenize);
     for i,attr_name in enumerate(header):
         mesh.add_attribute(attr_name);
         mesh.set_attribute(attr_name, param_values[:,i]);
 
+    for i,attr_name in enumerate(material_header):
+        mesh.add_attribute(attr_name);
+        mesh.set_attribute(attr_name, material_values[:,i]);
+
+    header += material_header;
     header.append("young");
     header.append("poisson");
-    mesh.add_attribute("fitted_young_x");
-    mesh.set_attribute("fitted_young_x", fitted_young[:,0]);
-    header.append("fitted_young_x");
-    mesh.add_attribute("fitted_young_y");
-    mesh.set_attribute("fitted_young_y", fitted_young[:,1]);
-    header.append("fitted_young_y");
-    if mesh.get_dim() == 2:
-        mesh.add_attribute("fitted_poisson_xy");
-        mesh.set_attribute("fitted_poisson_xy", fitted_poisson[:,0]);
-        mesh.add_attribute("fitted_poisson_yx");
-        mesh.set_attribute("fitted_poisson_yx", fitted_poisson[:,1]);
-        header.append("fitted_poisson_xy");
-        header.append("fitted_poisson_yx");
-        mesh.add_attribute("shear_xy");
-        mesh.set_attribute("shear_xy", fitted_shear[:,0]);
-        header.append("shear_xy");
-    elif mesh.get_dim() == 3:
-        mesh.add_attribute("fitted_young_z");
-        mesh.set_attribute("fitted_young_z", fitted_young[:,2]);
-        header.append("fitted_young_z");
-
-        mesh.add_attribute("fitted_poisson_yx");
-        mesh.set_attribute("fitted_poisson_yz", fitted_poisson[:,0]);
-        mesh.add_attribute("fitted_poisson_zy");
-        mesh.set_attribute("fitted_poisson_zy", fitted_poisson[:,1]);
-        mesh.add_attribute("fitted_poisson_zx");
-        mesh.set_attribute("fitted_poisson_zx", fitted_poisson[:,2]);
-        mesh.add_attribute("fitted_poisson_xz");
-        mesh.set_attribute("fitted_poisson_xz", fitted_poisson[:,3]);
-        mesh.add_attribute("fitted_poisson_xy");
-        mesh.set_attribute("fitted_poisson_xy", fitted_poisson[:,4]);
-        mesh.add_attribute("fitted_poisson_yx");
-        mesh.set_attribute("fitted_poisson_yx", fitted_poisson[:,5]);
-        header = header + [
-                "fitted_poisson_yz",
-                "fitted_poisson_zy",
-                "fitted_poisson_zx",
-                "fitted_poisson_xz",
-                "fitted_poisson_yx",
-                "fitted_poisson_xy" ];
-        mesh.add_attribute("shear_yz");
-        mesh.set_attribute("shear_yz", fitted_shear[:,0]);
-        mesh.add_attribute("shear_zx");
-        mesh.set_attribute("shear_zx", fitted_shear[:,1]);
-        mesh.add_attribute("shear_xy");
-        mesh.set_attribute("shear_xy", fitted_shear[:,2]);
-        header.append("shear_yz");
-        header.append("shear_zx");
-        header.append("shear_xy");
 
     save_mesh(args.output_mesh, mesh, *header);
 
