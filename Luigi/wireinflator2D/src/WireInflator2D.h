@@ -28,6 +28,27 @@ public:
 		;
 	}
 
+	WireInflator2D( EMesh & edgeMesh)
+	    : m_pattern(edgeMesh)
+	{
+		;
+	}
+
+	WireInflator2D( const VectorF & vertices, const VectorI & edges)
+	{
+		EMesh em;
+
+		bool ok = vectorsToEdgeMesh(vertices, edges, em);
+		if (!ok)
+		{
+			std::cout << "Invalid input wire-mesh."<< std::endl;
+			return;
+		}
+
+		PatternGen pg(em);
+		m_pattern = pg;
+	}
+
 	void generatePattern(const CellParameters & inP,
 	                     const TessellationParameters & inT,
 	                     OutMeshType & out,
@@ -224,11 +245,11 @@ private:
 
 	static bool checkFileExt(const std::string & filePath, const std::string & ext)
 	{
-		if (filePath.length() < ext.length())
+		int diff = (filePath.length() - ext.length());
+		if (diff < 0)
 			return false;
 
-		int a = (filePath.length() - ext.length());
-		const char * cfile = filePath.c_str() + a;
+		const char * cfile = filePath.c_str() + diff;
 		const char * cext  = ext.c_str();
 		return (strncasecmp(cfile , cext, ext.length()) == 0);
 	}
@@ -286,6 +307,46 @@ private:
 		}
 
 		vcg::tri::UpdateBounding<PolyMesh>::Box(pmesh);
+
+		return true;
+	}
+
+	static bool vectorsToEdgeMesh(const VectorF & nodes, const VectorI & elements, EMesh & em)
+	{
+		em.Clear();
+
+		static const int NodeDim   = 3;
+		static const int EdgeArity = 2;
+
+		if ((nodes.size() % NodeDim != 0) ||
+		    (elements.size() % EdgeArity != 0))
+			return false;
+
+		// fill nodes
+		vcg::tri::Allocator<EMesh>::AddVertices(em, nodes.size() / NodeDim);
+		for (size_t i=0; i<em.vert.size(); ++i)
+		{
+			EMesh::CoordType & p = em.vert[i].P();
+			for (int k=0; k<NodeDim; k++)
+			{
+				p[k] = nodes[i*NodeDim + k];
+			}
+		}
+
+		// fill edges
+		vcg::tri::Allocator<EMesh>::AddEdges(em, elements.size() / EdgeArity);
+		for (size_t i=0; i<em.edge.size(); ++i)
+		{
+			EMesh::EdgeType & e = em.edge[i];
+			for (int k=0; k<EdgeArity; k++)
+			{
+				int nodeIdx = elements[i*EdgeArity + k];
+				assert(nodeIdx >= 0 && nodeIdx < em.VN());
+				e.V(k) = &em.vert[nodeIdx];
+			}
+		}
+
+		vcg::tri::UpdateBounding<EMesh>::Box(em);
 
 		return true;
 	}

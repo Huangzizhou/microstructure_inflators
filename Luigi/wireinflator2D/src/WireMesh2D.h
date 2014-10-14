@@ -19,6 +19,7 @@ class WireMesh2D
 {
 public:
 	typedef typename EMesh::VertexType      VertexType;
+	typedef typename EMesh::EdgeType        EdgeType;
 	typedef typename VertexType::ScalarType ScalarType;
 	typedef typename VertexType::CoordType  CoordType;
 
@@ -34,8 +35,22 @@ public:
 		this->setMesh(edgeMeshPath);
 	}
 
-	WireMesh2D(WireMesh2D & wm)
+	WireMesh2D & operator = (WireMesh2D & wm)
+	{
+		m_operations   = wm.m_operations;
+		m_radius_range = wm.m_radius_range;
+		m_transl_range = wm.m_transl_range;
+		vcg::tri::Append<EMesh,EMesh>::MeshCopy(m_em,            wm.m_em,            false, true);
+		vcg::tri::Append<EMesh,EMesh>::MeshCopy(m_normalized_em, wm.m_normalized_em, false, true);
+		m_bbox = wm.m_bbox;
+
+		return *this;
+	}
+
+	WireMesh2D(const WireMesh2D & wm)
 	    : m_operations(wm.m_operations)
+	    , m_radius_range(wm.m_radius_range)
+	    , m_transl_range(wm.m_transl_range)
 	{
 		vcg::tri::Append<EMesh,EMesh>::MeshCopy(m_em,            wm.m_em,            false, true);
 		vcg::tri::Append<EMesh,EMesh>::MeshCopy(m_normalized_em, wm.m_normalized_em, false, true);
@@ -188,11 +203,16 @@ protected:
 	EMesh                           m_normalized_em;
 	vcg::Box3<ScalarType>           m_bbox; // the original bounding box
 	std::vector<ParameterOperation> m_operations;
+	std::pair<double,double>        m_radius_range;
+	std::pair<double,double>        m_transl_range;
 
 	static inline ScalarType Epsilon(void) { return 0.00001; }
 
 	void setup(void)
 	{
+		this->m_radius_range = std::make_pair( 0.01, 0.15 );
+		this->m_transl_range = std::make_pair(-0.25, 0.25);
+
 		if (!this->isValid())
 		{
 			m_em.Clear();
@@ -213,12 +233,12 @@ protected:
 
 	virtual std::pair<double,double> getRadiusParameterRange(void) const
 	{
-		return std::make_pair( 0.01, 10.1 );
+		return m_radius_range;
 	}
 
 	virtual std::pair<double,double> getTranslationParameterRange(void) const
 	{
-		return std::make_pair(-0.15, 0.15);
+		return m_transl_range;
 	}
 
 	void normalizeMesh(void)
@@ -230,30 +250,19 @@ protected:
 		vcg::tri::UpdateBounding<EMesh>::Box(m_em);
 		m_bbox = m_em.bbox;
 
-		vcg::tri::UpdatePosition<EMesh>::Translate(m_em, -m_bbox.min);
+		vcg::tri::UpdatePosition<EMesh>::Translate(m_em, -m_em.bbox.min);
 		vcg::tri::UpdateBounding<EMesh>::Box(m_em);
 
 		assert(m_em.bbox.Dim()[0] != 0 && m_em.bbox.Dim()[1] != 0);
 
 		vcg::tri::Append<EMesh,EMesh>::MeshCopy(m_normalized_em, m_em, false, true);
 
-		// custom normalization ( keep width equal to 1)
-		static const unsigned char ax_to_one = 0; //
-		for (size_t i=0; i<m_em.vert.size(); ++i)
-		{
-			CoordType & p = m_em.vert[i].P();
-			p[0] /= m_bbox.max[ax_to_one];
-			p[1] /= m_bbox.max[ax_to_one];
-			p[2] = 0;
-		}
-		vcg::tri::UpdateBounding<EMesh>::Box(m_em);
-
 		// real normalization
 		for (size_t i=0; i<m_normalized_em.vert.size(); ++i)
 		{
 			CoordType & p = m_normalized_em.vert[i].P();
-			p[0] /= m_bbox.max[0];
-			p[1] /= m_bbox.max[1];
+			p[0] /= m_normalized_em.bbox.max[0];
+			p[1] /= m_normalized_em.bbox.max[1];
 			p[2] = 0;
 		}
 		vcg::tri::UpdateBounding<EMesh>::Box(m_normalized_em);
@@ -262,7 +271,6 @@ protected:
 	// compute symmetry orbits clusters
 	void computeSymmetryOrbits(std::vector<std::vector<int> > & symmetryOrbits)
 	{
-		// assumes the mesh is normalized
 		if (!isValid())
 			return;
 
@@ -383,7 +391,7 @@ protected:
 				for (auto & displ : p.nodes_displ)
 				{
 					em.vert[displ.first].P() +=
-					        CoordType(displ.second[0], displ.second[1], 0) * params.cParameter(i);
+					        CoordType(displ.second[0] * em.bbox.Dim()[0], displ.second[1] * em.bbox.Dim()[1], 0) * params.cParameter(i);
 				}
 				break;
 			default:

@@ -22,6 +22,47 @@ struct hash<ClipperLib::IntPoint>
 };
 }
 
+/// IntPoint
+inline const ClipperLib::cInt & clipperPointCCoord(const ClipperLib::IntPoint & p, int coord)
+{
+#ifdef use_xyz
+	switch(coord)
+	{
+	case 0 : return p.X;
+	case 1 : return p.Y;
+	case 2 : return p.Z;
+	}
+#else
+	switch(coord)
+	{
+	case 0 : return p.X;
+	case 1 : return p.Y;
+	}
+#endif
+	assert(0);
+	return p.X;
+}
+
+inline ClipperLib::cInt & clipperPointCoord(ClipperLib::IntPoint & p, int coord)
+{
+#ifdef use_xyz
+	switch(coord)
+	{
+	case 0 : return p.X;
+	case 1 : return p.Y;
+	case 2 : return p.Z;
+	}
+#else
+	switch(coord)
+	{
+	case 0 : return p.X;
+	case 1 : return p.Y;
+	}
+#endif
+	assert(0);
+	return p.X;
+}
+
 template <typename ScalarType>
 inline ClipperLib::IntPoint scaleToIntPoint(const vcg::Point2<ScalarType> & a, ScalarType scaleF = 1)
 {
@@ -41,6 +82,11 @@ inline ClipperLib::IntPoint operator - (const ClipperLib::IntPoint & p, const Cl
 inline ClipperLib::IntPoint operator * (const ClipperLib::IntPoint & p, const double a)
 {
 	return ClipperLib::IntPoint(ClipperLib::cInt(p.X * a), ClipperLib::cInt(p.Y * a));
+}
+
+inline ClipperLib::IntPoint operator / (const ClipperLib::IntPoint & p, const double a)
+{
+	return ClipperLib::IntPoint(ClipperLib::cInt(p.X / a), ClipperLib::cInt(p.Y / a));
 }
 
 inline ClipperLib::IntPoint & operator += (ClipperLib::IntPoint & lhs, const ClipperLib::IntPoint & rhs)
@@ -80,10 +126,11 @@ inline bool operator < (const ClipperLib::IntPoint & lhs, const ClipperLib::IntP
 
 	if (xdiff == 0)
 		return (lhs.Y < rhs.Y);
-	else
-		return false;
+
+	return false;
 }
 
+/// Path
 inline ClipperLib::Path operator + (const ClipperLib::Path & p, const ClipperLib::IntPoint & t)
 {
 	ClipperLib::Path newP;
@@ -104,7 +151,7 @@ inline ClipperLib::Path & operator *= (ClipperLib::Path & lhs, const double rhs)
 	return lhs;
 }
 
-/// PATHS
+/// Paths
 inline ClipperLib::Paths operator + (const ClipperLib::Paths & paths, const ClipperLib::IntPoint & t)
 {
 	ClipperLib::Paths ret;
@@ -134,6 +181,22 @@ inline ClipperLib::IntRect getBounds(const ClipperLib::Paths & paths)
 		ClipperLib::IntRect rect = c.GetBounds();
 		std::swap(rect.bottom, rect.top); // needed!! maybe due to clipper bug.
 		return rect;
+}
+
+template <typename BoundsType>
+inline bool isBoundary(const ClipperLib::IntPoint & p, const BoundsType & bounds);
+
+template <>
+inline bool isBoundary<ClipperLib::IntRect>(const ClipperLib::IntPoint & p, const ClipperLib::IntRect & bounds)
+{
+	return  (p.X == bounds.left   || p.X == bounds.right ||
+	         p.Y == bounds.bottom || p.Y == bounds.top);
+}
+
+template <>
+inline bool isBoundary<ClipperLib::Path>(const ClipperLib::IntPoint & p, const ClipperLib::Path & bounds)
+{
+	return (ClipperLib::PointInPolygon(p, bounds) <= 0);
 }
 
 inline ClipperLib::IntPoint getPointInHolePath(const ClipperLib::Path & poly)

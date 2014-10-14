@@ -162,6 +162,7 @@ public:
 		if (out.numberoftriangles <= 0)
 		{
 			std::cout << "unable to perform triangulation!" << std::endl << std::flush;
+			deallocateTriangulation(in, out);
 			return false;
 		}
 
@@ -187,7 +188,7 @@ public:
 			out_mesh.face[i].V(1) = &out_mesh.vert[index1];
 			out_mesh.face[i].V(2) = &out_mesh.vert[index2];
 		}
-		deallocateTriangulation(out);
+		deallocateTriangulation(in, out);
 
 		// Clean steps
 		vcg::tri::Clean<VcgMesh>::RemoveUnreferencedVertex(out_mesh);
@@ -202,23 +203,39 @@ public:
 		return true;
 	}
 
-	static void deallocateTriangulation(triangulateio & triangleio)
+	static void deallocateTriangulation(triangulateio & in, triangulateio & out)
 	{
-		// deallocate the triangle library output
-		if (triangleio.edgelist)              trifree((VOID *)triangleio.edgelist);
-		if (triangleio.edgemarkerlist)        trifree((VOID *)triangleio.edgemarkerlist);
-		if (triangleio.holelist)              trifree((VOID *)triangleio.holelist);
-		if (triangleio.neighborlist)          trifree((VOID *)triangleio.neighborlist);
-		if (triangleio.normlist)              trifree((VOID *)triangleio.normlist);
-		if (triangleio.pointattributelist)    trifree((VOID *)triangleio.pointattributelist);
-		if (triangleio.pointlist)             trifree((VOID *)triangleio.pointlist);
-		if (triangleio.pointmarkerlist)       trifree((VOID *)triangleio.pointmarkerlist);
-		if (triangleio.regionlist)            trifree((VOID *)triangleio.regionlist);
-		if (triangleio.segmentlist)           trifree((VOID *)triangleio.segmentlist);
-		if (triangleio.segmentmarkerlist)     trifree((VOID *)triangleio.segmentmarkerlist);
-		if (triangleio.trianglearealist)      trifree((VOID *)triangleio.trianglearealist);
-		if (triangleio.triangleattributelist) trifree((VOID *)triangleio.triangleattributelist);
-		if (triangleio.trianglelist)          trifree((VOID *)triangleio.trianglelist);
+		// deallocate the triangle library input
+		if (in.edgelist)              trifree((VOID *)in.edgelist);
+		if (in.edgemarkerlist)        trifree((VOID *)in.edgemarkerlist);
+		if (in.holelist)              trifree((VOID *)in.holelist);
+		if (in.neighborlist)          trifree((VOID *)in.neighborlist);
+		if (in.normlist)              trifree((VOID *)in.normlist);
+		if (in.pointattributelist)    trifree((VOID *)in.pointattributelist);
+		if (in.pointlist)             trifree((VOID *)in.pointlist);
+		if (in.pointmarkerlist)       trifree((VOID *)in.pointmarkerlist);
+		if (in.regionlist)            trifree((VOID *)in.regionlist);
+		if (in.segmentlist)           trifree((VOID *)in.segmentlist);
+		if (in.segmentmarkerlist)     trifree((VOID *)in.segmentmarkerlist);
+		if (in.trianglearealist)      trifree((VOID *)in.trianglearealist);
+		if (in.triangleattributelist) trifree((VOID *)in.triangleattributelist);
+		if (in.trianglelist)          trifree((VOID *)in.trianglelist);
+
+		// deallocate the triangle library output (this is unbelievable!!)
+		if (out.edgelist              && (out.edgelist              != in.edgelist)             ) trifree((VOID *)out.edgelist);
+		if (out.edgemarkerlist        && (out.edgemarkerlist        != in.edgemarkerlist)       ) trifree((VOID *)out.edgemarkerlist);
+		if (out.holelist              && (out.holelist              != in.holelist)             ) trifree((VOID *)out.holelist);
+		if (out.neighborlist          && (out.neighborlist          != in.neighborlist)         ) trifree((VOID *)out.neighborlist);
+		if (out.normlist              && (out.normlist              != in.normlist)             ) trifree((VOID *)out.normlist);
+		if (out.pointattributelist    && (out.pointattributelist    != in.pointattributelist)   ) trifree((VOID *)out.pointattributelist);
+		if (out.pointlist             && (out.pointlist             != in.pointlist)            ) trifree((VOID *)out.pointlist);
+		if (out.pointmarkerlist       && (out.pointmarkerlist       != in.pointmarkerlist)      ) trifree((VOID *)out.pointmarkerlist);
+		if (out.regionlist            && (out.regionlist            != in.regionlist)           ) trifree((VOID *)out.regionlist);
+		if (out.segmentlist           && (out.segmentlist           != in.segmentlist)          ) trifree((VOID *)out.segmentlist);
+		if (out.segmentmarkerlist     && (out.segmentmarkerlist     != in.segmentmarkerlist)    ) trifree((VOID *)out.segmentmarkerlist);
+		if (out.trianglearealist      && (out.trianglearealist      != in.trianglearealist)     ) trifree((VOID *)out.trianglearealist);
+		if (out.triangleattributelist && (out.triangleattributelist != in.triangleattributelist)) trifree((VOID *)out.triangleattributelist);
+		if (out.trianglelist          && (out.trianglelist          != in.trianglelist)         ) trifree((VOID *)out.trianglelist);
 	}
 };
 

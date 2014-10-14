@@ -14,11 +14,13 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
 
 #include <vcg/complex/algorithms/clean.h>
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/position.h>
+#include <vcg/complex/algorithms/update/flag.h>
 #include <vcg/space/index/index2D/grid_static_ptr_2D.h>
 #include <vcg/complex/algorithms/local_optimization/tri_edge_collapse.h>
 
@@ -90,7 +92,7 @@ class EdgeMeshPattern : public Pattern2D<TriMesh>
 {
 public:
 	typedef WireMesh2D<EMesh>                  WireMesh;
-	typedef EdgeMeshPattern<TriMesh, EMesh> ThisType;
+	typedef EdgeMeshPattern<TriMesh, EMesh>    ThisType;
 	typedef Pattern2D<TriMesh>                 BaseType;
 	typedef typename BaseType::ScalarType      ScalarType;
 	typedef typename BaseType::Coord2Type      Coord2Type;
@@ -101,25 +103,57 @@ public:
 
 	typedef Tessellator2DSettings              TessellatorSettings;
 
+	EdgeMeshPattern(void)
+	{
+		;
+	}
+
+	EdgeMeshPattern(EdgeMeshPattern & emp)
+	    : m_tri_settings(emp.m_tri_settings)
+	    , m_wire(emp.m_wire)
+	    , m_params(emp.m_params)
+	    , BaseType::m_paths(emp.m_paths)
+	{
+		;
+	}
+
+	EdgeMeshPattern & operator = (EdgeMeshPattern & emp)
+	{
+		m_tri_settings = emp.m_tri_settings;
+		m_wire = emp.m_wire;
+		m_params = emp.m_params;
+		this->m_paths = emp.m_paths;
+
+		return *this;
+	}
+
 	EdgeMeshPattern(WireMesh & wm)
 	    : m_wire(wm)
 	{
+		assert(m_wire.isValid());
 		this->setup();
 	}
 
 	EdgeMeshPattern(EMesh & em)
 	{
 		m_wire.setMesh(em);
+		assert(m_wire.isValid());
 		this->setup();
 	}
 
 	EdgeMeshPattern(const std::string & edgeMeshPath)
 	{
 		m_wire.setMesh(edgeMeshPath);
+		assert(m_wire.isValid());
 		this->setup();
 	}
 
 	TessellatorSettings & getTessellationSettings(void)
+	{
+		return m_tri_settings;
+	}
+
+	const TessellatorSettings & getConstTessellationSettings(void) const
 	{
 		return m_tri_settings;
 	}
@@ -165,14 +199,21 @@ public:
 		this->m_paths.clear();
 
 		generateOneElement();
+
+		// get bounds
+		ClipperLib::IntRect bounds = getBounds(this->m_base_paths);
+		this->matchPeriodicVertices(this->m_base_paths, bounds);
+
 		// optimize path removing small edges
-		optimizeContours(this->m_base_paths);
+		simplifyContour(this->m_base_paths, bounds);
 
 		ClipperLib::SimplifyPolygons(this->m_base_paths);
-		this->m_paths = this->m_base_paths;
+		splitAllCountourEdges(this->m_base_paths);
 
-		splitAllCountourEdges(this->m_paths);
-		m_final_scale = Coord2Type::Construct(m_wire.getOriginalScale());
+		// remove weird occurrencies of tiny boundary edges
+		simplifyContour(this->m_base_paths, bounds, true);
+
+		this->m_paths = this->m_base_paths;
 
 		return true;
 	}
@@ -429,23 +470,22 @@ public:
 					continue;
 
 				generateOneElement(*grid(x,y));
+				ClipperLib::SimplifyPolygons(this->m_base_paths); // check
+
 				// optimize path removing small edges
-				optimizeContours(this->m_base_paths);
-
-				ClipperLib::SimplifyPolygons(this->m_base_paths);
-
 				ClipperLib::IntRect bounds = getBounds(this->m_base_paths);
+				simplifyContour(this->m_base_paths, bounds);
+
+
 				ClipperLib::IntPoint t((bounds.right - bounds.left) * x, (bounds.top - bounds.bottom) * y);
 				clipper.AddPaths((this->m_base_paths + t), ClipperLib::ptSubject, true);
-
 			}
 		}
 
 		clipper.Execute(ClipperLib::ctUnion, this->m_paths, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
+		ClipperLib::SimplifyPolygons(this->m_paths);
 		splitAllCountourEdges(this->m_paths);
 
-		auto singleElemScale = m_wire.getOriginalScale();
-		m_final_scale = Coord2Type(singleElemScale.X() * grid.width(), singleElemScale.Y() * grid.height());
 		return true;
 	}
 
@@ -489,7 +529,15 @@ public:
 			}
 
 			this->generateOneElement(params, pmesh, f);
-			this->optimizeContours<PolyMesh>(this->m_base_paths, f);
+
+			// get the clipping quad
+			ClipperLib::Path clip_poly;
+			for (char i=0; i<f.VN(); i++)
+			{
+				clip_poly.push_back(ThisType::convertToIntPoint(Coord2Type(f.cP(i)[0], f.cP(i)[1])));
+			}
+			// optimize path removing small edges
+			simplifyContour(this->m_base_paths, clip_poly);
 
 			ClipperLib::SimplifyPolygons(this->m_base_paths);
 
@@ -499,19 +547,20 @@ public:
 		clipper.Execute(ClipperLib::ctUnion, this->m_paths, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
 		splitAllCountourEdges(this->m_paths);
 
-		m_final_scale = Coord2Type(0,0);
 		return true;
 	}
 
 	bool tessellate(TriMesh & mesh)
 	{
-		bool ret = Tessellator2D<TriMesh>::execute(m_tri_settings, this->m_paths, this->ScaleFactor, mesh);
+		if (!m_wire.isValid() || this->m_paths.size() == 0)
+			return false;
+
+		bool ret = Tessellator2D<TriMesh>::execute(m_tri_settings, this->m_paths, ThisType::ScaleFactor, mesh);
 		if (ret)
 		{
 			this->decimateMesh(mesh);
 			vcg::tri::Allocator<TriMesh>::CompactEveryVector(mesh);
-
-			this->scaleTessellatedMesh(mesh); // just for grid or single cell
+			vcg::tri::UpdateBounding<TriMesh>::Box(mesh);
 		}
 		return ret;
 	}
@@ -521,10 +570,6 @@ protected:
 	TessellatorSettings m_tri_settings;
 	WireMesh        m_wire;
 	InputParameters m_params;
-
-	Coord2Type m_final_scale;
-
-	EdgeMeshPattern(void) {;}
 
 	void setup()
 	{
@@ -549,6 +594,7 @@ protected:
 		// get the edge mesh embedded within the quad
 		EMesh em;
 		m_wire.getNormalizedMesh(em, pars);
+
 		WireEmbedding::embedWireMesh(em, f, pmesh);
 
 		vcg::tri::RequireVEAdjacency(em);
@@ -706,9 +752,9 @@ protected:
 		clip.Execute(ClipperLib::ctUnion, profile, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
 	}
 
-	double maxEdgeLength(void)
+	double maxEdgeLength(void) const
 	{
-		const TessellatorSettings & ts = this->getTessellationSettings();
+		const TessellatorSettings & ts = this->getConstTessellationSettings();
 		if (!ts.area_constrained)
 			return 1;
 
@@ -728,17 +774,6 @@ protected:
 		this->m_tri_settings.quiet = true;
 	}
 
-	void scaleTessellatedMesh(TriMesh & mesh)
-	{
-		if (m_final_scale.X() == 0 || m_final_scale.Y() == 0)
-			return;
-		vcg::tri::UpdateBounding<TriMesh>::Box(mesh);
-		vcg::tri::UpdatePosition<TriMesh>::Scale(mesh,typename TriMesh::CoordType(m_final_scale.X()/mesh.bbox.DimX(),
-		                                                                          m_final_scale.X()/mesh.bbox.DimX(),
-		                                                                          0));
-		vcg::tri::UpdateBounding<TriMesh>::Box(mesh);
-	}
-
 	// in order to preserve periodic boundary conditions we manually split the polygon edges in a consistent way
 	void splitAllCountourEdges(ClipperLib::Paths & profile)
 	{
@@ -750,22 +785,21 @@ protected:
 			ClipperLib::Path newPath;
 			for (size_t i=0; i<p.size(); i++)
 			{
-				const ClipperLib::IntPoint * p0 = &p[i];
-				const ClipperLib::IntPoint * p1 = &p[(i+1)%p.size()];
-				newPath.push_back(*p0);
+				const ClipperLib::IntPoint & p0 = p[i];
+				const ClipperLib::IntPoint & p1 = p[(i+1)%p.size()];
+				newPath.push_back(p0);
 
 				// split the edge in <refine_count> edges
-				int refine_count = int(ceil(distance(*p0, *p1) / maxLength));
+				int refine_count = int(ceil(distance(p0, p1) / maxLength));
 
 				if (refine_count > 1)
 				{
-					if (*p1 < *p0)
+					if (p1 < p0)
 					{
-						std::swap(p1, p0);
 						for (int i=(refine_count-1); i>0; i--)
 						{
 							double t = double(i)/refine_count;
-							ClipperLib::IntPoint split_p = interpolate(*p0, *p1, t);
+							ClipperLib::IntPoint split_p = interpolate(p1, p0, t);
 							newPath.push_back(split_p);
 						}
 					}
@@ -774,7 +808,7 @@ protected:
 						for (int i=1; i<refine_count; i++)
 						{
 							double t = double(i)/refine_count;
-							ClipperLib::IntPoint split_p = interpolate(*p0, *p1, t);
+							ClipperLib::IntPoint split_p = interpolate(p0, p1, t);
 							newPath.push_back(split_p);
 						}
 					}
@@ -788,132 +822,249 @@ protected:
 	}
 
 	// needed to avoid vertices too close to each other, leading to artifacts in the triangulation
-	void optimizeContours(ClipperLib::Paths & profile)
+	struct EdgeCollapse
+	{
+		typedef enum
+		{
+			First  = 0,
+			Second,
+			MidPoint
+		} CollapseType;
+
+		int              index;
+		ClipperLib::cInt length;
+		CollapseType     type;
+
+		bool operator < (const EdgeCollapse & rh) const
+		{
+			return this->length < rh.length;
+		}
+
+		ClipperLib::IntPoint collapsedPoint(const ClipperLib::Path & path) const
+		{
+			assert (this->index >= 0 && this->index < int(path.size()));
+			switch (this->type)
+			{
+			case First    : return path[this->index];
+			case Second   : return path[(this->index + 1) % path.size()];
+			case MidPoint : return (path[this->index] + path[(this->index + 1) % path.size()]) / 2;
+			}
+			assert(0);
+			return ClipperLib::IntPoint();
+		}
+	};
+
+	template <typename BoundsType>
+	void simplifyContour(ClipperLib::Paths & paths, const BoundsType & bounds, bool boundariesOnly = false) const
 	{
 		ClipperLib::cInt epsilon = ClipperLib::cInt(this->maxEdgeLength() * 0.4 * ThisType::ScaleFactor);
 
-		// get bounds
-		ClipperLib::IntRect bounds = getBounds(profile);
-
-		for (ClipperLib::Path & p : profile)
+		for (size_t p=0; p<paths.size(); ++p)
 		{
-			ClipperLib::ReversePath(p);
-			simplifyPath(epsilon, bounds, p);
-			ClipperLib::ReversePath(p);
-			simplifyPath(epsilon, bounds, p);
-		}
-	}
-
-	template <class PolyMesh>
-	void optimizeContours(ClipperLib::Paths & profile, const typename PolyMesh::FaceType & f)
-	{
-		ClipperLib::cInt epsilon = ClipperLib::cInt(this->maxEdgeLength() * 0.4 * ThisType::ScaleFactor);
-
-		// get the clipping quad
-		ClipperLib::Path clip_poly;
-		for (char i=0; i<f.VN(); i++)
-		{
-			clip_poly.push_back(ThisType::convertToIntPoint(Coord2Type(f.cP(i)[0], f.cP(i)[1])));
-		}
-
-		for (ClipperLib::Path & p : profile)
-		{
-			ClipperLib::ReversePath(p);
-			simplifyPath(epsilon, clip_poly, p);
-			ClipperLib::ReversePath(p);
-			simplifyPath(epsilon, clip_poly, p);
-		}
-	}
-
-
-	static void simplifyPath(ClipperLib::cInt epsilon, const ClipperLib::IntRect & bounds, ClipperLib::Path & path)
-	{
-		ClipperLib::Path newPath;
-
-		size_t idx = 0;
-		for (size_t i=0; i<path.size(); i++)
-		{
-			const ClipperLib::IntPoint p0 = path[idx];
-			const ClipperLib::IntPoint p1 = path[(i+1)%path.size()];
-
-			// choose to preserve the points on the boundary
-			bool boundary = p0.X == bounds.left   || p0.X == bounds.right ||
-			                p0.Y == bounds.bottom || p0.Y == bounds.top;
-
-			if (ClipperLib::cInt(distance(p0, p1)) >= epsilon)
+			while (true)
 			{
-				// points are far apart or p0 is on the boundary
-				newPath.push_back(p0);
-				idx = i+1;
-			}
-			else
-			{
-				if (boundary)
+				ClipperLib::Path & path = paths[p];
+				std::vector<EdgeCollapse> collapseOps;
+
+				// iterate all over the edges and insert collapse ops in an ordered set
+				for (size_t i=0; i<path.size(); ++i)
 				{
-					newPath.push_back(p0);
-					idx = i+1;
-				}
-				else
-					if (p1.X == bounds.left   || p1.X == bounds.right ||
-					    p1.Y == bounds.bottom || p1.Y == bounds.top)
-					{
-						if (boundary)
-						{
-							newPath.push_back(p0);
-						}
-						idx = i+1;
+					const ClipperLib::IntPoint & p0 = path[i];
+					const ClipperLib::IntPoint & p1 = path[(i+1)%path.size()];
 
-						if (i+1 == path.size())
-							newPath.push_back(p1);
+					// create the edge-collapse operations preserving the points on the boundary
+					bool boundary0 = isBoundary(p0, bounds);
+					bool boundary1 = isBoundary(p1, bounds);
+
+					if (!boundariesOnly)
+					{
+						if ((!(boundary0 && boundary1) && ClipperLib::cInt(distance(p0, p1)) < epsilon))
+						{
+							// generate collapse
+							EdgeCollapse ec;
+							ec.index  = i;
+							ec.length = ClipperLib::cInt(distance(p0, p1));
+
+							if (boundary0 == boundary1)
+							{
+								ec.type = EdgeCollapse::MidPoint;
+							}
+							else if (boundary0)
+							{
+								ec.type = EdgeCollapse::First;
+							}
+							else if (boundary1)
+							{
+								ec.type = EdgeCollapse::Second;
+							}
+
+							collapseOps.push_back(ec);
+						}
 					}
+					else
+					{
+						// collapse boundaries
+						if ((boundary0 && boundary1) && ClipperLib::cInt(distance(p0, p1)) < (epsilon/2)
+						    /*&& !isBoundary((p0+p1)/2, bounds)*/)
+						{
+							EdgeCollapse ec;
+							ec.index  = i;
+							ec.length = ClipperLib::cInt(distance(p0, p1));
+							ec.type   = EdgeCollapse::MidPoint;
+
+							collapseOps.push_back(ec);
+						}
+					}
+				}
+
+				if (collapseOps.size() == 0)
+					break;
+
+				std::sort(collapseOps.begin(), collapseOps.end());
+				// sorted by length, they represent all the candidate collapses
+
+				// extract, in order, the collapse operations (border or not), and mark the adjacent ones as denied
+				std::unordered_set<int>                       deniedIdxs;
+				std::unordered_map<int, const EdgeCollapse *> allowedOps;
+
+				for (const EdgeCollapse & ec : collapseOps)
+				{
+					if (deniedIdxs.count(ec.index) == 0)
+					{
+						// avoid reducing contours to edge or point
+						if ((path.size() - allowedOps.size()) == 3)
+							break;
+						deniedIdxs.insert((ec.index + 1)%path.size());
+						deniedIdxs.insert((ec.index - 1 + path.size())%path.size());
+						allowedOps[ec.index] = &ec;
+					}
+				}
+
+				// perform all the allowed collapses
+				ClipperLib::Path newPath;
+				for (int i=0; i<int(path.size()); ++i)
+				{
+					if (allowedOps.count(i) != 0)
+					{
+						// insert the new point
+						const EdgeCollapse & ec = *allowedOps[i];
+						newPath.push_back(ec.collapsedPoint(path));
+					}
+					else if (allowedOps.count((i-1+path.size())%path.size()) == 0)
+					{
+						newPath.push_back(path[i]);
+					}
+				}
+
+				path = newPath;
+
+				if (path.size() <= 3)
+					break;
 			}
 		}
-
-		path = newPath;
 	}
 
-	static void simplifyPath(ClipperLib::cInt epsilon, const ClipperLib::Path & bounds, ClipperLib::Path & path)
+	static void pathToEdgeMesh(const ClipperLib::Path & path, EMesh & em)
 	{
-		ClipperLib::Path newPath;
+		em.Clear();
 
-		size_t idx = 0;
-		for (size_t i=0; i<path.size(); i++)
+		// fill nodes
+		vcg::tri::Allocator<EMesh>::AddVertices(em, path.size());
+		for (size_t i=0; i<em.vert.size(); ++i)
 		{
-			const ClipperLib::IntPoint p0 = path[idx];
-			const ClipperLib::IntPoint p1 = path[(i+1)%path.size()];
-
-			// choose to preserve the points on the boundary
-			bool boundary = (ClipperLib::PointInPolygon(p0, bounds) <= 0);
-
-			if (ClipperLib::cInt(distance(p0, p1)) >= epsilon)
-			{
-				// points are far apart or p0 is on the boundary
-				newPath.push_back(p0);
-				idx = i+1;
-			}
-			else
-			{
-				if (boundary)
-				{
-					newPath.push_back(p0);
-					idx = i+1;
-				}
-				else
-					if (ClipperLib::PointInPolygon(p1, bounds) <= 0)
-					{
-						if (boundary)
-						{
-							newPath.push_back(p0);
-						}
-						idx = i+1;
-
-						if (i+1 == path.size())
-							newPath.push_back(p1);
-					}
-			}
+			typename EMesh::CoordType &           p = em.vert[i].P();
+			const ClipperLib::IntPoint & pp = path[i];
+#ifdef use_xyz
+			vcg::Point2d pd = vcg::Point2d(pp.X, pp.Y, pp.Z) / ThisType::ScaleFactor;
+#else
+			vcg::Point2d pd = vcg::Point2d(pp.X, pp.Y) / ThisType::ScaleFactor;
+#endif
+			p.X() = pd.X();
+			p.Y() = pd.Y();
+#ifdef use_xyz
+			mp.Z() = pd.Z();
+#else
+			p.Z() = 0;
+#endif
 		}
 
-		path = newPath;
+		// fill edges
+		vcg::tri::Allocator<EMesh>::AddEdges(em, path.size());
+		for (size_t i=0; i<em.edge.size(); ++i)
+		{
+			typename EMesh::EdgeType & e = em.edge[i];
+
+			e.V(0) = &em.vert[i];
+			e.V(1) = &em.vert[(i+1) % path.size()];
+		}
+	}
+
+	static bool compareClipperIntPoint (ClipperLib::IntPoint * i, ClipperLib::IntPoint * j)
+	{
+		return (*i < *j);
+	}
+
+	// correct small clipper errors to have identical periodical boundaries
+	static void matchPeriodicVertices(ClipperLib::Paths & paths, const ClipperLib::IntRect & bounds)
+	{
+		static const ClipperLib::cInt Tolerance = 2000;
+
+		bool fail = false;
+		for (ClipperLib::Path & path : paths)
+		{
+			if (fail)
+				break;
+
+			for (int coord=0; coord<2; ++coord)
+			{
+				int b_pos0   = 0;                     // coordinate of border
+				int b_pos1   = coord == 0 ? bounds.right : bounds.top; //ThisType::ScaleFactor; // coordinate of opposite border
+
+				std::vector<ClipperLib::IntPoint *> bPoints0;
+				std::vector<ClipperLib::IntPoint *> bPoints1;
+				for (ClipperLib::IntPoint & p : path)
+				{
+					ClipperLib::cInt c = clipperPointCCoord(p,coord);
+					if (c == b_pos0)
+						bPoints0.push_back(&p);
+					else if (c == b_pos1)
+						bPoints1.push_back(&p);
+				}
+
+				if (bPoints0.size() != bPoints1.size())
+				{
+					// Fail
+					std::cout << "The geometry is not 'well shaped' ! It can't be periodic!" << std::endl;
+
+					assert(0);
+					fail = true;
+					break;
+				}
+
+				if (bPoints0.size() == 0)
+					continue;
+
+				// sort the points and set them coherently
+				std::sort(bPoints0.begin(), bPoints0.end(), compareClipperIntPoint);
+				std::sort(bPoints1.begin(), bPoints1.end(), compareClipperIntPoint);
+
+				for (size_t i=0; i<bPoints0.size(); ++i)
+				{
+					ClipperLib::cInt diff = clipperPointCCoord(*bPoints1[i], 1-coord) - clipperPointCCoord(*bPoints0[i], 1-coord);
+					if (abs(diff) > Tolerance)
+					{
+						// Fail
+						std::cout << "Cannot find matching periodic counterpart for node ("
+						          << bPoints0[i]->X << "," << bPoints0[i]->Y << ")" << std::endl
+						          << "Candidate is (" << bPoints1[i]->X << "," << bPoints1[i]->Y << ")"
+						          << "The geometry will not be periodic!" << std::endl;
+						fail = true;
+						break;
+					}
+					clipperPointCoord(*bPoints1[i], 1-coord) = clipperPointCCoord(*bPoints0[i], 1-coord);
+				}
+			}
+		}
 	}
 
 	// decimations utility
@@ -942,28 +1093,58 @@ protected:
 		inline bool IsFeasible(BaseParameterClass * p)
 		{
 			SimplifyParameter * sp = (SimplifyParameter *)p;
-			bool distOk = (vcg::Distance(this->pos.V(0)->cP(), this->pos.V(1)->cP()) < sp->maxLength);
-			if (!distOk)
+			// check distance
+			if (vcg::Distance(this->pos.V(0)->cP(), this->pos.V(1)->cP()) >= sp->maxLength)
 				return false;
 
-			if (EdgeCollapser<TriMesh,VertexPair>::LinkConditions(this->pos))
+			// check link conditions
+			if (vcg::tri::EdgeCollapser<TriMesh,VertexPair>::LinkConditions(this->pos))
 				return true;
 
-			// check if the edge is border and belongs to a face with exaclty 2 border edges
-			int countF[2] = {0, 0};
-			for (int i=0; i<2; ++i)
+			// if both vertices are on the border
+			if (this->pos.V(0)->IsB() && this->pos.V(1)->IsB())
 			{
-				for(vcg::face::VFIterator<typename TriMesh::FaceType> vfi(this->pos.V(i)); !vfi.End(); ++vfi)
+				// check if the edge is border and belongs to a face with exaclty 2 border edges
+				int countF[2] = {0, 0};
+				for (int i=0; i<2; ++i)
 				{
-					countF[i]++;
+					for(vcg::face::VFIterator<typename TriMesh::FaceType> vfi(this->pos.V(i)); !vfi.End(); ++vfi)
+					{
+						countF[i]++;
+					}
 				}
+				return (countF[0] == 1 && countF[1] > 1) || (countF[1] == 1 && countF[0] > 1);
 			}
-			return (countF[0] == 1 && countF[1] > 1) || (countF[1] == 1 && countF[0] > 1);
+
+			return false;
+		}
+
+		inline void Execute(TriMesh & m, BaseParameterClass *)
+		{
+			// for inner vertices or border edge use midpoint
+			// snap to border otherwise
+			int bb = 0;
+			if (this->pos.V(0)->IsB()) bb += 1;
+			if (this->pos.V(1)->IsB()) bb += 2;
+			switch(bb)
+			{
+			case 0 :
+			case 3 :
+				vcg::tri::EdgeCollapser<TriMesh,VertexPair>::Do(m, this->pos, (this->pos.V(0)->cP() + this->pos.V(1)->cP()) / 2.0);
+				break;
+			case 1 :
+			case 2 :
+				vcg::tri::EdgeCollapser<TriMesh,VertexPair>::Do(m, this->pos, this->pos.V(bb-1)->cP());
+				break;
+			}
 		}
 	};
 
 	void decimateMesh(TriMesh & mesh)
 	{
+		vcg::tri::UpdateTopology<TriMesh>::VertexFace(mesh);
+		vcg::tri::UpdateFlags<TriMesh>::VertexBorderFromNone(mesh);
+
 		SimplifyParameter sp;
 		sp.maxLength = this->maxEdgeLength() * 0.25;
 		vcg::LocalOptimization<TriMesh> decimator(mesh, &sp);
@@ -992,8 +1173,9 @@ protected:
 	{
 		static const size_t MinCircleResolution = 36;
 
+		// snap to multiple of 4 for symmetry reasons
 		size_t circle_res = std::max(MinCircleResolution,
-		                             size_t(ceil((M_PI * 2.0 * radius) / this->maxEdgeLength())));
+		                             size_t(4*ceil((M_PI_2 * radius) / this->maxEdgeLength())) );
 
 		circle.clear();
 		for (size_t i=0; i<circle_res; ++i)
@@ -1009,14 +1191,14 @@ protected:
 		}
 	}
 
-	void generateCircle(ClipperLib::Path & circle, const Coord2Type & center, ScalarType radius, bool ccw = true, int scaleFactor = ThisType::ScaleFactor)
+	void generateCircle(ClipperLib::Path & circle, const Coord2Type & center, ScalarType radius, bool ccw = true)
 	{
 		std::vector<Coord2Type> c;
 		this->generateCircle(c, center, radius, ccw);
 
 		circle.clear();
 		for (auto it=c.begin(); it!=c.end(); ++it)
-			circle.push_back(scaleToIntPoint(*it, ScalarType(scaleFactor)));
+			circle.push_back(scaleToIntPoint(*it, ScalarType(ThisType::ScaleFactor)));
 	}
 
 	// Segment type for accelerated query

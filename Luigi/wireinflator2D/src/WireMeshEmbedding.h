@@ -54,7 +54,7 @@ public:
 	// used to planarize and obtain a coherent mapping of edge meshes among quads
 	static void preprocessQuadMesh(PolyMesh & pmesh)
 	{
-		if (pmesh.VN() == 0)
+		if (pmesh.VN() == 0 || pmesh.FN() == 0)
 			return;
 
 		// planarize
