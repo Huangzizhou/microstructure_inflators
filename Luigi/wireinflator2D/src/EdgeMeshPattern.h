@@ -21,7 +21,7 @@
 #include <vcg/complex/algorithms/update/bounding.h>
 #include <vcg/complex/algorithms/update/position.h>
 #include <vcg/complex/algorithms/update/flag.h>
-#include <vcg/space/index/index2D/grid_static_ptr_2D.h>
+#include <vcg/space/index/grid_static_ptr2d.h>
 #include <vcg/complex/algorithms/local_optimization/tri_edge_collapse.h>
 
 namespace std
