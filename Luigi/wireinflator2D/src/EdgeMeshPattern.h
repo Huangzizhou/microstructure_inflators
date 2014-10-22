@@ -495,7 +495,7 @@ public:
 	}
 
 	template <class PolyMesh>
-	bool generateFromQuads(PolyMesh & pmesh)
+	bool generateFromQuads(PolyMesh & pmesh, bool averageThicknessOnBoundary = false)
 	{
 		typedef WireMeshEmbedding<EMesh, PolyMesh> WireEmbedding;
 
@@ -516,6 +516,85 @@ public:
 			// generate one element per face (quad)
 			typename PolyMesh::FaceType & f = pmesh.face[i];
 
+
+			// average thickness on boundary vertices
+			typedef struct
+			{
+				typedef enum {
+					Vertex,
+					Edge,
+				} Type;
+
+				size_t vindex;
+				char   index;
+				size_t parameter;
+				Type type;
+			} BoundaryVertex;
+
+			std::vector<BoundaryVertex> boundaryVtx;
+			if (averageThicknessOnBoundary)
+			{
+				EMesh em;
+				m_wire.getUnmodifiedEdgeMesh(em);
+				for (size_t vindex=0; vindex<em.vert.size(); ++vindex)
+				{
+					const EVertexType & v = em.vert[vindex];
+					const auto & bbox = em.bbox;
+
+					int side = 0; int count = 0;
+					for (int i=0; i<2; ++i)
+					{
+						if (v.cP()[i] == bbox.min[i])
+						{
+							side += 1 << (2*i);
+							count++;
+						}
+						else if (v.cP()[i] == bbox.max[i])
+						{
+							side += 2 << (2*i);
+							count++;
+						}
+					}
+
+					if (count != 0)
+					{
+						BoundaryVertex bv;
+						bv.vindex = vindex;
+						switch (count)
+						{
+						case 1 :
+						{
+							bv.type = BoundaryVertex::Edge;
+							switch (side)
+							{
+							case 1 : bv.index = 3; break;
+							case 2 : bv.index = 1; break;
+							case 4 : bv.index = 0; break;
+							case 8 : bv.index = 2; break;
+							default : assert(0); return false;
+							}
+							break;
+						}
+						case 2:
+						{
+							bv.type = BoundaryVertex::Vertex;
+							switch (side)
+							{
+							case 5  : bv.index = 0; break;
+							case 6  : bv.index = 1; break;
+							case 9  : bv.index = 3; break;
+							case 10 : bv.index = 2; break;
+							default : assert(0); return false;
+							}
+							break;
+						}
+						}
+						bv.parameter = m_wire.getOrbitIndexForNode(vindex);
+						boundaryVtx.push_back(bv);
+					}
+				}
+			}
+
 			// retrieve cell parameters
 			CellParameters params;
 			auto faceParams = vcg::tri::Allocator<PolyMesh>::template FindPerFaceAttribute<CellParameters>(pmesh, CellParametersAttributeName());
@@ -528,7 +607,39 @@ public:
 				params = m_wire.createCellParameters();
 			}
 
-			this->generateOneElement(params, pmesh, f);
+			if (!averageThicknessOnBoundary)
+			{
+				this->generateOneElement(params, pmesh, f);
+			}
+			else
+			{
+				// get the edge mesh
+				EMesh em;
+				m_wire.getNormalizedMesh(em, params);
+
+				// average the thickness (stored in the quality)
+				for (BoundaryVertex & bv : boundaryVtx)
+				{
+					auto quality = em.vert[bv.vindex].cQ();
+					std::vector<typename PolyMesh::FacePointer> adj;
+					switch (bv.type) {
+					case BoundaryVertex::Edge :
+						adj = WireEmbedding::adjacentFaceEdge(pmesh, f, bv.index);
+						break;
+					case BoundaryVertex::Vertex :
+						adj = WireEmbedding::adjacentFaceVertex(pmesh, f, bv.index);
+						break;
+					default: return false;
+					}
+					for (typename PolyMesh::FacePointer fa : adj)
+					{
+						quality += faceParams[fa].cParameter(bv.parameter);
+					}
+					em.vert[bv.vindex].Q() = (quality/(adj.size()+1));
+				}
+
+				this->generateOneElement(em, pmesh, f);
+			}
 
 			// get the clipping quad
 			ClipperLib::Path clip_poly;
@@ -584,6 +695,19 @@ protected:
 	template <class PolyMesh>
 	void generateOneElement(const CellParameters & pars, PolyMesh & pmesh, const typename PolyMesh::FaceType & f)
 	{
+		if (!m_wire.isValid())
+			return;
+
+		// get the edge mesh
+		EMesh em;
+		m_wire.getNormalizedMesh(em, pars);
+
+		generateOneElement(em, pmesh, f);
+	}
+
+	template <class PolyMesh>
+	void generateOneElement(EMesh & em, PolyMesh & pmesh, const typename PolyMesh::FaceType & f)
+	{
 		typedef WireMeshEmbedding<EMesh, PolyMesh> WireEmbedding;
 
 		if (!m_wire.isValid())
@@ -591,10 +715,7 @@ protected:
 
 		this->m_base_paths.clear();
 
-		// get the edge mesh embedded within the quad
-		EMesh em;
-		m_wire.getNormalizedMesh(em, pars);
-
+		// embed within the quad
 		WireEmbedding::embedWireMesh(em, f, pmesh);
 
 		vcg::tri::RequireVEAdjacency(em);
@@ -1133,6 +1254,8 @@ protected:
 				vcg::tri::EdgeCollapser<TriMesh,VertexPair>::Do(m, this->pos, (this->pos.V(0)->cP() + this->pos.V(1)->cP()) / 2.0);
 				break;
 			case 1 :
+				// set V(1) border flag to maintain consistency through multiple collapses. (V(1) is the vertex that survives the collapse)
+				this->pos.V(1)->SetB();
 			case 2 :
 				vcg::tri::EdgeCollapser<TriMesh,VertexPair>::Do(m, this->pos, this->pos.V(bb-1)->cP());
 				break;

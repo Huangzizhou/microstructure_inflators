@@ -94,7 +94,8 @@ public:
 	void generateQuadsPattern(const std::string & quadMeshPath,
 	                          const std::vector<CellParameters> & quadParameters,
 	                          const TessellationParameters & inT,
-	                          OutMeshType & out)
+	                          OutMeshType & out,
+	                          bool averageThicknessOnBoundary = false)
 	{
 		typedef PolyMeshUtils<PolyMesh> PMU;
 		PolyMesh pmesh;
@@ -103,7 +104,7 @@ public:
 		{
 			ok = PMU::importFromOBJ(quadMeshPath, pmesh);
 			if (ok)
-				generateQuadsPattern(pmesh, quadParameters, inT, out);
+				generateQuadsPattern(pmesh, quadParameters, inT, out, averageThicknessOnBoundary);
 		}
 		else if (checkFileExt(quadMeshPath, ".MSH"))
 		{
@@ -112,7 +113,7 @@ public:
 
 			ok = loadQuadMsh(quadMeshPath, nodes, elements);
 			if (ok)
-				generateQuadsPattern(nodes, elements, quadParameters, inT, out);
+				generateQuadsPattern(nodes, elements, quadParameters, inT, out, averageThicknessOnBoundary);
 		}
 
 		if (!ok)
@@ -134,7 +135,8 @@ public:
 	                          const VectorI & elements,
 	                          const std::vector<CellParameters> & quadParameters,
 	                          const TessellationParameters & inT,
-	                          OutMeshType & out)
+	                          OutMeshType & out,
+	                          bool averageThicknessOnBoundary = false)
 	{
 		PolyMesh pmesh;
 		bool ok = vectorsToPolyMesh(nodes, elements, pmesh);
@@ -145,13 +147,14 @@ public:
 			return;
 		}
 
-		generateQuadsPattern(pmesh, quadParameters, inT, out);
+		generateQuadsPattern(pmesh, quadParameters, inT, out, averageThicknessOnBoundary);
 	}
 
 	void generateQuadsPattern(PolyMesh & pmesh,
 	                          const std::vector<CellParameters> & quadParameters,
 	                          const TessellationParameters & inT,
-	                          OutMeshType & out)
+	                          OutMeshType & out,
+	                          bool averageThicknessOnBoundary = false)
 	{
 		typedef PolyMeshUtils<PolyMesh> PMU;
 
@@ -191,7 +194,7 @@ public:
 
 		m_pattern.params().tessellationParams = inT;
 
-		m_pattern.generateFromQuads(pmesh);
+		m_pattern.generateFromQuads(pmesh, averageThicknessOnBoundary);
 		m_pattern.tessellate(m);
 
 		vcg::tri::Allocator<TMesh>::CompactEveryVector(m);

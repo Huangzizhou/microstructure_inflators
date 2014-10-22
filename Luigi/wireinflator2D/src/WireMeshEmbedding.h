@@ -1,6 +1,7 @@
 #ifndef WIREMESHEMBEDDING_H
 #define WIREMESHEMBEDDING_H
 
+#include <vcg/complex/complex.h>
 #include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/complex/algorithms/update/flag.h>
 
@@ -60,9 +61,17 @@ public:
 		// planarize
 		planarizeQuadMesh(pmesh);
 
-		// compute adjacency
+		// compute adjacencies
 		vcg::tri::UpdateTopology<PolyMesh>::FaceFace(pmesh);
-		// computer border
+		// vf adj does not exist for polygonal meshes
+		auto vf = vcg::tri::Allocator<PolyMesh>::template GetPerVertexAttribute<std::vector<PFacePointer> >(pmesh, VFAttributeName());
+		for (auto fi=pmesh.face.begin(); fi!=pmesh.face.end(); ++fi)
+		{
+			for (int i=0; i<fi->VN(); ++i)
+				vf[fi->V(i)].push_back(&(*fi));
+		}
+
+		// compute border
 		vcg::tri::UpdateFlags<PolyMesh>::FaceBorderFromFF(pmesh);
 
 		// create a coherent (if possibile) parametrization for the quad mesh
@@ -81,10 +90,48 @@ public:
 		}
 	}
 
+	static std::vector<PFacePointer> adjacentFaceEdge(PolyMesh & pmesh, const PFaceType & f, unsigned char edgeIdx)
+	{
+		std::vector<PFacePointer> ret;
+		if (edgeIdx >= 0 && edgeIdx < f.VN())
+		{
+			QuadParamHandle qpar = getQuadParametrizationHandle(pmesh);
+			unsigned char actualIndex = (qpar[&f].index0 + edgeIdx) % 4;
+			PFacePointer af = f.FFp(actualIndex);
+			if (af != &f)
+				ret.push_back(af);
+		}
+		return ret;
+	}
+
+	static std::vector<PFacePointer> adjacentFaceVertex(PolyMesh & pmesh, const PFaceType & f, unsigned char vertIdx)
+	{
+		std::vector<PFacePointer> ret;
+		if (vertIdx >= 0 && vertIdx < f.VN())
+		{
+			QuadParamHandle qpar = getQuadParametrizationHandle(pmesh);
+			unsigned char actualIndex = (qpar[&f].index0 + vertIdx) % 4;
+
+			auto vf = vcg::tri::Allocator<PolyMesh>::template GetPerVertexAttribute<std::vector<PFacePointer> >(pmesh, VFAttributeName());
+			std::vector<PFacePointer> & adjFaces = vf[f.V(actualIndex)];
+			for (PFacePointer af : adjFaces)
+			{
+				if (af != &f)
+					ret.push_back(af);
+			}
+		}
+		return ret;
+	}
+
 private:
 	static std::string ParametrizationAttributeName(void)
 	{
 		return "parametrization";
+	}
+
+	static std::string VFAttributeName(void)
+	{
+		return "vf_adj";
 	}
 
 	static void planarizeQuadMesh(PolyMesh & pmesh)

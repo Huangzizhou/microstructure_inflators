@@ -37,9 +37,11 @@ public:
 
 	WireMesh2D & operator = (WireMesh2D & wm)
 	{
-		m_operations   = wm.m_operations;
-		m_radius_range = wm.m_radius_range;
-		m_transl_range = wm.m_transl_range;
+		m_operations      = wm.m_operations;
+		m_symmetry_orbits = wm.m_symmetry_orbits;
+		m_orbits_idx      = wm.m_orbits_idx;
+		m_radius_range    = wm.m_radius_range;
+		m_transl_range    = wm.m_transl_range;
 		vcg::tri::Append<EMesh,EMesh>::MeshCopy(m_em,            wm.m_em,            false, true);
 		vcg::tri::Append<EMesh,EMesh>::MeshCopy(m_normalized_em, wm.m_normalized_em, false, true);
 		m_bbox = wm.m_bbox;
@@ -49,6 +51,8 @@ public:
 
 	WireMesh2D(const WireMesh2D & wm)
 	    : m_operations(wm.m_operations)
+	    , m_symmetry_orbits(wm.m_symmetry_orbits)
+	    , m_orbits_idx(wm.m_orbits_idx)
 	    , m_radius_range(wm.m_radius_range)
 	    , m_transl_range(wm.m_transl_range)
 	{
@@ -195,7 +199,20 @@ public:
 
 	const std::vector<ParameterOperation> & getParameterOperations(void) const
 	{
+		// all symmetry orbit radius parameters come first
 		return m_operations;
+	}
+
+	int getOrbitIndexForNode(int node)
+	{
+		if (!this->isValid() || node < 0 || node >= m_em.VN())
+			return -1;
+
+		auto tag = vcg::tri::Allocator<EMesh>::template FindPerVertexAttribute<int>(m_em, SymmetryOrbitAttributeName());
+		if (!vcg::tri::Allocator<EMesh>::IsValidHandle(m_em, tag))
+			return -1;
+
+		return m_orbits_idx[tag[node]];
 	}
 
 protected:
@@ -203,6 +220,8 @@ protected:
 	EMesh                           m_normalized_em;
 	vcg::Box3<ScalarType>           m_bbox; // the original bounding box
 	std::vector<ParameterOperation> m_operations;
+	std::vector<std::vector<int> >  m_symmetry_orbits;
+	std::unordered_map<int,int>     m_orbits_idx;
 	std::pair<double,double>        m_radius_range;
 	std::pair<double,double>        m_transl_range;
 
@@ -210,8 +229,8 @@ protected:
 
 	void setup(void)
 	{
-		this->m_radius_range = std::make_pair( 0.01, 0.15 );
-		this->m_transl_range = std::make_pair(-0.25, 0.25);
+		this->m_radius_range = std::make_pair( 0.01, 0.1 );
+		this->m_transl_range = std::make_pair(-0.18, 0.18);
 
 		if (!this->isValid())
 		{
@@ -221,14 +240,14 @@ protected:
 			return;
 		}
 
+		vcg::tri::Allocator<EMesh>::CompactEveryVector(m_em);
 		vcg::tri::UpdateTopology<EMesh>::VertexEdge(m_em);
 		vcg::tri::UpdateTopology<EMesh>::EdgeEdge(m_em);
 
 		this->normalizeMesh();
 
-		std::vector<std::vector<int> > symmetryOrbits;
-		this->computeSymmetryOrbits(symmetryOrbits);
-		this->generateParameterOperations(symmetryOrbits);
+		this->computeSymmetryOrbits();
+		this->generateParameterOperations(m_symmetry_orbits);
 	}
 
 	virtual std::pair<double,double> getRadiusParameterRange(void) const
@@ -239,6 +258,11 @@ protected:
 	virtual std::pair<double,double> getTranslationParameterRange(void) const
 	{
 		return m_transl_range;
+	}
+
+	static std::string SymmetryOrbitAttributeName(void)
+	{
+		return "symmetry_orbit";
 	}
 
 	void normalizeMesh(void)
@@ -269,15 +293,13 @@ protected:
 	}
 
 	// compute symmetry orbits clusters
-	void computeSymmetryOrbits(std::vector<std::vector<int> > & symmetryOrbits)
+	void computeSymmetryOrbits()
 	{
 		if (!isValid())
 			return;
 
-		static const std::string AttrName = "tag";
-
 		// tag each vertex
-		auto tag = vcg::tri::Allocator<EMesh>::template AddPerVertexAttribute<int>(m_em, AttrName);
+		auto tag = vcg::tri::Allocator<EMesh>::template AddPerVertexAttribute<int>(m_em, SymmetryOrbitAttributeName());
 		for (int i=0; i<int(m_em.vert.size()); ++i)
 		{
 			tag[i] = i;
@@ -313,13 +335,14 @@ protected:
 			orbits[tag[i]].push_back(i);
 		}
 
-		symmetryOrbits.clear();
+		m_symmetry_orbits.clear();
+		m_orbits_idx.clear();
+		int index = 0;
 		for (auto & o : orbits)
 		{
-			symmetryOrbits.push_back(o.second);
+			m_symmetry_orbits.push_back(o.second);
+			m_orbits_idx[o.first] = index++;
 		}
-
-		vcg::tri::Allocator<EMesh>::DeletePerVertexAttribute(m_em, AttrName);
 	}
 
 	void generateParameterOperations(const std::vector<std::vector<int> > & symmetryOrbits)

@@ -77,6 +77,7 @@ int main(int argc, char* argv[])
 	static const std::string quadMeshFile(argv[2]);
 	{
 		TessellationParameters t_params;
+		static const bool averageThicknessOnBoundary = true;
 
 		srand(time(NULL));
 		std::vector<CellParameters> quadParams;
@@ -85,7 +86,7 @@ int main(int argc, char* argv[])
 			quadParams.push_back(rand_param(wi.patternGenerator()));
 		}
 
-		wi.generateQuadsPattern(quadMeshFile, quadParams, t_params, mesh);
+		wi.generateQuadsPattern(quadMeshFile, quadParams, t_params, mesh, averageThicknessOnBoundary);
 	}
 	return 0;
 }
