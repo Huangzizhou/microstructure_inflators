@@ -1,0 +1,54 @@
+Introduction
+  - Goal: print an object that matches a target deformation under a particular load.
+    Extra challenge: do this on a single material printer.
+    Examples: bird, bar (target-deformed object + force arrows)
+    
+  - Overview:
+        1) Find material properties at each point.
+          (Image: young's modulus field for bar)
+        2) Find geometry that achieves these material properties.
+          (Image: tiled pattern for bar)
+
+Material Optimization
+  - E_M(Y, nu) = int_domega ||u - u^*||^2 dA
+    Y, nu : R^N -> R
+  - Discretize material fields Y, nu: constant value per axis-aligned grid cell
+  - What we've tried
+        Gradient-based - bad convergence
+        Local/global type iteration (constrained nonlinear least squares to
+        fit stress)
+  - Results
+        Bar, bird iterates (image flipper)
+
+Homogenization
+  - How can we vary the material properties? Vary the microstructure geometry.
+    (Image of object filled with two different patterns: circles, stars)
+  - When printed with the same material, these objects have different
+    homogenized, or "effective" material properties.
+    (Image of object filled with two different solid colors)
+  - To use nice mathematical tools, restrict ourselves to periodically tiled
+    base cells.
+    (Image of base cell corresponding to circles object, and cell filled with
+     "circle solid color")
+
+  - Recall: material properties (elasticity tensor) tell us how strain maps to
+    stress.
+  - Can't spatially average the properties!
+  - General idea: for all possible average strains of the cell, compute the
+    average stress.
+
+  - Computation
+        - Impose an average constant strain and compute how the geometry
+          actually deforms
+          (Image: squashed mictrostructure geometry, const+fluctuation
+           strain-deformed geometry)
+        - Average the stress tensor
+ - By lineararity we only need to solve 6 of these in 3D to get the full
+   elasticity tensor: 3 axis-aligned stretches and 3 shears (form a basis for
+   strain tensors).
+
+ - Cell problem + homogenized tensor formula
+
+Patterns
+
+Optimizing Patterns
