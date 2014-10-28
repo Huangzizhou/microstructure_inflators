@@ -50,5 +50,16 @@ Homogenization
  - Cell problem + homogenized tensor formula
 
 Patterns
+ - We choose to explore bar-based patterns because its wide range of
+   applications in nature and architecture. (Show molecular models, bone
+   structures, and truss-based buildings)
+ - Show wire examples
+ - We "inflate" the wire to convert it into a triangular mesh for printing and
+   simulation. [cite George Hart]
+ - To ensure periodicity, we perform extra geometry processing.
+ - Each pattern can be parameterized by a few pattern parameters.  E.g.
+   translate the vertex locations and thickening.  To preserve the orthotropic
+   structure, we choose parameters that preserve the symmetry of the pattern.
+ - Printibility
 
 Optimizing Patterns

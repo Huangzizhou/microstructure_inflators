@@ -12,5 +12,5 @@ view: $(NAME).pdf
 $(NAME).pdf: $(SOURCES) $(IMAGES)
 	pdflatex -shell-escape  "\documentclass{beamer}\input{$(NAME)}" && mv beamer.pdf $(NAME).pdf
 
-slides-handout.pdf: $(SOURCES)
+$(NAME)-handout.pdf: $(SOURCES)
 	 pdflatex -shell-escape -job-name=slides-handout "\documentclass[handout]{beamer}\input{$(NAME)}" && mv beamer.pdf $(NAME)-handout.pdf
