@@ -24,7 +24,7 @@ for my $i (0..$maxIter) {
     print($i . "\t"); # 1
     for my $m (0..$#targetModuli) { print($currentModuli[$i][$m] . "\t"); } # 2-5
     for my $m (0..$#targetModuli) { print(abs($targetModuli[$m] - $currentModuli[$i][$m]) . "\t"); } # 6-9
-    print($JS[$i] . "\t"); # 10
+    print((0.5 * $JS[$i]) . "\t"); # 10
     print($gradPNorm[$i]); # 11
     for my $m (0..$#targetModuli) { print("\t" . $targetModuli[$m]); } # 12-15
     print("\n");
