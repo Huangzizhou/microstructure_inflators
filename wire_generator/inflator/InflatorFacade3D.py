@@ -53,5 +53,5 @@ class InflatorFacade3D(InflatorFacade):
             inflator = PeriodicWireInflator(wire_network);
         else:
             inflator = WireInflator(wire_network);
-        inflator.inflate();
+        inflator.inflate(subdivide_order = options.get("subdiv", 1));
         return inflator.mesh;
