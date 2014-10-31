@@ -69,14 +69,31 @@ class PeriodicWireInflator(WireInflator):
                 self.mesh_vertices);
 
     def _build_face_grid(self):
+        eps = 1e-3;
         dim = self.original_wire_network.dim;
         bbox_min, bbox_max = self.original_wire_network.bbox;
         vertices_inside = np.logical_and(
                 np.all(self.mesh_vertices < bbox_max, axis=1),
                 np.all(self.mesh_vertices > bbox_min, axis=1));
+
+        vertices_on_border = np.logical_and(
+                np.logical_and(
+                    self.mesh_vertices < bbox_max + eps,
+                    self.mesh_vertices > bbox_min - eps
+                    ).all(axis=1),
+                np.logical_not(
+                    np.logical_and(
+                        self.mesh_vertices < bbox_max - eps,
+                        self.mesh_vertices > bbox_min + eps
+                        ).all(axis=1)
+                    )
+                );
+
         crossing_faces = np.logical_and(
                 np.any(vertices_inside[self.mesh_faces], axis=1),
                 np.logical_not(np.all(vertices_inside[self.mesh_faces], axis=1)));
+        faces_on_border = np.any(vertices_on_border[self.mesh_faces], axis=1);
+        crossing_faces = np.logical_or(crossing_faces, faces_on_border);
 
         self.face_grid = PyMesh.HashGrid.create(1e-1, dim);
         faces = self.mesh_faces[crossing_faces];
