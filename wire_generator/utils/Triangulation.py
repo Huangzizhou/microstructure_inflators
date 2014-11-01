@@ -30,7 +30,8 @@ class Triangulation(object):
         mesh = self._form_mesh(self.ori_vertices, self.ori_faces);
         bd_extractor = PyMeshUtils.Boundary.extract_surface_boundary(mesh);
 
-        self.bd_nodes = self.ori_vertices[bd_extractor.get_boundary_nodes().ravel()];
+        #self.bd_nodes = self.ori_vertices[bd_extractor.get_boundary_nodes().ravel()];
+        self.bd_nodes = self.ori_vertices;
         self.bd_edges = bd_extractor.get_boundaries();
 
         self.__extract_edge_loops();

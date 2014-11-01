@@ -5,6 +5,12 @@ import hashlib
 from subprocess import check_call
 import os
 import os.path
+import json
+
+def load_config(config_file):
+    with open(config_file, 'r') as fin:
+        config = json.load(fin);
+    return config;
 
 def generate_stamp(config_file):
     m = hashlib.md5();
@@ -16,8 +22,13 @@ def run_tile(config_file, obj_file):
     print(cmd);
     check_call(cmd.split());
 
-def run_tetgen(obj_file, msh_file):
-    cmd = "tetgen.py --cmd --flags=\"qpYQ\" {} {}".format(obj_file, msh_file);
+def run_tetgen(obj_file, msh_file, config):
+    flags = "qpQY";
+    if "subdiv" in config:
+        order = config["subdiv"];
+        flags += "a{}".format(0.125 / (8**order));
+
+    cmd = "tetgen.py --cmd --flags=\"{}\" {} {}".format(flags, obj_file, msh_file);
     print(cmd);
     check_call(cmd.split());
 
@@ -36,8 +47,10 @@ def main():
     tmp_dir = "/tmp"
     tmp_obj = os.path.join(tmp_dir, stamp+".obj");
 
+    config = load_config(args.config_file);
+
     run_tile(args.config_file, tmp_obj);
-    run_tetgen(tmp_obj, args.msh_file);
+    run_tetgen(tmp_obj, args.msh_file, config);
 
     os.remove(tmp_obj);
 

@@ -251,6 +251,7 @@ class PeriodicWireInflator(WireInflator):
         new vertices on the boundary.  In particular, all faces should be
         coplanar.
         """
+        #self.write_debug_mesh_raw("bd_faces.msh", vertices, faces);
         tri = Triangulation(vertices, faces, proj_dir);
         tri.triangulate(0.1);
         return tri.vertices, tri.faces;
@@ -360,5 +361,10 @@ class PeriodicWireInflator(WireInflator):
 
         writer = PyMesh.MeshWriter.create_writer(filename);
         writer.with_attribute("debug");
+        writer.write_mesh(mesh);
+
+    def write_debug_mesh_raw(self, filename, vertices, faces):
+        mesh = self._form_mesh(vertices.ravel(order="C"), faces.ravel(order="C"));
+        writer = PyMesh.MeshWriter.create_writer(filename);
         writer.write_mesh(mesh);
 
