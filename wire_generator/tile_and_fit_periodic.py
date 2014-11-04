@@ -2,27 +2,19 @@
 
 import argparse
 import json
-import hashlib
 from subprocess import check_call, check_output
 import os
 import os.path
 import re
 
-def generate_stamp(config_file):
-    m = hashlib.md5();
-    m.update(config_file);
-    return m.hexdigest();
+import core.PyMeshSetting
+import PyMesh
+from tile import tile, parse_config_file
+from tile_and_tetgen import generate_tetgen_flags, run_tetgen
+from utils.mesh_io import save_mesh_raw
+from utils.timethis import timethis
 
-def run_tile(config_file, obj_file):
-    cmd = "./tile.py -o {} {}".format(obj_file, config_file);
-    print(cmd);
-    check_call(cmd.split());
-
-def run_tetgen(obj_file, msh_file):
-    cmd = "tetgen.py --cmd --flags=YqpQa0.0001 {} {}".format(obj_file, msh_file);
-    print(cmd);
-    check_call(cmd.split());
-
+@timethis
 def run_material_fit(input_file, material_file, output_file):
     meshfem_path = os.environ.get("MESHFEM_PATH");
     exe_name = os.path.join(meshfem_path, "PeriodicHomogenization_cli");
@@ -76,6 +68,13 @@ def parse_result(result):
 
     return young, shear, poisson;
 
+def save_timing(msh_file):
+    basename, ext = os.path.splitext(msh_file);
+    timing_file = "{}.timing".format(basename);
+    timer = timethis(None);
+    with open(timing_file, 'w') as fout:
+        json.dump(timer.hist, fout, indent=4);
+
 def parse_args():
     parser = argparse.ArgumentParser(
             description="Tile pattern, tetgen it, then fit orthotropic material");
@@ -88,17 +87,14 @@ def parse_args():
 def main():
     args = parse_args();
 
-    stamp = generate_stamp(args.msh_file);
-    tmp_dir = "/tmp"
-    tmp_obj = os.path.join(tmp_dir, stamp+".obj");
-    #tmp_msh = os.path.join(tmp_dir, stamp+".msh");
-
-    run_tile(args.config_file, tmp_obj);
-    run_tetgen(tmp_obj, args.msh_file);
+    config = parse_config_file(args.config_file);
+    mesh = tile(config);
+    vertices, faces, voxels = run_tetgen(config, mesh);
+    save_mesh_raw(args.msh_file, vertices, faces, voxels);
     run_material_fit(args.msh_file, args.material, args.msh_file);
 
-    os.remove(tmp_obj);
-    #os.remove(tmp_msh);
+    timethis.summarize();
+    save_timing(args.msh_file);
 
 if __name__ == "__main__":
     main();

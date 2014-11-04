@@ -1,36 +1,32 @@
 #!/usr/bin/env python
 
 import argparse
-import hashlib
-from subprocess import check_call
-import os
-import os.path
-import json
 
-def load_config(config_file):
-    with open(config_file, 'r') as fin:
-        config = json.load(fin);
-    return config;
+import core.PyMeshSetting
+import PyMesh
+from tile import tile, parse_config_file
+from utils.mesh_io import save_mesh_raw
+from utils.Tetgen import tetgen
+from utils.timethis import timethis
 
-def generate_stamp(config_file):
-    m = hashlib.md5();
-    m.update(config_file);
-    return m.hexdigest();
-
-def run_tile(config_file, obj_file):
-    cmd = "./tile.py -o {} {}".format(obj_file, config_file);
-    print(cmd);
-    check_call(cmd.split());
-
-def run_tetgen(obj_file, msh_file, config):
+def generate_tetgen_flags(config):
     flags = "qpQY";
     if "subdiv" in config:
         order = config["subdiv"];
         flags += "a{}".format(0.125 / (8**order));
+    return flags;
 
-    cmd = "tetgen.py --cmd --flags=\"{}\" {} {}".format(flags, obj_file, msh_file);
-    print(cmd);
-    check_call(cmd.split());
+@timethis
+def run_tetgen(config, mesh):
+    flags = generate_tetgen_flags(config);
+
+    assert(mesh.get_dim() == 3);
+    assert(mesh.get_vertex_per_face() == 3);
+    vertices = mesh.get_vertices().reshape((-1, 3), order="C");
+    faces = mesh.get_faces().reshape((-1, 3), order="C");
+
+    vertices, faces, voxels = tetgen(flags, vertices, faces);
+    return vertices, faces, voxels;
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -43,16 +39,10 @@ def parse_args():
 def main():
     args = parse_args();
 
-    stamp = generate_stamp(args.msh_file);
-    tmp_dir = "/tmp"
-    tmp_obj = os.path.join(tmp_dir, stamp+".obj");
-
-    config = load_config(args.config_file);
-
-    run_tile(args.config_file, tmp_obj);
-    run_tetgen(tmp_obj, args.msh_file, config);
-
-    os.remove(tmp_obj);
+    config = parse_config_file(args.config_file);
+    mesh = tile(config);
+    vertices, faces, voxels = run_tetgen(config, mesh);
+    save_mesh_raw(args.msh_file, vertices, faces, voxels);
 
 if __name__ == "__main__":
     main();

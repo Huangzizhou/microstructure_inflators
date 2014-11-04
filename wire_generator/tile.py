@@ -73,6 +73,7 @@ def load_parameters(wire_network, default_thickness, modifier_file):
     factory.create_parameters_from_file(modifier_file);
     return factory.parameters;
 
+@timethis
 def tile(config):
     network = load_wire(str(config["wire_network"]));
     parameters = load_parameters(network,
@@ -90,7 +91,7 @@ def tile(config):
         mesh = inflator_driver.inflate_with_guide_box(
                 config["bbox_min"], config["bbox_max"],
                 config["repeats"], options);
-    save_mesh(mesh, config["output"]);
+    return mesh;
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Tile a given pattern");
@@ -106,7 +107,8 @@ def main():
     config = parse_config_file(args.config_file);
     if args.output is not None:
         config["output"] = args.output;
-    tile(config);
+    mesh = tile(config);
+    save_mesh(mesh, config["output"]);
     if args.timing:
         timethis.summarize();
 
