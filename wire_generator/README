@@ -1,0 +1,208 @@
+### Overview ###
+This directory provides a few useful scripts for wire generation:
+
+* `inflate.py`: inflate the input wire network
+* `tile.py`: tile the input wire network with guide AABB or quad/hex mesh and
+  inflate the output.
+* `tile_and_tetgen.py`: tile and inflate the input wires, run tetgen on the
+  output mesh.
+* `tile_and_fit_periodic.py`: tile, inflate and tetgen the input wire and run
+   periodic homogenization on the output.  This script handles 3D inputs.
+* `tile_and_fit_periodic_2D.py`: tile and inflate the 2D input wire and run
+   periodic homogenization on the output.
+
+The following script is also available but depreciated:
+
+* `tile_and_fit.py`: tile, inflate and tetgen the input wire and run [numeric
+coarsening][Kharevych:2009] on the output.  Numerical coarsening is slower and
+probably less accurate.
+
+
+### Usages ###
+#### Details about `inflate.py` ####
+Quick example:
+
+        > ./inflate.py -t 1.0 -o thread.msh examples/thread.wire
+        > gmsh threah.msh
+
+This example inflate the wire specified in file `thread.wire` with thickness
+`1.0`.  To see all command line options, run `./inflate.py -h`:
+
+        > ./inflate.py -h
+        usage: inflate.py [-h] --thickness THICKNESS --output OUTPUT [--subdiv SUBDIV]
+                          [--with-symmetry-orbits]
+                          wire_file
+
+        Inflate a wire network
+
+        positional arguments:
+          wire_file             input .wire file
+
+        optional arguments:
+          -h, --help            show this help message and exit
+          --thickness THICKNESS, -t THICKNESS
+                                target wire thickness
+          --output OUTPUT, -o OUTPUT
+                                output mesh file
+          --subdiv SUBDIV, -s SUBDIV
+                                number of subdivisions
+          --with-symmetry-orbits
+                                output also symmetry orbits
+
+The command line options are mostly self-explanatory.  Perhaps the last option
+`--with-symmetry-orbits` requires some more explanation.  This options is for
+input with wire network that possesses a high degree of symmetry, e.g.
+example/cube.wire.  With this option specified, the code would output two face
+fields, e.g. vertex_orbit and face_orbit, describing the partition of the
+surface into different symmetry orbits. For example:
+
+        > ./inflate.py --with-symmetry-orbits -t 0.2 -o cube.msh examples/cube.wire
+        > gmsh -n cube.msh
+
+In this project, the `.wire` files follows the OBJ format:
+
+        v float float float   # The X,Y and Z coordinate of each wire vertex
+        v ...
+        v ...
+        l int int             # The index of edge end points.
+        l ...                 # Indices start from 1.
+        l ...
+
+Optionally, each `.wire` file should be accompanied by a `.orbit` file that
+specifies the vertex and edge [symmetry orbits][symmetry_orbit].  Orbit file has the following
+format:
+
+        # Orbit file format
+        {
+            "vertex_orbits": [
+                [int, int, int, ...],   # Each int represents a vertex index
+                [...]
+            ],
+            "edge_orbits": [
+                [int, int, int, ...],   # Each int represents an edge index
+                [...]
+            ]
+        }
+
+Basically both `vertex_orbits` and `edge_orbits` field are array of arraies of indices.
+All vertices indexed by each index array belongs to the same symmetry orbit.
+The `.orbit` file can be generate from `.wire` file automatically:
+
+        > ./extract_symmetry_orbits.py examples/cube.wire
+        > cat examples/cube.orbit
+
+The `.orbit` file is only needed when a modifier file is specified.  See more
+details are in description of `tile.py`.
+
+
+#### Details about `tile.py` ####
+Quick example:
+
+        > ./tile.py -o tmp.msh examples/test.config
+        > gmsh -n tmp.msh
+
+This example reads in a configuration file and output the tiled and inflated
+mesh.  The output is stored in file `tmp.msh`. 
+
+To see all command line options of `tile.py`:
+
+        > ./tile.py -h
+        usage: tile.py [-h] --output OUTPUT [--timing] config_file
+
+        Tile a given pattern
+
+        positional arguments:
+          config_file           pattern configuration file.
+
+        optional arguments:
+          -h, --help            show this help message and exit
+          --output OUTPUT, -o OUTPUT
+          --timing              display running times
+
+Configuration file is basically a dictionary of key/value pairs in JSON format.
+
+        # Configuration file format
+        {
+            "wire_network": str,                 # filename of wire network
+            "thickness": float,                  # wire thickness
+            "modifier_file": str,                # modifier file name
+            "bbox_min": [min_x, min_y, min_z],   # all floats, min corner of the bbox
+            "bbox_max": [max_x, max_y, max_z],   # all floats, max corner of the bbox
+            "repeats": [x_reps, y_reps, z_reps], # all ints, number of repetitions
+            "guide_mesh": str,                   # filename of the guide mesh
+            "no_tile": bool,                     # if true, no tiling is carried out
+            "trim": bool,                        # delete hanging wires
+            "periodic": bool,                    # if true, ensure boundaries of opposite sides are meshed consistently
+            "subdiv": int                        # number of time to subdivide
+        }
+
+Please see `examples/test.config` for an example of configuration file.  One
+thing worth mentioning is that when specifying a file name, one should use
+either absolution path or relative path with respect to the directory containing
+the configuration file.  In addition, `wire_network` path can also be relative
+to `$MICROSTRUCTURES_PATH` (e.g. `examples/test.config`).
+
+Only `wire_network` and `thickness` are required fields.   One can use `tile.py`
+to tile according to an axis-aligned bounding box (AABB) or a guide mesh.  To
+tile with AABB, one needs to specify `bbox_min`, `bbox_max` and `repeats` field.
+To tile with guide mesh, one needs to specify `guide_mesh` field.
+
+The `modifier_file` field specifies ways of modifying the behavior of the
+inflator.  Two ways of modification are supported: changing wire thicknesses or
+changing wire vertex positions.
+
+        # Modifier file format
+        {
+            "thickness": {
+                "type": str,                         # either "vertex_orbit" or "edge_orbit"
+                "effective_orbits": [int, int, ...]  # an array of orbit indices
+                "default": float,                    # default thickness
+                "thickness": [float, float, ...]     # orbit thickness, one float per effective orbit
+            },
+            "offset": {
+                "type": "vertex_orbit",              # must be "vertex_orbit"
+                "effective_orbits": [int, int, ...], # an array of orbit indices
+                "offset_percentages": [              # a 2D array specifying the offset percentage of
+                    [float, float, float],           # each orbit in X, Y and Z directions.
+                    [...],                           # One array per effective orbit.
+                    [...]
+                ]
+            }
+        }
+
+Note that `effective_orbits` are indices of orbits specified by orbit files.
+All vertices/edges belonging to the same orbit will be modified together to
+preserve the corresponding symmetry.
+
+#### Details about `tile_and_tetgen.py` ####
+
+Quick example:
+
+        > ./tile_and_tetgen.py examples/test.config tmp.msh
+        > gmsh -n tmp.msh
+
+This script essentially uses `tile.py` to inflate according to the input
+configuration and invoke `tetgen` on it to create a tetrahedral mesh.
+
+#### Details about `tile_and_fit_periodic.py` and `tile_and_fit_periodic_2D.py` ####
+
+Quick example:
+
+        > # 3D example
+        > ./tile_and_fit_periodic.py --material example/ProJet7000.material examples/test.config tmp.msh
+        > gmsh -n tmp.msh       # Check the inflated mesh
+        > cat tmp_param.json    # Check the homogenized material properties
+
+        > # 2D example
+        > ./tile_and_fit_periodic_2D.py --material example/ProJet7000_2D.material examples/test.config tmp.msh
+        > gmsh -n tmp.msh       # Check the inflated mesh
+        > cat tmp_param.json    # Check the homogenized material properties
+
+Besides the usual configuration file, this script requires a material file as
+well.  The output consists of a tetrahedral mesh with periodic boundaries and a
+`.json` file describing the homogenized material properties.
+
+
+[Kharevych:2009]: http://www.geometry.caltech.edu/pubs/KMOD09.pdf "Numerical Coarsening of Inhomogeneous Elastic Materials"
+
+[symmetry_orbit]: http://en.wikipedia.org/wiki/Group_action

@@ -2,17 +2,11 @@
 
 import argparse
 import json
-import hashlib
 from subprocess import check_call, check_output
 import os
 import os.path
 import re
 import sys
-
-def generate_stamp(config_file):
-    m = hashlib.md5();
-    m.update(config_file);
-    return m.hexdigest();
 
 def run_tile(config_file, obj_file):
     exe_dir = sys.path[0];
@@ -82,15 +76,9 @@ def parse_args():
 
 def main():
     args = parse_args();
+    run_tile(args.config_file, args.msh_file);
+    run_material_fit(args.msh_file, args.material, args.msh_file);
 
-    stamp = generate_stamp(args.msh_file);
-    tmp_dir = "/tmp"
-    tmp_msh = os.path.join(tmp_dir, stamp+".msh");
-
-    run_tile(args.config_file, tmp_msh);
-    run_material_fit(tmp_msh, args.material, args.msh_file);
-
-    os.remove(tmp_msh);
 
 if __name__ == "__main__":
     main();
