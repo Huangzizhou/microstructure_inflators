@@ -21,7 +21,7 @@ class WireInflator(object):
                     "Inflating 2D wire network is not supported yet.");
 
     @timethis
-    def inflate(self, clean_up=True, subdivide_order=1):
+    def inflate(self, clean_up=True, subdivide_order=1, subdivide_method="simple"):
         self._compute_thickness();
         self._compute_min_edge_angles();
         self._compute_edge_end_loops();
@@ -29,7 +29,7 @@ class WireInflator(object):
         self._generate_edge_pipes();
         if clean_up:
             self._clean_up();
-        self._subdivide(subdivide_order);
+        self._subdivide(subdivide_order, subdivide_method);
 
     @property
     def mesh(self):
@@ -355,8 +355,8 @@ class WireInflator(object):
         self.edge_loop_indices =None;
 
     @timethis
-    def _subdivide(self, num_iterations):
-        sub = Subdivision();
+    def _subdivide(self, num_iterations, method="simple"):
+        sub = Subdivision(method);
         self.mesh_vertices, self.mesh_faces, face_indices= \
                 sub.subdivide(self.mesh_vertices, self.mesh_faces, num_iterations);
         self.source_wire_id = self.source_wire_id[face_indices];
