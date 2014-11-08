@@ -3,6 +3,7 @@ from InflatorFacade import InflatorFacade
 from WireTiler import WireTiler
 from WireInflator import WireInflator
 from PeriodicWireInflator import PeriodicWireInflator
+from PyWiresInflator import PyWiresInflator
 
 class InflatorFacade3D(InflatorFacade):
     def __init__(self, wire_network, parameters):
@@ -49,9 +50,8 @@ class InflatorFacade3D(InflatorFacade):
         if options.get("trim", False):
             wire_network.trim();
 
-        if options.get("periodic", False):
-            inflator = PeriodicWireInflator(wire_network);
-        else:
-            inflator = WireInflator(wire_network);
+        inflator = PyWiresInflator(wire_network,
+                options.get("periodic", False));
         inflator.inflate(subdivide_order = options.get("subdiv", 1));
         return inflator.mesh;
+
