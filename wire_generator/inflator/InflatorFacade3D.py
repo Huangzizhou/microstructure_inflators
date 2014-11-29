@@ -50,8 +50,10 @@ class InflatorFacade3D(InflatorFacade):
         if options.get("trim", False):
             wire_network.trim();
 
-        inflator = PyWiresInflator(wire_network,
+        inflator = PyWiresInflator(wire_network, self.parameters,
                 options.get("periodic", False));
-        inflator.inflate(subdivide_order = options.get("subdiv", 1));
+        inflator.inflate(
+                subdivide_method="loop",
+                subdivide_order = options.get("subdiv", 1));
         return inflator.mesh;
 

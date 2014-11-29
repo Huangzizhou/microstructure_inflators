@@ -15,6 +15,10 @@ class WireAttributes(object):
         elif name == "symmetry_edge_orbit":
             from WireSymmetryEdgeOrbitAttribute import WireSymmetryEdgeOrbitAttribute
             attr = WireSymmetryEdgeOrbitAttribute();
+        elif name == "isotropic_symmetry_vertex_orbit":
+            from WireSymmetryVertexOrbitAttribute import WireSymmetryVertexOrbitAttribute
+            attr = WireSymmetryVertexOrbitAttribute();
+            attr.set_symmetry_type("isotropic");
         else:
             raise NotImplementedError(
                     "Unknow wire network attribute: {}".format(name));

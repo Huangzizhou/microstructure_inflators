@@ -19,21 +19,32 @@ class ParameterHandler(object):
 
     def __initialize_orbits(self):
         if "symmetry_vertex_orbit" not in self.wire_network.attributes or\
-                "symmetry_edge_orbit" not in self.wire_network.attributes:
+                "symmetry_edge_orbit" not in self.wire_network.attributes or\
+                "isotropic_symmetry_vertex_orbit" not in self.wire_network.attributes:
             self.wire_network.compute_symmetry_orbits();
 
-        self.vertex_orbits = self.wire_network.attributes["symmetry_vertex_orbit"];
+        self.orthotropic_vertex_orbits = self.wire_network.attributes["symmetry_vertex_orbit"];
+        self.isotropic_vertex_orbits = \
+                self.wire_network.attributes["isotropic_symmetry_vertex_orbit"];
         self.edge_orbits = self.wire_network.attributes["symmetry_edge_orbit"];
 
     def convert_to_attributes(self, parameters, **kwargs):
         attributes = self.wire_network.attributes;
         for param in parameters:
+            if param.orbit_type == "isotropic":
+                vertex_orbits = self.isotropic_vertex_orbits;
+            elif param.orbit_type == "orthotropic":
+                vertex_orbits = self.orthotropic_vertex_orbits;
+            else:
+                raise NotImplementedError("Orbit type \"{}\" is not supported"\
+                        .format(param.orbit_type));
+
             if isinstance(param, VertexThicknessParameter):
                 if "vertex_thickness" not in attributes:
                     attributes["vertex_thickness"] = np.zeros(
                             self.wire_network.num_vertices);
                 thickness = attributes["vertex_thickness"];
-                affected_vertices = self.vertex_orbits == param.orbit_id;
+                affected_vertices = vertex_orbits == param.orbit_id;
                 thickness[affected_vertices] = param.evaluate(**kwargs);
             elif isinstance(param, EdgeThicknessParameter):
                 if "edge_thickness" not in attributes:
@@ -48,7 +59,7 @@ class ParameterHandler(object):
                         self.wire_network.num_vertices,
                         self.wire_network.dim));
                 offset = attributes["vertex_offset"];
-                affected_vertices = self.vertex_orbits == param.orbit_id;
+                affected_vertices = vertex_orbits == param.orbit_id;
                 percentage = param.evaluate(**kwargs);
                 vertices = self.wire_network.vertices[affected_vertices];
                 centroid = np.mean(vertices, axis=0);

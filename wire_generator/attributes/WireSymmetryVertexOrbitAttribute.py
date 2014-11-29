@@ -23,8 +23,15 @@ class WireSymmetryVertexOrbitAttribute(WireSymmetryAttribute):
             mapped_candidates = self.grid.get_items_near_point(v_reflected).ravel();
             if len(mapped_candidates) == 0:
                 continue;
-            vertex_group = [i] + mapped_candidates.tolist();
-            self.orbits[vertex_group] = np.amin(self.orbits[vertex_group]);
+
+            orbit_indicator = self.orbits == self.orbits[i];
+            for other_i in mapped_candidates:
+                orbit_indicator = np.logical_or(orbit_indicator,
+                        self.orbits == self.orbits[other_i]);
+            self.orbits[orbit_indicator] = np.amin(self.orbits[orbit_indicator]);
+
+            #vertex_group = [i] + mapped_candidates.tolist();
+            #self.orbits[vertex_group] = np.amin(self.orbits[vertex_group]);
 
     @property
     def value(self):

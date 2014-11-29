@@ -1,9 +1,25 @@
+import math
 import numpy as np
 from WireAttribute import WireAttribute
+from utils.quaternion import Quaternion
 
 import PyMesh
 
 class WireSymmetryAttribute(WireAttribute):
+    def __init__(self):
+        super(WireSymmetryAttribute, self).__init__();
+        self.symmetry_type = "orthotropic";
+
+    def set_symmetry_type(self, symmetry_type):
+        if (symmetry_type == "orthotropic"):
+            self.symmetry_type = symmetry_type;
+        elif (symmetry_type == "isotropic"):
+            self.symmetry_type = symmetry_type;
+        else:
+            raise NotImplementedError(
+                    "Symmetry type ({}) is not supported".format(
+                        symmetry_type));
+
     def compute(self, wire_network):
         self.wire_network = wire_network;
 
@@ -13,9 +29,20 @@ class WireSymmetryAttribute(WireAttribute):
 
         self.__initialize_grid(0.001 * np.amax(bbox_size));
         if self.wire_network.dim == 2:
-            self.__initialize_reflective_symmetries_2D(bbox_center);
+            if (self.symmetry_type == "orthotropic"):
+                self.__initialize_reflective_symmetries_2D(bbox_center);
+            elif (self.symmetry_type == "isotropic"):
+                raise NotImplementedError(
+                        "Isotropic symmetry is not supported in 2D.");
+            else:
+                assert(False);
         elif self.wire_network.dim == 3:
-            self.__initialize_reflective_symmetries_3D(bbox_center);
+            if (self.symmetry_type == "orthotropic"):
+                self.__initialize_reflective_symmetries_3D(bbox_center);
+            elif (self.symmetry_type == "isotropic"):
+                self.__initialize_isotropic_symmetries_3D(bbox_center);
+            else:
+                assert(False);
         else:
             raise NotImplementedError("Unknown dimension: {}".format(
                 self.wire_network.dim));
@@ -53,6 +80,29 @@ class WireSymmetryAttribute(WireAttribute):
                 lambda v: (v-bbox_center)*YZ + bbox_center,
                 lambda v: (v-bbox_center)*ZX + bbox_center,
                 lambda v: (v-bbox_center)*XYZ + bbox_center,
+                ];
+
+    def __initialize_isotropic_symmetries_3D(self, bbox_center):
+        """ Captures all symmetries processed by a cube.
+        """
+        X = np.array([-1, 1, 1]);
+        Y = np.array([ 1,-1, 1]);
+        Z = np.array([ 1, 1,-1]);
+
+        rot_X = Quaternion.fromAxisAngle(
+                [1.0, 0.0, 0.0], math.pi * 0.5).to_matrix();
+        rot_Y = Quaternion.fromAxisAngle(
+                [0.0, 1.0, 0.0], math.pi * 0.5).to_matrix();
+        rot_Z = Quaternion.fromAxisAngle(
+                [0.0, 0.0, 1.0], math.pi * 0.5).to_matrix();
+
+        self.symmetries = [
+                lambda v: (v-bbox_center)*X + bbox_center,
+                lambda v: (v-bbox_center)*Y + bbox_center,
+                lambda v: (v-bbox_center)*Z + bbox_center,
+                lambda v: rot_X.dot(v-bbox_center) + bbox_center,
+                lambda v: rot_Y.dot(v-bbox_center) + bbox_center,
+                lambda v: rot_Z.dot(v-bbox_center) + bbox_center,
                 ];
 
     @property

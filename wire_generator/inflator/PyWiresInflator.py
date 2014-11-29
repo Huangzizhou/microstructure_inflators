@@ -4,8 +4,9 @@ import PyWires
 import PyMesh
 
 class PyWiresInflator(object):
-    def __init__(self, wire_network, periodic=False):
+    def __init__(self, wire_network, parameters, periodic=False):
         self.wire_network = wire_network;
+        self.parameters = parameters;
         self.periodic = periodic;
 
     def inflate(self, clean_up=True, subdivide_order=1, subdivide_method="simple"):
@@ -13,7 +14,8 @@ class PyWiresInflator(object):
                 self.wire_network.vertices,
                 self.wire_network.edges);
         if self.periodic:
-            inflator = PyWires.InflatorEngine.create("periodic", wires);
+            manager = PyWires.ParameterManager.create(wires);
+            inflator = PyWires.InflatorEngine.create_parametric(wires, manager);
         else:
             inflator = PyWires.InflatorEngine.create("simple", wires);
 
@@ -26,8 +28,8 @@ class PyWiresInflator(object):
             inflator.set_thickness_type(PyWires.InflatorEngine.PER_EDGE);
             inflator.set_thickness(thickness);
 
+        inflator.with_refinement(subdivide_method, subdivide_order);
         inflator.inflate();
-        inflator.refine(subdivide_method, subdivide_order);
         self.mesh_vertices = inflator.get_vertices();
         self.mesh_faces = inflator.get_faces();
         self.source_wire_id = inflator.get_face_sources();

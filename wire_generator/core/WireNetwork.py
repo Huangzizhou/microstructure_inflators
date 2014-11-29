@@ -56,6 +56,12 @@ class WireNetwork(object):
                         for i,v_indices in enumerate(vertex_orbits):
                             orbit_ids[v_indices] = i;
                         self.attributes["symmetry_vertex_orbit"] = orbit_ids;
+                    if "isotropic_vertex_orbits" in orbit_config:
+                        vertex_orbits = orbit_config["isotropic_vertex_orbits"];
+                        orbit_ids = np.zeros(self.num_vertices);
+                        for i,v_indices in enumerate(vertex_orbits):
+                            orbit_ids[v_indices] = i;
+                        self.attributes["isotropic_symmetry_vertex_orbit"] = orbit_ids;
                     if "edge_orbits" in orbit_config:
                         edge_orbits = orbit_config["edge_orbits"];
                         orbit_ids = np.zeros(self.num_edges);
@@ -65,6 +71,7 @@ class WireNetwork(object):
                 return;
 
         self.attributes.add("symmetry_vertex_orbit");
+        self.attributes.add("isotropic_symmetry_vertex_orbit");
         self.attributes.add("symmetry_edge_orbit");
 
     def __initialize(self):

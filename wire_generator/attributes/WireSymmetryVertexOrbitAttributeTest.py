@@ -38,3 +38,23 @@ class WireSymmetryVertexOrbitAttributeTest(unittest.TestCase):
 
         self.assertEqual(len(orbits), len(self.wire_network.vertices));
         self.assertEqual(1, num_orbits);
+
+    def test_cube_isotropic(self):
+        self.load_wire("examples/cube.wire");
+        self.wire_network.attributes.add("isotropic_symmetry_vertex_orbit");
+        orbits = self.wire_network.attributes[
+                "isotropic_symmetry_vertex_orbit"];
+
+        num_orbits = len(set(orbits));
+        self.assertEqual(len(orbits), len(self.wire_network.vertices));
+        self.assertEqual(1, num_orbits);
+
+    def test_brick5_isotropic(self):
+        self.load_wire("examples/example2.wire");
+        self.wire_network.attributes.add("isotropic_symmetry_vertex_orbit");
+        orbits = self.wire_network.attributes[
+                "isotropic_symmetry_vertex_orbit"];
+
+        num_orbits = len(set(orbits));
+        self.assertEqual(len(orbits), len(self.wire_network.vertices));
+        self.assertEqual(3, num_orbits);

@@ -18,6 +18,7 @@ class ParameterFactory(object):
         self.vertex_thickness_parameters = [];
         self.edge_thickness_parameters = [];
         self.vertex_offset_parameters = [];
+        self.orbit_type = config.get("orbit_type", "orthotropic");
 
         if "thickness" in config:
             thickness_config = config["thickness"];
@@ -54,17 +55,29 @@ class ParameterFactory(object):
                 VertexThicknessParameter(self.wire_network, i, self.default_thickness)
                 for i in range(num_orbits) ];
 
+        for param in self.vertex_thickness_parameters:
+            param.orbit_type = self.orbit_type;
+
     def __create_default_edge_thickness_parameters(self):
         num_orbits = self.__get_num_edge_orbits();
         self.edge_thickness_parameters = [
                 EdgeThicknessParameter(self.wire_network, i, self.default_thickness)
                 for i in range(num_orbits) ];
 
+        if self.orbit_type == "isotropic":
+            raise NotImplementedError("Isotropic edge orbits is not yet implemented");
+
+        for param in self.vertex_thickness_parameters:
+            param.orbit_type = self.orbit_type;
+
     def __create_default_vertex_offset_parameters(self):
         num_orbits = self.__get_num_vertex_orbits();
         self.vertex_offset_parameters = [
                 VertexOffsetParameter(self.wire_network, i)
                 for i in range(num_orbits) ];
+
+        for param in self.vertex_thickness_parameters:
+            param.orbit_type = self.orbit_type;
 
     def __modify_thickness_parameters(self, thickness_config):
         effective_orbits = thickness_config["effective_orbits"];
@@ -88,10 +101,25 @@ class ParameterFactory(object):
             param.set_formula(offset);
 
     def __get_num_vertex_orbits(self):
+        if self.orbit_type == "isotropic":
+            return self.__get_num_isotropic_vertex_orbits();
+        elif self.orbit_type == "orthotropic":
+            return self.__get_num_orthotropic_vertex_orbits();
+        else:
+            raise NotImplementedError("Unsupported orbit type: {}"\
+                    .format(self.orbit_type));
+
+    def __get_num_orthotropic_vertex_orbits(self):
         if "symmetry_vertex_orbit" not in self.wire_network.attributes:
             self.wire_network.compute_symmetry_orbits();
         return len(np.unique(
             self.wire_network.attributes["symmetry_vertex_orbit"]));
+
+    def __get_num_isotropic_vertex_orbits(self):
+        if "isotropic_symmetry_vertex_orbit" not in self.wire_network.attributes:
+            self.wire_network.compute_symmetry_orbits();
+        return len(np.unique(
+            self.wire_network.attributes["isotropic_symmetry_vertex_orbit"]));
 
     def __get_num_edge_orbits(self):
         if "symmetry_edge_orbit" not in self.wire_network.attributes:
