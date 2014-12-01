@@ -48,28 +48,42 @@ class WireNetwork(object):
             basename, ext = os.path.splitext(self.source_file);
             orbit_file = basename + ".orbit";
             if os.path.exists(orbit_file):
-                with open(orbit_file) as fin:
-                    orbit_config = json.load(fin);
-                    if "orthotropic_vertex_orbits" in orbit_config:
-                        orthotropic_vertex_orbits = orbit_config["orthotropic_vertex_orbits"];
-                        orbit_ids = np.zeros(self.num_vertices);
-                        for i,v_indices in enumerate(orthotropic_vertex_orbits):
-                            orbit_ids[v_indices] = i;
-                        self.attributes["orthotropic_symmetry_vertex_orbit"] = orbit_ids;
-                    if "isotropic_vertex_orbits" in orbit_config:
-                        vertex_orbits = orbit_config["isotropic_vertex_orbits"];
-                        orbit_ids = np.zeros(self.num_vertices);
-                        for i,v_indices in enumerate(vertex_orbits):
-                            orbit_ids[v_indices] = i;
-                        self.attributes["isotropic_symmetry_vertex_orbit"] = orbit_ids;
-                    if "edge_orbits" in orbit_config:
-                        edge_orbits = orbit_config["edge_orbits"];
-                        orbit_ids = np.zeros(self.num_edges);
-                        for i, e_indices in enumerate(edge_orbits):
-                            orbit_ids[e_indices] = i;
-                        self.attributes["symmetry_edge_orbit"] = orbit_ids;
-                return;
+                self.__load_symmetry_orbits_from_file(orbit_file);
+            else:
+                self.__compute_symmetry_orbits_from_wires();
+        else:
+            self.__compute_symmetry_orbits_from_wires();
 
+
+    def __load_symmetry_orbits_from_file(self, orbit_file):
+        with open(orbit_file) as fin:
+            orbit_config = json.load(fin);
+            if "orthotropic_vertex_orbits" in orbit_config:
+                orthotropic_vertex_orbits = orbit_config["orthotropic_vertex_orbits"];
+                orbit_ids = np.zeros(self.num_vertices);
+                for i,v_indices in enumerate(orthotropic_vertex_orbits):
+                    orbit_ids[v_indices] = i;
+                self.attributes["orthotropic_symmetry_vertex_orbit"] = orbit_ids;
+            else:
+                self.attributes.add("orthotropic_symmetry_vertex_orbit");
+            if "isotropic_vertex_orbits" in orbit_config:
+                vertex_orbits = orbit_config["isotropic_vertex_orbits"];
+                orbit_ids = np.zeros(self.num_vertices);
+                for i,v_indices in enumerate(vertex_orbits):
+                    orbit_ids[v_indices] = i;
+                self.attributes["isotropic_symmetry_vertex_orbit"] = orbit_ids;
+            else:
+                self.attributes.add("isotropic_symmetry_vertex_orbit");
+            if "edge_orbits" in orbit_config:
+                edge_orbits = orbit_config["edge_orbits"];
+                orbit_ids = np.zeros(self.num_edges);
+                for i, e_indices in enumerate(edge_orbits):
+                    orbit_ids[e_indices] = i;
+                self.attributes["symmetry_edge_orbit"] = orbit_ids;
+            else:
+                self.attributes.add("symmetry_edge_orbit");
+
+    def __compute_symmetry_orbits_from_wires(self):
         self.attributes.add("orthotropic_symmetry_vertex_orbit");
         self.attributes.add("isotropic_symmetry_vertex_orbit");
         self.attributes.add("symmetry_edge_orbit");
