@@ -21,6 +21,18 @@ class InflatorFacade3D(InflatorFacade):
         return mesh;
 
     def __tile_with_guide_box(self, bbox_min, bbox_max, repetitions):
+        bbox_min = np.array(bbox_min);
+        bbox_max = np.array(bbox_max);
+        unit_bbox_min, unit_bbox_max = self.unit_pattern.bbox;
+        unit_bbox_size = unit_bbox_max - unit_bbox_min;
+        target_bbox_size = np.divide(bbox_max - bbox_min, repetitions);
+        non_zero_dim = unit_bbox_size > 0.0;
+        factor = np.ones(self.unit_pattern.dim);
+        factor[non_zero_dim] = np.divide(
+                target_bbox_size[non_zero_dim],
+                unit_bbox_size[non_zero_dim]);
+        self.unit_pattern.scale(factor);
+
         tiler = WireTiler();
         tiler.set_single_cell_from_wire_network(self.unit_pattern);
         tiler.tile(repetitions, self.parameters);
@@ -28,15 +40,7 @@ class InflatorFacade3D(InflatorFacade):
         tiled_network = tiler.wire_network;
 
         tiled_bbox_min, tiled_bbox_max = tiled_network.bbox;
-        tiled_bbox_size = tiled_bbox_max - tiled_bbox_min;
-        non_zero_dim = tiled_bbox_size > 0.0;
-
-        target_bbox_size = np.array(bbox_max) - np.array(bbox_min);
-
-        factor = np.ones(3);
-        factor[non_zero_dim] = np.divide(
-                target_bbox_size[non_zero_dim], tiled_bbox_size[non_zero_dim]);
-        tiled_network.scale(factor);
+        tiled_network.translate(bbox_min - tiled_bbox_min);
         return tiled_network;
 
     def __tile_with_mesh(self, mesh):

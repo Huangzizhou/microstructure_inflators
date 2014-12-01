@@ -76,7 +76,7 @@ class ParameterFactory(object):
                 VertexOffsetParameter(self.wire_network, i)
                 for i in range(num_orbits) ];
 
-        for param in self.vertex_thickness_parameters:
+        for param in self.vertex_offset_parameters:
             param.orbit_type = self.orbit_type;
 
     def __modify_thickness_parameters(self, thickness_config):

@@ -7,7 +7,7 @@ class VertexOffsetParameter(PatternParameter):
         self.default_offset = np.zeros(wire_network.dim);
         self.orbit_id = orbit_id;
 
-        self.__compute_mask();
+        #self.__compute_mask();
 
     def __compute_mask(self):
         raise DeprecationWarning("This method is deprecated.");
