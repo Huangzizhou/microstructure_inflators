@@ -16,11 +16,19 @@ class ParameterHandler2D(object):
 
     def __initialize_orbits(self):
         if "orthotropic_symmetry_vertex_orbit" not in self.wire_network.attributes or\
-                "symmetry_edge_orbit" not in self.wire_network.attributes:
+                "isotropic_symmetry_vertex_orbit" not in self.wire_network.attributes or\
+                "orthotropic_symmetry_edge_orbit" not in self.wire_network.attributes or\
+                "isotropic_symmetry_edge_orbit" not in self.wire_network.attributes:
             self.wire_network.compute_symmetry_orbits();
 
-        self.vertex_orbits = self.wire_network.attributes["orthotropic_symmetry_vertex_orbit"];
-        self.edge_orbits = self.wire_network.attributes["symmetry_edge_orbit"];
+        self.orthotropic_vertex_orbits = \
+                self.wire_network.attributes["orthotropic_symmetry_vertex_orbit"];
+        self.isotropic_vertex_orbits = \
+                self.wire_network.attributes["isotropic_symmetry_vertex_orbit"];
+        self.orthotropic_edge_orbits = \
+                self.wire_network.attributes["orthotropic_symmetry_edge_orbit"];
+        self.isotropic_edge_orbits = \
+                self.wire_network.attributes["isotropic_symmetry_edge_orbit"];
 
     def __compute_orbit_index_maps(self):
         num_parameters = self.inflator.get_num_parameters();
@@ -63,12 +71,14 @@ class ParameterHandler2D(object):
         parameter = np.zeros(self.inflator.get_num_parameters());
         for param in parameters:
             if isinstance(param, VertexThicknessParameter):
-                index = self.__lookup_thickness_vertex_orbit_map(param.orbit_id);
+                index = self.__lookup_thickness_vertex_orbit_map(param.orbit_id,
+                        param.orbit_type);
                 parameter[index] = param.evaluate(**kwargs);
             elif isinstance(param, EdgeThicknessParameter):
                 raise NotImplementedError("Edge thickness is not supported in 2D");
             elif isinstance(param, VertexOffsetParameter):
-                index = self.__lookup_offset_vertex_orbit_map(param.orbit_id);
+                index = self.__lookup_offset_vertex_orbit_map(param.orbit_id,
+                        param.orbit_type);
                 mask = index >= 0;
                 parameter[index[mask]] = param.evaluate(**kwargs)[mask];
             else:
@@ -76,18 +86,27 @@ class ParameterHandler2D(object):
                         "Unknown parameter type: {}".format(param));
         return parameter;
 
-    def __lookup_thickness_vertex_orbit_map(self, orbit_id):
+    def __lookup_thickness_vertex_orbit_map(self, orbit_id, orbit_type):
         vertex_indices = np.arange(self.wire_network.num_vertices, dtype=int);
-        affected_vertices = self.vertex_orbits == orbit_id;
+        affected_vertices = self.__get_affected_vertices(orbit_id, orbit_type);
         key = tuple(vertex_indices[affected_vertices]);
         if key not in self.thickness_orbit_map:
             raise RuntimeError(
                     "Thickness parameter of vertex orbit {} is not valid.".format(orbit_id));
         return self.thickness_orbit_map[key];
 
-    def __lookup_offset_vertex_orbit_map(self, orbit_id):
+    def __lookup_offset_vertex_orbit_map(self, orbit_id, orbit_type):
         vertex_indices = np.arange(self.wire_network.num_vertices, dtype=int);
-        affected_vertices = self.vertex_orbits == orbit_id;
+        affected_vertices = self.__get_affected_vertices(orbit_id, orbit_type);
         key = tuple(vertex_indices[affected_vertices]);
         return self.offset_orbit_map.get(key, np.ones(2, dtype=int) * -1);
+
+    def __get_affected_vertices(self, orbit_id, orbit_type):
+        if orbit_type == "orthotropic":
+            affected_vertices = self.orthotropic_vertex_orbits == orbit_id;
+        elif orbit_type == "isotropic":
+            affected_vertices = self.isotropic_vertex_orbits == orbit_id;
+        else:
+            raise RuntimeError("Unsupported orbit type: {}".format(orbit_type));
+        return affected_vertices;
 

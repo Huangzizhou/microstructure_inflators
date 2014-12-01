@@ -6,14 +6,14 @@ class WireSymmetryVertexOrbitAttributeTest(unittest.TestCase):
     def load_wire(self, wire_file):
         self.wire_network = WireNetwork();
         self.wire_network.load_from_file(wire_file);
-        self.wire_network.attributes.add("symmetry_vertex_orbit");
+        self.wire_network.attributes.add("orthotropic_symmetry_vertex_orbit");
 
     def get_orbits(self):
-        return self.wire_network.attributes["symmetry_vertex_orbit"];
+        return self.wire_network.attributes["orthotropic_symmetry_vertex_orbit"];
 
     def test_creation(self):
         self.load_wire("examples/cube.wire");
-        self.assertTrue("symmetry_vertex_orbit" in self.wire_network.attributes);
+        self.assertTrue("orthotropic_symmetry_vertex_orbit" in self.wire_network.attributes);
 
     def test_cube(self):
         self.load_wire("examples/cube.wire");

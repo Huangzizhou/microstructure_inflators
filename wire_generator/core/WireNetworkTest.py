@@ -47,8 +47,8 @@ class WireNetworkTest(unittest.TestCase):
     def test_symmetry_orbits(self):
         self.load_wire("patterns/3D/brick5.wire");
         self.wire_frame.compute_symmetry_orbits();
-        vertex_orbits = self.wire_frame.attributes["symmetry_vertex_orbit"];
-        edge_orbits = self.wire_frame.attributes["symmetry_edge_orbit"];
+        vertex_orbits = self.wire_frame.attributes["orthotropic_symmetry_vertex_orbit"];
+        edge_orbits = self.wire_frame.attributes["orthotropic_symmetry_edge_orbit"];
 
         self.assertEqual(len(vertex_orbits), self.wire_frame.num_vertices);
         self.assertEqual(len(edge_orbits), self.wire_frame.num_edges);

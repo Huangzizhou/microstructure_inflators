@@ -9,7 +9,6 @@ class VertexOffsetParameterTest(PatternParameterTest):
         parameter = VertexOffsetParameter(wire_network, 0);
         self.assertEqual(3, len(parameter.default_offset));
 
-    @unittest.skip("debug")
     def test_default_2D(self):
         wire_network = self.load_wire("patterns/2D/box.wire");
         parameter = VertexOffsetParameter(wire_network, 0);
@@ -45,16 +44,4 @@ class VertexOffsetParameterTest(PatternParameterTest):
             "vertex_orbit_0_offset_x",
             "vertex_orbit_0_offset_y",
             "vertex_orbit_0_offset_z" ], names);
-
-    def test_dof_mask(self):
-        wire_network = self.load_wire("patterns/3D/cube.wire");
-        parameter = VertexOffsetParameter(wire_network, 0);
-        mask = parameter.dof_mask;
-        self.assertTrue(np.all(mask));
-
-    def test_dof_mask(self):
-        wire_network = self.load_wire("patterns/3D/brick5.wire");
-        parameter = VertexOffsetParameter(wire_network, 0);
-        mask = parameter.dof_mask;
-        self.assertFalse(np.all(mask));
 

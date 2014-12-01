@@ -19,7 +19,8 @@ class ParameterHandler(object):
 
     def __initialize_orbits(self):
         if "orthotropic_symmetry_vertex_orbit" not in self.wire_network.attributes or\
-                "symmetry_edge_orbit" not in self.wire_network.attributes or\
+                "orthotropic_symmetry_edge_orbit" not in self.wire_network.attributes or\
+                "isotropic_symmetry_edge_orbit" not in self.wire_network.attributes or\
                 "isotropic_symmetry_vertex_orbit" not in self.wire_network.attributes:
             self.wire_network.compute_symmetry_orbits();
 
@@ -27,15 +28,20 @@ class ParameterHandler(object):
                 self.wire_network.attributes["orthotropic_symmetry_vertex_orbit"];
         self.isotropic_vertex_orbits = \
                 self.wire_network.attributes["isotropic_symmetry_vertex_orbit"];
-        self.edge_orbits = self.wire_network.attributes["symmetry_edge_orbit"];
+        self.orthotropic_edge_orbits = \
+                self.wire_network.attributes["orthotropic_symmetry_edge_orbit"];
+        self.isotropic_edge_orbits = \
+                self.wire_network.attributes["isotropic_symmetry_edge_orbit"];
 
     def convert_to_attributes(self, parameters, **kwargs):
         attributes = self.wire_network.attributes;
         for param in parameters:
             if param.orbit_type == "isotropic":
                 vertex_orbits = self.isotropic_vertex_orbits;
+                edge_orbits = self.isotropic_edge_orbits;
             elif param.orbit_type == "orthotropic":
                 vertex_orbits = self.orthotropic_vertex_orbits;
+                edge_orbits = self.isotropic_edge_orbits;
             else:
                 raise NotImplementedError("Orbit type \"{}\" is not supported"\
                         .format(param.orbit_type));
@@ -52,7 +58,7 @@ class ParameterHandler(object):
                     attributes["edge_thickness"] = np.zeros(
                             self.wire_network.num_edges);
                 thickness = attributes["edge_thickness"];
-                affected_edges = self.edge_orbits == param.orbit_id;
+                affected_edges = edge_orbits == param.orbit_id;
                 thickness[affected_edges] = param.evaluate(**kwargs);
             elif isinstance(param, VertexOffsetParameter):
                 if "vertex_offset" not in attributes:

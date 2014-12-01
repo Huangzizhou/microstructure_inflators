@@ -9,11 +9,11 @@ class WireSymmetryEdgeOrbitAttributeTest(unittest.TestCase):
     def load_wire(self, wire_file):
         self.wire_network = WireNetwork();
         self.wire_network.load_from_file(wire_file);
-        self.wire_network.attributes.add("symmetry_vertex_orbit");
-        self.wire_network.attributes.add("symmetry_edge_orbit");
+        self.wire_network.attributes.add("orthotropic_symmetry_vertex_orbit");
+        self.wire_network.attributes.add("orthotropic_symmetry_edge_orbit");
 
     def get_orbits(self):
-        return self.wire_network.attributes["symmetry_edge_orbit"];
+        return self.wire_network.attributes["orthotropic_symmetry_edge_orbit"];
 
     def assertSymmetricVectors(self, vectors):
         for i in range(len(vectors)-1):
@@ -38,7 +38,7 @@ class WireSymmetryEdgeOrbitAttributeTest(unittest.TestCase):
 
     def test_creation(self):
         self.load_wire("examples/cube.wire");
-        self.assertTrue("symmetry_edge_orbit" in self.wire_network.attributes);
+        self.assertTrue("orthotropic_symmetry_edge_orbit" in self.wire_network.attributes);
 
     def test_cube(self):
         self.load_wire("examples/cube.wire");
@@ -69,3 +69,11 @@ class WireSymmetryEdgeOrbitAttributeTest(unittest.TestCase):
         self.assertEqual(6, num_orbits);
         self.assertOrbitsAreValid(orbits);
 
+    def test_brick5_isotropic(self):
+        self.load_wire("examples/example2.wire");
+        self.wire_network.attributes.add("isotropic_symmetry_edge_orbit");
+        orbits = self.wire_network.attributes["isotropic_symmetry_edge_orbit"];
+
+        num_orbits = len(set(orbits));
+        self.assertEqual(len(orbits), len(self.wire_network.edges));
+        self.assertEqual(2, num_orbits);

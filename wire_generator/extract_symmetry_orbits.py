@@ -14,7 +14,8 @@ def load(wire_file):
 def extract_orbits(wire_network):
     isotropic_vertex_attr_name = "isotropic_symmetry_vertex_orbit";
     orthotropic_vertex_attr_name = "orthotropic_symmetry_vertex_orbit";
-    edge_attr_name = "symmetry_edge_orbit";
+    isotropic_edge_attr_name = "isotropic_symmetry_edge_orbit";
+    orthotropic_edge_attr_name = "orthotropic_symmetry_edge_orbit";
 
     wire_network.attributes.add(orthotropic_vertex_attr_name);
     orthotropic_vertex_orbits = wire_network.attributes[orthotropic_vertex_attr_name];
@@ -23,9 +24,16 @@ def extract_orbits(wire_network):
     isotropic_vertex_orbits = wire_network.attributes[
             isotropic_vertex_attr_name];
 
-    wire_network.attributes.add(edge_attr_name);
-    edge_orbits = wire_network.attributes[edge_attr_name];
-    return orthotropic_vertex_orbits, isotropic_vertex_orbits, edge_orbits;
+    wire_network.attributes.add(orthotropic_edge_attr_name);
+    orthotropic_edge_orbits = wire_network.attributes[
+            orthotropic_edge_attr_name];
+
+    wire_network.attributes.add(isotropic_edge_attr_name);
+    isotropic_edge_orbits = wire_network.attributes[
+            isotropic_edge_attr_name];
+
+    return orthotropic_vertex_orbits, isotropic_vertex_orbits,\
+            orthotropic_edge_orbits, isotropic_edge_orbits;
 
 def generate_index_map(orbits):
     orbit_map = {};
@@ -39,15 +47,18 @@ def generate_index_map(orbits):
 def save_orbits(orbit_file,
         orthotropic_vertex_orbits,
         isotropic_vertex_orbits,
-        edge_orbits):
+        orthotropic_edge_orbits,
+        isotropic_edge_orbits):
     orthotropic_vertex_orbit_map = generate_index_map(orthotropic_vertex_orbits);
     isotropic_vertex_orbit_map = generate_index_map(isotropic_vertex_orbits);
-    edge_orbit_map = generate_index_map(edge_orbits);
+    orthotropic_edge_orbit_map = generate_index_map(orthotropic_edge_orbits);
+    isotropic_edge_orbit_map = generate_index_map(isotropic_edge_orbits);
 
     contents = {
             "orthotropic_vertex_orbits": orthotropic_vertex_orbit_map.values(),
             "isotropic_vertex_orbits": isotropic_vertex_orbit_map.values(),
-            "edge_orbits": edge_orbit_map.values()
+            "orthotropic_edge_orbits": orthotropic_edge_orbit_map.values(),
+            "isotropic_edge_orbits": isotropic_edge_orbit_map.values()
             };
     with open(orbit_file, 'w') as fout:
         json.dump(contents, fout, indent=4);

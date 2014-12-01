@@ -32,8 +32,7 @@ class WireSymmetryAttribute(WireAttribute):
             if (self.symmetry_type == "orthotropic"):
                 self.__initialize_reflective_symmetries_2D(bbox_center);
             elif (self.symmetry_type == "isotropic"):
-                raise NotImplementedError(
-                        "Isotropic symmetry is not supported in 2D.");
+                self.__initialize_isotropic_symmetries_2D(bbox_center);
             else:
                 assert(False);
         elif self.wire_network.dim == 3:
@@ -61,6 +60,24 @@ class WireSymmetryAttribute(WireAttribute):
                 lambda v: (v-bbox_center)*X + bbox_center,
                 lambda v: (v-bbox_center)*Y + bbox_center,
                 #lambda v: (v-bbox_center)*XY + bbox_center
+                ];
+
+    def __initialize_isotropic_symmetries_2D(self, bbox_center):
+        X = np.array([-1, 1]);
+        Y = np.array([ 1,-1]);
+
+        rot_mat_gen = lambda (angle) : np.array([
+            [math.cos(angle), -math.sin(angle)],
+            [math.sin(angle),  math.cos(angle)] ]);
+
+        rot_90 = rot_mat_gen(math.pi * 0.5);
+        rot_180 = rot_mat_gen(math.pi);
+
+        self.symmetries = [
+                lambda v: (v-bbox_center)*X + bbox_center,
+                lambda v: (v-bbox_center)*Y + bbox_center,
+                lambda v: rot_90.dot(v-bbox_center) + bbox_center,
+                lambda v: rot_180.dot(v-bbox_center) + bbox_center,
                 ];
 
     def __initialize_reflective_symmetries_3D(self, bbox_center):

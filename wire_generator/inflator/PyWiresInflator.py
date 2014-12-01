@@ -13,8 +13,13 @@ class PyWiresInflator(object):
         wires = PyWires.WireNetwork.create_raw(
                 self.wire_network.vertices,
                 self.wire_network.edges);
+
+        thickness_type = PyWires.VERTEX;
+        if "edge_thickness" in self.wire_network.attributes:
+            thickness_type = PyWires.EDGE;
+
         if self.periodic:
-            manager = PyWires.ParameterManager.create(wires);
+            manager = PyWires.ParameterManager.create(wires, 0.5, thickness_type);
             inflator = PyWires.InflatorEngine.create_parametric(wires, manager);
         else:
             inflator = PyWires.InflatorEngine.create("simple", wires);
@@ -66,15 +71,25 @@ class PyWiresInflator(object):
             mesh.add_attribute("isotropic_vertex_orbit");
             mesh.set_attribute("isotropic_vertex_orbit", source_index);
 
-        if "symmetry_edge_orbit" in self.wire_network.attributes:
-            indices = self.wire_network.attributes["symmetry_edge_orbit"].ravel();
+        if "orthotropic_symmetry_edge_orbit" in self.wire_network.attributes:
+            indices = self.wire_network.attributes["orthotropic_symmetry_edge_orbit"].ravel();
             source_id_mask = self.source_wire_id < 0;
             source_index = np.zeros_like(self.source_wire_id);
             source_index[np.logical_not(source_id_mask)] = -1;
             source_index[source_id_mask] =\
                     indices[-self.source_wire_id[source_id_mask] - 1];
-            mesh.add_attribute("edge_orbit");
-            mesh.set_attribute("edge_orbit", source_index);
+            mesh.add_attribute("orthotropic_edge_orbit");
+            mesh.set_attribute("orthotropic_edge_orbit", source_index);
+
+        if "isotropic_symmetry_edge_orbit" in self.wire_network.attributes:
+            indices = self.wire_network.attributes["isotropic_symmetry_edge_orbit"].ravel();
+            source_id_mask = self.source_wire_id < 0;
+            source_index = np.zeros_like(self.source_wire_id);
+            source_index[np.logical_not(source_id_mask)] = -1;
+            source_index[source_id_mask] =\
+                    indices[-self.source_wire_id[source_id_mask] - 1];
+            mesh.add_attribute("isotropic_edge_orbit");
+            mesh.set_attribute("isotropic_edge_orbit", source_index);
 
         return mesh;
 
