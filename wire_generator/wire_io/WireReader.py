@@ -3,7 +3,7 @@ class WireReader(object):
         self.__wire_file = wire_file;
         self.__initialize();
         self.__parse();
-        self.__remove_duplicated_edges();
+        #self.__remove_duplicated_edges();
 
     def __initialize(self):
         self.__dim = 0;
