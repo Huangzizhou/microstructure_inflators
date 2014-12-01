@@ -57,7 +57,7 @@ class InflatorFacade3D(InflatorFacade):
         inflator = PyWiresInflator(wire_network, self.parameters,
                 options.get("periodic", False));
         inflator.inflate(
-                subdivide_method="loop",
+                subdivide_method="simple",
                 subdivide_order = options.get("subdiv", 1));
         return inflator.mesh;
 
