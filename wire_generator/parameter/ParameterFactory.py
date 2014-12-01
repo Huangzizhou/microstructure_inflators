@@ -110,10 +110,10 @@ class ParameterFactory(object):
                     .format(self.orbit_type));
 
     def __get_num_orthotropic_vertex_orbits(self):
-        if "symmetry_vertex_orbit" not in self.wire_network.attributes:
+        if "orthotropic_symmetry_vertex_orbit" not in self.wire_network.attributes:
             self.wire_network.compute_symmetry_orbits();
         return len(np.unique(
-            self.wire_network.attributes["symmetry_vertex_orbit"]));
+            self.wire_network.attributes["orthotropic_symmetry_vertex_orbit"]));
 
     def __get_num_isotropic_vertex_orbits(self):
         if "isotropic_symmetry_vertex_orbit" not in self.wire_network.attributes:

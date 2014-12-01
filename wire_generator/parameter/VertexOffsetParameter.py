@@ -10,6 +10,7 @@ class VertexOffsetParameter(PatternParameter):
         self.__compute_mask();
 
     def __compute_mask(self):
+        raise DeprecationWarning("This method is deprecated.");
         if "symmetry_vertex_orbit" not in self.wire_network.attributes:
             self.wire_network.compute_symmetry_orbits();
         orbits = self.wire_network.attributes["symmetry_vertex_orbit"];

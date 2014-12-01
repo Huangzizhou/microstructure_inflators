@@ -58,7 +58,7 @@ class ParameterHandler2DTest(unittest.TestCase):
         num_parameters = inflator.get_num_parameters();
         self.assertEqual(num_parameters, len(param));
 
-        vertex_orbits = wire_network.attributes["symmetry_vertex_orbit"];
+        vertex_orbits = wire_network.attributes["orthotropic_symmetry_vertex_orbit"];
         for i in range(num_parameters):
             affected_vertices = inflator.get_affected_vertex_orbit(i).ravel();
             orbit_ids = vertex_orbits[affected_vertices];
@@ -103,7 +103,7 @@ class ParameterHandler2DTest(unittest.TestCase):
         num_parameters = inflator.get_num_parameters();
         self.assertEqual(num_parameters, len(param));
 
-        vertex_orbits = wire_network.attributes["symmetry_vertex_orbit"];
+        vertex_orbits = wire_network.attributes["orthotropic_symmetry_vertex_orbit"];
         for i in range(num_parameters):
             affected_vertices = inflator.get_affected_vertex_orbit(i).ravel();
             orbit_ids = vertex_orbits[affected_vertices];

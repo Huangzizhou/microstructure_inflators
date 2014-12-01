@@ -18,12 +18,13 @@ class ParameterHandler(object):
             del self.wire_network.attributes["vertex_offset"];
 
     def __initialize_orbits(self):
-        if "symmetry_vertex_orbit" not in self.wire_network.attributes or\
+        if "orthotropic_symmetry_vertex_orbit" not in self.wire_network.attributes or\
                 "symmetry_edge_orbit" not in self.wire_network.attributes or\
                 "isotropic_symmetry_vertex_orbit" not in self.wire_network.attributes:
             self.wire_network.compute_symmetry_orbits();
 
-        self.orthotropic_vertex_orbits = self.wire_network.attributes["symmetry_vertex_orbit"];
+        self.orthotropic_vertex_orbits = \
+                self.wire_network.attributes["orthotropic_symmetry_vertex_orbit"];
         self.isotropic_vertex_orbits = \
                 self.wire_network.attributes["isotropic_symmetry_vertex_orbit"];
         self.edge_orbits = self.wire_network.attributes["symmetry_edge_orbit"];

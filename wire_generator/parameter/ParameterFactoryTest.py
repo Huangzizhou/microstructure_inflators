@@ -37,7 +37,7 @@ class ParameterFactoryTest(unittest.TestCase):
         param_factory.create_parameters_from_dict(config);
         parameters = param_factory.parameters;
 
-        vertex_orbit = wire_network.attributes["symmetry_vertex_orbit"];
+        vertex_orbit = wire_network.attributes["orthotropic_symmetry_vertex_orbit"];
         num_orbits = len(np.unique(vertex_orbit));
         self.assertEqual(num_orbits*2, len(parameters));
 

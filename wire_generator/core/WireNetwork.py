@@ -50,12 +50,12 @@ class WireNetwork(object):
             if os.path.exists(orbit_file):
                 with open(orbit_file) as fin:
                     orbit_config = json.load(fin);
-                    if "vertex_orbits" in orbit_config:
-                        vertex_orbits = orbit_config["vertex_orbits"];
+                    if "orthotropic_vertex_orbits" in orbit_config:
+                        orthotropic_vertex_orbits = orbit_config["orthotropic_vertex_orbits"];
                         orbit_ids = np.zeros(self.num_vertices);
-                        for i,v_indices in enumerate(vertex_orbits):
+                        for i,v_indices in enumerate(orthotropic_vertex_orbits):
                             orbit_ids[v_indices] = i;
-                        self.attributes["symmetry_vertex_orbit"] = orbit_ids;
+                        self.attributes["orthotropic_symmetry_vertex_orbit"] = orbit_ids;
                     if "isotropic_vertex_orbits" in orbit_config:
                         vertex_orbits = orbit_config["isotropic_vertex_orbits"];
                         orbit_ids = np.zeros(self.num_vertices);
@@ -70,7 +70,7 @@ class WireNetwork(object):
                         self.attributes["symmetry_edge_orbit"] = orbit_ids;
                 return;
 
-        self.attributes.add("symmetry_vertex_orbit");
+        self.attributes.add("orthotropic_symmetry_vertex_orbit");
         self.attributes.add("isotropic_symmetry_vertex_orbit");
         self.attributes.add("symmetry_edge_orbit");
 

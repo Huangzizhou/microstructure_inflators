@@ -15,11 +15,11 @@ class ParameterHandler2D(object):
         self.__compute_orbit_index_maps();
 
     def __initialize_orbits(self):
-        if "symmetry_vertex_orbit" not in self.wire_network.attributes or\
+        if "orthotropic_symmetry_vertex_orbit" not in self.wire_network.attributes or\
                 "symmetry_edge_orbit" not in self.wire_network.attributes:
             self.wire_network.compute_symmetry_orbits();
 
-        self.vertex_orbits = self.wire_network.attributes["symmetry_vertex_orbit"];
+        self.vertex_orbits = self.wire_network.attributes["orthotropic_symmetry_vertex_orbit"];
         self.edge_orbits = self.wire_network.attributes["symmetry_edge_orbit"];
 
     def __compute_orbit_index_maps(self):

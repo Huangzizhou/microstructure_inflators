@@ -56,17 +56,17 @@ class WireTilerTest(unittest.TestCase):
     def test_vertex_attributes(self):
         cell = WireNetwork();
         cell.load_from_file("examples/cube.wire");
-        cell.attributes.add("symmetry_vertex_orbit");
-        cell_orbits = cell.attributes["symmetry_vertex_orbit"];
+        cell.attributes.add("orthotropic_symmetry_vertex_orbit");
+        cell_orbits = cell.attributes["orthotropic_symmetry_vertex_orbit"];
 
         pattern = WireTiler();
         pattern.set_single_cell_from_wire_network(cell);
         pattern.tile([2, 2, 2]);
         tiled_wires = pattern.wire_network;
 
-        self.assertTrue("symmetry_vertex_orbit" in tiled_wires.attributes);
+        self.assertTrue("orthotropic_symmetry_vertex_orbit" in tiled_wires.attributes);
 
-        orbits = tiled_wires.attributes["symmetry_vertex_orbit"];
+        orbits = tiled_wires.attributes["orthotropic_symmetry_vertex_orbit"];
         self.assertEqual(len(tiled_wires.vertices), len(orbits));
         self.assertListEqual(
                 np.unique(cell_orbits.ravel()).tolist(),

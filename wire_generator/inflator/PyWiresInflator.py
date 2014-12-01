@@ -46,15 +46,25 @@ class PyWiresInflator(object):
         mesh.add_attribute("source_wire_id");
         mesh.set_attribute("source_wire_id", self.source_wire_id);
 
-        if "symmetry_vertex_orbit" in self.wire_network.attributes:
-            indices = self.wire_network.attributes["symmetry_vertex_orbit"].ravel();
+        if "orthotropic_symmetry_vertex_orbit" in self.wire_network.attributes:
+            indices = self.wire_network.attributes["orthotropic_symmetry_vertex_orbit"].ravel();
             source_id_mask = self.source_wire_id > 0;
             source_index = np.zeros_like(self.source_wire_id);
             source_index[np.logical_not(source_id_mask)] = -1;
             source_index[source_id_mask] =\
                     indices[self.source_wire_id[source_id_mask] - 1];
-            mesh.add_attribute("vertex_orbit");
-            mesh.set_attribute("vertex_orbit", source_index);
+            mesh.add_attribute("orthotropic_vertex_orbit");
+            mesh.set_attribute("orthotropic_vertex_orbit", source_index);
+
+        if "isotropic_symmetry_vertex_orbit" in self.wire_network.attributes:
+            indices = self.wire_network.attributes["isotropic_symmetry_vertex_orbit"].ravel();
+            source_id_mask = self.source_wire_id > 0;
+            source_index = np.zeros_like(self.source_wire_id);
+            source_index[np.logical_not(source_id_mask)] = -1;
+            source_index[source_id_mask] =\
+                    indices[self.source_wire_id[source_id_mask] - 1];
+            mesh.add_attribute("isotropic_vertex_orbit");
+            mesh.set_attribute("isotropic_vertex_orbit", source_index);
 
         if "symmetry_edge_orbit" in self.wire_network.attributes:
             indices = self.wire_network.attributes["symmetry_edge_orbit"].ravel();

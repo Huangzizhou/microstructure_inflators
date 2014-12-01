@@ -13,11 +13,11 @@ def load(wire_file):
 
 def extract_orbits(wire_network):
     isotropic_vertex_attr_name = "isotropic_symmetry_vertex_orbit";
-    vertex_attr_name = "symmetry_vertex_orbit";
+    orthotropic_vertex_attr_name = "orthotropic_symmetry_vertex_orbit";
     edge_attr_name = "symmetry_edge_orbit";
 
-    wire_network.attributes.add(vertex_attr_name);
-    vertex_orbits = wire_network.attributes[vertex_attr_name];
+    wire_network.attributes.add(orthotropic_vertex_attr_name);
+    orthotropic_vertex_orbits = wire_network.attributes[orthotropic_vertex_attr_name];
 
     wire_network.attributes.add(isotropic_vertex_attr_name);
     isotropic_vertex_orbits = wire_network.attributes[
@@ -25,7 +25,7 @@ def extract_orbits(wire_network):
 
     wire_network.attributes.add(edge_attr_name);
     edge_orbits = wire_network.attributes[edge_attr_name];
-    return vertex_orbits, isotropic_vertex_orbits, edge_orbits;
+    return orthotropic_vertex_orbits, isotropic_vertex_orbits, edge_orbits;
 
 def generate_index_map(orbits):
     orbit_map = {};
@@ -37,15 +37,15 @@ def generate_index_map(orbits):
     return orbit_map;
 
 def save_orbits(orbit_file,
-        vertex_orbits,
+        orthotropic_vertex_orbits,
         isotropic_vertex_orbits,
         edge_orbits):
-    vertex_orbit_map = generate_index_map(vertex_orbits);
+    orthotropic_vertex_orbit_map = generate_index_map(orthotropic_vertex_orbits);
     isotropic_vertex_orbit_map = generate_index_map(isotropic_vertex_orbits);
     edge_orbit_map = generate_index_map(edge_orbits);
 
     contents = {
-            "vertex_orbits": vertex_orbit_map.values(),
+            "orthotropic_vertex_orbits": orthotropic_vertex_orbit_map.values(),
             "isotropic_vertex_orbits": isotropic_vertex_orbit_map.values(),
             "edge_orbits": edge_orbit_map.values()
             };
