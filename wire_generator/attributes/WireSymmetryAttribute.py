@@ -89,20 +89,30 @@ class WireSymmetryAttribute(WireAttribute):
         Y = np.array([ 1,-1, 1]);
         Z = np.array([ 1, 1,-1]);
 
-        rot_X = Quaternion.fromAxisAngle(
+        rot_X_90 = Quaternion.fromAxisAngle(
                 [1.0, 0.0, 0.0], math.pi * 0.5).to_matrix();
-        rot_Y = Quaternion.fromAxisAngle(
+        rot_Y_90 = Quaternion.fromAxisAngle(
                 [0.0, 1.0, 0.0], math.pi * 0.5).to_matrix();
-        rot_Z = Quaternion.fromAxisAngle(
+        rot_Z_90 = Quaternion.fromAxisAngle(
                 [0.0, 0.0, 1.0], math.pi * 0.5).to_matrix();
+
+        rot_X_180 = Quaternion.fromAxisAngle(
+                [1.0, 0.0, 0.0], math.pi).to_matrix();
+        rot_Y_180 = Quaternion.fromAxisAngle(
+                [0.0, 1.0, 0.0], math.pi).to_matrix();
+        rot_Z_180 = Quaternion.fromAxisAngle(
+                [0.0, 0.0, 1.0], math.pi).to_matrix();
 
         self.symmetries = [
                 lambda v: (v-bbox_center)*X + bbox_center,
                 lambda v: (v-bbox_center)*Y + bbox_center,
                 lambda v: (v-bbox_center)*Z + bbox_center,
-                lambda v: rot_X.dot(v-bbox_center) + bbox_center,
-                lambda v: rot_Y.dot(v-bbox_center) + bbox_center,
-                lambda v: rot_Z.dot(v-bbox_center) + bbox_center,
+                lambda v: rot_X_90.dot(v-bbox_center) + bbox_center,
+                lambda v: rot_Y_90.dot(v-bbox_center) + bbox_center,
+                lambda v: rot_Z_90.dot(v-bbox_center) + bbox_center,
+                lambda v: rot_X_180.dot(v-bbox_center) + bbox_center,
+                lambda v: rot_Y_180.dot(v-bbox_center) + bbox_center,
+                lambda v: rot_Z_180.dot(v-bbox_center) + bbox_center,
                 ];
 
     @property
