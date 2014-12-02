@@ -92,10 +92,11 @@ def parse_result(result):
 
 def compute_modes(elasticity_tensor):
     eig_val, eig_vec = eig(elasticity_tensor);
+    eig_val = sorted(eig_val, reverse=True);
     if (eig_val[0] > 100 * eig_val[1]):
         print(bcolors.OKGREEN + "This pattern might be pentamode!!!" +
                 bcolors.ENDC);
-    return eig_val.tolist();
+    return eig_val;
 
 def save_timing(msh_file):
     basename, ext = os.path.splitext(msh_file);
