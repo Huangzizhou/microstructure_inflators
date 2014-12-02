@@ -97,7 +97,8 @@ class WireNetwork(object):
     def __compute_symmetry_orbits_from_wires(self):
         self.attributes.add("orthotropic_symmetry_vertex_orbit");
         self.attributes.add("isotropic_symmetry_vertex_orbit");
-        self.attributes.add("symmetry_edge_orbit");
+        self.attributes.add("orthotropic_symmetry_edge_orbit");
+        self.attributes.add("isotropic_symmetry_edge_orbit");
 
     def __initialize(self):
         self.__compute_connectivity();

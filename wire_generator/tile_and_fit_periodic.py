@@ -2,10 +2,12 @@
 
 import argparse
 import json
-from subprocess import check_call, check_output
+import numpy as np
+from numpy.linalg import eig
 import os
 import os.path
 import re
+from subprocess import check_call, check_output
 
 import core.PyMeshSetting
 import PyMesh
@@ -13,6 +15,7 @@ from tile import tile, parse_config_file
 from tile_and_tetgen import generate_tetgen_flags, run_tetgen
 from utils.mesh_io import save_mesh_raw
 from utils.timethis import timethis
+from utils.print_colors import bcolors
 
 @timethis
 def run_material_fit(input_file, material_file, output_file):
@@ -23,11 +26,14 @@ def run_material_fit(input_file, material_file, output_file):
     print(cmd);
     result = check_output(cmd.split());
 
-    young, shear, poisson = parse_result(result);
+    young, shear, poisson, elasticity = parse_result(result);
+    modes = compute_modes(elasticity);
     mat_config = {
             "youngs_modulus": young,
             "shear_modulus": shear,
-            "poisson_ratio": poisson };
+            "poisson_ratio": poisson,
+            "elasticity_tensor": elasticity,
+            "elasticity_modes": modes};
 
     basename, ext = os.path.splitext(output_file);
     json_file = "{}_param.json".format(basename);
@@ -38,6 +44,15 @@ def run_material_fit(input_file, material_file, output_file):
 def parse_field(input_text, header, num_entries):
     pattern = "^{}(.*)$".format(header);
     matcher = re.compile(pattern, re.M);
+    match_result = matcher.search(input_text);
+    assert(match_result is not None);
+    result = map(float, match_result.group(1).split());
+    assert(len(result) == num_entries);
+    return result;
+
+def parse_multiline_field(input_text, header, tailer, num_entries):
+    pattern = "{}(.*){}".format(header, tailer);
+    matcher = re.compile(pattern, re.M | re.S);
     match_result = matcher.search(input_text);
     assert(match_result is not None);
     result = map(float, match_result.group(1).split());
@@ -61,12 +76,26 @@ def parse_poisson(result):
     v_xy, v_xz, v_yz = parse_field(result, header2, 3);
     return [v_yz, v_zy, v_zx, v_xz, v_xy, v_yx];
 
+def parse_elasticity_tensor(result):
+    header = "Homogenized elasticity tensor:";
+    tailer = "\n\n";
+    elasticity = parse_multiline_field(result, header, tailer, 36);
+    return np.reshape(elasticity, (6, 6)).tolist();
+
 def parse_result(result):
     young = parse_young(result);
     shear = parse_shear(result);
     poisson = parse_poisson(result);
+    elasticity = parse_elasticity_tensor(result);
 
-    return young, shear, poisson;
+    return young, shear, poisson, elasticity;
+
+def compute_modes(elasticity_tensor):
+    eig_val, eig_vec = eig(elasticity_tensor);
+    if (eig_val[0] > 100 * eig_val[1]):
+        print(bcolors.OKGREEN + "This pattern might be pentamode!!!" +
+                bcolors.ENDC);
+    return eig_val.tolist();
 
 def save_timing(msh_file):
     basename, ext = os.path.splitext(msh_file);
