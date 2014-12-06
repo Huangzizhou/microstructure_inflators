@@ -1,5 +1,5 @@
 {
-    "vertex_orbits": [
+    "isotropic_vertex_orbits": [
         [
             0, 
             1, 
@@ -10,7 +10,26 @@
             4
         ]
     ], 
-    "edge_orbits": [
+    "isotropic_edge_orbits": [
+        [
+            0, 
+            1, 
+            2, 
+            3
+        ]
+    ], 
+    "orthotropic_vertex_orbits": [
+        [
+            0, 
+            1, 
+            2, 
+            3
+        ], 
+        [
+            4
+        ]
+    ], 
+    "orthotropic_edge_orbits": [
         [
             0, 
             1, 
