@@ -21,6 +21,10 @@ class MaterialParameter(object):
         self.shear_xy = self.config["shear_modulus"][0];
         self.poisson_xy = self.config["poisson_ratio"][0];
         self.poisson_yx = self.config["poisson_ratio"][1];
+        self.elasticity_mode_0 = self.config["elasticity_modes"][0];
+        self.elasticity_mode_1 = self.config["elasticity_modes"][1];
+        self.elasticity_mode_2 = self.config["elasticity_modes"][2];
+
         if self.poisson_xy > 1.0 or self.poisson_xy < -1.0 or\
                 self.poisson_yx > 1.0 or self.poisson_yx < -1.0:
             print("In {}, (v_xy={} v_yx={}) outside of [-1, 1]".format(
@@ -31,7 +35,11 @@ class MaterialParameter(object):
                 "young_y",
                 "shear_xy",
                 "poisson_xy",
-                "poisson_yx" ];
+                "poisson_yx",
+                "elasticity_mode_0",
+                "elasticity_mode_1",
+                "elasticity_mode_0",
+                ];
         self.material = OrthotropicMaterial(
                 [self.young_x, self.young_y],
                 [self.poisson_xy, self.poisson_yx],
@@ -53,21 +61,30 @@ class MaterialParameter(object):
         self.poisson_xz = self.config["poisson_ratio"][3];
         self.poisson_xy = self.config["poisson_ratio"][4];
         self.poisson_yx = self.config["poisson_ratio"][5];
+        self.elasticity_mode_0 = self.config["elasticity_modes"][0];
+        self.elasticity_mode_1 = self.config["elasticity_modes"][1];
+        self.elasticity_mode_2 = self.config["elasticity_modes"][2];
+        self.elasticity_mode_3 = self.config["elasticity_modes"][3];
+        self.elasticity_mode_4 = self.config["elasticity_modes"][4];
+        self.elasticity_mode_5 = self.config["elasticity_modes"][5];
 
-        if self.poisson_xy > 0.5 or self.poisson_xy < -1.0 or\
-                self.poisson_yx > 1.0 or self.poisson_yx < -1.0:
-            print("In {}, (v_xy={} v_yx={}) outside of [-1, 0.5]".format(
-                param_file, self.poisson_xy, self.poisson_yx));
+        #if self.poisson_xy > 0.5 or self.poisson_xy < -1.0 or\
+        #        self.poisson_yx > 1.0 or self.poisson_yx < -1.0:
+        #    print("In {}, (v_xy={} v_yx={}) outside of [-1, 0.5]".format(
+        #        param_file, self.poisson_xy, self.poisson_yx));
 
-        if self.poisson_yz > 0.5 or self.poisson_yz < -1.0 or\
-                self.poisson_zy > 1.0 or self.poisson_zy < -1.0:
-            print("In {}, (v_yz={} v_zy={}) outside of [-1, 0.5]".format(
-                param_file, self.poisson_yz, self.poisson_zy));
+        #if self.poisson_yz > 0.5 or self.poisson_yz < -1.0 or\
+        #        self.poisson_zy > 1.0 or self.poisson_zy < -1.0:
+        #    print("In {}, (v_yz={} v_zy={}) outside of [-1, 0.5]".format(
+        #        param_file, self.poisson_yz, self.poisson_zy));
 
-        if self.poisson_zx > 0.5 or self.poisson_zx < -1.0 or\
-                self.poisson_xz > 1.0 or self.poisson_xz < -1.0:
-            print("In {}, (v_zx={} v_xz={}) outside of [-1, 0.5]".format(
-                param_file, self.poisson_zx, self.poisson_xz));
+        #if self.poisson_zx > 0.5 or self.poisson_zx < -1.0 or\
+        #        self.poisson_xz > 1.0 or self.poisson_xz < -1.0:
+        #    print("In {}, (v_zx={} v_xz={}) outside of [-1, 0.5]".format(
+        #        param_file, self.poisson_zx, self.poisson_xz));
+
+        if self.elasticity_mode_0 / self.elasticity_mode_1 > 100.0:
+            print("Pentamode material: {}".format(param_file));
 
         self.names = [
                 "young_x",
@@ -82,6 +99,12 @@ class MaterialParameter(object):
                 "poisson_xz",
                 "poisson_xy",
                 "poisson_yx",
+                "elasticity_mode_0",
+                "elasticity_mode_1",
+                "elasticity_mode_2",
+                "elasticity_mode_3",
+                "elasticity_mode_4",
+                "elasticity_mode_5",
                 ];
 
         self.material = OrthotropicMaterial(

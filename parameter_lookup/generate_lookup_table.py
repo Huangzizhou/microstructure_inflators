@@ -127,11 +127,14 @@ def print_summary(properties):
     min_values = np.amin(values, axis=0);
     max_values = np.amax(values, axis=0);
 
-    header_fmt = "{:>10}:" + " ".join(["{:>10}"] * num_fields);
-    content_fmt = "{:>10}:" + " ".join(["{:10.3f}"] * num_fields);
-    print(header_fmt.format("name", *names));
-    print(content_fmt.format("min", *min_values));
-    print(content_fmt.format("max", *max_values));
+    for name, min_val, max_val in zip(names, min_values, max_values):
+        print("{:>10} {:>10.3f} {:>10.3f}".format(name, min_val, max_val));
+
+    #header_fmt = "{:>10}:" + " ".join(["{:>10}"] * num_fields);
+    #content_fmt = "{:>10}:" + " ".join(["{:10.3f}"] * num_fields);
+    #print(header_fmt.format("name", *names));
+    #print(content_fmt.format("min", *min_values));
+    #print(content_fmt.format("max", *max_values));
 
 def parse_args():
     parser = argparse.ArgumentParser(
