@@ -15,6 +15,8 @@ def load_config(config_file):
     {
         "wire_file": wire_file,
         "cell_size": float,
+        "orbit_type": "orthotropic" | "isotropic",
+        "subdiv": #,
         "thickness": {
             "per_edge": true,
             "orbits": [#, #, ...],
@@ -47,8 +49,8 @@ def load_orbits(wire_file):
     orbit_file = find_file(orbit_file);
     with open(orbit_file, 'r') as fin:
         orbit_config = json.load(fin);
-        vertex_orbits = orbit_config.get("vertex_orbits", []);
-        edge_orbits = orbit_config.get("edge_orbits", []);
+        vertex_orbits = orbit_config.get("orthotropic_vertex_orbits", []);
+        edge_orbits = orbit_config.get("orthotropic_edge_orbits", []);
         return np.array(vertex_orbits), np.array(edge_orbits);
 
 def sweep_thickness(thickness_config, wire_network):
