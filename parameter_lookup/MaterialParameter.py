@@ -21,14 +21,14 @@ class MaterialParameter(object):
         self.shear_xy = self.config["shear_modulus"][0];
         self.poisson_xy = self.config["poisson_ratio"][0];
         self.poisson_yx = self.config["poisson_ratio"][1];
-        self.elasticity_mode_0 = self.config["elasticity_modes"][0];
-        self.elasticity_mode_1 = self.config["elasticity_modes"][1];
-        self.elasticity_mode_2 = self.config["elasticity_modes"][2];
+        #self.elasticity_mode_0 = self.config["elasticity_modes"][0];
+        #self.elasticity_mode_1 = self.config["elasticity_modes"][1];
+        #self.elasticity_mode_2 = self.config["elasticity_modes"][2];
 
-        if self.poisson_xy > 1.0 or self.poisson_xy < -1.0 or\
-                self.poisson_yx > 1.0 or self.poisson_yx < -1.0:
-            print("In {}, (v_xy={} v_yx={}) outside of [-1, 1]".format(
-                param_file, self.poisson_xy, self.poisson_yx));
+        #if self.poisson_xy > 1.0 or self.poisson_xy < -1.0 or\
+        #        self.poisson_yx > 1.0 or self.poisson_yx < -1.0:
+        #    print("In {}, (v_xy={} v_yx={}) outside of [-1, 1]".format(
+        #        param_file, self.poisson_xy, self.poisson_yx));
 
         self.names = [
                 "young_x",
@@ -36,9 +36,9 @@ class MaterialParameter(object):
                 "shear_xy",
                 "poisson_xy",
                 "poisson_yx",
-                "elasticity_mode_0",
-                "elasticity_mode_1",
-                "elasticity_mode_0",
+                #"elasticity_mode_0",
+                #"elasticity_mode_1",
+                #"elasticity_mode_0",
                 ];
         self.material = OrthotropicMaterial(
                 [self.young_x, self.young_y],
@@ -83,7 +83,7 @@ class MaterialParameter(object):
         #    print("In {}, (v_zx={} v_xz={}) outside of [-1, 0.5]".format(
         #        param_file, self.poisson_zx, self.poisson_xz));
 
-        if self.elasticity_mode_0 / self.elasticity_mode_1 > 100.0:
+        if self.elasticity_mode_0 / self.elasticity_mode_1 > 50.0:
             print("Pentamode material: {}".format(param_file));
 
         self.names = [

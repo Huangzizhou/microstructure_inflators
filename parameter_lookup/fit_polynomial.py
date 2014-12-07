@@ -8,6 +8,8 @@ import numpy as np
 from numpy.linalg import lstsq
 from subprocess import check_call
 
+from PolynomialFitter import PolynomialFitter
+
 def load_csv(csv_file):
     assert(os.path.exists(csv_file));
     with open(csv_file, 'r') as fin:
@@ -29,6 +31,12 @@ def select_columns(header, data, matchers):
                 break;
 
     return selected_headers, data[:,selected_columns];
+
+def remove_constant_columns(header, data):
+    min_val = np.amin(data, axis=0);
+    max_val = np.amax(data, axis=0);
+    is_not_const = min_val < max_val;
+    return np.array(header)[is_not_const], data[:,is_not_const]
 
 def extract_pattern_parameter(header, data):
     vertex_thickness_pattern = "vertex_orbit_\d+_thickness";
@@ -54,20 +62,6 @@ def extract_material_parameter(header, data):
             ];
     return select_columns(header, data, matcher);
 
-def linear_coeffs(x):
-    return x;
-
-def quadratic_coeffs(x):
-    x_dof = x.shape[1];
-    coeffs = [];
-
-    for i in range(x_dof):
-        for j in range(x_dof):
-            i_col = x[:, i];
-            j_col = x[:, j];
-            coeffs.append(np.multiply(i_col, j_col).reshape((-1, 1)));
-    return np.hstack(coeffs);
-
 def poly_fit(x, y, degree):
     n = x.shape[0];
     assert(n == y.shape[0]);
@@ -75,72 +69,27 @@ def poly_fit(x, y, degree):
     x_dof = x.shape[1];
     y_dof = y.shape[1];
 
-    num_sampled = int(n * 0.025);
-    print("{} samples used".format(num_sampled));
-    sample_indices = np.random.random_integers(0, n, num_sampled);
+    #num_sampled = n;
+    #sample_indices = np.arange(n, dtype=int);
+    num_sampled = max(min(20, n), int(n * 0.025));
+    print("{} out of {} samples used ({:4.3%})".format(
+        num_sampled, n, float(num_sampled)/float(n)));
+    sample_indices = np.random.random_integers(0, n-1, num_sampled);
     sampled_x = x[sample_indices];
     sampled_y = y[sample_indices];
 
-    coeff_mat = [np.ones((num_sampled, 1))];
-    coeff_mat.append(linear_coeffs(sampled_x));
-    coeff_mat.append(quadratic_coeffs(sampled_x));
+    fitter = PolynomialFitter.create("quadratic");
+    fitter.fit(sampled_x, sampled_y);
 
-    coeff_mat = np.hstack(coeff_mat);
-    sol, residual, rank, singular_vals = lstsq(coeff_mat, sampled_y);
+    fitted_y = fitter.evaluate(x);
+    err = np.absolute(fitted_y - y);
+    return fitter, err;
 
-    full_coeff_mat = [np.ones((n, 1))];
-    full_coeff_mat.append(linear_coeffs(x));
-    full_coeff_mat.append(quadratic_coeffs(x));
-    full_coeff_mat = np.hstack(full_coeff_mat);
-
-    err = np.absolute(full_coeff_mat.dot(sol) - y);
-    return sol, err;
-
-def generate_function_signature(num_dof, c, values, x_idx):
-    linear_terms = [];
-    for i in range(num_dof):
-        if i == x_idx:
-            linear_terms.append("x * {}".format(c[i+1]));
-        else:
-            linear_terms.append("{}".format(c[i+1] * values[i]));
-    linear_terms = "+".join(linear_terms);
-
-    quadratic_terms = [];
-    for i in range(num_dof):
-        if i == x_idx:
-            xi_val = "x";
-        else:
-            xi_val = values[i];
-        for j in range(num_dof):
-            if j == x_idx:
-                xj_val = "x";
-            else:
-                xj_val = values[j];
-
-            quadratic_terms.append("{} * {} * {}".format(xi_val, xj_val,
-                    c[1+num_dof+i*num_dof+j]));
-    quadratic_terms = "+".join(quadratic_terms);
-
-    signature = "\nf <- function(x) {{ {} + {} + {}; }}\n".format(
-            c[0], linear_terms, quadratic_terms);
-    return signature;
-
-def evaluate(values, c):
-    num_dof = len(values);
-    r = c[0];
-
-    for i in range(num_dof):
-        r += c[i+1] * values[i];
-
-    for i in range(num_dof):
-        for j in range(num_dof):
-            r += c[1+num_dof+i*num_dof+j] * values[i] * values[j];
-    return r;
-
-def dense_sample_slice(num_samples, values, min_values, max_values, c, idx_0, idx_1, idx_2):
-    samples_0 = np.linspace(min_values[idx_0], max_values[idx_0], num_samples);
-    samples_1 = np.linspace(min_values[idx_1], max_values[idx_1], num_samples);
-    samples_2 = np.linspace(min_values[idx_2], max_values[idx_2], num_samples);
+def dense_sample_slice(num_samples, values, min_values, max_values, fitter,
+        out_idx, outer_idx, inner_idx, color_idx, outer_samples, color_samples):
+    samples_0 = outer_samples;
+    samples_1 = np.linspace(min_values[inner_idx], max_values[inner_idx], num_samples);
+    samples_2 = color_samples;
 
     values_0, values_1, values_2 = np.meshgrid(samples_0, samples_1, samples_2);
     values_0 = values_0.ravel();
@@ -149,10 +98,10 @@ def dense_sample_slice(num_samples, values, min_values, max_values, c, idx_0, id
 
     data = [];
     for v0,v1,v2 in zip(values_0, values_1, values_2):
-        values[idx_0] = v0;
-        values[idx_1] = v1;
-        values[idx_2] = v2;
-        r = evaluate(values, c);
+        values[outer_idx] = v0;
+        values[inner_idx] = v1;
+        values[color_idx] = v2;
+        r = fitter.evaluate(values)[0, out_idx];
         data.append([v0, v1, v2, r]);
 
     return data;
@@ -185,6 +134,7 @@ library(ggplot2);
 data <- read.csv("tmp_err.csv");
 p <- ggplot(data);
 p <- p + geom_histogram(aes(x=relative_err), binwidth=0.01);
+p <- p + xlim(0.0, 0.5);
 p <- p + facet_wrap(~ type, ncol=4);
 ggsave("tmp_err.pdf", width=10, height=6);
 """
@@ -201,7 +151,10 @@ def plot_slice(csv_file, outer_index, inner_index, color_index, output_index,
 library(ggplot2);
 data <- read.csv("{csv_file}");
 slice_data <- read.csv("{slice_file}");
-""".format(csv_file = csv_file, slice_file = "tmp_slice.csv");
+#facet_values <- unique(data${facet_name});
+#slice_data <- subset(slice_data, {facet_name} == facet_values);
+""".format(csv_file = csv_file, slice_file = "tmp_slice.csv",
+        facet_name = x_header[output_index]);
 
     for i,header in enumerate(x_header):
         if i == outer_index or i == inner_index or i == color_index:
@@ -221,6 +174,7 @@ p <- p + geom_line(aes(x={x_name}, y={y_name}, color={color_name}, group={color_
 p <- p + geom_line(data=slice_data, aes(x={x_name}, y={y_name}, group={color_name}));
 p <- p + facet_wrap(~ {facet_name}, ncol=5);
 p <- p + scale_color_gradientn(colours=rainbow(7));
+p <- p + ggtitle("{y_name} vs {x_name} grouped by {facet_name}");
 """.format(x_name = x_header[inner_index],
         y_name = y_header[output_index],
         color_name = x_header[color_index],
@@ -251,22 +205,33 @@ def main():
     header, data = load_csv(csv_file);
 
     pattern_header, pattern_data = extract_pattern_parameter(header, data);
+    pattern_header, pattern_data = remove_constant_columns(
+            pattern_header, pattern_data);
     material_header, material_data = extract_material_parameter(header, data);
 
-    sol, err = poly_fit(pattern_data, material_data, args.degree);
+    print("Pattern parameters:");
+    for i,name in enumerate(pattern_header):
+        print("{:>3}: {}".format(i, name));
+    print("Material parameters");
+    for i,name in enumerate(material_header):
+        print("{:>3}: {}".format(i, name));
+
+    fitter, err = poly_fit(pattern_data, material_data, args.degree);
 
     plot_err_histogram(err, material_data, material_header);
 
     in_idx_0 = 0;
-    in_idx_1 = 1;
+    in_idx_1 = 3;
     in_idx_2 = 4;
-    out_idx = 5;
+    out_idx = 0;
     slice_idx = 20;
 
-    fitted_slice = dense_sample_slice(5, pattern_data[slice_idx],
+    fitted_slice = dense_sample_slice(30, pattern_data[slice_idx],
             np.amin(pattern_data, axis=0),
             np.amax(pattern_data, axis=0),
-            sol.T[out_idx], in_idx_0, in_idx_1, in_idx_2);
+            fitter, out_idx, in_idx_0, in_idx_1, in_idx_2,
+            np.unique(pattern_data[:, in_idx_0]),
+            np.unique(pattern_data[:, in_idx_2]));
 
     save_slice("tmp_slice.csv", [
         pattern_header[in_idx_0],
