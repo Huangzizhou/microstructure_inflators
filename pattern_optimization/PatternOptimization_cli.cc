@@ -10,9 +10,10 @@
 //  Created:  09/12/2014 01:15:28
 ////////////////////////////////////////////////////////////////////////////////
 #include <MeshIO.hh>
-#include <LinearElasticity.hh>
+#include "NewLinearElasticity.hh"
 #include <Materials.hh>
 #include <PeriodicHomogenization.hh>
+#include "GlobalBenchmark.hh"
 
 #include <WireInflator2D.h>
 
@@ -55,6 +56,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     visible_opts.add_options()("help", "Produce this help message")
         ("pattern,p",   po::value<string>(), "Pattern wire mesh (.obj)")
         ("material,m",  po::value<string>(), "base material")
+        ("degree,d",    po::value<size_t>()->default_value(2), "FEM Degree")
         ("output,o",    po::value<string>()->default_value(""), "output .js mesh + fields at each iteration")
         ("max_area,a",  po::value<double>()->default_value(0.0001), "max_area parameter for wire inflator")
         ("solver",      po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
@@ -87,6 +89,12 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
+    size_t d = vm["degree"].as<size_t>();
+    if (d < 1 || d > 2) {
+        cout << "Error: FEM Degree must be 1 or 2" << endl;
+        fail = true;
+    }
+
     set<string> solvers = {"gradient_descent", "bfgs", "lbfgs", "levenberg_marquardt"};
     if (solvers.count(vm["solver"].as<string>()) == 0) {
         cout << "Illegal solver specified" << endl;
@@ -100,18 +108,14 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 }
 
 template<size_t _N>
-using ETensor = typename LinearElasticityND<_N>::ETensor;
+using HMG = LinearElasticity::HomogenousMaterialGetter<Materials::Constant>::template Getter<_N>;
+
 template<size_t _N>
-using VField = typename LinearElasticityND<_N>::VField;
+using ETensor = ElasticityTensor<Real, _N>;
 typedef ScalarField<Real> SField;
 
-template<size_t _N>
-void execute(const po::variables_map &args,
-             const Job<_N> *job);
-
-template<>
-void execute<2>(const po::variables_map &args,
-                const Job<2> *job)
+template<size_t _FEMDegree>
+void execute(const po::variables_map &args, const Job<2> *job)
 {
 	WireInflator2D inflator(args["pattern"].as<string>());
     TessellationParameters t_params;
@@ -129,15 +133,15 @@ void execute<2>(const po::variables_map &args,
     if (job->numParams() != nParams)
         throw runtime_error("Invalid number of parameters.");
 
+    typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh;
+    typedef LinearElasticity::Simulator<Mesh> Simulator;
+
     // Set up simulator's (base) material
-    auto &mat = LinearElasticityND<_N>::
-        template homogenousMaterial<Materials::Constant>();
+    auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
-    SField params(nParams);
-    params = job->initialParams;
-
-    Optimizer<_N> optimizer(inflator, t_params, job->radiusBounds,
+    SField params(job->initialParams);
+    Optimizer<Simulator> optimizer(inflator, t_params, job->radiusBounds,
             job->translationBounds);
     string solver = args["solver"].as<string>(),
            output = args["output"].as<string>();
@@ -167,11 +171,14 @@ int main(int argc, const char *argv[])
 
     auto job = parseJobFile(args["job"].as<string>());
 
+    size_t deg = args["degree"].as<size_t>();
     if (auto job2D = dynamic_cast<Job<2> *>(job)) {
-        execute(args, job2D);
+        if (deg == 1) execute<1>(args, job2D);
+        if (deg == 2) execute<2>(args, job2D);
     }
     // else if (auto job3D = dynamic_cast<Job<3> *>(job)) {
-    //  execute(args, job3D);
+    //  if (deg == 1) execute<1>(args, job2D);
+    //  if (deg == 2) execute<2>(args, job3D);
     // }
     else throw std::runtime_error("Only 2D jobs currently supported.");
 

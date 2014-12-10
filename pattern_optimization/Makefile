@@ -3,10 +3,10 @@ include $(MeshFEM)/platform_defs.mk
 SOURCES=PatternOptimization_cli.cc PatternOptimizationJob.cc
 PATOPT_OBJS=PatternOptimization_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
-			$(MeshFEM)/EdgeFields.o
+			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
 CREATJOB_OBJS=CreateJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
-			$(MeshFEM)/MSHFieldParser.o
+			$(MeshFEM)/MSHFieldParser.o $(MeshFEM)/GlobalBenchmark.o
 OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS)
 
 TARGETS=PatternOptimization_cli CreateJob
@@ -14,7 +14,7 @@ TARGETS=PatternOptimization_cli CreateJob
 INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem $(VCG_INC) -isystem $(DLIB_INC)
 LIBS+=../Luigi/wireinflator2D/lib/libclipper.a
 LIBS+=../Luigi/wireinflator2D/lib/libtriangle.a
-CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES)
+CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DBENCHMARK
 CPPFLAGS+=-O2
 # CPPFLAGS+=-O0 -g
 CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
