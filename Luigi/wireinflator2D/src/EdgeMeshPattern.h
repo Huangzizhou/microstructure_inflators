@@ -234,7 +234,7 @@ public:
 		// update border topology
 		vcg::tri::UpdateTopology<TriMesh>::FaceFace(mesh);
 		vcg::tri::UpdateFlags<TriMesh>::FaceBorderFromFF(mesh);
-		vcg::tri::UpdateFlags<TriMesh>::VertexBorderFromFace(mesh);
+		vcg::tri::UpdateFlags<TriMesh>::VertexBorderFromFaceBorder(mesh);
 
 		// get all border edges and their normals
 		std::unordered_map<std::pair<int,int>, vcg::Point2d> edges;
