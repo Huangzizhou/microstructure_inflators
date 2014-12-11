@@ -41,6 +41,18 @@ def run_material_fit(input_file, material_file, output_file):
         json.dump(mat_config, fout, indent=4);
     print("material property written in {}".format(json_file));
 
+    orthotropic_material = {
+            "type": "orthotropic_material",
+            "young": young,
+            "poisson": poisson,
+            "shear": shear,
+            "density": 1.0
+            };
+    material_file = "{}.material".format(basename);
+    with open(material_file, 'w') as fout:
+        json.dump(orthotropic_material, fout, indent=4);
+    print("material file generated: {}".format(material_file));
+
 def parse_field(input_text, header, num_entries):
     pattern = "^{}(.*)$".format(header);
     matcher = re.compile(pattern, re.M);
