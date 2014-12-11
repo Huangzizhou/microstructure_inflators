@@ -26,32 +26,28 @@ Homogenization
   - When printed with the same material, these objects have different
     homogenized, or "effective" material properties.
     (Image of object filled with two different solid colors)
+  - To use nice mathematical tools, restrict ourselves to periodically tiled
+    base cells.
+    (Image of base cell corresponding to circles object, and cell filled with
+     "circle solid color")
 
   - Recall: material properties (elasticity tensor) tell us how strain maps to
     stress.
-  - Intuitively: homogenized elasticity tensor tells us how the average strain
-    in at a point maps to the average stress.
-    (Image: constant strain defo, constant strain + fluctuation)
   - Can't spatially average the properties!
-
   - General idea: for all possible average strains of the cell, compute the
     average stress.
-    (One constant strain disp + fluctuation strains)
 
-  - Linearity saves us: we only need to consider 3 "basis strain tensors" in
-    2D: 2 axis-aligned stretches and 1 shear.
-  (Image: All 3 constant strain displacements, fluctuation strains)
   - Computation
         - Impose an average constant strain and compute how the geometry
           actually deforms
           (Image: squashed mictrostructure geometry, const+fluctuation
            strain-deformed geometry)
         - Average the stress tensor
+ - By linearity we only need to solve 3 of these in 2D to get the full
+   elasticity tensor: 2 axis-aligned stretches and 1 shear (form a basis for
+   strain tensors).
 
  - Cell problem + homogenized tensor formula
- - There is a rigorous derivation/proof showing that the cell size shrinks to
-   zero, the microstructure simulation converges to the homogenous simulation
-   with E^H
 
 Patterns
  - We choose to explore bar-based patterns because its wide range of
@@ -67,30 +63,18 @@ Patterns
  - Printibility
 
 Optimizing Patterns
- - Goal: for each grid cell, find a pattern with Y, nu \approx Y^*, nu^* from
-   material optimization.
- - I.e. "invert" the homogenization procedure
+ - We need to "invert" the homogenization procedure
+ - Find pattern that gives particular material properties
  - Could sample the 9+ Dimensional pattern parameter space and find closest
    tensor
  - But space is huge, N^P sample points (N # samples per param, P # params)
  - Ideally we can tune the elasticity tensor with an optimization:
-    min_p ||C - C^*||^2
- - p controls *shape* of microstructure! How can we optimize this?
- - Use the "shape derivative"
+
+    min_p ||E - E^*||^2
+ - p controls shape of microstructure! How to optimize?
+ - Use the shape derivative
  (Image of normal velocity perturbation of an object's boundary: v_n)
- delta J(v_n) = lim \eps -> 0 (J(omega) - J(omega perturbed by \epsilon * v_n)) / eps
+ delta E(v_n) = E(omega) - E(omega perturbed by \epsilon * v_n)
 
- - Amazingly, the closed form of each entry of the homogenized elasticity tensor can be
+ - Amazingly, the closed form of the homogenized elasticity tensor can be
    "shape differentiated"
- - Cell problems, gradient
- - If we know the normal velocity caused by each pattern parameter, chain
-   rule:
-   <formula>
-
- - Use in other objectives: chain rule
-   min_p ||C^-1 - C^*^-1||^2
-   min_p ||nu - nu^*||^2
-
- - Example iteration:
-
- 

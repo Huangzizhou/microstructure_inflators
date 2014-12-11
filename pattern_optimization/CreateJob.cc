@@ -17,7 +17,6 @@
 //  Created:  10/05/2014 12:59:00
 ////////////////////////////////////////////////////////////////////////////////
 #include <MeshIO.hh>
-#include <LinearElasticity.hh>
 #include <MSHFieldWriter.hh>
 #include <EdgeFields.hh>
 #include <MSHFieldParser.hh>
@@ -90,9 +89,9 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 }
 
 template<size_t _N>
-using ETensor = typename LinearElasticityND<_N>::ETensor;
+using ETensor = ElasticityTensor<Real, _N>;
 template<size_t _N>
-using VField = typename LinearElasticityND<_N>::VField;
+using VField = VectorField<Real, _N>;
 typedef ScalarField<Real> SField;
 
 template<size_t _N>

@@ -5,6 +5,7 @@
 //      Nonlinear least squares-based pattern parameter optimizer.
 //      Attempts to fit compliance tensors:
 //          1/2 ||S - S^*||^2_F
+//      Note: should only be used with a homogenous material-backed simulator.
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
@@ -25,14 +26,13 @@
 
 namespace PatternOptimization {
 
-template<size_t _N>
+template<class _Sim>
 class Optimizer {
-    typedef typename LinearElasticityND<_N>:: template
-        HomogenousSimulator<Materials::Constant>       Simulator;
-    typedef typename LinearElasticityND<_N>::VField VField;
+    typedef typename _Sim::VField VField;
     typedef ScalarField<Real> SField;
-    typedef typename LinearElasticityND<_N>::ETensor _ETensor;
+    typedef typename _Sim::ETensor _ETensor;
     typedef dlib::matrix<double,0,1> dlib_vector;
+    static constexpr size_t _N = _Sim::N;
 public:
     Optimizer(WireInflator2D &inflator,
             const TessellationParameters &tparams, std::vector<Real> radiusBounds,
@@ -59,8 +59,17 @@ public:
     }
 
     struct Iterate {
-        typedef typename LinearElasticityND<_N>:: template
-            HomogenousSimulator<Materials::Constant>       Simulator;
+        // 2 * (deg - 1) boundary element interpolant of an elasticity tensor
+        // field used to represent the per-boundary-element value of the shape
+        // derivative of the homogenized tensors.
+        typedef PeriodicHomogenization::
+                BEHTensorGradInterpolant<_Sim>          BEGradTensorInterpolant;
+        // 2 * (deg - 1) boundary element interpolant of a scalar field used to
+        // represent the per-boundary-element value of the shape derivative a
+        // scalar function.
+        typedef Interpolant<Real, BEGradTensorInterpolant::K,
+                        BEGradTensorInterpolant::Deg>   BEGradInterpolant;
+
         Iterate(WireInflator2D &inflator, const TessellationParameters &tparams,
                 size_t nParams, const double *params, const _ETensor &targetS)
             : m_targetS(targetS)
@@ -77,8 +86,8 @@ public:
             
             WireInflator2D::OutMeshType inflatedMesh;
             inflator.generatePattern(p_params, tparams, inflatedMesh);
-            m_sim = std::make_shared<Simulator>(inflatedMesh.elements,
-                                                inflatedMesh.nodes);
+            m_sim = std::make_shared<_Sim>(inflatedMesh.elements,
+                                           inflatedMesh.nodes);
 
             size_t numBE = m_sim->mesh().numBoundaryElements();
             vn_p.assign(nParams, SField(numBE));
@@ -96,10 +105,19 @@ public:
             PeriodicHomogenization::solveCellProblems(w_ij, *m_sim);
             C = PeriodicHomogenization::homogenizedElasticityTensor(w_ij, *m_sim);
             S = C.inverse();
-            std::vector<_ETensor> gradEh =
-                PeriodicHomogenization::homogenizedTensorGradient(w_ij, *m_sim);
-            for (const auto &G : gradEh)
-                gradS.push_back(-S.doubleDoubleContract(G));
+            std::vector<BEGradTensorInterpolant> gradEh =
+                PeriodicHomogenization::homogenizedElasticityTensorGradient(w_ij, *m_sim);
+            // Compute compliance tensor gradient from elasticity tensor
+            // gradient via chain rule
+            // (doc/pattern_optimization/shape_derivative)
+            m_gradS.resize(gradEh.size());
+            for (size_t i = 0; i < gradEh.size(); ++i) {
+                const auto &GE = gradEh[i];
+                      auto &GS = m_gradS[i];
+                // Compute each nodal value of the interpolant.
+                for (size_t n = 0; n < GE.size(); ++n)
+                    GS[n] = -S.doubleDoubleContract(GE[n]);
+            }
         }
 
         // Evaluate compliance frobenius norm objective.
@@ -112,63 +130,83 @@ public:
         /*! Computes grad(1/2 sum_ijkl (S_ijkl - target_ijlk|)^2) =
         //      (S_ijkl - target_ijlk) * grad(S_ikjl))
         //  @param[in]  target  S^* (target compliance tensor)
-        //  @return     SField  Per-boundary-edge scalar field giving steepest
-        //                      ascent normal velocity perturbation for JS
+        //  @return Per-boundary-edge piecewise 2 * (deg - 1) scalar field giving
+        //          steepest ascent normal velocity perturbation for JS
         *///////////////////////////////////////////////////////////////////////
-        SField shapeDerivativeJS() const {
+        std::vector<BEGradInterpolant> shapeDerivativeJS() const {
             _ETensor diff = S - m_targetS;
-            SField v_n(gradS.size());
+            std::vector<BEGradInterpolant> grad(m_gradS.size());
 
-            for (size_t be = 0; be < gradS.size(); ++be)
-                v_n[be] = diff.quadrupleContract(gradS[be]);
+            for (size_t be = 0; be < m_gradS.size(); ++be) {
+                // Compute each nodal value of the interpolant.
+                const auto &GS = m_gradS[be];
+                      auto &g = grad[be];
+                for (size_t n = 0; n < GS.size(); ++n)
+                    g[n] = diff.quadrupleContract(GS[n]);
+            }
 
-            return v_n;
+            return grad;
         }
 
-        SField gradp_JS(const SField &gradJS) const {
+        SField gradp_JS(const std::vector<BEGradInterpolant> &gradJS) const {
             SField result(vn_p.size());
             result.clear();
             for (size_t p = 0; p < vn_p.size(); ++p) {
                 for (size_t bei = 0; bei < m_sim->mesh().numBoundaryElements(); ++bei) {
                     auto be = m_sim->mesh().boundaryElement(bei);
-                    result[p] += vn_p[p][bei] * gradJS[bei] * be->area();
+                    Real vn = vn_p[p][bei]; // TODO: make this a linear interpolant.
+                    const auto &grad = gradJS[bei];
+                    result[p] +=
+                        Quadrature<_Sim::K - 1, 1 + BEGradTensorInterpolant::Deg>::
+                        integrate([&] (const VectorND<be.numVertices()> &pt) {
+                            return vn * grad(pt);
+                        }, be->volume());
                 }
             }
             return result;
         }
+
         SField gradp_JS() const { return gradp_JS(shapeDerivativeJS()); }
 
-        // The (i, j)th residual (j >= i) for the nonlinear least squares (a
+        // The (ij, jk)th residual (jk >= ij) for the nonlinear least squares (a
         // single term of the Frobenius distance). The terms are weighted so
         // that the squared norm of the residual vector corresponds to the
         // Frobenius norm of the rank 4 tensor difference S - S^*.
-        Real residual(size_t i, size_t j) const {
-            assert(j >= i);
+        Real residual(size_t ij, size_t jk) const {
+            assert(jk >= ij);
             Real weight = 1.0;
-            if (j != i)  weight *= sqrt(2); // Account for lower triangle
-            if (i >= _N) weight *= sqrt(2); // Left shear doubler
-            if (j >= _N) weight *= sqrt(2); // Right shear doubler
-            return weight * (S.D(i, j) - m_targetS.D(i, j));
+            if (jk != ij) weight *= sqrt(2); // Account for lower triangle
+            if (ij >= _N) weight *= sqrt(2); // Left shear doubler
+            if (jk >= _N) weight *= sqrt(2); // Right shear doubler
+            return weight * (S.D(ij, jk) - m_targetS.D(ij, jk));
         }
 
-        // Derivative of residual(i, j) wrt parameter p:
+        // Derivative of residual(ij, jk) wrt parameter p:
         // d/dp (S_ijkl - target_ijkl) = d/dp S_ijkl = <gradS_ijkl, vn_p>
-        Real jacobian(size_t i, size_t j, size_t p) const {
-            assert(j >= i);
+        Real jacobian(size_t ij, size_t jk, size_t p) const {
+            assert(jk >= ij);
             Real result = 0;
             for (size_t bei = 0; bei < m_sim->mesh().numBoundaryElements(); ++bei) {
                 auto be = m_sim->mesh().boundaryElement(bei);
-                result += vn_p[p][bei] * gradS[bei].D(i, j) * be->area();
+                Real vn = vn_p[p][bei]; // TODO: make this a linear interpolant.
+                const auto &grad = m_gradS[bei];
+                result +=
+                    Quadrature<_Sim::K - 1, 1 + BEGradTensorInterpolant::Deg>::
+                    integrate([&] (const VectorND<be.numVertices()> &pt) {
+                        return vn * grad(pt).D(ij, jk);
+                    }, be->volume());
             }
 
             Real weight = 1.0;
-            if (j != i)  weight *= sqrt(2); // Account for lower triangle
-            if (i >= _N) weight *= sqrt(2); // Left shear doubler
-            if (j >= _N) weight *= sqrt(2); // Right shear doubler
+            if (jk != ij) weight *= sqrt(2); // Account for lower triangle
+            if (ij >= _N) weight *= sqrt(2); // Left shear doubler
+            if (jk >= _N) weight *= sqrt(2); // Right shear doubler
             return weight * result;
         }
 
         // Boundary normal velocity caused by a parameter velocity "deltaP"
+        // TODO: update to make per-vertex effectiveVelocity (instead of
+        // effective normal velocity)
         SField effectiveNormalVelocity(const SField &deltaP) const {
             SField vn(m_sim->mesh().numBoundaryElements());
             for (size_t bei = 0; bei < vn.size(); ++bei) {
@@ -197,6 +235,7 @@ public:
 
         VField directionField(const SField &v_n) const {
             size_t numBE = m_sim->mesh().numBoundaryElements();
+            assert(v_n.domainSize() == numBE);
             VField direction(numBE);
             for (size_t be = 0; be < numBE; ++be)
                 direction(be) = v_n[be] * m_sim->mesh().boundaryElement(be)->normal();
@@ -207,8 +246,11 @@ public:
             MeshIO::save(name + ".msh", m_sim->mesh());
             EdgeFields ef(m_sim->mesh());
             auto complianceFitGrad = shapeDerivativeJS();
-            ef.addField("gradFit", complianceFitGrad);
-            ef.addField("gradFit direction", directionField(complianceFitGrad));
+            SField avg_vn(complianceFitGrad.size());
+            for (size_t i = 0; i < complianceFitGrad.size(); ++i)
+                avg_vn[i] = complianceFitGrad[i].average();
+            ef.addField("(averaged) gradFit", avg_vn);
+            ef.addField("(averaged) gradFit direction", directionField(avg_vn));
 
             auto projectedNormalVelocity =
                 effectiveNormalVelocity(gradp_JS(complianceFitGrad));
@@ -226,9 +268,9 @@ public:
         }
 
     private:
-        std::shared_ptr<Simulator> m_sim;
+        std::shared_ptr<_Sim> m_sim;
         _ETensor C, S, m_targetS;
-        std::vector<_ETensor> gradS;
+        std::vector<BEGradTensorInterpolant> m_gradS;
 
         // Parameter normal velocity fields
         std::vector<SField> vn_p;
@@ -365,8 +407,7 @@ public:
         getParameterBounds(lowerBounds, upperBounds);
         // Gradient Descent Version
         for (size_t i = 0; i < niters; ++i) {
-            typename Optimizer<_N>::Iterate iterate(m_inflator, m_tparams,
-                    params.size(), params.data(), targetS);
+            Iterate iterate(m_inflator, m_tparams, params.size(), params.data(), targetS);
             SField gradP = iterate.gradp_JS();
             iterate.writeDescription(std::cout);
             std::cout << std::endl;
