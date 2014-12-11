@@ -4,9 +4,9 @@ class PolynomialFitter(object):
         if (poly_type == "quadratic"):
             from QuadraticFitter import QuadraticFitter
             return QuadraticFitter();
-        #elif (poly_type == "separable_quadratic"):
-        #    from SeparableQuadraticFitter import SeparableQuadraticFitter
-        #    return SeparableQuadraticFitter();
+        elif (poly_type == "separable_quadratic"):
+            from SeparableQuadraticFitter import SeparableQuadraticFitter
+            return SeparableQuadraticFitter();
         else:
             raise NotImplementedError("Unsupported fitter type: {}".format(poly_type));
 

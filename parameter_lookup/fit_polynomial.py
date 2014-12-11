@@ -78,7 +78,7 @@ def poly_fit(x, y, degree):
     sampled_x = x[sample_indices];
     sampled_y = y[sample_indices];
 
-    fitter = PolynomialFitter.create("quadratic");
+    fitter = PolynomialFitter.create("separable_quadratic");
     fitter.fit(sampled_x, sampled_y);
 
     fitted_y = fitter.evaluate(x);
