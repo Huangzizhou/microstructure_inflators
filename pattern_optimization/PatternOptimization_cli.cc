@@ -15,7 +15,7 @@
 #include <PeriodicHomogenization.hh>
 #include "GlobalBenchmark.hh"
 
-#include <WireInflator2D.h>
+#include "Inflator.hh"
 
 #include <vector>
 #include <queue>
@@ -53,15 +53,17 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     p.add("job", 1);
 
     po::options_description visible_opts;
-    visible_opts.add_options()("help", "Produce this help message")
-        ("pattern,p",   po::value<string>(), "Pattern wire mesh (.obj)")
-        ("material,m",  po::value<string>(), "base material")
-        ("degree,d",    po::value<size_t>()->default_value(2), "FEM Degree")
-        ("output,o",    po::value<string>()->default_value(""), "output .js mesh + fields at each iteration")
-        ("max_area,a",  po::value<double>()->default_value(0.0001), "max_area parameter for wire inflator")
-        ("solver",      po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
-        ("step,s",      po::value<double>()->default_value(0.0001), "gradient step size")
-        ("nIters,n",    po::value<size_t>()->default_value(20), "number of iterations")
+    visible_opts.add_options()("help",        "Produce this help message")
+        ("pattern,p",    po::value<string>(), "Pattern wire mesh (.obj|wire)")
+        ("orbit,O",      po::value<string>(), "Pattern orbit file (.orbit)")
+        ("modifier,M",   po::value<string>(), "Pattern modifier file (.modifier)")
+        ("material,m",   po::value<string>(), "base material")
+        ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
+        ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
+        ("max_volume,v", po::value<double>()->default_value(0.0001),             "maximum element volume parameter for wire inflator")
+        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
+        ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
+        ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
         ;
 
     po::options_description cli_opts;
@@ -114,24 +116,27 @@ template<size_t _N>
 using ETensor = ElasticityTensor<Real, _N>;
 typedef ScalarField<Real> SField;
 
-template<size_t _FEMDegree>
-void execute(const po::variables_map &args, const Job<2> *job)
+template<size_t _N, size_t _FEMDegree>
+void execute(const po::variables_map &args, const Job<_N> *job)
 {
-	WireInflator2D inflator(args["pattern"].as<string>());
-    TessellationParameters t_params;
-    t_params.max_area = args["max_area"].as<double>();
+	Inflator<_N> inflator(args["pattern"].as<string>());
+    inflator.setMaxElementVolume(args["max_volume"].as<double>());
 
-    constexpr size_t _N = 2;
     auto targetC = job->targetMaterial.getTensor();
-    ETensor<2> targetS = targetC.inverse();
+    ETensor<_N> targetS = targetC.inverse();
 
     cout << "Target moduli:\t";
     targetC.printOrthotropic(cout);
     cout << endl;
 
-    size_t nParams = inflator.patternGenerator().numberOfParameters();
-    if (job->numParams() != nParams)
+    if (job->numParams() != inflator.numParameters()) {
+        for (size_t i = 0; i < inflator.numParameters(); ++i) {
+            cout << "param " << i << " role: " <<
+                (inflator.parameterType(i) == ParameterType::Offset ? "Offset" : "Thickness")
+                << endl;
+        }
         throw runtime_error("Invalid number of parameters.");
+    }
 
     typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh;
     typedef LinearElasticity::Simulator<Mesh> Simulator;
@@ -141,8 +146,8 @@ void execute(const po::variables_map &args, const Job<2> *job)
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
     SField params(job->initialParams);
-    Optimizer<Simulator> optimizer(inflator, t_params, job->radiusBounds,
-            job->translationBounds);
+    Optimizer<Simulator> optimizer(inflator, job->radiusBounds,
+                                   job->translationBounds);
     string solver = args["solver"].as<string>(),
            output = args["output"].as<string>();
     size_t niters = args["nIters"].as<size_t>();
@@ -173,14 +178,14 @@ int main(int argc, const char *argv[])
 
     size_t deg = args["degree"].as<size_t>();
     if (auto job2D = dynamic_cast<Job<2> *>(job)) {
-        if (deg == 1) execute<1>(args, job2D);
-        if (deg == 2) execute<2>(args, job2D);
+        if (deg == 1) execute<2, 1>(args, job2D);
+        if (deg == 2) execute<2, 2>(args, job2D);
     }
-    // else if (auto job3D = dynamic_cast<Job<3> *>(job)) {
-    //  if (deg == 1) execute<1>(args, job2D);
-    //  if (deg == 2) execute<2>(args, job3D);
-    // }
-    else throw std::runtime_error("Only 2D jobs currently supported.");
+    else if (auto job3D = dynamic_cast<Job<3> *>(job)) {
+        if (deg == 1) execute<3, 1>(args, job3D);
+        if (deg == 2) execute<3, 2>(args, job3D);
+    }
+    else throw std::runtime_error("Invalid job file.");
 
     return 0;
 }
