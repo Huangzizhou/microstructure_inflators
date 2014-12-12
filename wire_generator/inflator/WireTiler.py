@@ -202,7 +202,7 @@ class WireTiler(object):
     def __remove_duplicated_edges(self):
         num_edges = len(self.wire_edges);
         edges = [tuple(sorted(edge)) for edge in self.wire_edges];
-        self.wire_edges = np.unique(edges);
+        self.wire_edges = np.array(list(set(edges)));
         edge_map = {tuple(edge):i for i,edge in enumerate(self.wire_edges)};
         edge_index_map = [edge_map[edge] for edge in edges];
 
