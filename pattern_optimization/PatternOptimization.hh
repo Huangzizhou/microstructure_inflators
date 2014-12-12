@@ -21,8 +21,9 @@
 #include <cassert>
 #include <memory>
 
-#include <WireInflator2D.h>
+#include "Inflator.hh"
 #include <EdgeFields.hh>
+#include <MSHFieldWriter.hh>
 
 namespace PatternOptimization {
 
@@ -34,22 +35,20 @@ class Optimizer {
     typedef dlib::matrix<double,0,1> dlib_vector;
     static constexpr size_t _N = _Sim::N;
 public:
-    Optimizer(WireInflator2D &inflator,
-            const TessellationParameters &tparams, std::vector<Real> radiusBounds,
-            std::vector<Real> translationBounds)
-        : m_inflator(inflator), m_tparams(tparams), m_radiusBounds(radiusBounds),
+    Optimizer(Inflator<_N> &inflator, std::vector<Real> radiusBounds,
+              std::vector<Real> translationBounds)
+        : m_inflator(inflator), m_radiusBounds(radiusBounds),
           m_transBounds(translationBounds) { }
 
     template<class _Vector>
     void getParameterBounds(_Vector &lowerBounds, _Vector &upperBounds) {
-        auto ops = m_inflator.patternGenerator().getParameterOperations();
-        for (size_t p = 0; p < ops.size(); ++p) {
-            switch (ops.at(p).type) {
-                case ParameterOperation::Radius:
+        for (size_t p = 0; p < m_inflator.numParameters(); ++p) {
+            switch (m_inflator.parameterType(p)) {
+                case ParameterType::Thickness:
                     lowerBounds(p) = m_radiusBounds.at(0);
                     upperBounds(p) = m_radiusBounds.at(1);
                     break;
-                case ParameterOperation::Translation:
+                case ParameterType::Offset:
                     lowerBounds(p) = m_transBounds.at(0);
                     upperBounds(p) = m_transBounds.at(1);
                     break;
@@ -70,36 +69,18 @@ public:
         typedef Interpolant<Real, BEGradTensorInterpolant::K,
                         BEGradTensorInterpolant::Deg>   BEGradInterpolant;
 
-        Iterate(WireInflator2D &inflator, const TessellationParameters &tparams,
-                size_t nParams, const double *params, const _ETensor &targetS)
+        Iterate(Inflator<_N> &inflator, size_t nParams, const double *params,
+                const _ETensor &targetS)
             : m_targetS(targetS)
         {
             m_params.resize(nParams);
-            CellParameters p_params = inflator.createParameters();
-            for (size_t i = 0; i < m_params.size(); ++i) {
+            for (size_t i = 0; i < m_params.size(); ++i)
                 m_params[i] = params[i];
-                p_params.parameter(i) = params[i];
-            }
+            inflator.inflate(m_params);
 
-            if (!inflator.patternGenerator().parametersValid(p_params))
-                throw runtime_error("Invalid parameters specified.");
-            
-            WireInflator2D::OutMeshType inflatedMesh;
-            inflator.generatePattern(p_params, tparams, inflatedMesh);
-            m_sim = std::make_shared<_Sim>(inflatedMesh.elements,
-                                           inflatedMesh.nodes);
-
-            size_t numBE = m_sim->mesh().numBoundaryElements();
-            vn_p.assign(nParams, SField(numBE));
-            for (size_t bei = 0; bei < numBE; ++bei) {
-                auto be = m_sim->mesh().boundaryElement(bei);
-                auto edge = make_pair(be.tip(). volumeVertex().index(),
-                                      be.tail().volumeVertex().index());
-                const auto &field = inflatedMesh.edge_fields.at(edge);
-                assert(field.size() == nParams);
-                for (size_t p = 0; p < nParams; ++p)
-                    vn_p[p][bei] = field[p];
-            }
+            m_sim = std::make_shared<_Sim>(inflator.elements(),
+                                           inflator.vertices());
+            m_vn_p = inflator.computeShapeNormalVelocities(m_sim->mesh());
 
             std::vector<VField> w_ij;
             PeriodicHomogenization::solveCellProblems(w_ij, *m_sim);
@@ -149,17 +130,17 @@ public:
         }
 
         SField gradp_JS(const std::vector<BEGradInterpolant> &gradJS) const {
-            SField result(vn_p.size());
+            SField result(m_params.size());
             result.clear();
-            for (size_t p = 0; p < vn_p.size(); ++p) {
+            for (size_t p = 0; p < m_params.size(); ++p) {
                 for (size_t bei = 0; bei < m_sim->mesh().numBoundaryElements(); ++bei) {
                     auto be = m_sim->mesh().boundaryElement(bei);
-                    Real vn = vn_p[p][bei]; // TODO: make this a linear interpolant.
+                    const auto &vn = m_vn_p[p][bei]; // parameter normal shape velocity interpolant
                     const auto &grad = gradJS[bei];
                     result[p] +=
                         Quadrature<_Sim::K - 1, 1 + BEGradTensorInterpolant::Deg>::
                         integrate([&] (const VectorND<be.numVertices()> &pt) {
-                            return vn * grad(pt);
+                            return vn(pt) * grad(pt);
                         }, be->volume());
                 }
             }
@@ -188,12 +169,12 @@ public:
             Real result = 0;
             for (size_t bei = 0; bei < m_sim->mesh().numBoundaryElements(); ++bei) {
                 auto be = m_sim->mesh().boundaryElement(bei);
-                Real vn = vn_p[p][bei]; // TODO: make this a linear interpolant.
+                const auto &vn = m_vn_p[p][bei]; // parameter normal shape velocity interpolant
                 const auto &grad = m_gradS[bei];
                 result +=
                     Quadrature<_Sim::K - 1, 1 + BEGradTensorInterpolant::Deg>::
                     integrate([&] (const VectorND<be.numVertices()> &pt) {
-                        return vn * grad(pt).D(ij, jk);
+                        return vn(pt) * grad(pt).D(ij, jk);
                     }, be->volume());
             }
 
@@ -212,7 +193,7 @@ public:
             for (size_t bei = 0; bei < vn.size(); ++bei) {
                 vn[bei] = 0;
                 for (size_t p = 0; p < deltaP.size(); ++p)
-                    vn[bei] += deltaP[p] * vn_p[p][bei];
+                    vn[bei] += deltaP[p] * m_vn_p[p][bei].average();
             }
             return vn;
         }
@@ -243,20 +224,51 @@ public:
         }
 
         void writeMeshAndFields(const std::string &name) const {
-            MeshIO::save(name + ".msh", m_sim->mesh());
-            EdgeFields ef(m_sim->mesh());
             auto complianceFitGrad = shapeDerivativeJS();
             SField avg_vn(complianceFitGrad.size());
             for (size_t i = 0; i < complianceFitGrad.size(); ++i)
                 avg_vn[i] = complianceFitGrad[i].average();
-            ef.addField("(averaged) gradFit", avg_vn);
-            ef.addField("(averaged) gradFit direction", directionField(avg_vn));
-
             auto projectedNormalVelocity =
                 effectiveNormalVelocity(gradp_JS(complianceFitGrad));
-            ef.addField("projectedVn", projectedNormalVelocity);
-            ef.addField("projectedVn direction", directionField(projectedNormalVelocity));
-            ef.write(name + ".ef");
+
+            if (_N == 2) {
+                MeshIO::save(name + ".msh", m_sim->mesh());
+                EdgeFields ef(m_sim->mesh());
+                ef.addField("(averaged) gradFit", avg_vn);
+                ef.addField("(averaged) gradFit direction", directionField(avg_vn));
+
+                ef.addField("projectedVn", projectedNormalVelocity);
+                ef.addField("projectedVn direction", directionField(projectedNormalVelocity));
+                ef.write(name + ".ef");
+            }
+            if (_N == 3) {
+                std::vector<MeshIO::IOVertex>  bdryVertices;
+                std::vector<MeshIO::IOElement> bdryElements;
+                const auto &mesh = m_sim->mesh();
+                for (size_t i = 0; i < mesh.numBoundaryVertices(); ++i) {
+                    bdryVertices.emplace_back(mesh.boundaryVertex(i).volumeVertex().node()->p);
+                }
+                for (size_t i = 0; i < mesh.numBoundaryElements(); ++i) {
+                    auto be = mesh.boundaryElement(i);
+                    bdryElements.emplace_back(be.vertex(0).index(),
+                                              be.vertex(1).index(),
+                                              be.vertex(2).index());
+                }
+
+                MSHFieldWriter writer(name + ".msh", bdryVertices, bdryElements);
+                for (size_t p = 0; p < m_vn_p.size(); ++p) {
+                    const auto &vn = m_vn_p[p];;
+                    SField nvel(mesh.numBoundaryElements());
+                    for (size_t bei = 0; bei < mesh.numBoundaryElements(); ++bei)
+                        nvel[bei] = vn[bei].average();
+                    writer.addField("(averaged) normal velocity " + std::to_string(p), nvel, MSHFieldWriter::PER_ELEMENT);
+                }
+                writer.addField("(averaged) gradFit", avg_vn, MSHFieldWriter::PER_ELEMENT);
+                writer.addField("(averaged) gradFit direction", directionField(avg_vn), MSHFieldWriter::PER_ELEMENT);
+
+                writer.addField("projectedVn", projectedNormalVelocity, MSHFieldWriter::PER_ELEMENT);
+                writer.addField("projectedVn direction", directionField(projectedNormalVelocity), MSHFieldWriter::PER_ELEMENT);
+            }
         }
 
         bool paramsDiffer(size_t nParams, const Real *params) const {
@@ -271,9 +283,7 @@ public:
         std::shared_ptr<_Sim> m_sim;
         _ETensor C, S, m_targetS;
         std::vector<BEGradTensorInterpolant> m_gradS;
-
-        // Parameter normal velocity fields
-        std::vector<SField> vn_p;
+        std::vector<typename Inflator<_N>::NormalShapeVelocity> m_vn_p;
 
         std::vector<Real> m_params;
     };
@@ -283,13 +293,12 @@ public:
 
     struct TensorFitCost : public ceres::CostFunction {
         typedef ceres::CostFunction Base;
-        TensorFitCost(WireInflator2D &inflator,
-                const TessellationParameters &tparams, const _ETensor &targetS)
-            : m_inflator(inflator), m_tparams(tparams), m_targetS(targetS) {
+        TensorFitCost(Inflator<_N> &inflator, const _ETensor &targetS)
+            : m_inflator(inflator), m_targetS(targetS) {
             Base::set_num_residuals((_N == 2) ? 6 : 21);
             // We put all the pattern parameters in a single parameter block.
             Base::mutable_parameter_block_sizes()->assign(1,
-                    m_inflator.patternGenerator().numberOfParameters());
+                    m_inflator.numParameters());
         }
 
         virtual bool Evaluate(double const * const *parameters,
@@ -298,7 +307,7 @@ public:
             // Ceres seems to like re-evaluating at the same point, so we detect
             // this to avoid re-solving.
             if (!m_iterate || m_iterate->paramsDiffer(nParams, parameters[0])) {
-                m_iterate = std::make_shared<Iterate>(m_inflator, m_tparams,
+                m_iterate = std::make_shared<Iterate>(m_inflator,
                         nParams, parameters[0], m_targetS);
             }
 
@@ -326,8 +335,7 @@ public:
         virtual ~TensorFitCost() { }
 
     private:
-        WireInflator2D &m_inflator;
-        TessellationParameters m_tparams;
+        Inflator<_N> &m_inflator;
         _ETensor m_targetS;
         // Ceres requires Evaluate to be constant, so this caching pointer must
         // be made mutable.
@@ -348,8 +356,7 @@ public:
             auto curr = m_evaluator.currentIterate();
             if (curr->paramsDiffer(nParams, &m_params[0])) {
                 curr = std::make_shared<Iterate>(m_evaluator.m_inflator,
-                        m_evaluator.m_tparams, nParams, &m_params[0],
-                        m_evaluator.m_targetS);
+                        nParams, &m_params[0], m_evaluator.m_targetS);
             }
             curr->writeDescription(std::cout);
             std::cout << std::endl;
@@ -371,8 +378,7 @@ public:
 
     void optimize_lm(SField &params, const _ETensor &targetS,
                   const string &outPath) {
-        TensorFitCost *fitCost = new TensorFitCost(m_inflator, m_tparams,
-                                                   targetS);
+        TensorFitCost *fitCost = new TensorFitCost(m_inflator, targetS);
         ceres::Problem problem;
         problem.AddResidualBlock(fitCost, NULL, params.data());
 
@@ -407,7 +413,7 @@ public:
         getParameterBounds(lowerBounds, upperBounds);
         // Gradient Descent Version
         for (size_t i = 0; i < niters; ++i) {
-            Iterate iterate(m_inflator, m_tparams, params.size(), params.data(), targetS);
+            Iterate iterate(m_inflator, params.size(), params.data(), targetS);
             SField gradP = iterate.gradp_JS();
             iterate.writeDescription(std::cout);
             std::cout << std::endl;
@@ -427,11 +433,10 @@ public:
     // The iterate stored internally also knows how to evaluate the gradient
     // efficiently, so our GradientEvaluator below just accesses it.
     struct DLibObjectiveEvaluator {
-        DLibObjectiveEvaluator(WireInflator2D &inflator,
-                const TessellationParameters &tparams, const _ETensor &targetS)
-            : m_iterate(NULL), m_inflator(inflator), m_tparams(tparams),
-              m_targetS(targetS) {
-            nParams = m_inflator.patternGenerator().numberOfParameters();
+        DLibObjectiveEvaluator(Inflator<_N> &inflator,
+                const _ETensor &targetS)
+            : m_iterate(NULL), m_inflator(inflator), m_targetS(targetS) {
+            nParams = m_inflator.numParameters();
         };
 
         double operator()(const dlib_vector &x) const {
@@ -439,7 +444,7 @@ public:
             for (size_t p = 0; p < nParams; ++p)
                 x_vec[p] = x(p);
 
-            m_iterate = std::make_shared<Iterate>(m_inflator, m_tparams,
+            m_iterate = std::make_shared<Iterate>(m_inflator,
                     nParams, &x_vec[0], m_targetS);
             return m_iterate->evaluateJS();
         }
@@ -452,8 +457,7 @@ public:
     private:
         // Iterate is mutable so that operator() can be const as dlib requires
         mutable std::shared_ptr<Iterate> m_iterate;
-        WireInflator2D &m_inflator;
-        TessellationParameters m_tparams;
+        Inflator<_N> &m_inflator;
         _ETensor m_targetS;
     };
     
@@ -510,10 +514,10 @@ public:
     // otherwise l-bfgs is used.
     void optimize_bfgs(SField &params, const _ETensor &targetS, size_t niters,
                        const string &outPath, size_t max_size = 0) {
-        DLibObjectiveEvaluator obj(m_inflator, m_tparams, targetS);
+        DLibObjectiveEvaluator obj(m_inflator, targetS);
         DLibGradientEvaluator grad(obj);
 
-        size_t nParams = m_inflator.patternGenerator().numberOfParameters();
+        size_t nParams = m_inflator.numParameters();
         // convert initial parameter vector
         dlib_vector optParams(nParams);
         for (size_t p = 0; p < nParams; ++p)
@@ -537,8 +541,7 @@ public:
     }
 
 private:
-    WireInflator2D &m_inflator;
-    TessellationParameters m_tparams;
+    Inflator<_N> &m_inflator;
     std::vector<Real> m_patternParams, m_radiusBounds, m_transBounds;
 };
 

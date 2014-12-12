@@ -11,8 +11,8 @@ OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS)
 
 TARGETS=PatternOptimization_cli CreateJob
 
-INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem $(VCG_INC) -isystem $(DLIB_INC)
-LIBS+=../Luigi/wireinflator2D/lib/libclipper.a
+INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem $(VCG_INC) -isystem $(DLIB_INC) -I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
+LIBS+=../Luigi/wireinflator2D/lib/libclipper.a -L/$(PYMESH_PATH)/lib -lwires
 LIBS+=../Luigi/wireinflator2D/lib/libtriangle.a
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DBENCHMARK
 CPPFLAGS+=-O2
