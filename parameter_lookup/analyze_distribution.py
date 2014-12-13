@@ -9,6 +9,13 @@ r_script = """
 library(ggplot2);
 data <- read.csv("{csv_file}");
 
+summary(subset(data, select=c(young_x, young_y, young_z)));
+summary(subset(data, select=c(shear_yz, shear_zx, shear_xy)));
+summary(subset(data, select=c(poisson_yz, poisson_zx, poisson_xy)));
+
+data$pentamode <- data$elasticity_mode_0 / data$elasticity_mode_1;
+summary(subset(data, select=pentamode));
+
 p <- ggplot(data);
 p <- p + geom_point(aes(young_x, shear_xy));
 p <- p + ggtitle("X Young's modulus vs XY shear modulus");
