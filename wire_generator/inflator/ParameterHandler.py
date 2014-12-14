@@ -3,6 +3,8 @@ from parameter.VertexThicknessParameter import VertexThicknessParameter
 from parameter.EdgeThicknessParameter import EdgeThicknessParameter
 from parameter.VertexOffsetParameter import VertexOffsetParameter
 
+import PyWires
+
 class ParameterHandler(object):
     def __init__(self, wire_network):
         self.wire_network = wire_network;
@@ -69,9 +71,82 @@ class ParameterHandler(object):
                 affected_vertices = vertex_orbits == param.orbit_id;
                 percentage = param.evaluate(**kwargs);
                 vertices = self.wire_network.vertices[affected_vertices];
-                centroid = np.mean(vertices, axis=0);
+                centroid = self.wire_network.bbox_center;
                 offset[affected_vertices] = (vertices - centroid) * percentage;
             else:
                 raise NotImplementedError(
                         "Unknown parameter type: {}".format(param));
+
+    def convert_to_PyWires_parameter_manager(self, parameters):
+        default_thickness = 0.5;
+        parameter_manager = PyWires.ParameterManager.create_empty_manager(
+                self.wire_network.raw_wires, default_thickness);
+        thickness_type = None;
+
+        vertex_indices = np.arange(self.wire_network.num_vertices, dtype=int);
+        edge_indices = np.arange(self.wire_network.num_edges, dtype=int);
+
+        for param in parameters:
+            if param.orbit_type == "isotropic":
+                vertex_orbits = self.isotropic_vertex_orbits;
+                edge_orbits = self.isotropic_edge_orbits;
+            elif param.orbit_type == "orthotropic":
+                vertex_orbits = self.orthotropic_vertex_orbits;
+                edge_orbits = self.isotropic_edge_orbits;
+            else:
+                raise NotImplementedError("Orbit type \"{}\" is not supported"\
+                        .format(param.orbit_type));
+
+            if isinstance(param, VertexThicknessParameter):
+                if thickness_type is None:
+                    thickness_type = PyWires.VERTEX;
+                    parameter_manager.set_thickness_type(thickness_type);
+                else:
+                    assert(thickness_type == PyWires.VERTEX);
+
+                roi = vertex_indices[vertex_orbits == param.orbit_id];
+                formula, value = self.__separate_formula_and_value(param,
+                        param.default_thickness);
+                parameter_manager.add_thickness_parameter(roi, formula, value);
+            elif isinstance(param, EdgeThicknessParameter):
+                if thickness_type is None:
+                    thickness_type = PyWires.EDGE;
+                    parameter_manager.set_thickness_type(thickness_type);
+                else:
+                    assert(thickness_type == PyWires.EDGE);
+
+                roi = edge_indices[edge_orbits == param.orbit_id];
+                formula, value = self.__separate_formula_and_value(param,
+                        param.default_thickness);
+                parameter_manager.add_thickness_parameter(roi, formula, value);
+            elif isinstance(param, VertexOffsetParameter):
+                roi = vertex_indices[vertex_orbits == param.orbit_id];
+                offset_percentage = param.default_offset;
+                if hasattr(param, "formula"):
+                    offset_percentage = param.formula;
+
+                for i,entry in enumerate(offset_percentage):
+                    formula, value = self.__split_formula(entry);
+                    parameter_manager.add_offset_parameter(
+                            roi, formula, value, i);
+            else:
+                raise NotImplementedError(
+                        "Unknown parameter type: {}".format(param));
+
+        return parameter_manager;
+
+    def __separate_formula_and_value(self, param, default_value=0.0):
+        if hasattr(param, "formula"):
+            return self.__split_formula(param.formula);
+        else:
+            return "", default_value;
+
+    def __split_formula(self, data):
+        if isinstance(data, (str, unicode)):
+            formula = str(data);
+            value = default_value;
+        elif isinstance(data, float):
+            formula = "";
+            value = data;
+        return formula, value;
 

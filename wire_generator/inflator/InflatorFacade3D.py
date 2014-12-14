@@ -4,6 +4,7 @@ from WireTiler import WireTiler
 from WireInflator import WireInflator
 from PeriodicWireInflator import PeriodicWireInflator
 from PyWiresInflator import PyWiresInflator
+from PyWiresTiler import PyWiresTiler
 
 class InflatorFacade3D(InflatorFacade):
     def __init__(self, wire_network, parameters):
@@ -23,19 +24,11 @@ class InflatorFacade3D(InflatorFacade):
     def __tile_with_guide_box(self, bbox_min, bbox_max, repetitions):
         bbox_min = np.array(bbox_min);
         bbox_max = np.array(bbox_max);
-        unit_bbox_min, unit_bbox_max = self.unit_pattern.bbox;
-        unit_bbox_size = unit_bbox_max - unit_bbox_min;
-        target_bbox_size = np.divide(bbox_max - bbox_min, repetitions);
-        non_zero_dim = unit_bbox_size > 0.0;
-        factor = np.ones(self.unit_pattern.dim);
-        factor[non_zero_dim] = np.divide(
-                target_bbox_size[non_zero_dim],
-                unit_bbox_size[non_zero_dim]);
-        self.unit_pattern.scale(factor);
+        repetitions = np.array(repetitions, dtype=int);
 
-        tiler = WireTiler();
+        tiler = PyWiresTiler();
         tiler.set_single_cell_from_wire_network(self.unit_pattern);
-        tiler.tile(repetitions, self.parameters);
+        tiler.tile(bbox_min, bbox_max, repetitions, self.parameters);
 
         tiled_network = tiler.wire_network;
 
@@ -44,9 +37,9 @@ class InflatorFacade3D(InflatorFacade):
         return tiled_network;
 
     def __tile_with_mesh(self, mesh):
-        tiler = WireTiler();
+        tiler = PyWiresTiler();
         tiler.set_single_cell_from_wire_network(self.unit_pattern);
-        tiler.tile_hex_mesh(mesh, self.parameters);
+        tiler.tile_with_hex_mesh(mesh, self.parameters);
         tiled_network = tiler.wire_network;
         return tiled_network;
 

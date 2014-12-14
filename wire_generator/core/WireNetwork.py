@@ -6,6 +6,8 @@ import os.path
 from wire_io.WireReader import WireReader
 from attributes.WireAttributes import WireAttributes
 
+import PyWires
+
 class WireNetwork(object):
 
     def load(self, vertices, edges):
@@ -181,4 +183,8 @@ class WireNetwork(object):
         return norm(
             self.vertices[self.edges[:,0]] -
             self.vertices[self.edges[:,1]], axis=1);
+
+    @property
+    def raw_wires(self):
+        return PyWires.WireNetwork.create_raw(self.vertices, self.edges);
 

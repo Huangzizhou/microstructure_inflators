@@ -10,9 +10,7 @@ class PyWiresInflator(object):
         self.periodic = periodic;
 
     def inflate(self, clean_up=True, subdivide_order=1, subdivide_method="simple"):
-        wires = PyWires.WireNetwork.create_raw(
-                self.wire_network.vertices,
-                self.wire_network.edges);
+        wires = self.wire_network.raw_wires;
 
         thickness_type = PyWires.VERTEX;
         if "edge_thickness" in self.wire_network.attributes:
