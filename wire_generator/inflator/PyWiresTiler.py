@@ -39,7 +39,7 @@ class PyWiresTiler(object):
         self.raw_wire_network = tiler.tile_with_guide_bbox(bbox_min, bbox_max, reps);
         self.__apply_vertex_offset();
 
-    def tile_hex_mesh(self, mesh, parameters=[]):
+    def tile_with_hex_mesh(self, mesh, parameters=[]):
         tiler = PyWires.WireTiler(self.raw_pattern);
         if len(parameters) > 0:
             self.initialize_parameter_manager(parameters);

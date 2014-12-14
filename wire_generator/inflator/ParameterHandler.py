@@ -1,4 +1,5 @@
 import numpy as np
+import re
 from parameter.VertexThicknessParameter import VertexThicknessParameter
 from parameter.EdgeThicknessParameter import EdgeThicknessParameter
 from parameter.VertexOffsetParameter import VertexOffsetParameter
@@ -137,13 +138,18 @@ class ParameterHandler(object):
 
     def __separate_formula_and_value(self, param, default_value=0.0):
         if hasattr(param, "formula"):
-            return self.__split_formula(param.formula);
+            return self.__split_formula(param.formula, default_value);
         else:
             return "", default_value;
 
-    def __split_formula(self, data):
+    def __split_formula(self, data, default_value=0.0):
         if isinstance(data, (str, unicode)):
             formula = str(data);
+            result = re.match("{(.*)}", formula);
+            if (result is not None):
+                formula = result.group(1);
+            else:
+                raise RuntimeError("Invalid formula: \"{}\"".format(formula));
             value = default_value;
         elif isinstance(data, float):
             formula = "";
