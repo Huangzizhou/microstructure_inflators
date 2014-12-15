@@ -12,6 +12,7 @@
 #define INFLATOR_HH
 #include <WireInflator2D.h>
 #include <Wires/Interfaces/PeriodicExploration.h>
+#include <stdexcept>
 
 enum class ParameterType { Thickness, Offset };
 
@@ -46,9 +47,13 @@ public:
         : m_inflator(wireMeshPath)
     {
         m_paramOp = m_inflator.patternGenerator().getParameterOperations();
+        setMaxElementVolume(0.0001);
     }
 
     void setMaxElementVolume(Real maxElementVol) { m_tparams.max_area = maxElementVol; }
+    void configureSubdivision(const std::string &algorithm, size_t levels) {
+        throw std::runtime_error("Subdivision not supported in 2D");
+    }
 
     size_t numParameters() const { return m_inflator.patternGenerator().numberOfParameters(); }
 
@@ -129,9 +134,13 @@ public:
     Inflator(const std::string &wireMeshPath)
         : m_inflator(wireMeshPath, 5.0, 0.5 * sqrt(2.0)) {
         m_inflator.with_all_parameters();
+        setMaxElementVolume(0.0);
     }
 
     void setMaxElementVolume(Real maxElementVol) { m_maxElementVol = maxElementVol; }
+    void configureSubdivision(const std::string &algorithm, size_t levels) {
+        m_inflator.with_refinement(algorithm, levels);
+    }
 
     size_t numParameters() const { return m_inflator.get_num_dofs(); }
 
@@ -190,7 +199,7 @@ public:
     }
 
 private:
-    Real m_maxElementVol = 0.0;
+    Real m_maxElementVol;
     PeriodicExploration m_inflator;
 };
 

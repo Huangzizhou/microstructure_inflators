@@ -10,7 +10,7 @@
 //  Created:  09/12/2014 01:15:28
 ////////////////////////////////////////////////////////////////////////////////
 #include <MeshIO.hh>
-#include "NewLinearElasticity.hh"
+#include "LinearElasticity.hh"
 #include <Materials.hh>
 #include <PeriodicHomogenization.hh>
 #include "GlobalBenchmark.hh"
@@ -55,12 +55,12 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description visible_opts;
     visible_opts.add_options()("help",        "Produce this help message")
         ("pattern,p",    po::value<string>(), "Pattern wire mesh (.obj|wire)")
-        ("orbit,O",      po::value<string>(), "Pattern orbit file (.orbit)")
-        ("modifier,M",   po::value<string>(), "Pattern modifier file (.modifier)")
         ("material,m",   po::value<string>(), "base material")
         ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
         ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
-        ("max_volume,v", po::value<double>()->default_value(0.0001),             "maximum element volume parameter for wire inflator")
+        ("subdivide,S",  po::value<size_t>()->default_value(0),                  "number of subdivisions to run for 3D inflator")
+        ("sub_algorithm,A", po::value<string>()->default_value("simple"),        "subdivision algorithm for 3D inflator (simple or loop)")
+        ("max_volume,v", po::value<double>(),                                    "maximum element volume parameter for wire inflator")
         ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
         ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
@@ -103,6 +103,12 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
+    set<string> subdivisionAlgorithms = {"simple", "loop"};
+    if (subdivisionAlgorithms.count(vm["sub_algorithm"].as<string>()) == 0) {
+        cout << "Illegal subdivision algorithm specified" << endl;
+        fail = true;
+    }
+
     if (fail || vm.count("help"))
         usage(fail, visible_opts);
 
@@ -120,7 +126,12 @@ template<size_t _N, size_t _FEMDegree>
 void execute(const po::variables_map &args, const Job<_N> *job)
 {
 	Inflator<_N> inflator(args["pattern"].as<string>());
-    inflator.setMaxElementVolume(args["max_volume"].as<double>());
+    if (args.count("max_volume"))
+        inflator.setMaxElementVolume(args["max_volume"].as<double>());
+    if (_N == 3) {
+        inflator.configureSubdivision(args["sub_algorithm"].as<string>(),
+                                      args["subdivide"].as<size_t>());
+    }
 
     auto targetC = job->targetMaterial.getTensor();
     ETensor<_N> targetS = targetC.inverse();
