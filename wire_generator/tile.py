@@ -26,6 +26,7 @@ def parse_config_file(config_file):
         "trim": bool,
         "periodic": bool,
         "subdiv": #,
+        "subdiv_method": "simple" or "loop"
         "output": output_file
     }
     """
@@ -82,7 +83,9 @@ def tile(config):
     options = {
             "trim": config.get("trim", False),
             "periodic": config.get("periodic", False),
-            "subdiv": config.get("subdiv", 1) }
+            "subdiv": config.get("subdiv", 1),
+            "subdiv_method": str(config.get("subdiv_method", "simple")),
+            }
     inflator_driver = InflatorFacade.create(network, parameters);
     if "guide_mesh" in config:
         guide_mesh = load_mesh(config["guide_mesh"]);
