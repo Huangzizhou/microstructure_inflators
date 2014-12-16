@@ -23,15 +23,17 @@ def generate_box_mesh(box_min, box_max, num_samples, keep_symmetry=False,
 
 def generate_2D_box_mesh(box_min, box_max, num_samples, keep_symmetry,
         subdiv_order):
-    step_size = np.divide((box_max - box_min), [num_samples, num_samples]);
+    if isinstance(num_samples, int):
+        num_samples = [num_samples, num_samples];
+    step_size = np.divide((box_max - box_min), num_samples);
 
     num_vertices = 0;
     vertices = [];
     faces = [];
     quad_indices = [];
     quad_index = 0;
-    for i in range(num_samples):
-        for j in range(num_samples):
+    for i in range(num_samples[0]):
+        for j in range(num_samples[1]):
             p = np.multiply([i, j], step_size) + box_min;
             corners = np.array([
                     [p[0]             , p[1]             ],
@@ -137,17 +139,18 @@ def reorientate_tets(vertices, tets):
 
 def generate_3D_box_mesh(bbox_min, bbox_max, num_samples, keep_symmetry=False,
         subdiv_order=0):
-    step_size = np.divide((bbox_max - bbox_min),
-            [num_samples, num_samples, num_samples]);
+    if isinstance(num_samples, int):
+        num_samples = [num_samples, num_samples, num_samples];
+    step_size = np.divide((bbox_max - bbox_min), num_samples);
 
     num_vertices = 0;
     vertices = [];
     tets = [];
     hex_indices = [];
     hex_index = 0;
-    for i in range(num_samples):
-        for j in range(num_samples):
-            for k in range(num_samples):
+    for i in range(num_samples[0]):
+        for j in range(num_samples[1]):
+            for k in range(num_samples[2]):
                 p = np.multiply([i,j,k], step_size) + bbox_min;
                 corners = [
                         [p[0]             , p[1]             , p[2]             ],
