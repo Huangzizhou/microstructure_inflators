@@ -1,13 +1,13 @@
 ////////////////////////////////////////////////////////////////////////////////
-// PatternOptimization_cli.cc
+// RandomJob.cc
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
-//      Evolves the microstructure parameters to bring the structure's
-//      homogenized elasticity tensor closer to a target tensor.
+//  Generates a random job trying to reach a random random point in the feasible
+//  region from another random point.
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
-//  Created:  09/12/2014 01:15:28
+//  Created:  12/16/2014 14:23:18
 ////////////////////////////////////////////////////////////////////////////////
 #include <MeshIO.hh>
 #include "LinearElasticity.hh"
@@ -26,6 +26,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <random>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -38,7 +39,7 @@ using namespace std;
 using namespace PatternOptimization;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: PatternOptimization_cli [options] job.opt" << endl;
+    cout << "Usage: RandomJob [options] config.opt out_job.opt" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
 }
@@ -47,23 +48,22 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 {
     po::options_description hidden_opts("Hidden Arguments");
     hidden_opts.add_options()
-        ("job", po::value<string>(), "job configuration file")
+        ("job",     po::value<string>(), "job configuration file")
+        ("out_job", po::value<string>(), "out job configuration file")
         ;
     po::positional_options_description p;
     p.add("job", 1);
+    p.add("out_job", 1);
 
     po::options_description visible_opts;
     visible_opts.add_options()("help",        "Produce this help message")
         ("pattern,p",    po::value<string>(), "Pattern wire mesh (.obj|wire)")
         ("material,m",   po::value<string>(), "base material")
-        ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
-        ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
-        ("subdivide,S",  po::value<size_t>()->default_value(0),                  "number of subdivisions to run for 3D inflator")
-        ("sub_algorithm,A", po::value<string>()->default_value("simple"),        "subdivision algorithm for 3D inflator (simple or loop)")
-        ("max_volume,v", po::value<double>(),                                    "maximum element volume parameter for wire inflator")
-        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
-        ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
-        ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
+        ("degree,d",     po::value<size_t>()->default_value(2),           "FEM Degree")
+        ("subdivide,S",  po::value<size_t>()->default_value(0),           "number of subdivisions to run for 3D inflator")
+        ("sub_algorithm,A", po::value<string>()->default_value("simple"), "subdivision algorithm for 3D inflator (simple or loop)")
+        ("max_volume,v", po::value<double>(),                             "maximum element volume parameter for wire inflator")
+        ("max_distance,D", po::value<double>()->default_value(1),         "maximum distance to true pattern parameters from random initial point (in relative units)")
         ;
 
     po::options_description cli_opts;
@@ -86,6 +86,11 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
+    if (vm.count("out_job") == 0) {
+        cout << "Error: must specify output file out_job.opt" << endl;
+        fail = true;
+    }
+
     if (vm.count("pattern") == 0) {
         cout << "Error: must specify pattern mesh" << endl;
         fail = true;
@@ -97,9 +102,9 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
-    set<string> solvers = {"gradient_descent", "bfgs", "lbfgs", "levenberg_marquardt"};
-    if (solvers.count(vm["solver"].as<string>()) == 0) {
-        cout << "Illegal solver specified" << endl;
+    double md = vm["max_distance"].as<double>();
+    if (md < 0.0 || md > 1.0) {
+        cout << "Error: maximum distance must be between 0 and 1." << endl;
         fail = true;
     }
 
@@ -120,6 +125,8 @@ using HMG = LinearElasticity::HomogenousMaterialGetter<Materials::Constant>::tem
 
 template<size_t _N>
 using ETensor = ElasticityTensor<Real, _N>;
+template<size_t _N>
+using VField = VectorField<Real, _N>;
 typedef ScalarField<Real> SField;
 
 template<size_t _N, size_t _FEMDegree>
@@ -133,22 +140,6 @@ void execute(const po::variables_map &args, const Job<_N> *job)
                                       args["subdivide"].as<size_t>());
     }
 
-    auto targetC = job->targetMaterial.getTensor();
-    ETensor<_N> targetS = targetC.inverse();
-
-    cout << "Target moduli:\t";
-    targetC.printOrthotropic(cout);
-    cout << endl;
-
-    if (job->numParams() != inflator.numParameters()) {
-        for (size_t i = 0; i < inflator.numParameters(); ++i) {
-            cout << "param " << i << " role: " <<
-                (inflator.parameterType(i) == ParameterType::Offset ? "Offset" : "Thickness")
-                << endl;
-        }
-        throw runtime_error("Invalid number of parameters.");
-    }
-
     typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh;
     typedef LinearElasticity::Simulator<Mesh> Simulator;
 
@@ -156,21 +147,61 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
-    SField params(job->initialParams);
-    Optimizer<Simulator> optimizer(inflator, job->radiusBounds,
-                                   job->translationBounds);
-    string solver = args["solver"].as<string>(),
-           output = args["output"].as<string>();
-    size_t niters = args["nIters"].as<size_t>();
-    if (solver == "levenberg_marquardt")
-        optimizer.optimize_lm(params, targetS, output);
-    else if (solver == "gradient_descent")
-        optimizer.optimize_gd(params, targetS, niters,
-                          args["step"].as<double>(), output);
-    else if (solver == "bfgs")
-        optimizer.optimize_bfgs(params, targetS, niters, output);
-    else if (solver == "lbfgs")
-        optimizer.optimize_bfgs(params, targetS, niters, output, 10);
+    // Generate random ground-truth pattern parameters
+    Job<_N> outJob(*job);
+    outJob.trueParams.resize(inflator.numParameters());
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> radiusParameter(job->radiusBounds[0], job->radiusBounds[1]),
+                                     translationParameter(job->translationBounds[0], job->translationBounds[1]);
+    for (size_t i = 0; i < inflator.numParameters(); ++i) {
+        if (inflator.parameterType(i) == ParameterType::Thickness)
+            outJob.trueParams[i] = radiusParameter(gen);
+        else 
+            outJob.trueParams[i] = translationParameter(gen);
+    }
+    
+    // Find corresponding elasticity tensor
+    typename Optimizer<Simulator>::Iterate randomIter(inflator,
+            outJob.trueParams.size(), &outJob.trueParams[0], ETensor<_N>());
+    auto &sim = randomIter.simulator();
+    std::vector<VField<_N>> w_ij;
+    PeriodicHomogenization::solveCellProblems(w_ij, sim);
+    outJob.targetMaterial.setTensor(PeriodicHomogenization::homogenizedElasticityTensor(w_ij, sim));
+
+    // Generate random initial pattern parameters within a ball of specified
+    // radius around the ground truth point in pattern parameter space.
+    // (But only pick feasible points).
+    // To speed up search, we hone in on a tight box containing all allowed points.
+    Real translationRange = job->translationBounds[1] - job->translationBounds[0];
+    Real radiusRange      =      job->radiusBounds[1] -      job->radiusBounds[0];
+    Real maxDistance = args["max_distance"].as<double>();
+    uniform_real_distribution<> relativeOffsetComponent(-maxDistance, maxDistance);
+    Eigen::VectorXd offset(inflator.numParameters());
+    outJob.initialParams.resize(inflator.numParameters());
+
+    // Keep picking from this box until we get a valid point.
+    do {
+        for (size_t i = 0; i < inflator.numParameters(); ++i) {
+            Real param;
+            if (inflator.parameterType(i) == ParameterType::Thickness) {
+                do {
+                    offset(i) = relativeOffsetComponent(gen);
+                    param = outJob.trueParams[i] + radiusRange * offset(i);
+                } while ((param < job->radiusBounds[0]) || (param > job->radiusBounds[1]));
+            }
+            else {
+                do {
+                    offset(i) = relativeOffsetComponent(gen);
+                    param = outJob.trueParams[i] + translationRange * offset(i);
+                } while ((param < job->translationBounds[0]) || (param > job->translationBounds[1]));
+            }
+            outJob.initialParams[i] = param;
+        }
+    } while (offset.norm() > maxDistance);
+
+    outJob.writeJobFile(args["out_job"].as<string>());
 }
 
 ////////////////////////////////////////////////////////////////////////////////

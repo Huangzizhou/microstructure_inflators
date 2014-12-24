@@ -11,7 +11,9 @@
 //          "target": {
 //              <material_spec>
 //          },
-//          "initial_params": [ ... ]
+//          "initial_params": [ ... ],
+//          "radiusBounds": [ low, high ],
+//          "translationBounds": [ low, high ]
 //      }
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
@@ -24,6 +26,7 @@
 #include <vector>
 #include <string>
 #include <stdexcept>
+#include <fstream>
 
 namespace PatternOptimization  {
 class JobBase {
@@ -31,12 +34,39 @@ public:
     virtual ~JobBase() { }
 
     std::vector<Real> initialParams, radiusBounds, translationBounds;
+    // The ground-truth parameters can be stored here--they are written to the
+    // job file for reference.
+    std::vector<Real> trueParams;
 };
 
 template<size_t _N>
 class Job : public JobBase {
 public:
     size_t numParams() const { return initialParams.size(); }
+    void writeJobFile(const std::string &jobFile) const {
+        std::ofstream os(jobFile);
+        if (!os.is_open()) 
+            throw std::runtime_error("Couldn't open output job file " + jobFile);
+        os << "{" << std::endl
+           << "\t\"dim\": " << _N << "," << std::endl
+           << "\t\"target\": " << targetMaterial << "," << std::endl
+           << "\t\"initial_params\": [";
+        for (size_t i = 0; i < initialParams.size(); ++i)
+            os << (i ? ", " : "") << initialParams[i];
+        os << "]," << std::endl;
+
+        if (trueParams.size() == initialParams.size()) {
+            os << "\t\"# true_params\": [";
+            for (size_t i = 0; i < trueParams.size(); ++i)
+                os << (i ? ", " : "") << trueParams[i];
+            os << "]," << std::endl;
+        }
+
+        os << "\t\"radiusBounds\": [" << radiusBounds[0] << ", " << radiusBounds[1] << "]," << std::endl
+           << "\t\"translationBounds\": [" << translationBounds[0] << ", " << translationBounds[1] << "]" << std::endl
+           << "}" << std::endl;
+    }
+
     virtual ~Job() { }
 
     Materials::Constant<_N> targetMaterial;

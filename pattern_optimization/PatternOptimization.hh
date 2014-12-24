@@ -104,6 +104,13 @@ public:
         // Evaluate compliance frobenius norm objective.
         Real evaluateJS() const {
             auto diff = S - m_targetS;
+            // TODO: FIGURE OUT WHAT TO DO WITH THIS HACK.
+            // Ignore "non-orthotropic part" (this part is erroneous)
+            for (size_t j = _N; j < flatLen(_N); ++j) {
+                for (size_t i = 0; i < j; ++i) {
+                    diff.D(i, j) = 0.0;
+                }
+            }
             return 0.5 * diff.quadrupleContract(diff);
         }
 
@@ -116,6 +123,13 @@ public:
         *///////////////////////////////////////////////////////////////////////
         std::vector<BEGradInterpolant> shapeDerivativeJS() const {
             _ETensor diff = S - m_targetS;
+            // TODO: FIGURE OUT WHAT TO DO WITH THIS HACK.
+            // Ignore "non-orthotropic part" (this part is erroneous)
+            for (size_t j = _N; j < flatLen(_N); ++j) {
+                for (size_t i = 0; i < j; ++i) {
+                    diff.D(i, j) = 0.0;
+                }
+            }
             std::vector<BEGradInterpolant> grad(m_gradS.size());
 
             for (size_t be = 0; be < m_gradS.size(); ++be) {
@@ -279,6 +293,8 @@ public:
             return false;
         }
 
+        _Sim &simulator() { return *m_sim; }
+
     private:
         std::shared_ptr<_Sim> m_sim;
         _ETensor C, S, m_targetS;
@@ -419,6 +435,8 @@ public:
             std::cout << std::endl;
 
             params -= gradP * alpha;
+            // // TODO: remove this hack.
+            // alpha *= .9;
 
             // Apply bound constraints
             params.minRelax(upperBounds);
