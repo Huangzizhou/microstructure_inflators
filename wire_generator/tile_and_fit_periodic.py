@@ -123,6 +123,8 @@ def parse_args():
     parser = argparse.ArgumentParser(
             description="Tile pattern, tetgen it, then fit orthotropic material");
     parser.add_argument("--material", help="material file", required=True);
+    parser.add_argument("--timing", help="output timing information",
+            action="store_true");
     parser.add_argument("config_file", help="configuration file");
     parser.add_argument("msh_file", help="output msh file");
     args = parser.parse_args();
@@ -137,8 +139,9 @@ def main():
     save_mesh_raw(args.msh_file, vertices, faces, voxels);
     run_material_fit(args.msh_file, args.material, args.msh_file);
 
-    timethis.summarize();
-    save_timing(args.msh_file);
+    if args.timing:
+        timethis.summarize();
+        save_timing(args.msh_file);
 
 if __name__ == "__main__":
     main();
