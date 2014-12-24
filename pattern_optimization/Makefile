@@ -1,15 +1,18 @@
 include $(MeshFEM)/platform_defs.mk
 
-SOURCES=PatternOptimization_cli.cc PatternOptimizationJob.cc
+SOURCES=PatternOptimization_cli.cc PatternOptimizationJob.cc RandomJob.cc
 PATOPT_OBJS=PatternOptimization_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
 CREATJOB_OBJS=CreateJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/MSHFieldParser.o $(MeshFEM)/GlobalBenchmark.o
-OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS)
+RANDJOB_OBJS=RandomJob.o  PatternOptimizationJob.o \
+			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
+			$(MeshFEM)/MSHFieldParser.o $(MeshFEM)/GlobalBenchmark.o
+OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS)
 
-TARGETS=PatternOptimization_cli CreateJob
+TARGETS=PatternOptimization_cli CreateJob RandomJob
 
 INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem $(VCG_INC) -isystem $(DLIB_INC) -I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
 LIBS+=../Luigi/wireinflator2D/lib/libclipper.a -L/$(PYMESH_PATH)/lib -lwires
@@ -24,6 +27,9 @@ all: $(TARGETS)
 PatternOptimization_cli: $(PATOPT_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
+RandomJob: $(RANDJOB_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
 CreateJob: $(CREATJOB_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
@@ -35,7 +41,7 @@ CreateJob: $(CREATJOB_OBJS)
 
 depend:
 	@touch Makefile.depend;
-	makedepend -Y -f Makefile.depend --  -- $(SOURCES) &> /dev/null
+	makedepend -Y -f Makefile.depend --  -- -I$(MeshFEM) $(SOURCES) &> /dev/null
 
 clean:
 	rm -f $(TARGETS) $(OBJS) *.bak

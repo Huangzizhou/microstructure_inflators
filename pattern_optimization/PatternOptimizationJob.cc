@@ -10,7 +10,9 @@
 //          "target": {
 //              <material_spec>
 //          },
-//          "initial_params": [ ... ]
+//          "initial_params": [ ... ],
+//          "radiusBounds": [ low, high ],
+//          "translationBounds": [ low, high ]
 //      }
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
