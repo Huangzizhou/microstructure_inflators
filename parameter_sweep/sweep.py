@@ -17,6 +17,7 @@ def load_config(config_file):
         "cell_size": float,
         "orbit_type": "orthotropic" | "isotropic",
         "subdiv": #,
+        "default_thickness": #,
         "thickness": {
             "per_edge": true,
             "orbits": [#, #, ...],
@@ -148,7 +149,7 @@ def generate_inflator_config(sweep_config, modifier_file):
     dim = sweep_config["dim"];
     cell_size = sweep_config["cell_size"];
     config = {
-            "thickness": 0.5, # Default thickness.
+            "thickness": sweep_config.get("default_thickness", 0.5),
             "trim": False,
             "periodic": True,
             }
