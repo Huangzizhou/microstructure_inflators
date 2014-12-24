@@ -27,6 +27,7 @@ def parse_config_file(config_file):
         "periodic": bool,
         "subdiv": #,
         "subdiv_method": "simple" or "loop"
+        "geometry_correction": [#, #, #],
         "output": output_file
     }
     """
@@ -85,6 +86,8 @@ def tile(config):
             "periodic": config.get("periodic", False),
             "subdiv": config.get("subdiv", 1),
             "subdiv_method": str(config.get("subdiv_method", "simple")),
+            "geometry_correction": config.get(
+                "geometry_correction", np.zeros(network.dim)),
             }
     inflator_driver = InflatorFacade.create(network, parameters);
     if "guide_mesh" in config:

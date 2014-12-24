@@ -51,6 +51,7 @@ class InflatorFacade3D(InflatorFacade):
                 options.get("periodic", False));
         inflator.inflate(
                 subdivide_method=options.get("subdiv_method", "simple"),
-                subdivide_order = options.get("subdiv", 1));
+                subdivide_order = options.get("subdiv", 1),
+                geometry_correction = options.get("geometry_correction", None));
         return inflator.mesh;
 
