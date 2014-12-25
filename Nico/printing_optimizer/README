@@ -1,0 +1,12 @@
+### To build: ###
+
+    mkdir build
+    cd build
+    cmake ..
+    make
+
+### Usage of command line ###
+
+    ./bin/support_gen input.wire input_guide_mesh.obj -1 1 -1 ./output.wire ./support.wire ./guidance.obj
+
+where -1 1 -1 is the vector that is rotated to (0,1,0) the Y direction
