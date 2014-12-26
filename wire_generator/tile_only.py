@@ -112,9 +112,9 @@ def generate_box_guide_mesh_3D(bbox_min, bbox_max, num_cells):
         y_coordinates.reshape((-1, 1), order="C"),
         z_coordinates.reshape((-1, 1), order="C")));
 
-    x_step = 1;
-    y_step = num_cells[0]+1;
-    z_step = (num_cells[0]+1) * (num_cells[1]+1);
+    x_step = num_cells[2] + 1;
+    y_step = (num_cells[2] + 1) * (num_cells[0] +1);
+    z_step = 1;
     hexes = [[
          i   *x_step+ j   *y_step+ k   *z_step,
          i   *x_step+(j+1)*y_step+ k   *z_step,
