@@ -1,13 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
-// PatternOptimization_cli.cc
+// GradientComponentValidation.cc
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
-//      Evolves the microstructure parameters to bring the structure's
-//      homogenized elasticity tensor closer to a target tensor.
+//      Validates a single component of the pattern optimization gradient. Does
+//      this by doing a fine 1D sweep of the objective around the sample point,
+//      writing the objective and gradient component for each sample.
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
-//  Created:  09/12/2014 01:15:28
+//  Created:  12/26/2014 14:57:55
 ////////////////////////////////////////////////////////////////////////////////
 #include <MeshIO.hh>
 #include "LinearElasticity.hh"
@@ -38,7 +39,7 @@ using namespace std;
 using namespace PatternOptimization;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: PatternOptimization_cli [options] job.opt" << endl;
+    cout << "Usage: PatternOptimization_cli [options] job.opt component_idx lower_bd upper_bd nsamples" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
 }
@@ -48,9 +49,17 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description hidden_opts("Hidden Arguments");
     hidden_opts.add_options()
         ("job", po::value<string>(), "job configuration file")
+        ("component_idx", po::value<size_t>(), "index of component to sweep")
+        ("lower_bd", po::value<double>(), "sweep lower bound")
+        ("upper_bd", po::value<double>(), "sweep upper bound")
+        ("nsamples", po::value<size_t>(), "number of steps to sweep")
         ;
     po::positional_options_description p;
     p.add("job", 1);
+    p.add("component_idx", 1);
+    p.add("lower_bd", 1);
+    p.add("upper_bd", 1);
+    p.add("nsamples", 1);
 
     po::options_description visible_opts;
     visible_opts.add_options()("help",        "Produce this help message")
@@ -61,9 +70,6 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("subdivide,S",  po::value<size_t>()->default_value(0),                  "number of subdivisions to run for 3D inflator")
         ("sub_algorithm,A", po::value<string>()->default_value("simple"),        "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                                    "maximum element volume parameter for wire inflator")
-        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
-        ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
-        ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
         ;
 
     po::options_description cli_opts;
@@ -81,8 +87,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     }
 
     bool fail = false;
-    if (vm.count("job") == 0) {
-        cout << "Error: must specify input job.opt file" << endl;
+    if (vm.count("job") + vm.count("component_idx")  + vm.count("lower_bd") + vm.count("upper_bd") + vm.count("nsamples") != 5) {
+        cout << "Error: must specify input job.opt file, sweep component index, sweep bounds, and sweep samples" << endl;
         fail = true;
     }
 
@@ -94,12 +100,6 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     size_t d = vm["degree"].as<size_t>();
     if (d < 1 || d > 2) {
         cout << "Error: FEM Degree must be 1 or 2" << endl;
-        fail = true;
-    }
-
-    set<string> solvers = {"gradient_descent", "bfgs", "lbfgs", "levenberg_marquardt"};
-    if (solvers.count(vm["solver"].as<string>()) == 0) {
-        cout << "Illegal solver specified" << endl;
         fail = true;
     }
 
@@ -140,7 +140,7 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     targetC.printOrthotropic(cout);
     cout << endl;
 
-    cout << "target tensor: " << targetC << endl;
+    // cout << "target tensor: " << targetC << endl;
 
     if (job->numParams() != inflator.numParameters()) {
         for (size_t i = 0; i < inflator.numParameters(); ++i) {
@@ -159,20 +159,19 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
     SField params(job->initialParams);
-    Optimizer<Simulator> optimizer(inflator, job->radiusBounds,
-                                   job->translationBounds);
-    string solver = args["solver"].as<string>(),
-           output = args["output"].as<string>();
-    size_t niters = args["nIters"].as<size_t>();
-    if (solver == "levenberg_marquardt")
-        optimizer.optimize_lm(params, targetS, output);
-    else if (solver == "gradient_descent")
-        optimizer.optimize_gd(params, targetS, niters,
-                          args["step"].as<double>(), output);
-    else if (solver == "bfgs")
-        optimizer.optimize_bfgs(params, targetS, niters, output);
-    else if (solver == "lbfgs")
-        optimizer.optimize_bfgs(params, targetS, niters, output, 10);
+    string output = args["output"].as<string>();
+    size_t compIdx = args["component_idx"].as<size_t>();
+    assert(compIdx < params.domainSize());
+    double lowerBound = args["lower_bd"].as<double>();
+    double upperBound = args["upper_bd"].as<double>();
+    size_t nSamples = args["nsamples"].as<size_t>();
+    for (size_t i = 0; i < nSamples; ++i) {
+        params[compIdx] = lowerBound + (upperBound - lowerBound) * (double(i) / (nSamples - 1));
+        typename Optimizer<Simulator>::Iterate it(inflator, params.domainSize(), &params[0], targetS);
+        std::cout << i << "\t" << params[compIdx] << "\t" << it.evaluateJS() << "\t"
+                  << it.gradp_JS()[compIdx] << std::endl;
+        if (output != "") it.writeMeshAndFields(std::to_string(i) + "_" + output);
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
