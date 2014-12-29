@@ -47,7 +47,7 @@ class PyWiresInflator(object):
                 self.mesh_vertices.ravel(order="C"),
                 self.mesh_faces.ravel(order="C"),
                 np.zeros(0),
-                3, 3, 4);
+                self.wire_network.dim, 3, 4);
         mesh = factory.create_shared();
         mesh.add_attribute("source_wire_id");
         mesh.set_attribute("source_wire_id", self.source_wire_id);
