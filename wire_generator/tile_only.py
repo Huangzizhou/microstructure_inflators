@@ -116,14 +116,14 @@ def generate_box_guide_mesh_3D(bbox_min, bbox_max, num_cells):
     y_step = (num_cells[2] + 1) * (num_cells[0] +1);
     z_step = 1;
     hexes = [[
-         i   *x_step+ j   *y_step+ k   *z_step,
-         i   *x_step+(j+1)*y_step+ k   *z_step,
-        (i+1)*x_step+(j+1)*y_step+ k   *z_step,
-        (i+1)*x_step+ j   *y_step+ k   *z_step,
          i   *x_step+ j   *y_step+(k+1)*z_step,
          i   *x_step+(j+1)*y_step+(k+1)*z_step,
         (i+1)*x_step+(j+1)*y_step+(k+1)*z_step,
         (i+1)*x_step+ j   *y_step+(k+1)*z_step,
+         i   *x_step+ j   *y_step+ k   *z_step,
+         i   *x_step+(j+1)*y_step+ k   *z_step,
+        (i+1)*x_step+(j+1)*y_step+ k   *z_step,
+        (i+1)*x_step+ j   *y_step+ k   *z_step,
         ]
         for i in range(num_cells[0])
         for j in range(num_cells[1])
@@ -159,7 +159,7 @@ def main():
 
     basename, ext = os.path.splitext(args.output_wire);
     if args.guide_mesh:
-        mesh_file = basename + "_guide.msh";
+        mesh_file = basename + "_guide.obj";
         save_mesh(guide_mesh, mesh_file);
 
     save_wire(out_wires, args.output_wire);
