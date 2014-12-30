@@ -31,8 +31,8 @@
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
-#include "PatternOptimization.hh"
 #include "PatternOptimizationJob.hh"
+#include "PatternOptimizationIterate.hh"
 
 namespace po = boost::program_options;
 using namespace std;
@@ -163,8 +163,8 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     }
     
     // Find corresponding elasticity tensor
-    typename Optimizer<Simulator>::Iterate randomIter(inflator,
-            outJob.trueParams.size(), &outJob.trueParams[0], ETensor<_N>());
+    Iterate<Simulator> randomIter(inflator, outJob.trueParams.size(),
+                                  &outJob.trueParams[0], ETensor<_N>());
     outJob.targetMaterial.setTensor(randomIter.elasticityTensor());
 
     // Generate random initial pattern parameters within a ball of specified

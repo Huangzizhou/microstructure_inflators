@@ -19,6 +19,8 @@
 #include <cassert>
 #include <memory>
 
+#include <MeshIO.hh>
+
 namespace PatternOptimization {
 template<class _Sim>
 struct Iterate {
@@ -44,8 +46,11 @@ struct Iterate {
         m_params.resize(nParams);
         for (size_t i = 0; i < m_params.size(); ++i)
             m_params[i] = params[i];
+        BENCHMARK_START_TIMER("Inflate");
         inflator.inflate(m_params);
+        BENCHMARK_STOP_TIMER("Inflate");
 
+        BENCHMARK_START_TIMER_SECTION("Eval");
         m_sim = std::make_shared<_Sim>(inflator.elements(),
                                        inflator.vertices());
         m_vn_p = inflator.computeShapeNormalVelocities(m_sim->mesh());
@@ -67,6 +72,8 @@ struct Iterate {
             for (size_t n = 0; n < GE.size(); ++n)
                 GS[n] = -S.doubleDoubleContract(GE[n]);
         }
+
+        BENCHMARK_STOP_TIMER_SECTION("Eval");
     }
 
     // Evaluate compliance frobenius norm objective.
@@ -244,6 +251,7 @@ struct Iterate {
                 for (size_t bei = 0; bei < mesh.numBoundaryElements(); ++bei)
                     nvel[bei] = vn[bei].average();
                 writer.addField("(averaged) normal velocity " + std::to_string(p), nvel, MSHFieldWriter::PER_ELEMENT);
+                writer.addField("(averaged) normal velocity direction" + std::to_string(p), directionField(nvel), MSHFieldWriter::PER_ELEMENT);
             }
             writer.addField("(averaged) gradFit", avg_vn, MSHFieldWriter::PER_ELEMENT);
             writer.addField("(averaged) gradFit direction", directionField(avg_vn), MSHFieldWriter::PER_ELEMENT);
@@ -251,6 +259,14 @@ struct Iterate {
             writer.addField("projectedVn", projectedNormalVelocity, MSHFieldWriter::PER_ELEMENT);
             writer.addField("projectedVn direction", directionField(projectedNormalVelocity), MSHFieldWriter::PER_ELEMENT);
         }
+    }
+
+    void writeVolumeMesh(const std::string &name) const {
+        MeshIO::save(name, m_sim->mesh());
+    }
+
+    void dumpSimulationMatrix(const std::string &matOut) const {
+        m_sim->dumpSystem(matOut);
     }
 
     bool paramsDiffer(size_t nParams, const Real *params) const {
