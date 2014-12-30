@@ -229,7 +229,7 @@ protected:
 
 	void setup(void)
 	{
-		this->m_radius_range = std::make_pair( 0.01, 0.1 );
+		this->m_radius_range = std::make_pair( 0.01, 5.0 );
 		this->m_transl_range = std::make_pair(-0.18, 0.18);
 
 		if (!this->isValid())
