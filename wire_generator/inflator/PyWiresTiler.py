@@ -4,7 +4,6 @@ import PyMesh
 import PyWires
 
 from core.WireNetwork import WireNetwork
-from ParameterHandler import ParameterHandler
 
 class PyWiresTiler(object):
     def set_single_cell(self, vertices, edges):
@@ -21,29 +20,15 @@ class PyWiresTiler(object):
 
         self.raw_pattern = self.pattern.raw_wires;
 
-        num_vertices = self.pattern.num_vertices;
-        for name, value in self.pattern.attributes.iteritems():
-            self.raw_pattern.add_attribute(name, len(value) == num_vertices);
-            self.raw_pattern.set_attribute(name, value);
-
-    def initialize_parameter_manager(self, parameters):
-        param_handler = ParameterHandler(self.pattern);
-        self.parameter_manager = param_handler\
-                .convert_to_PyWires_parameter_manager(parameters);
-
-    def tile(self, bbox_min, bbox_max, reps, parameters=[]):
+    def tile(self, bbox_min, bbox_max, reps, parameters):
         tiler = PyWires.WireTiler(self.raw_pattern);
-        if len(parameters) > 0:
-            self.initialize_parameter_manager(parameters);
-            tiler.with_parameters(self.parameter_manager);
+        tiler.with_parameters(parameters.raw_parameters);
         self.raw_wire_network = tiler.tile_with_guide_bbox(bbox_min, bbox_max, reps);
         self.__apply_vertex_offset();
 
-    def tile_with_hex_mesh(self, mesh, parameters=[]):
+    def tile_with_hex_mesh(self, mesh, parameters):
         tiler = PyWires.WireTiler(self.raw_pattern);
-        if len(parameters) > 0:
-            self.initialize_parameter_manager(parameters);
-            tiler.with_parameters(self.parameter_manager);
+        tiler.with_parameters(parameters.raw_parameters);
         self.raw_wire_network = tiler.tile_with_guide_mesh(mesh);
         self.__apply_vertex_offset();
 
@@ -54,20 +39,6 @@ class PyWiresTiler(object):
 
     @property
     def wire_network(self):
-        network = WireNetwork();
-        network.load(
-                self.raw_wire_network.get_vertices(),
-                self.raw_wire_network.get_edges());
-        attr_names = self.raw_wire_network.get_attribute_names();
-        for name in attr_names:
-            value = np.copy(self.raw_wire_network.get_attribute(name));
-            if value.shape[1] == 1:
-                value = value.ravel();
-            if name == "thickness":
-                if self.raw_wire_network.is_vertex_attribute(name):
-                    name = "vertex_thickness";
-                else:
-                    name = "edge_thickness";
-            network.attributes.add(name, value);
-        return network;
-
+        tiled_wire_network = WireNetwork();
+        tiled_wire_network.load_from_raw(self.raw_wire_network);
+        return tiled_wire_network;

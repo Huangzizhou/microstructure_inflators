@@ -7,6 +7,7 @@ from VertexOffsetParameter import VertexOffsetParameter
 
 class ParameterFactory(object):
     def __init__(self, wire_network, default_thickness=0.5):
+        raise DeprecationWarning("This method is deprecated.");
         self.wire_network = wire_network;
         self.default_thickness = default_thickness;
 
@@ -116,26 +117,28 @@ class ParameterFactory(object):
                     .format(self.orbit_type));
 
     def __get_num_orthotropic_vertex_orbits(self):
-        if "orthotropic_symmetry_vertex_orbit" not in self.wire_network.attributes:
+        if self.wire_network.has_attribute("vertex_symmetry_orbit"):
             self.wire_network.compute_symmetry_orbits();
         return len(np.unique(
-            self.wire_network.attributes["orthotropic_symmetry_vertex_orbit"]));
+            self.wire_network.get_attribute["vertex_symmetry_orbit"].ravel()));
 
     def __get_num_isotropic_vertex_orbits(self):
-        if "isotropic_symmetry_vertex_orbit" not in self.wire_network.attributes:
+        if self.wire_network.has_attribute("vertex_cubic_symmetry_orbit"):
             self.wire_network.compute_symmetry_orbits();
         return len(np.unique(
-            self.wire_network.attributes["isotropic_symmetry_vertex_orbit"]));
+            self.wire_network.get_attribute["vertex_cubic_symmetry_orbit"].ravel()));
 
     def __get_num_isotropic_edge_orbits(self):
-        if "isotropic_symmetry_edge_orbit" not in self.wire_network.attributes:
+        if self.wire_network.has_attribute("edge_cubic_symmetry_orbit"):
             self.wire_network.compute_symmetry_orbits();
-        return len(np.unique(self.wire_network.attributes["isotropic_symmetry_edge_orbit"]));
+        return len(np.unique(
+            self.wire_network.get_attribute["edge_cubic_symmetry_orbit"].ravel()));
 
     def __get_num_orthotropic_edge_orbits(self):
-        if "orthotropic_symmetry_edge_orbit" not in self.wire_network.attributes:
+        if self.wire_network.has_attribute("edge_symmetry_orbit"):
             self.wire_network.compute_symmetry_orbits();
-        return len(np.unique(self.wire_network.attributes["orthotropic_symmetry_edge_orbit"]));
+        return len(np.unique(
+            self.wire_network.get_attribute["edge_symmetry_orbit"].ravel()));
 
     def is_initialized(self):
         return hasattr(self, "vertex_thickness_parameters") and\

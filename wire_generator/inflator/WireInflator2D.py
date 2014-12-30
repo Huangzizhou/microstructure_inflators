@@ -59,13 +59,13 @@ class WireInflator2D(object):
             for name, value in zip(attribute_names, attribute_values)}
             for i in range(num_cells)];
 
-        #quad_mesh.add_attribute("face_area");
-        #areas = quad_mesh.get_attribute("face_area").ravel();
+        quad_mesh.add_attribute("face_area");
+        areas = quad_mesh.get_attribute("face_area").ravel();
         vertices = quad_mesh.get_vertices().reshape((-1,2), order="C");
         parameters = [];
         for i in range(num_cells):
-            #area = areas[i];
-            #scale_factor = sqrt(area);
+            area = areas[i];
+            scale_factor = sqrt(area);
             p = self.parameter_handler.convert_to_flattened_parameters(
                     self.parameters, **attribute_dict[i]);
             self.__scale_thickness_parameters(p, 1.0);

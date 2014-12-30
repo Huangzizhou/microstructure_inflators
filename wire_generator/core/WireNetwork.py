@@ -1,174 +1,129 @@
-import json
 import numpy as np
 from numpy.linalg import norm
-import os.path
 
-from wire_io.WireReader import WireReader
-from attributes.WireAttributes import WireAttributes
-
+import PyMeshSetting
 import PyWires
 
 class WireNetwork(object):
+    def __init__(self):
+        self.raw_wires = PyWires.WireNetwork();
+        self.__initialize_wires();
 
     def load(self, vertices, edges):
-        self.vertices = np.array(vertices);
-        self.edges = np.array(edges);
-        self.__initialize();
+        self.raw_wires = PyWires.WireNetwork.create_raw(vertices, edges);
+        self.__initialize_wires();
 
     def load_from_file(self, wire_file):
-        self.source_file = wire_file;
-        self.__parse_wire_file(wire_file);
-        self.__initialize();
+        self.raw_wires = PyWires.WireNetwork.create(wire_file);
+        self.__initialize_wires();
+
+    def load_from_raw(self, raw_wires):
+        self.raw_wires = raw_wires;
+        self.__initialize_wires();
 
     def scale(self, factors):
         if isinstance(factors, float):
-            self.vertices *= factors;
-        else:
-            self.vertices = np.multiply(self.vertices, factors);
+            factors = np.ones(self.dim) * factors;
+        self.raw_wires.scale(factors);
 
     def offset(self, offset_vector):
-        self.vertices += offset_vector;
+        vertices = self.vertices + offset_vector;
+        self.vertices = vertices;
 
     def translate(self, offset):
-        self.vertices += offset;
+        self.raw_wires.translate(offset);
 
     def trim(self):
         """ Remove all hanging edges
         e.g. edge with at least one vertex of valance <= 1
         """
         while np.any(self.vertex_valance <= 1):
-            edge_to_keep = np.all(self.vertex_valance[self.edges] > 1, axis=1);
-            self.__update_edge_attributes(edge_to_keep);
-            self.edges = self.edges[edge_to_keep];
-            self.__remove_isolated_vertices();
-            self.__compute_connectivity();
+            edge_to_keep = np.all(self.vertex_valance[self.edges] > 1,
+                    axis=1).tolist();
+            self.raw_wires.filter_edges(edge_to_keep);
+            vertex_to_keep = [len(self.get_vertex_neighbors(i)) > 0 for i in
+                    range(self.num_vertices)];
+            self.raw_wires.filter_vertices(vertex_to_keep);
+
+            self.__initialize_wires();
             if len(self.vertices) == 0:
                 raise RuntimeError("Zero vertices left after trimming.");
 
     def compute_symmetry_orbits(self):
-        if hasattr(self, "source_file"):
-            basename, ext = os.path.splitext(self.source_file);
-            orbit_file = basename + ".orbit";
-            if os.path.exists(orbit_file):
-                self.__load_symmetry_orbits_from_file(orbit_file);
-            else:
-                self.__compute_symmetry_orbits_from_wires();
-        else:
-            self.__compute_symmetry_orbits_from_wires();
+        self.add_attribute("vertex_symmetry_orbit");
+        self.add_attribute("vertex_cubic_symmetry_orbit");
+        self.add_attribute("edge_symmetry_orbit");
+        self.add_attribute("edge_cubic_symmetry_orbit");
 
+    def has_attribute(self, name):
+        return self.raw_wires.has_attribute(name);
 
-    def __load_symmetry_orbits_from_file(self, orbit_file):
-        with open(orbit_file) as fin:
-            orbit_config = json.load(fin);
-            if "orthotropic_vertex_orbits" in orbit_config:
-                orthotropic_vertex_orbits = orbit_config["orthotropic_vertex_orbits"];
-                orbit_ids = np.zeros(self.num_vertices);
-                for i,v_indices in enumerate(orthotropic_vertex_orbits):
-                    orbit_ids[v_indices] = i;
-                self.attributes["orthotropic_symmetry_vertex_orbit"] = orbit_ids;
-            else:
-                self.attributes.add("orthotropic_symmetry_vertex_orbit");
+    def add_attribute(self, name, value=None):
+        if not self.has_attribute(name):
+            self.raw_wires.add_attribute(name);
+        if value is not None:
+            self.raw_wires.set_attribute(name, value);
 
-            if "isotropic_vertex_orbits" in orbit_config:
-                vertex_orbits = orbit_config["isotropic_vertex_orbits"];
-                orbit_ids = np.zeros(self.num_vertices);
-                for i,v_indices in enumerate(vertex_orbits):
-                    orbit_ids[v_indices] = i;
-                self.attributes["isotropic_symmetry_vertex_orbit"] = orbit_ids;
-            else:
-                self.attributes.add("isotropic_symmetry_vertex_orbit");
+    def get_attribute(self, name):
+        assert(self.has_attribute(name));
+        return self.raw_wires.get_attribute(name);
 
-            if "orthotropic_edge_orbits" in orbit_config:
-                edge_orbits = orbit_config["orthotropic_edge_orbits"];
-                orbit_ids = np.zeros(self.num_edges);
-                for i, e_indices in enumerate(edge_orbits):
-                    orbit_ids[e_indices] = i;
-                self.attributes["orthotropic_symmetry_edge_orbit"] = orbit_ids;
-            else:
-                self.attributes.add("orthotropic_symmetry_edge_orbit");
+    def is_vertex_attribute(self, name):
+        assert(self.has_attribute(name));
+        return self.raw_wires.is_vertex_attribute(name);
 
-            if "isotropic_edge_orbits" in orbit_config:
-                edge_orbits = orbit_config["isotropic_edge_orbits"];
-                orbit_ids = np.zeros(self.num_edges);
-                for i, e_indices in enumerate(edge_orbits):
-                    orbit_ids[e_indices] = i;
-                self.attributes["isotropic_symmetry_edge_orbit"] = orbit_ids;
-            else:
-                self.attributes.add("isotropic_symmetry_edge_orbit");
+    def set_attribute(self, name, value):
+        assert(self.has_attribute(name));
+        self.raw_wires.set_attribute(name, value);
 
-    def __compute_symmetry_orbits_from_wires(self):
-        self.attributes.add("orthotropic_symmetry_vertex_orbit");
-        self.attributes.add("isotropic_symmetry_vertex_orbit");
-        self.attributes.add("orthotropic_symmetry_edge_orbit");
-        self.attributes.add("isotropic_symmetry_edge_orbit");
+    def get_vertex_neighbors(self, i):
+        if not self.raw_wires.with_connectivity():
+            self.raw_wires.compute_connectivity();
+        return self.raw_wires.get_vertex_neighbors(i);
 
-    def __initialize(self):
-        self.__compute_connectivity();
-        self.dim = self.vertices.shape[1];
-        self.attributes = WireAttributes(self);
+    def __initialize_wires(self):
+        self.raw_wires.compute_connectivity();
+        self.vertex_valance = np.array([
+                len(self.raw_wires.get_vertex_neighbors(i)) for i in
+                range(self.num_vertices) ], dtype=int);
 
-    def __parse_wire_file(self, wire_file):
-        parser = WireReader(wire_file);
-        self.vertices = np.array(parser.vertices);
-        self.edges = np.array(parser.edges);
-
-    def __compute_connectivity(self):
-        self.vertex_neighbors = [[] for i in range(self.num_vertices)];
-        self.vertex_edge_neighbors = [[] for i in range(self.num_vertices)];
-        self.vertex_valance = np.zeros(self.num_vertices);
-        for i,edge in enumerate(self.edges):
-            self.vertex_neighbors[edge[0]].append(edge[1]);
-            self.vertex_neighbors[edge[1]].append(edge[0]);
-            self.vertex_edge_neighbors[edge[0]].append(i);
-            self.vertex_edge_neighbors[edge[1]].append(i);
-            self.vertex_valance[edge[0]] += 1;
-            self.vertex_valance[edge[1]] += 1;
-
-    def __remove_isolated_vertices(self):
-        num_vertices = self.num_vertices;
-        vertex_map = np.zeros(num_vertices, dtype=int) - 1;
-        vertices = [];
-        for edge in self.edges:
-            if vertex_map[edge[0]] == -1:
-                vertex_map[edge[0]] = len(vertices);
-                vertices.append(self.vertices[edge[0]]);
-            if vertex_map[edge[1]] == -1:
-                vertex_map[edge[1]] = len(vertices);
-                vertices.append(self.vertices[edge[1]]);
-
-        self.vertices = np.array(vertices);
-        self.edges = vertex_map[self.edges];
-
-        vertex_to_keep = vertex_map > -1;
-        indices = vertex_map[vertex_to_keep];
-        for attr_name in self.attributes:
-            value = self.attributes[attr_name];
-            if len(value) == num_vertices:
-                mapped_value = np.zeros_like(value)[vertex_to_keep];
-                mapped_value[indices] = value[vertex_to_keep];
-                self.attributes[attr_name] = mapped_value;
-
-    def __update_edge_attributes(self, edge_to_keep):
-        for attr_name in self.attributes:
-            value = self.attributes[attr_name];
-            if len(value) == self.num_edges:
-                self.attributes[attr_name] = value[edge_to_keep];
+    @property
+    def dim(self):
+        return self.raw_wires.get_dim();
 
     @property
     def num_vertices(self):
-        return len(self.vertices);
+        return self.raw_wires.get_num_vertices();
 
     @property
     def num_edges(self):
-        return len(self.edges);
+        return self.raw_wires.get_num_edges();
+
+    @property
+    def vertices(self):
+        return self.raw_wires.get_vertices();
+
+    @vertices.setter
+    def vertices(self, value):
+        self.raw_wires.set_vertices(value);
+
+    @property
+    def edges(self):
+        return self.raw_wires.get_edges();
+
+    @edges.setter
+    def edges(self, value):
+        self.raw_wires.set_edges(value);
+        self.__initialize_wires();
 
     @property
     def bbox(self):
-        return np.amin(self.vertices, axis=0), np.amax(self.vertices, axis=0);
+        return (self.raw_wires.get_bbox_min().ravel(),
+                self.raw_wires.get_bbox_max().ravel());
 
     @property
     def bbox_center(self):
-        return np.average(self.bbox, axis=0);
+        return self.raw_wires.center().ravel();
 
     @property
     def centroid(self):
@@ -185,6 +140,6 @@ class WireNetwork(object):
             self.vertices[self.edges[:,1]], axis=1);
 
     @property
-    def raw_wires(self):
-        return PyWires.WireNetwork.create_raw(self.vertices, self.edges);
+    def attribute_names(self):
+        return self.raw_wires.get_attribute_names();
 

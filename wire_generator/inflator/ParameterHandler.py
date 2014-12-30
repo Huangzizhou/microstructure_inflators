@@ -8,6 +8,7 @@ import PyWires
 
 class ParameterHandler(object):
     def __init__(self, wire_network):
+        raise DeprecationWarning("This method is deprecated.");
         self.wire_network = wire_network;
         self.__remove_old_attributes();
         self.__initialize_orbits();

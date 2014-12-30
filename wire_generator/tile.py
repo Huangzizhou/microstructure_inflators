@@ -7,7 +7,8 @@ import os.path
 
 from core.WireNetwork import WireNetwork
 from inflator.InflatorFacade import InflatorFacade
-from parameter.ParameterFactory import ParameterFactory
+#from parameter.ParameterFactory import ParameterFactory
+from parameter.PyParameters import PyParameters
 from utils.find_file import find_file
 from utils.timethis import timethis
 import PyMesh
@@ -70,16 +71,25 @@ def load_wire(wire_file):
     network.compute_symmetry_orbits();
     return network;
 
-def load_parameters(wire_network, default_thickness, modifier_file):
+def load_parameters_old(wire_network, default_thickness, modifier_file):
     factory = ParameterFactory(wire_network, default_thickness);
     factory.create_parameters_from_file(modifier_file);
     return factory.parameters;
 
+def load_parameters(wire_network, config):
+    parameters = PyParameters(wire_network, config["thickness"]);
+    if "modifier_file" in config:
+        if "dof_file" in config:
+            print("dof_file is shadowed by modifier file!");
+        parameters.load_modifier_file(config["modifier_file"]);
+    elif "dof_file" in config:
+        parameters.load_dof_file(config["dof_file"]);
+    return parameters;
+
 @timethis
 def tile(config):
     network = load_wire(str(config["wire_network"]));
-    parameters = load_parameters(network,
-            config["thickness"], config.get("modifier_file"));
+    parameters = load_parameters(network, config);
 
     options = {
             "trim": config.get("trim", False),

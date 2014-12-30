@@ -6,31 +6,23 @@ import PyMesh
 class PyWiresInflator(object):
     def __init__(self, wire_network, parameters, periodic=False):
         self.wire_network = wire_network;
-        self.parameters = parameters;
         self.periodic = periodic;
+        self.parameters = parameters;
 
     def inflate(self, clean_up=True, subdivide_order=1,
             subdivide_method="simple", geometry_correction=None):
         wires = self.wire_network.raw_wires;
 
-        thickness_type = PyWires.VERTEX;
-        if "edge_thickness" in self.wire_network.attributes:
-            thickness_type = PyWires.EDGE;
-
         if self.periodic:
-            manager = PyWires.ParameterManager.create(wires, 0.5, thickness_type);
-            inflator = PyWires.InflatorEngine.create_parametric(wires, manager);
+            inflator = PyWires.InflatorEngine.create_parametric(wires,
+                    self.parameters.raw_parameters);
         else:
             inflator = PyWires.InflatorEngine.create("simple", wires);
 
-        if "vertex_thickness" in self.wire_network.attributes:
-            thickness = self.wire_network.attributes["vertex_thickness"];
-            inflator.set_thickness_type(PyWires.InflatorEngine.PER_VERTEX);
-            inflator.set_thickness(thickness);
-        elif "edge_thickness" in self.wire_network.attributes:
-            thickness = self.wire_network.attributes["edge_thickness"];
-            inflator.set_thickness_type(PyWires.InflatorEngine.PER_EDGE);
-            inflator.set_thickness(thickness);
+        thickness = wires.get_attribute("thickness").ravel();
+        inflator.set_thickness_type(
+                self.parameters.raw_parameters.get_thickness_type());
+        inflator.set_thickness(thickness);
 
         inflator.with_refinement(subdivide_method, subdivide_order);
         if (geometry_correction is not None):
@@ -39,6 +31,9 @@ class PyWiresInflator(object):
         self.mesh_vertices = inflator.get_vertices();
         self.mesh_faces = inflator.get_faces();
         self.source_wire_id = inflator.get_face_sources();
+
+        if self.periodic:
+            self.wire_network.compute_symmetry_orbits();
 
     @property
     def mesh(self):
@@ -52,8 +47,8 @@ class PyWiresInflator(object):
         mesh.add_attribute("source_wire_id");
         mesh.set_attribute("source_wire_id", self.source_wire_id);
 
-        if "orthotropic_symmetry_vertex_orbit" in self.wire_network.attributes:
-            indices = self.wire_network.attributes["orthotropic_symmetry_vertex_orbit"].ravel();
+        if self.wire_network.has_attribute("vertex_symmetry_orbit"):
+            indices = self.wire_network.get_attribute("vertex_symmetry_orbit").ravel();
             source_id_mask = self.source_wire_id > 0;
             source_index = np.zeros_like(self.source_wire_id);
             source_index[np.logical_not(source_id_mask)] = -1;
@@ -62,8 +57,8 @@ class PyWiresInflator(object):
             mesh.add_attribute("orthotropic_vertex_orbit");
             mesh.set_attribute("orthotropic_vertex_orbit", source_index);
 
-        if "isotropic_symmetry_vertex_orbit" in self.wire_network.attributes:
-            indices = self.wire_network.attributes["isotropic_symmetry_vertex_orbit"].ravel();
+        if self.wire_network.has_attribute("vertex_cubic_symmetry_orbit"):
+            indices = self.wire_network.get_attribute("vertex_cubic_symmetry_orbit").ravel();
             source_id_mask = self.source_wire_id > 0;
             source_index = np.zeros_like(self.source_wire_id);
             source_index[np.logical_not(source_id_mask)] = -1;
@@ -72,8 +67,8 @@ class PyWiresInflator(object):
             mesh.add_attribute("isotropic_vertex_orbit");
             mesh.set_attribute("isotropic_vertex_orbit", source_index);
 
-        if "orthotropic_symmetry_edge_orbit" in self.wire_network.attributes:
-            indices = self.wire_network.attributes["orthotropic_symmetry_edge_orbit"].ravel();
+        if self.wire_network.has_attribute("edge_symmetry_orbit"):
+            indices = self.wire_network.get_attribute("edge_symmetry_orbit").ravel();
             source_id_mask = self.source_wire_id < 0;
             source_index = np.zeros_like(self.source_wire_id);
             source_index[np.logical_not(source_id_mask)] = -1;
@@ -82,8 +77,8 @@ class PyWiresInflator(object):
             mesh.add_attribute("orthotropic_edge_orbit");
             mesh.set_attribute("orthotropic_edge_orbit", source_index);
 
-        if "isotropic_symmetry_edge_orbit" in self.wire_network.attributes:
-            indices = self.wire_network.attributes["isotropic_symmetry_edge_orbit"].ravel();
+        if self.wire_network.has_attribute("edge_cubic_symmetry_orbit"):
+            indices = self.wire_network.get_attribute("edge_cubic_symmetry_orbit").ravel();
             source_id_mask = self.source_wire_id < 0;
             source_index = np.zeros_like(self.source_wire_id);
             source_index[np.logical_not(source_id_mask)] = -1;
