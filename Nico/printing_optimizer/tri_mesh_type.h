@@ -41,6 +41,7 @@
 #ifndef TRI_MESH_TYPE_H
 #define TRI_MESH_TYPE_H
 
+#include <vcg/space/intersection3.h>
 
 //the guidance mesh
 class MyTriFace;
@@ -75,6 +76,32 @@ public:
         vcg::tri::io::ImporterOBJ<MyTriMesh>::Open(*this,path.c_str(),mask);
         vcg::tri::UpdateBounding<MyTriMesh>::Box(*this);
         vcg::tri::UpdateNormal<MyTriMesh>::PerFaceNormalized(*this);
+    }
+
+    bool Intersect(CoordType pos,
+                   CoordType direction,
+                   int &faceNum)
+    {
+        for (size_t i=0;i<face.size();i++)
+        {
+            vcg::Ray3<ScalarType> R3(pos,direction);
+            CoordType p[3];
+            p[0]=face[i].P(0);
+            p[1]=face[i].P(1);
+            p[2]=face[i].P(2);
+            ScalarType t,alpha,beta,gamma;
+            if (vcg::IntersectionRayTriangle(R3,p[0],p[1],p[2],t,alpha,beta))
+            {
+                gamma=1-(alpha+beta);
+                CoordType NormTris=face[i].N();
+                if ((NormTris*direction)<(-0.1))
+                {
+                    faceNum=i;
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
 };

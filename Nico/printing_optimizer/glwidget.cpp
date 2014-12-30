@@ -57,8 +57,8 @@ CMesh SupportM;
 
 std::string OutputMesh;
 
-std::string WirePath="./data/pattern1151_3x3x3.wire";
-std::string DomainPath="./data/pattern1151_3x3x3_guide_mesh.obj";
+std::string WirePath="./flappy/bird.wire";//"./data/pattern1151_3x3x3.wire";
+std::string DomainPath="./flappy/bird_guide.obj";//"./data/pattern1151_3x3x3_guide_mesh.obj";
 
 float dir[3] = {-1, 1, -1};
 
@@ -131,7 +131,7 @@ void TW_CALL InitPrintability(void *)
 
 void TW_CALL AddPrintingSupport(void *)
 {
-    WireM.CreatePrintingSupport(SupportM);
+    WireM.CreatePrintingSupport(SupportM,GuidanceM);
 }
 
 GLWidget::GLWidget(QWidget *parent)

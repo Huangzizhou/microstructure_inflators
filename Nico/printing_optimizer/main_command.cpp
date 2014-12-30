@@ -44,12 +44,16 @@
 
 std::string WirePath;
 std::string GuidancePath;
+std::string InflatedPath;
 float dir[3];
+float offset;
 std::string OutputWire;
 std::string OutputGuidance;
 std::string OutputSupport;
+std::string OutputInflated;
 
 MyTriMesh GuidanceM;
+MyTriMesh InflatedM;
 
 CMesh WireM;
 CMesh SupportM;
@@ -63,10 +67,10 @@ void InitPrintability()
 
 void AddPrintingSupport()
 {
-    WireM.CreatePrintingSupport(SupportM);
+    WireM.CreatePrintingSupport(SupportM,GuidanceM);
 }
 
-void MoveToGround()
+void MoveToGround(float bottom=0)
 {
     vcg::tri::UpdateBounding<CMesh>::Box(WireM);
     for (size_t i=0;i<WireM.vert.size();i++)
@@ -75,8 +79,21 @@ void MoveToGround()
     for (size_t i=0;i<GuidanceM.vert.size();i++)
         GuidanceM.vert[i].P()-=WireM.bbox.min;
 
+    for (size_t i=0;i<InflatedM.vert.size();i++)
+        InflatedM.vert[i].P()-=WireM.bbox.min;
+
+    for (size_t i=0;i<WireM.vert.size();i++)
+        WireM.vert[i].P().Y()+=bottom;
+
+    for (size_t i=0;i<GuidanceM.vert.size();i++)
+        GuidanceM.vert[i].P().Y()+=bottom;
+
+    for (size_t i=0;i<InflatedM.vert.size();i++)
+        InflatedM.vert[i].P().Y()+=bottom;
+
     vcg::tri::UpdateBounding<CMesh>::Box(WireM);
     vcg::tri::UpdateBounding<MyTriMesh>::Box(GuidanceM);
+    vcg::tri::UpdateBounding<MyTriMesh>::Box(InflatedM);
 }
 
 void RotatePattern()
@@ -91,8 +108,12 @@ void RotatePattern()
     for (size_t i=0;i<WireM.vert.size();i++)
         WireM.vert[i].P()=Rot*WireM.vert[i].P();
 
+    for (size_t i=0;i<InflatedM.vert.size();i++)
+        InflatedM.vert[i].P()=Rot*InflatedM.vert[i].P();
+
     vcg::tri::UpdateBounding<CMesh>::Box(WireM);
     vcg::tri::UpdateNormal<MyTriMesh>::PerFaceNormalized(GuidanceM);
+    vcg::tri::UpdateNormal<MyTriMesh>::PerFaceNormalized(InflatedM);
 
     MoveToGround();
     //WireM.printable=WireM.PrintabilityTest();
@@ -103,22 +124,35 @@ int main(int argc, char *argv[])
 
     if (argc>1)
     {
-        assert(argc==9);
+        assert(argc==12);
         WirePath=std::string(argv[1]);
         GuidancePath=std::string(argv[2]);
-        dir[0]=atof(argv[3]);
-        dir[1]=atof(argv[4]);
-        dir[2]=atof(argv[5]);
-        OutputWire=std::string(argv[6]);
-        OutputSupport=std::string(argv[7]);
-        OutputGuidance=std::string(argv[8]);
+        InflatedPath=std::string(argv[3]);
 
+        dir[0]=atof(argv[4]);
+        dir[1]=atof(argv[5]);
+        dir[2]=atof(argv[6]);
+        offset=atof(argv[7]);
+
+        OutputWire=std::string(argv[8]);
+        OutputSupport=std::string(argv[9]);
+        OutputGuidance=std::string(argv[10]);
+        OutputInflated=std::string(argv[11]);
+
+        printf("Offesetting %5.5f \n",offset);
+        fflush(stdout);
 
         WireM.Load(WirePath);
         printf("Loading %s as Input Wire Mesh\n",WirePath.c_str());
+
         GuidanceM.Load(GuidancePath);
         printf("Loading %s as Input Guidance Mesh\n",GuidancePath.c_str());
         fflush(stdout);
+
+        InflatedM.Load(InflatedPath);
+        printf("Loading %s as Inflated Mesh\n",InflatedPath.c_str());
+        fflush(stdout);
+
         printf("Rotating along direction %5.5f %5.5f %5.5f\n",dir[0],dir[1],dir[2]);
         fflush(stdout);
 
@@ -126,7 +160,7 @@ int main(int argc, char *argv[])
 
         RotatePattern();
 
-        MoveToGround();
+        MoveToGround(offset);
 
         InitPrintability();
         if (!WireM.printable)
@@ -137,15 +171,19 @@ int main(int argc, char *argv[])
 
         AddPrintingSupport();
 
+        //MoveToGround();
+
         vcg::tri::io::ExporterOBJ<CMesh>::Save(WireM,OutputWire.c_str(),0);
         printf("Saving Output Wire Mesh in %s\n",OutputWire.c_str());
 
         vcg::tri::io::ExporterOBJ<CMesh>::Save(SupportM,OutputSupport.c_str(),0);
         printf("Saving Output Support Mesh in %s\n",OutputSupport.c_str());
 
-
         vcg::tri::io::ExporterOBJ<MyTriMesh>::Save(GuidanceM,OutputGuidance.c_str(),0);
         printf("Saving Output Guidance Mesh in %s\n",OutputGuidance.c_str());
+
+        vcg::tri::io::ExporterOBJ<MyTriMesh>::Save(InflatedM,OutputInflated.c_str(),0);
+        printf("Saving Output Inflated Mesh in %s\n",OutputInflated.c_str());
 
         fflush(stdout);
     }

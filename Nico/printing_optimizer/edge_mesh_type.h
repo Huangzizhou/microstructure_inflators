@@ -113,7 +113,7 @@ public:
                 currCol=vcg::Color4b(0,0,255,255);
 
             vcg::glColor(currCol);
-            vcg::Add_Ons::glPoint<vcg::Add_Ons::DMSolid>(vert[i].P(),size,10,10);
+            vcg::Add_Ons::glPoint<vcg::Add_Ons::DMSolid>(vert[i].P(),size,4,4);
         }
 
         if (printable)
@@ -132,7 +132,7 @@ public:
                 p1=p1*0.9+bary*0.1;
             }
             //CoordType dir=p1-p0;
-            vcg::Add_Ons::glCylinder<vcg::Add_Ons::DMSolid>(p0,p1,size,10);
+            vcg::Add_Ons::glCylinder<vcg::Add_Ons::DMSolid>(p0,p1,size,4);
         }
     }
 
@@ -158,12 +158,17 @@ public:
             }
     }
 
-    void CreatePrintingSupport(CMesh &Support)
+    template <class TriMesh>
+    void CreatePrintingSupport(CMesh &Support,
+                               TriMesh &Guidance)
     {
         Support.Clear();
         for (size_t i=0;i<vert.size();i++)
         {
             if (!vert[i].IsS())continue;
+            int faceNum;
+            if (Guidance.Intersect( vert[i].P(),CoordType(0,-1,0),faceNum))continue;
+
             CoordType pos0=vert[i].P();
             CoordType pos1=vert[i].P();
             pos1.Y()=0;
