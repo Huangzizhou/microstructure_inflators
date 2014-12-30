@@ -1,13 +1,13 @@
 ////////////////////////////////////////////////////////////////////////////////
-// PatternOptimization_cli.cc
+// SpacedJob.cc
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
-//      Evolves the microstructure parameters to bring the structure's
-//      homogenized elasticity tensor closer to a target tensor.
+//      Generates jobs spaced evenly along a particular parameter. All other
+//      parameters are set to the middle of their bound range.
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
-//  Created:  09/12/2014 01:15:28
+//  Created:  12/28/2014 17:07:35
 ////////////////////////////////////////////////////////////////////////////////
 #include <MeshIO.hh>
 #include "LinearElasticity.hh"
@@ -26,19 +26,20 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <random>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
-#include "PatternOptimization.hh"
 #include "PatternOptimizationJob.hh"
+#include "PatternOptimizationIterate.hh"
 
 namespace po = boost::program_options;
 using namespace std;
 using namespace PatternOptimization;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: PatternOptimization_cli [options] job.opt" << endl;
+    cout << "Usage: SpacedJob [options] config.opt component_idx lower_bd upper_bd njobs out_job_prefix" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
 }
@@ -47,23 +48,30 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 {
     po::options_description hidden_opts("Hidden Arguments");
     hidden_opts.add_options()
-        ("job", po::value<string>(), "job configuration file")
+        ("job",     po::value<string>(), "job configuration file")
+        ("component_idx", po::value<size_t>(), "index of component to sweep")
+        ("lower_bd", po::value<double>(), "sweep lower bound")
+        ("upper_bd", po::value<double>(), "sweep upper bound")
+        ("njobs", po::value<size_t>(), "number of jobs to space")
+        ("out_job", po::value<string>(), "out job configuration file (jobs out_job_#.opt is written)")
         ;
     po::positional_options_description p;
     p.add("job", 1);
+    p.add("component_idx", 1);
+    p.add("lower_bd", 1);
+    p.add("upper_bd", 1);
+    p.add("njobs", 1);
+    p.add("out_job", 1);
 
     po::options_description visible_opts;
     visible_opts.add_options()("help",        "Produce this help message")
         ("pattern,p",    po::value<string>(), "Pattern wire mesh (.obj|wire)")
         ("material,m",   po::value<string>(), "base material")
-        ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
-        ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
-        ("subdivide,S",  po::value<size_t>()->default_value(0),                  "number of subdivisions to run for 3D inflator")
-        ("sub_algorithm,A", po::value<string>()->default_value("simple"),        "subdivision algorithm for 3D inflator (simple or loop)")
-        ("max_volume,v", po::value<double>(),                                    "maximum element volume parameter for wire inflator")
-        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
-        ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
-        ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
+        ("degree,d",     po::value<size_t>()->default_value(2),           "FEM Degree")
+        ("subdivide,S",  po::value<size_t>()->default_value(0),           "number of subdivisions to run for 3D inflator")
+        ("sub_algorithm,A", po::value<string>()->default_value("simple"), "subdivision algorithm for 3D inflator (simple or loop)")
+        ("max_volume,v", po::value<double>(),                             "maximum element volume parameter for wire inflator")
+        ("max_distance,D", po::value<double>()->default_value(1),         "maximum distance to true pattern parameters from random initial point (in relative units)")
         ;
 
     po::options_description cli_opts;
@@ -81,8 +89,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     }
 
     bool fail = false;
-    if (vm.count("job") == 0) {
-        cout << "Error: must specify input job.opt file" << endl;
+    if (vm.count("out_job") == 0) {
+        cout << "Error: must specify all positional arguments" << endl;
         fail = true;
     }
 
@@ -94,12 +102,6 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     size_t d = vm["degree"].as<size_t>();
     if (d < 1 || d > 2) {
         cout << "Error: FEM Degree must be 1 or 2" << endl;
-        fail = true;
-    }
-
-    set<string> solvers = {"gradient_descent", "bfgs", "lbfgs", "levenberg_marquardt"};
-    if (solvers.count(vm["solver"].as<string>()) == 0) {
-        cout << "Illegal solver specified" << endl;
         fail = true;
     }
 
@@ -120,6 +122,8 @@ using HMG = LinearElasticity::HomogenousMaterialGetter<Materials::Constant>::tem
 
 template<size_t _N>
 using ETensor = ElasticityTensor<Real, _N>;
+template<size_t _N>
+using VField = VectorField<Real, _N>;
 typedef ScalarField<Real> SField;
 
 template<size_t _N, size_t _FEMDegree>
@@ -133,46 +137,47 @@ void execute(const po::variables_map &args, const Job<_N> *job)
                                       args["subdivide"].as<size_t>());
     }
 
-    auto targetC = job->targetMaterial.getTensor();
-    ETensor<_N> targetS = targetC.inverse();
-
-    cout << "Target moduli:\t";
-    targetC.printOrthotropic(cout);
-    cout << endl;
-
-    cout << "target tensor: " << targetC << endl;
-
-    if (job->numParams() != inflator.numParameters()) {
-        for (size_t i = 0; i < inflator.numParameters(); ++i) {
-            cout << "param " << i << " role: " <<
-                (inflator.parameterType(i) == ParameterType::Offset ? "Offset" : "Thickness")
-                << endl;
-        }
-        throw runtime_error("Invalid number of parameters.");
-    }
-
     typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh;
     typedef LinearElasticity::Simulator<Mesh> Simulator;
 
     // Set up simulators' (base) material
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
+    
+    size_t nParams = inflator.numParameters();
+    size_t compIdx = args["component_idx"].as<size_t>();
+    if (compIdx >= nParams) throw std::runtime_error("Invalid component_idx");
 
-    SField params(job->initialParams);
-    Optimizer<Simulator> optimizer(inflator, job->radiusBounds,
-                                   job->translationBounds);
-    string solver = args["solver"].as<string>(),
-           output = args["output"].as<string>();
-    size_t niters = args["nIters"].as<size_t>();
-    if (solver == "levenberg_marquardt")
-        optimizer.optimize_lm(params, targetS, output);
-    else if (solver == "gradient_descent")
-        optimizer.optimize_gd(params, targetS, niters,
-                          args["step"].as<double>(), output);
-    else if (solver == "bfgs")
-        optimizer.optimize_bfgs(params, targetS, niters, output);
-    else if (solver == "lbfgs")
-        optimizer.optimize_bfgs(params, targetS, niters, output, 10);
+    // Set ground truth/initial parameters all to midpoint initially
+    Job<_N> outJob(*job);
+    outJob.trueParams.resize(nParams);
+    outJob.initialParams.resize(nParams);
+    Real translationMid = (job->translationBounds[0] + job->translationBounds[1]) / 2;
+    Real      radiusMid = (     job->radiusBounds[0] +      job->radiusBounds[1]) / 2;
+
+    for (size_t p = 0; p < inflator.numParameters(); ++p) {
+        if (inflator.parameterType(p) == ParameterType::Thickness)
+            outJob.initialParams[p] = outJob.trueParams[p] = radiusMid;
+        else 
+            outJob.initialParams[p] = outJob.trueParams[p] = translationMid;
+    }
+
+    size_t nJobs = args["njobs"].as<size_t>();
+    double lowerBound = args["lower_bd"].as<double>();
+    double upperBound = args["upper_bd"].as<double>();
+    double range = upperBound - lowerBound;
+    double interval = range / nJobs;
+    for (size_t j = 0; j < nJobs; ++j) {
+        // True point is at the middle of the interval
+        outJob.trueParams[compIdx] = lowerBound + interval * (j + 0.5);
+        // Initial point is at the beginning of the interval
+        outJob.initialParams[compIdx] = lowerBound + interval * (j);
+        // Find corresponding elasticity tensor
+        Iterate<Simulator> iter(inflator, outJob.trueParams.size(),
+                                      &outJob.trueParams[0], ETensor<_N>());
+        outJob.targetMaterial.setTensor(iter.elasticityTensor());
+        outJob.writeJobFile(args["out_job"].as<string>() + std::to_string(j) + ".opt");
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
