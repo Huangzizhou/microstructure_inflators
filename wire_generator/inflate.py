@@ -6,6 +6,7 @@ import os.path
 from core.WireNetwork import WireNetwork
 from inflator.WireInflator import WireInflator
 from inflator.PyWiresInflator import PyWiresInflator
+from parameter.PyParameters import PyParameters
 
 import PyMesh
 
@@ -22,12 +23,9 @@ def inflate(wire_file, thickness, mesh_file, with_symmetry_orbits, subdiv_order,
         subdiv_method):
     wires = WireNetwork();
     wires.load_from_file(wire_file);
-    wires.attributes["vertex_thickness"] = \
-            np.ones(wires.num_vertices) * thickness;
-    if with_symmetry_orbits:
-        wires.attributes.add("symmetry_vertex_orbit");
-        wires.attributes.add("symmetry_edge_orbit");
-    inflator = PyWiresInflator(wires, []);
+    wires.add_attribute("thickness", np.ones(wires.num_vertices) * thickness);
+    parameters = PyParameters(wires, thickness);
+    inflator = PyWiresInflator(wires, parameters);
     inflator.inflate(True, subdiv_order, subdiv_method);
     mesh = inflator.mesh;
     save_mesh(mesh_file, mesh);
