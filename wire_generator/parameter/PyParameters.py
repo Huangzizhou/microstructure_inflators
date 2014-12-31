@@ -21,6 +21,16 @@ class PyParameters(object):
             self.raw_parameters = PyWires.ParameterManager.create_empty_manager(
                     self.wire_network.raw_wires, default_thickness);
 
+    def load_default_isotropic_parameters(self, thickness_type=PyWires.VERTEX):
+        self.raw_parameters = PyWires.ParameterManager.create_isotropic(
+                self.wire_network.raw_wires, self.default_thickness,
+                thickness_type);
+
+    def load_default_orthotropic_parameters(self, thickness_type=PyWires.VERTEX):
+        self.raw_parameters = PyWires.ParameterManager.create(
+                self.wire_network.raw_wires, self.default_thickness,
+                thickness_type);
+
     def load_modifier_file(self, modifier_file):
         modifier_setting = self.__load_json(modifier_file);
         self.load_modifier(modifier_setting);

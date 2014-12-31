@@ -19,6 +19,7 @@ def parse_config_file(config_file):
         "wire_network": single_cell_wire_network,
         "thickness": float,
         "modifier_file": modifier_file,
+        "dof_file": dof_file,
         "bbox_min": [min_x, min_y, min_z],
         "bbox_max": [max_x, max_y, max_z],
         "repeats": [x_reps, y_reps, z_reps],
@@ -39,13 +40,15 @@ def parse_config_file(config_file):
     def convert_to_abs_path(field_name):
         field = config[field_name];
         if isinstance(field, (unicode, str)):
-            config[field_name] = find_file(field, config_dir);
+            config[field_name] = str(find_file(field, config_dir));
 
     convert_to_abs_path("wire_network");
     if "guide_mesh" in config:
         convert_to_abs_path("guide_mesh");
     if "modifier_file" in config:
         convert_to_abs_path("modifier_file");
+    if "dof_file" in config:
+        convert_to_abs_path("dof_file");
     return config;
 
 def load_mesh(mesh_file):
