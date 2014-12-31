@@ -16,21 +16,31 @@ import PyMesh
 def parse_config_file(config_file):
     """ syntax:
     {
-        "wire_network": single_cell_wire_network,
-        "thickness": float,
-        "modifier_file": modifier_file,
-        "dof_file": dof_file,
-        "bbox_min": [min_x, min_y, min_z],
-        "bbox_max": [max_x, max_y, max_z],
-        "repeats": [x_reps, y_reps, z_reps],
-        "guide_mesh": guide_mesh,
-        "no_tile": bool,
+        # opitional options:
         "trim": bool,
         "periodic": bool,
         "subdiv": #,
         "subdiv_method": "simple" or "loop"
         "geometry_correction": [#, #, #],
-        "output": output_file
+
+        # options for specifying parameters
+        "thickness": float,
+        "modifier_file": modifier_file,
+        "dof_file": dof_file,
+
+        # options needed by guide bbox
+        "wire_network": single_cell_wire_network,
+        "bbox_min": [min_x, min_y, min_z],
+        "bbox_max": [max_x, max_y, max_z],
+        "repeats": [x_reps, y_reps, z_reps],
+
+        # options needed by guide mesh
+        "wire_network": single_cell_wire_network,
+        "guide_mesh": guide_mesh,
+
+        # options neede by mixed pattern tiling
+        "guide_mesh": guide_mesh,
+        "wire_list_file": wire_list_file,
     }
     """
     config_dir = os.path.dirname(config_file);
@@ -42,13 +52,16 @@ def parse_config_file(config_file):
         if isinstance(field, (unicode, str)):
             config[field_name] = str(find_file(field, config_dir));
 
-    convert_to_abs_path("wire_network");
+    if "wire_network" in config:
+        convert_to_abs_path("wire_network");
     if "guide_mesh" in config:
         convert_to_abs_path("guide_mesh");
     if "modifier_file" in config:
         convert_to_abs_path("modifier_file");
     if "dof_file" in config:
         convert_to_abs_path("dof_file");
+    if "wire_list_file" in config:
+        convert_to_abs_path("wire_list_file");
     return config;
 
 def load_mesh(mesh_file):
@@ -74,6 +87,14 @@ def load_wire(wire_file):
     network.compute_symmetry_orbits();
     return network;
 
+def load_wires(wire_list_file):
+    root_dir = os.path.dirname(wire_list_file);
+    with open(wire_list_file, 'r') as fin:
+        wire_files = [str(name.strip()) for name in fin];
+    wire_files = [find_file(name, root_dir) for name in wire_files];
+    wires = [load_wire(name) for name in wire_files];
+    return wires;
+
 def load_parameters_old(wire_network, default_thickness, modifier_file):
     factory = ParameterFactory(wire_network, default_thickness);
     factory.create_parameters_from_file(modifier_file);
@@ -89,8 +110,56 @@ def load_parameters(wire_network, config):
         parameters.load_dof_file(config["dof_file"]);
     return parameters;
 
+def extract_options(config):
+    options = {
+            "trim": config.get("trim", False),
+            "periodic": config.get("periodic", False),
+            "subdiv": config.get("subdiv", 1),
+            "subdiv_method": str(config.get("subdiv_method", "simple")),
+            "geometry_correction": config.get(
+                "geometry_correction", np.zeros(3)),
+            }
+    return options;
+
 @timethis
 def tile(config):
+    if "guide_mesh" in config:
+        if "wire_list_file" in config:
+            return tile_with_mixed_patterns(config);
+        else:
+            return tile_with_guide_mesh(config);
+    else:
+        return tile_with_guide_box(config);
+
+def tile_with_guide_box(config):
+    options = extract_options(config);
+    network = load_wire(str(config["wire_network"]));
+    parameters = load_parameters(network, config);
+    inflator_driver = InflatorFacade.create(network, parameters);
+    mesh = inflator_driver.inflate_with_guide_box(
+            config["bbox_min"], config["bbox_max"],
+            config["repeats"], options);
+    return mesh;
+
+def tile_with_guide_mesh(config):
+    options = extract_options(config);
+    network = load_wire(str(config["wire_network"]));
+    parameters = load_parameters(network, config);
+    inflator_driver = InflatorFacade.create(network, parameters);
+    guide_mesh = load_mesh(config["guide_mesh"]);
+    mesh = inflator_driver.inflate_with_guide_mesh(guide_mesh, options);
+    return mesh;
+
+def tile_with_mixed_patterns(config):
+    options = extract_options(config);
+    networks = load_wires(str(config["wire_list_file"]));
+    guide_mesh = load_mesh(config["guide_mesh"]);
+    inflator_driver = InflatorFacade.create_mixed(networks);
+    mesh = inflator_driver.inflate_with_mixed_patterns(guide_mesh, options);
+    return mesh;
+
+@timethis
+def tile_old(config):
     network = load_wire(str(config["wire_network"]));
     parameters = load_parameters(network, config);
 

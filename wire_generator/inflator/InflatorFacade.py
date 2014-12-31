@@ -13,6 +13,12 @@ class InflatorFacade(object):
         else:
             raise NotImplementedError("Unsupported dimention: {}".format(dim));
 
+    @classmethod
+    def create_mixed(cls, wire_networks):
+        import InflatorFacadeMixedPattern;
+        return InflatorFacadeMixedPattern.InflatorFacadeMixedPattern(
+                wire_networks);
+
     def __init__(self, wire_network, parameters):
         self.unit_pattern = wire_network;
         self.parameters = parameters;
@@ -27,6 +33,14 @@ class InflatorFacade(object):
         raise NotImplementedError("This method is abstract");
 
     def inflate_with_guide_mesh(self, mesh, options):
+        """ Valid options:
+        {
+            "trim": bool
+        }
+        """
+        raise NotImplementedError("This method is abstract");
+
+    def inflate_with_mixed_patterns(self, mesh, options):
         """ Valid options:
         {
             "trim": bool
