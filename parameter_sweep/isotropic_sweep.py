@@ -39,7 +39,7 @@ def load_wires(wires_file):
         for filename in fin:
             filename = filename.strip();
             if not os.path.isabs(filename):
-                filename = os.path.abspath(os.path.join(root_dir, filename));
+                filename = find_file(filename, root_dir);
             assert(os.path.exists(filename));
             wire_network = WireNetwork();
             wire_network.load_from_file(filename);
