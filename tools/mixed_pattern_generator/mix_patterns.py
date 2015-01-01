@@ -38,7 +38,6 @@ def generate_guide_mesh(dim, num_cells, cell_size):
     num_cells = np.ones(dim, dtype=int) * num_cells;
 
     mesh = generate_box_guide_mesh(dim, bbox_min, bbox_max, num_cells);
-    mesh.add_attribute("voxel_index");
     return mesh;
 
 def assign_dofs(mesh, all_dofs):
