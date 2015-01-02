@@ -4,26 +4,33 @@ import argparse
 import numpy as np
 import os.path
 
-from tile import parse_config_file, load_mesh, save_mesh, load_wire, load_parameters
+from tile import parse_config_file, load_mesh, save_mesh, load_wire, load_parameters, load_wires
 from inflator.PyWiresTiler import PyWiresTiler
 from wire_io.WireWriter import WireWriter
+from core.WireNetwork import WireNetwork
 
 import PyMesh
+import PyWires
 
 def save_wire(wires, filename):
     writer = WireWriter(filename);
     writer.write(wires.vertices, wires.edges);
 
 def tile_only(config):
-    network = load_wire(str(config["wire_network"]));
-    if network.dim == 2:
-        raise NotImplementedError("2D wires is not yet supported.");
-    parameters = load_parameters(network, config);
-
     if "guide_mesh" in config:
         guide_mesh = load_mesh(config["guide_mesh"]);
-        out_wires = tile_with_mesh(network, guide_mesh, parameters);
+        if "wire_list_file" in config:
+            networks = load_wires(str(config["wire_list_file"]));
+            out_wires = tile_with_mixed_patterns(networks, guide_mesh,
+                    config.get("dof_type", "isotropic"),
+                    config.get("thickness_type", "vertex"));
+        else:
+            network = load_wire(str(config["wire_file"]));
+            parameters = load_parameters(network, config);
+            out_wires = tile_with_guide_mesh(network, guide_mesh, parameters);
     else:
+        network = load_wire(str(config["wire_file"]));
+        parameters = load_parameters(network, config);
         out_wires = tile_with_guide_box(network,
                 config["bbox_min"], config["bbox_max"], config["repeats"],
                 parameters);
@@ -35,7 +42,6 @@ def tile_only(config):
 
     if config.get("trim", False):
         out_wires.trim();
-
     return out_wires, guide_mesh;
 
 def tile_with_guide_box(unit_pattern, bbox_min, bbox_max, repetitions,
@@ -54,12 +60,24 @@ def tile_with_guide_box(unit_pattern, bbox_min, bbox_max, repetitions,
     tiled_network.translate(bbox_min - tiled_bbox_min);
     return tiled_network;
 
-def tile_with_mesh(unit_pattern, mesh, parameters):
+def tile_with_guide_mesh(unit_pattern, mesh, parameters):
     tiler = PyWiresTiler();
     tiler.set_single_cell_from_wire_network(unit_pattern);
     tiler.tile_with_hex_mesh(mesh, parameters);
     tiled_network = tiler.wire_network;
     return tiled_network;
+
+def tile_with_mixed_patterns(patterns, mesh, thickness_type, dof_type):
+    patterns = [pattern.raw_wires for pattern in patterns];
+    tiler = PyWires.WireTiler(patterns[0]);
+    tiled_raw_wires = tiler.tile_with_mixed_patterns(
+            patterns, mesh,
+            thickness_type == "vertex",
+            dof_type == "isotropic");
+
+    tiled_wire_network = WireNetwork();
+    tiled_wire_network.load_from_raw(tiled_raw_wires);
+    return tiled_wire_network;
 
 def generate_box_guide_mesh(dim, bbox_min, bbox_max, num_cells):
     bbox_min = bbox_min[:dim];

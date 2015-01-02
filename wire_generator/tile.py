@@ -7,7 +7,6 @@ import os.path
 
 from core.WireNetwork import WireNetwork
 from inflator.InflatorFacade import InflatorFacade
-#from parameter.ParameterFactory import ParameterFactory
 from parameter.PyParameters import PyParameters
 from utils.find_file import find_file
 from utils.timethis import timethis
@@ -37,6 +36,8 @@ def parse_config_file(config_file):
         # options needed by guide mesh
         "wire_network": single_cell_wire_network,
         "guide_mesh": guide_mesh,
+        "dof_type": "isotropic" | "orthotropic",
+        "thickness_type": "vertex" | "edge"
 
         # options neede by mixed pattern tiling
         "guide_mesh": guide_mesh,
@@ -95,11 +96,6 @@ def load_wires(wire_list_file):
     wires = [load_wire(name) for name in wire_files];
     return wires;
 
-def load_parameters_old(wire_network, default_thickness, modifier_file):
-    factory = ParameterFactory(wire_network, default_thickness);
-    factory.create_parameters_from_file(modifier_file);
-    return factory.parameters;
-
 def load_parameters(wire_network, config):
     parameters = PyParameters(wire_network, config["thickness"]);
     if "modifier_file" in config:
@@ -152,33 +148,12 @@ def tile_with_guide_mesh(config):
 
 def tile_with_mixed_patterns(config):
     options = extract_options(config);
+    options["dof_type"] = str(config.get("dof_type", "isotropic"));
+    options["thickness_type"] = str(config.get("thickness_type", "vertex"));
     networks = load_wires(str(config["wire_list_file"]));
     guide_mesh = load_mesh(config["guide_mesh"]);
     inflator_driver = InflatorFacade.create_mixed(networks);
     mesh = inflator_driver.inflate_with_mixed_patterns(guide_mesh, options);
-    return mesh;
-
-@timethis
-def tile_old(config):
-    network = load_wire(str(config["wire_network"]));
-    parameters = load_parameters(network, config);
-
-    options = {
-            "trim": config.get("trim", False),
-            "periodic": config.get("periodic", False),
-            "subdiv": config.get("subdiv", 1),
-            "subdiv_method": str(config.get("subdiv_method", "simple")),
-            "geometry_correction": config.get(
-                "geometry_correction", np.zeros(network.dim)),
-            }
-    inflator_driver = InflatorFacade.create(network, parameters);
-    if "guide_mesh" in config:
-        guide_mesh = load_mesh(config["guide_mesh"]);
-        mesh = inflator_driver.inflate_with_guide_mesh(guide_mesh, options);
-    else:
-        mesh = inflator_driver.inflate_with_guide_box(
-                config["bbox_min"], config["bbox_max"],
-                config["repeats"], options);
     return mesh;
 
 def parse_args():
