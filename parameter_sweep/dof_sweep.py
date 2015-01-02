@@ -15,6 +15,7 @@ import PyWires
 def load_sweep_config(config_file):
     """ syntax:
     {
+        "dof_type": "isotropic" | "orthotropic",
         "wires": "path_to_wires.txt",
         "thickness_type": "vertex" | "edge",
         "cell_size": #,
@@ -87,7 +88,10 @@ def generate_sweeps(wire_network, config):
         thickness_type = PyWires.EDGE;
 
     parameters = PyParameters(wire_network, 0.5);
-    parameters.load_default_isotropic_parameters(thickness_type);
+    if config["dof_type"] == "isotropic":
+        parameters.load_default_isotropic_parameters(thickness_type);
+    else:
+        parameters.load_default_orthotropic_parameters(thickness_type);
     num_thickness_dofs = parameters.num_thickness_dofs;
     num_offset_dofs = parameters.num_offset_dofs;
 
