@@ -18,8 +18,7 @@ def tile_only(config):
     network = load_wire(str(config["wire_network"]));
     if network.dim == 2:
         raise NotImplementedError("2D wires is not yet supported.");
-    parameters = load_parameters(network,
-            config["thickness"], config.get("modifier_file"));
+    parameters = load_parameters(network, config);
 
     if "guide_mesh" in config:
         guide_mesh = load_mesh(config["guide_mesh"]);
