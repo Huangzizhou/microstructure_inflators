@@ -16,8 +16,8 @@ class PatternParameterTable:
         self.header, self.pattern = self.__load_data("pattern.csv");
         self.material_header, self.materials = self.__load_data("material.csv");
 
-        self.homogenizer = HomogenizationWrapper(
-                self.index_dir, self.header, self.material_file);
+        #self.homogenizer = HomogenizationWrapper(
+        #        self.index_dir, self.header, self.material_file);
 
     def lookup_and_interpolate(self, materials, num_candidates=3,
             rehomogenize=False):
@@ -45,6 +45,7 @@ class PatternParameterTable:
         return param_values, material_header, material_values;
 
     def compute_homogenized_materials(self, param_values):
+        raise NotImplementedError("Rehomogenization is out of date");
         materials = [];
         for param in param_values:
             self.homogenizer.homogenize(param);

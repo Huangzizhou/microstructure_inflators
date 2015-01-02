@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import json
 import numpy as np
 import os.path
 
@@ -8,6 +9,11 @@ import PyMeshSetting
 import PyMesh
 from IsotropicMaterial import IsotropicMaterial
 from PatternParameterTable import PatternParameterTable
+
+def load_json(filename):
+    with open(filename, 'r') as fin:
+        config = json.load(fin);
+        return config;
 
 def load_mesh(mesh_file):
     factory = PyMesh.MeshFactory();
@@ -26,6 +32,25 @@ def extract_material_properties(mesh):
     young = mesh.get_attribute("young").ravel();
     poisson = mesh.get_attribute("poisson").ravel();
     return young, poisson;
+
+def output_config_file(guide_mesh_file, index_dir):
+    name, ext = os.path.splitext(guide_mesh_file);
+    sweep_file = os.path.join(index_dir, "../wires.sweep");
+    root_dir = os.path.dirname(sweep_file);
+    assert(os.path.exists(sweep_file));
+    sweep_config = load_json(sweep_file);
+    if not os.path.isabs(sweep_config["wires"]):
+        sweep_config["wires"] = os.path.join(
+                root_dir, sweep_config["wires"]);
+    config = {
+            "wire_list_file": sweep_config["wires"],
+            "guide_mesh": guide_mesh_file,
+            "dof_type": sweep_config["dof_type"],
+            "thickness_type": sweep_config["thickness_type"],
+            }
+    config_file = "{}.config".format(name);
+    with open(config_file, 'w') as fout:
+        json.dump(config, fout, indent=4);
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -74,6 +99,7 @@ def main():
     header.append("poisson");
 
     save_mesh(args.output_mesh, mesh, *header);
+    output_config_file(args.output_mesh, args.index_dir);
 
 if __name__ == "__main__":
     main();
