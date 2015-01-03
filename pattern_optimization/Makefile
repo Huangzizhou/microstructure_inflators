@@ -16,9 +16,12 @@ SPACED_OBJS=SpacedJob.o  PatternOptimizationJob.o \
 GRADVALID_OBJS=GradientComponentValidation.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
-OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_OBJS)
+INFLATOR_OBJS=Inflator_cli.o PatternOptimizationJob.o \
+			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
+			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
+OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_OBJS) $(INFLATOR_OBJS)
 
-TARGETS=PatternOptimization_cli CreateJob RandomJob SpacedJob GradientComponentValidation
+TARGETS=PatternOptimization_cli CreateJob RandomJob SpacedJob GradientComponentValidation Inflator_cli
 
 INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem $(VCG_INC) -isystem $(DLIB_INC) -I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
 LIBS+=-L$(CLIPPER_PATH)/lib -lpolyclipping -L/$(PYMESH_PATH)/lib -lwires
@@ -43,6 +46,9 @@ CreateJob: $(CREATJOB_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 GradientComponentValidation: $(GRADVALID_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
+Inflator_cli: $(INFLATOR_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 %.o: %.cc Makefile

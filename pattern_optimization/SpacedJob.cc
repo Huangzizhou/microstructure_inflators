@@ -39,7 +39,7 @@ using namespace std;
 using namespace PatternOptimization;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: SpacedJob [options] config.opt component_idx lower_bd upper_bd njobs out_job_prefix" << endl;
+    cout << "Usage: SpacedJob [options] config.opt component_idx njobs out_job_prefix" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
 }
@@ -50,16 +50,12 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     hidden_opts.add_options()
         ("job",     po::value<string>(), "job configuration file")
         ("component_idx", po::value<size_t>(), "index of component to sweep")
-        ("lower_bd", po::value<double>(), "sweep lower bound")
-        ("upper_bd", po::value<double>(), "sweep upper bound")
         ("njobs", po::value<size_t>(), "number of jobs to space")
         ("out_job", po::value<string>(), "out job configuration file (jobs out_job_#.opt is written)")
         ;
     po::positional_options_description p;
     p.add("job", 1);
     p.add("component_idx", 1);
-    p.add("lower_bd", 1);
-    p.add("upper_bd", 1);
     p.add("njobs", 1);
     p.add("out_job", 1);
 
@@ -72,6 +68,9 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("sub_algorithm,A", po::value<string>()->default_value("simple"), "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                             "maximum element volume parameter for wire inflator")
         ("max_distance,D", po::value<double>()->default_value(1),         "maximum distance to true pattern parameters from random initial point (in relative units)")
+        ("initAtUpper,U",                                                 "switch to using upper bound (instead of lower) as the initial parameter point")
+        ("lowerBd,-l", po::value<double>(), "lower bound of range to subdivide (defaults to lower bd from config.opt)")
+        ("upperBd,-u", po::value<double>(), "upper bound of range to subdivide (defaults to upper bd from config.opt)")
         ;
 
     po::options_description cli_opts;
@@ -162,16 +161,22 @@ void execute(const po::variables_map &args, const Job<_N> *job)
             outJob.initialParams[p] = outJob.trueParams[p] = translationMid;
     }
 
+    // Default to using the parameter's constraints as our sweep upper and
+    // lower bound, but the {lower,upper}Bd arguments override them.
+    double lowerBound, upperBound;
+    if (inflator.parameterType(compIdx) == ParameterType::Thickness) { lowerBound =      job->radiusBounds[0]; upperBound =      job->radiusBounds[1]; }
+    else                                                             { lowerBound = job->translationBounds[0]; upperBound = job->translationBounds[1]; }
+    if (args.count("lowerBd")) lowerBound = args["lowerBd"].as<double>();
+    if (args.count("upperBd")) upperBound = args["upperBd"].as<double>();
+
     size_t nJobs = args["njobs"].as<size_t>();
-    double lowerBound = args["lower_bd"].as<double>();
-    double upperBound = args["upper_bd"].as<double>();
     double range = upperBound - lowerBound;
     double interval = range / nJobs;
     for (size_t j = 0; j < nJobs; ++j) {
         // True point is at the middle of the interval
         outJob.trueParams[compIdx] = lowerBound + interval * (j + 0.5);
-        // Initial point is at the beginning of the interval
-        outJob.initialParams[compIdx] = lowerBound + interval * (j);
+        if (args.count("initAtUpper")) outJob.initialParams[compIdx] = lowerBound + interval * (j + 1.0);
+        else                           outJob.initialParams[compIdx] = lowerBound + interval * (j);
         // Find corresponding elasticity tensor
         Iterate<Simulator> iter(inflator, outJob.trueParams.size(),
                                       &outJob.trueParams[0], ETensor<_N>());

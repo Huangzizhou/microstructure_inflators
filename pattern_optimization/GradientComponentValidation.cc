@@ -39,7 +39,7 @@ using namespace std;
 using namespace PatternOptimization;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: GradientComponentValidation [options] job.opt component_idx lower_bd upper_bd nsamples" << endl;
+    cout << "Usage: GradientComponentValidation [options] job.opt component_idx -l'lower_bd' -u'upper_bd' nsamples" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
 }
@@ -50,28 +50,27 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     hidden_opts.add_options()
         ("job", po::value<string>(), "job configuration file")
         ("component_idx", po::value<size_t>(), "index of component to sweep")
-        ("lower_bd", po::value<double>(), "sweep lower bound")
-        ("upper_bd", po::value<double>(), "sweep upper bound")
         ("nsamples", po::value<size_t>(), "number of steps to sweep")
         ;
     po::positional_options_description p;
     p.add("job", 1);
     p.add("component_idx", 1);
-    p.add("lower_bd", 1);
-    p.add("upper_bd", 1);
     p.add("nsamples", 1);
 
     po::options_description visible_opts;
     visible_opts.add_options()("help",        "Produce this help message")
-        ("pattern,p",    po::value<string>(), "Pattern wire mesh (.obj|wire)")
-        ("material,m",   po::value<string>(), "base material")
-        ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
-        ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
-        ("matrixOut,O",     po::value<string>()->default_value(""),                 "output matrix at each iteration")
-        ("volumeMeshOut",     po::value<string>()->default_value(""),                 "output volume mesh at each iteration")
-        ("subdivide,S",  po::value<size_t>()->default_value(0),                  "number of subdivisions to run for 3D inflator")
-        ("sub_algorithm,A", po::value<string>()->default_value("simple"),        "subdivision algorithm for 3D inflator (simple or loop)")
-        ("max_volume,v", po::value<double>(),                                    "maximum element volume parameter for wire inflator")
+        ("lower_bd,l", po::value<double>(), "sweep lower bound (must be positional to support negative values)")
+        ("upper_bd,u", po::value<double>(), "sweep upper bound (must be positional to support negative values)")
+        ("pattern,p",       po::value<string>(), "Pattern wire mesh (.obj|wire)")
+        ("material,m",      po::value<string>(), "base material")
+        ("degree,d",        po::value<size_t>()->default_value(2),        "FEM Degree")
+        ("output,o",        po::value<string>()->default_value(""),       "output .js mesh + fields at each iteration")
+        ("matrixOut,O",     po::value<string>()->default_value(""),       "output matrix at each iteration")
+        ("volumeMeshOut",   po::value<string>()->default_value(""),       "output volume mesh at each iteration")
+        ("dofOut",          po::value<string>()->default_value(""),       "output pattern dofs in James' format at each iteration")
+        ("subdivide,S",  po::value<size_t>()->default_value(0),           "number of subdivisions to run for 3D inflator")
+        ("sub_algorithm,A", po::value<string>()->default_value("simple"), "subdivision algorithm for 3D inflator (simple or loop)")
+        ("max_volume,v", po::value<double>(),                             "maximum element volume parameter for wire inflator")
         ;
 
     po::options_description cli_opts;
@@ -169,16 +168,20 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     double lowerBound = args["lower_bd"].as<double>();
     double upperBound = args["upper_bd"].as<double>();
     size_t nSamples = args["nsamples"].as<size_t>();
+
+    string dofOut = args["dofOut"].as<string>();
+    if (dofOut != "")
+        inflator.setDoFOutputPrefix(dofOut);
+
     for (size_t i = 0; i < nSamples; ++i) {
         params[compIdx] = lowerBound + ((nSamples == 1) ? 0.0
                         : (upperBound - lowerBound) * (double(i) / (nSamples - 1)));
-        std::cout << i << "\t" << params[compIdx] << "\t";
-
         Iterate<Simulator> it(inflator, params.domainSize(), &params[0], targetS);
-        std::cout << it.evaluateJS() << "\t" << it.gradp_JS()[compIdx] << std::endl;
-        if (output != "") it.writeMeshAndFields(std::to_string(i) + "_" + output);
-        if (matrixOutput != "") it.dumpSimulationMatrix(std::to_string(i) + "_" + matrixOutput);
-        if (volumeMeshOut != "") it.writeVolumeMesh(std::to_string(i) + "_" + volumeMeshOut + ".msh");
+        std::cout << i << "\t" << params[compIdx] << "\t"
+                  << it.evaluateJS() << "\t" << it.gradp_JS()[compIdx] << std::endl;
+        if (output != "")          it.writeMeshAndFields(       output + "_" + std::to_string(i));
+        if (matrixOutput != "")  it.dumpSimulationMatrix( matrixOutput + "_" + std::to_string(i) + ".txt");
+        if (volumeMeshOut != "")      it.writeVolumeMesh(volumeMeshOut + "_" + std::to_string(i) + ".msh");
     }
 
     BENCHMARK_REPORT();

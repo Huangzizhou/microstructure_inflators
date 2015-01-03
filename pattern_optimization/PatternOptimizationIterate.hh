@@ -44,15 +44,29 @@ struct Iterate {
         : m_targetS(targetS)
     {
         m_params.resize(nParams);
-        for (size_t i = 0; i < m_params.size(); ++i)
+        for (size_t i = 0; i < m_params.size(); ++i) {
             m_params[i] = params[i];
+        }
+        std::cout << "Inflating" << std::endl;
         BENCHMARK_START_TIMER("Inflate");
         inflator.inflate(m_params);
         BENCHMARK_STOP_TIMER("Inflate");
+        std::cout << "Inflated" << std::endl;
 
+        std::cout << "Checking geometry" << std::endl;
+        if ((inflator.elements().size() == 0) || (inflator.vertices().size() == 0)) {
+            throw std::runtime_error("Empty inflated geometry. Elements: "
+                    + std::to_string(inflator.elements().size()) + ", Vertices: "
+                    + std::to_string(inflator.vertices().size()));
+        }
+        std::cout << std::endl;
+
+        std::cout << "Building Simulator" << std::endl;
         BENCHMARK_START_TIMER_SECTION("Eval");
         m_sim = std::make_shared<_Sim>(inflator.elements(),
                                        inflator.vertices());
+        std::cout << "Done" << std::endl;
+        std::cout << "Homogenizing" << std::endl;
         m_vn_p = inflator.computeShapeNormalVelocities(m_sim->mesh());
 
         std::vector<VField> w_ij;
@@ -72,6 +86,8 @@ struct Iterate {
             for (size_t n = 0; n < GE.size(); ++n)
                 GS[n] = -S.doubleDoubleContract(GE[n]);
         }
+
+        std::cout << "Done" << std::endl;
 
         BENCHMARK_STOP_TIMER_SECTION("Eval");
     }
@@ -267,6 +283,11 @@ struct Iterate {
 
     void dumpSimulationMatrix(const std::string &matOut) const {
         m_sim->dumpSystem(matOut);
+    }
+
+    // Note, must overwrite inflator's parameter state :(
+    void writePatternDoFs(const std::string &name, Inflator<_N> &inflator) {
+        inflator.writePatternDoFs(name, m_params);
     }
 
     bool paramsDiffer(size_t nParams, const Real *params) const {
