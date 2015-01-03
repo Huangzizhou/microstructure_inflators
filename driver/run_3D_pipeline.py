@@ -35,7 +35,7 @@ def parse_args():
     parser.add_argument("--cell-size", help="size of each cell", type=str,
             default="5");
     parser.add_argument("--sweep-type", help="sweep type",
-            choices=("thickness_only", "offset_only", "mixed"),
+            choices=("thickness_only", "offset_only", "mixed", "isotropic"),
             default="thickness_only");
     parser.add_argument("--metric", help="material metric",
             choices=("compliance", "elasticity"));
@@ -51,7 +51,6 @@ def parse_args():
 
 def main():
     args = parse_args();
-    print(args);
     spliter = re.compile(r'(?:[^\s,"]|"(?:\\.|[^"])*")+');
 
     TMP_DIR = "/tmp"
@@ -100,23 +99,24 @@ def main():
     # Tile microstructure according to pattern parameter
     wire_file = "patterns/3D/{}.wire".format(args.pattern);
     exe_name = os.path.join(PROJECT_DIR, "wire_generator/tile.py");
-    modifier_file = os.path.join(PROJECT_DIR,
-            "{}/lookup.modifier".format(index_dir));
-    modifier_file = os.path.abspath(modifier_file);
-    config = generate_config(wire_file,
-            os.path.abspath(tmp_pattern_mesh), modifier_file);
-    tmp_config_file = os.path.join(TMP_DIR, stamp + ".config");
-    with open(tmp_config_file, 'w') as fout:
-        json.dump(config, fout);
-    command = "{} -o {} {}".format(exe_name, args.output, tmp_config_file);
+    config_file = os.path.join(TMP_DIR, stamp + "_pattern.config");
+    #modifier_file = os.path.join(PROJECT_DIR,
+    #        "{}/lookup.modifier".format(index_dir));
+    #modifier_file = os.path.abspath(modifier_file);
+    #config = generate_config(wire_file,
+    #        os.path.abspath(tmp_pattern_mesh), modifier_file);
+    #tmp_config_file = os.path.join(TMP_DIR, stamp + ".config");
+    #with open(tmp_config_file, 'w') as fout:
+    #    json.dump(config, fout);
+    command = "{} -o {} {}".format(exe_name, args.output, config_file);
     check_call(command.split());
 
     # Move pattern mesh over.
     basename, ext = os.path.splitext(args.output);
     pattern_mesh_filename = basename + "_reference.msh";
     os.rename(tmp_pattern_mesh, pattern_mesh_filename);
-    config_file = basename + ".config";
-    os.rename(tmp_config_file, config_file);
+    #config_file = basename + ".config";
+    #os.rename(tmp_config_file, config_file);
 
     os.remove(tmp_material_mesh);
     #os.remove(tmp_pattern_mesh);
