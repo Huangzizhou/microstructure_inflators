@@ -61,6 +61,7 @@ struct Iterate {
         }
         std::cout << std::endl;
 
+
         std::cout << "Building Simulator" << std::endl;
         BENCHMARK_START_TIMER_SECTION("Eval");
         m_sim = std::make_shared<_Sim>(inflator.elements(),

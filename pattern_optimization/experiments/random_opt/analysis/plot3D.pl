@@ -1,4 +1,5 @@
-#!/usr/bin/env perl -w
+#!/usr/bin/env perl
+use warnings;
 use strict;
 
 for my $subdiv (0,1,2,3) {
@@ -15,7 +16,7 @@ print GNUPLOT <<END_HEADER;
     set format y "%.1e";
     set grid;
     unset key;
-    set title 'optimization from max-dist $dist away (meshing failures marked in red)';
+    set title 'optimization from max-dist $dist away (failures marked in red)';
 END_HEADER
 for (my $test = 1; $test <= 20; ++$test) {
     my $plotString = $test == 1 ? "plot " : "";
