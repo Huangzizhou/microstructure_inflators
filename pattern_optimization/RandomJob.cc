@@ -103,8 +103,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     }
 
     double md = vm["max_distance"].as<double>();
-    if (md < 0.0 || md > 1.0) {
-        cout << "Error: maximum distance must be between 0 and 1." << endl;
+    if (md < 0.0) {
+        cout << "Error: maximum distance must be creater than 0." << endl;
         fail = true;
     }
 
@@ -174,11 +174,12 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     Real translationRange = job->translationBounds[1] - job->translationBounds[0];
     Real radiusRange      =      job->radiusBounds[1] -      job->radiusBounds[0];
     Real maxDistance = args["max_distance"].as<double>();
-    uniform_real_distribution<> relativeOffsetComponent(-maxDistance, maxDistance);
-    Eigen::VectorXd offset(inflator.numParameters());
-    outJob.initialParams.resize(inflator.numParameters());
 
     // Keep picking from this box until we get a valid point.
+    uniform_real_distribution<> relativeOffsetComponent(std::max(-maxDistance, -1.0),
+                                                        std::min(maxDistance,   1.0));
+    Eigen::VectorXd offset(inflator.numParameters());
+    outJob.initialParams.resize(inflator.numParameters());
     do {
         for (size_t i = 0; i < inflator.numParameters(); ++i) {
             Real param;
@@ -199,6 +200,8 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     } while (offset.norm() > maxDistance);
 
     outJob.writeJobFile(args["out_job"].as<string>());
+
+    BENCHMARK_REPORT();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -209,7 +212,7 @@ void execute(const po::variables_map &args, const Job<_N> *job)
 *///////////////////////////////////////////////////////////////////////////////
 int main(int argc, const char *argv[])
 {
-    cout << setprecision(16);
+    cout << setprecision(30);
 
     po::variables_map args = parseCmdLine(argc, argv);
 

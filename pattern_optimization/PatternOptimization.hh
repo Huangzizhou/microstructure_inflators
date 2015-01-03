@@ -133,7 +133,7 @@ public:
             std::cout << std::endl;
 
             if (m_outPath != "")
-                curr->writeMeshAndFields(std::to_string(m_iter) + "_" + m_outPath);
+                curr->writeMeshAndFields(m_outPath + "_" + std::to_string(m_iter));
 
             ++m_iter;
             return ceres::SOLVER_CONTINUE;
@@ -198,7 +198,7 @@ public:
             params.maxRelax(lowerBounds);
 
             if (outName != "")
-                iterate.writeMeshAndFields(std::to_string(i) + "_" + outName);
+                iterate.writeMeshAndFields(outName + "_" + std::to_string(i));
         }
     }
 
@@ -271,8 +271,7 @@ public:
             m_obj.currentIterate().writeDescription(std::cout);
             cout << endl;
             if (m_outPath != "")
-                m_obj.currentIterate().writeMeshAndFields(std::to_string(m_iter)
-                        + "_" + m_outPath);
+                m_obj.currentIterate().writeMeshAndFields(m_outPath + "_" + std::to_string(m_iter));
             ++m_iter;
             return Base::should_continue_search(x, funct_value, funct_derivative);
         }

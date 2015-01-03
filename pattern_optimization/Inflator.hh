@@ -13,6 +13,20 @@
 #include <WireInflator2D.h>
 #include <Wires/Interfaces/PeriodicExploration.h>
 #include <stdexcept>
+#include <string>
+
+namespace {
+    VectorF ToVectorF(const std::vector<Real> &vec) {
+        VectorF result(vec.size());
+        for (size_t i = 0; i < vec.size(); ++i) result(i) = vec[i];
+        return result;
+    }
+    std::vector<Real> FromVectorF(const VectorF &vec) {
+        std::vector<Real> result(vec.rows());
+        for (int i = 0; i < vec.rows(); ++i) result[i] = vec(i);
+        return result;
+    }
+}
 
 enum class ParameterType { Thickness, Offset };
 
@@ -115,6 +129,15 @@ public:
         return vn_p;
     }
 
+    void setDoFOutputPrefix(const std::string &pathPrefix) {
+        throw std::runtime_error("Writing pattern DoFs unsupported in 2D");
+    }
+
+    void writePatternDoFs(const std::string &path,
+                          const std::vector<Real> &params) {
+        throw std::runtime_error("Writing pattern DoFs unsupported in 2D");
+    }
+
 private:
     // mutable because WireInflator2D doesn't have well-behaved constness
     mutable WireInflator2D m_inflator;
@@ -131,8 +154,9 @@ public:
     // Piecewise linear normal shape velocity.
     typedef std::vector<Interpolant<Real, 2, 1>> NormalShapeVelocity;
 
-    Inflator(const std::string &wireMeshPath)
-        : m_inflator(wireMeshPath, 5.0, 0.5 * sqrt(2.0)) {
+    Inflator(const std::string &wireMeshPath,
+             Real cell_size = 5.0, Real default_thickness = 0.5 * sqrt(2))
+        : m_inflator(wireMeshPath, cell_size, default_thickness) {
         m_inflator.with_all_parameters();
         setMaxElementVolume(0.0);
     }
@@ -150,28 +174,19 @@ public:
     }
 
     void inflate(const std::vector<Real> &params) {
-        VectorF paramVector(params.size());
-        for (size_t i = 0; i < params.size(); ++i) paramVector(i) = params[i];
-        m_inflator.set_dofs(paramVector);
-        try {
-            m_inflator.periodic_inflate();
-            m_inflator.run_tetgen(m_maxElementVol);
-        }
+        m_inflator.set_dofs(ToVectorF(params));
+        try { m_inflate_dofs(); }
         catch (...) {
-            std::cerr << "Exception while inflating parameters:" << std::endl;
+            std::cerr << "Exception while inflating parameters" << std::endl;
             for (size_t i = 0; i < params.size(); ++i) std::cerr << params[i] << "\t";
             std::cerr << std::endl;
             throw;
         }
+    }
 
-        // Convert to MeshIO format.
-        clear();
-        MatrixIr els = m_inflator.get_voxels();
-        for (size_t i = 0; i < size_t(els.rows()); ++i)
-            m_elements.emplace_back(els(i, 0), els(i, 1), els(i, 2), els(i, 3));
-        MatrixFr verts = m_inflator.get_vertices();
-        for (size_t i = 0; i < size_t(verts.rows()); ++i)
-            m_vertices.emplace_back(Point3D(verts.row(i)));
+    void inflate(const std::string &dofFile) {
+        m_inflator.load_dofs(dofFile);
+        m_inflate_dofs();
     }
 
     // Needs access to mesh data structure to dot velocities with normals
@@ -198,9 +213,54 @@ public:
         return vn_p;
     }
 
+    // Configure automatic logging of every set of inflated DoF parameters.
+    // If pathPrefix is nonempty, a dof file will be written at
+    // pathPrefix_$inflationNumber.dof
+    void setDoFOutputPrefix(const std::string &pathPrefix) {
+        m_dofOutPathPrefix = pathPrefix;
+    }
+
+    // Note, overwrites the dofs in m_inflator
+    void loadPatternDoFs(const std::string &path, std::vector<Real> &params) {
+        m_inflator.load_dofs(path);
+        params = FromVectorF(m_inflator.get_dofs());
+    }
+
+    // Write parameters in James' DoF format.
+    void writePatternDoFs(const std::string &path,
+                          const std::vector<Real> &params) {
+        m_inflator.set_dofs(ToVectorF(params));
+        m_inflator.save_dofs(path);
+    }
+
 private:
+    std::string m_dofOutPathPrefix;
+    size_t m_inflationCount = 0;
+
     Real m_maxElementVol;
     PeriodicExploration m_inflator;
+
+    // Inflate the DoFs already stored in the inflator.
+    void m_inflate_dofs() {
+        if (m_dofOutPathPrefix != "") {
+            m_inflator.save_dofs(m_dofOutPathPrefix + "_" +
+                    std::to_string(m_inflationCount) + ".dof");
+        }
+
+        m_inflator.periodic_inflate();
+        m_inflator.run_tetgen(m_maxElementVol);
+
+        ++m_inflationCount;
+
+        // Convert to MeshIO format.
+        clear();
+        MatrixIr els = m_inflator.get_voxels();
+        for (size_t i = 0; i < size_t(els.rows()); ++i)
+            m_elements.emplace_back(els(i, 0), els(i, 1), els(i, 2), els(i, 3));
+        MatrixFr verts = m_inflator.get_vertices();
+        for (size_t i = 0; i < size_t(verts.rows()); ++i)
+            m_vertices.emplace_back(Point3D(verts.row(i)));
+    }
 };
 
 

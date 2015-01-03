@@ -58,6 +58,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("material,m",   po::value<string>(), "base material")
         ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
         ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
+        ("dofOut",       po::value<string>()->default_value(""),                 "output pattern dofs in James' format at each iteration")
         ("subdivide,S",  po::value<size_t>()->default_value(0),                  "number of subdivisions to run for 3D inflator")
         ("sub_algorithm,A", po::value<string>()->default_value("simple"),        "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                                    "maximum element volume parameter for wire inflator")
@@ -157,6 +158,10 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     // Set up simulators' (base) material
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
+
+    string dofOut = args["dofOut"].as<string>();
+    if (dofOut != "")
+        inflator.setDoFOutputPrefix(dofOut);
 
     SField params(job->initialParams);
     Optimizer<Simulator> optimizer(inflator, job->radiusBounds,
