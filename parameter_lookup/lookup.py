@@ -45,6 +45,7 @@ def output_config_file(guide_mesh_file, index_dir):
     config = {
             "wire_list_file": sweep_config["wires"],
             "guide_mesh": guide_mesh_file,
+            "subdiv": 0,
             "dof_type": sweep_config["dof_type"],
             "thickness_type": sweep_config["thickness_type"],
             }
@@ -85,7 +86,8 @@ def main():
 
     param_values, material_header, material_values =\
             param_table.lookup_and_interpolate(materials,
-                    rehomogenize=args.rehomogenize);
+                    rehomogenize=args.rehomogenize,
+                    num_candidates=1);
     for i,attr_name in enumerate(header):
         mesh.add_attribute(attr_name);
         mesh.set_attribute(attr_name, param_values[:,i]);

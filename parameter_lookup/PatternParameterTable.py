@@ -23,6 +23,8 @@ class PatternParameterTable:
             rehomogenize=False):
         target_tensors = self.__extract_lookup_keys(materials);
         index, dist = self.lookup_table.nn_index(target_tensors, num_candidates);
+        index = index.reshape((-1, num_candidates));
+        dist = dist.reshape((-1, num_candidates));
 
         weights = np.ones_like(dist) / dist;
         weights = weights / np.sum(weights, axis=1)[:,np.newaxis];
