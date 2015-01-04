@@ -25,11 +25,11 @@ def tile_only(config):
                     config.get("dof_type", "isotropic"),
                     config.get("thickness_type", "vertex"));
         else:
-            network = load_wire(str(config["wire_file"]));
+            network = load_wire(str(config["wire_network"]));
             parameters = load_parameters(network, config);
             out_wires = tile_with_guide_mesh(network, guide_mesh, parameters);
     else:
-        network = load_wire(str(config["wire_file"]));
+        network = load_wire(str(config["wire_network"]));
         parameters = load_parameters(network, config);
         out_wires = tile_with_guide_box(network,
                 config["bbox_min"], config["bbox_max"], config["repeats"],
