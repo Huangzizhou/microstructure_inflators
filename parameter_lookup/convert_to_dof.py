@@ -12,6 +12,11 @@ from wire_generator.parameter.PyParameters import PyParameters
 from wire_generator.inflator.PyWiresTiler import PyWiresTiler
 import PyWires
 
+def load_json(filename):
+    with open(filename, 'r') as fin:
+        config = json.load(fin);
+    return config;
+
 def load_wire_network(filename):
     assert(os.path.exists(filename));
     wire_network = WireNetwork();
@@ -19,12 +24,39 @@ def load_wire_network(filename):
     wire_network.filename = filename;
     return wire_network;
 
-def extract_thickness_dofs_from_modifier_file(wire_network, modifier_file):
+def extract_thickness_dofs_from_modifier_file_old(wire_network, modifier_file):
     assert(os.path.exists(modifier_file));
     parameters = PyParameters(wire_network, 0.5);
     parameters.load_modifier_file(modifier_file);
     num_thickness_dofs = parameters.num_thickness_dofs;
     return parameters.dofs[:num_thickness_dofs];
+
+def extract_thickness_dofs_from_modifier_file(parameters, wire_network,
+        modifier_file):
+    wire_file = wire_network.filename;
+    name, ext = os.path.splitext(wire_file);
+    orbit_file = "{}.orbit".format(name);
+
+    orbit_config = load_json(orbit_file);
+    modifier_config = load_json(modifier_file);
+
+    effective_orbits = modifier_config["thickness"]["effective_orbits"];
+    thickness = modifier_config["thickness"]["thickness"];
+    default_thickness = modifier_config["thickness"]["default"];
+
+    num_dofs = parameters.num_dofs;
+    num_thickness_dofs = parameters.num_thickness_dofs;
+    thickness_dof_map = parameters.raw_parameters.get_thickness_dof_map().ravel();
+
+    thickness_param = np.ones(num_thickness_dofs) * default_thickness;
+    for orbit_id, value in zip(effective_orbits, thickness):
+        orbit = orbit_config["isotropic_edge_orbits"][orbit_id];
+        dof_index = thickness_dof_map[orbit];
+        assert(np.all(dof_index[0] == dof_index));
+        dof_index = dof_index[0];
+        thickness_param[dof_index] = value;
+    return thickness_param
+
 
 def extract_offset_dofs_from_wires(parameters, source_wires, target_wires):
     assert(source_wires.num_vertices == target_wires.num_vertices);
@@ -64,7 +96,7 @@ def compute_dofs(source_wires, target_wires, modifier_file):
 
     if modifier_file is not None:
         thickness_dofs = extract_thickness_dofs_from_modifier_file(
-                source_wires, modifier_file);
+                parameters, target_wires, modifier_file);
         assert(len(thickness_dofs) == parameters.num_thickness_dofs);
         dofs[:len(thickness_dofs)] = thickness_dofs;
 
