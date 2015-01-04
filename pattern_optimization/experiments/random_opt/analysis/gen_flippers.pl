@@ -1,5 +1,6 @@
-#!/usr/bin/env perl -w
+#!/usr/bin/env perl
 use strict;
+use warnings;
 
 print "flippers = [";
 for my $subdiv (0,1,2,3) {

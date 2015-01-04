@@ -61,6 +61,7 @@ struct Iterate {
         }
         std::cout << std::endl;
 
+
         std::cout << "Building Simulator" << std::endl;
         BENCHMARK_START_TIMER_SECTION("Eval");
         m_sim = std::make_shared<_Sim>(inflator.elements(),
@@ -92,6 +93,21 @@ struct Iterate {
         BENCHMARK_STOP_TIMER_SECTION("Eval");
     }
 
+    // To be used only if inflation fails--use a linear extrapolation to
+    // estimate the objective/gradient at params
+    void estimatePoint(size_t nParams, const double *params) {
+        assert(nParams == m_params.size());
+        m_estimateObjectiveWithDeltaP.resize(nParams);
+
+        std::cerr << "WARNING, USING APPROXIMATE OBJECTIVE/GRADIENT AT DIST:";
+        for (size_t p = 0; p < nParams; ++p) {
+            m_estimateObjectiveWithDeltaP[p] = params[p] - m_params[p];
+            std::cerr << "\t" << m_estimateObjectiveWithDeltaP[p];
+        }
+        std::cerr << std::endl;
+    }
+    void disableEstimation() { m_estimateObjectiveWithDeltaP.clear(); }
+
     // Evaluate compliance frobenius norm objective.
     Real evaluateJS() const {
         auto diff = S - m_targetS;
@@ -102,7 +118,14 @@ struct Iterate {
                 diff.D(i, j) = 0.0;
             }
         }
-        return 0.5 * diff.quadrupleContract(diff);
+        Real result = 0.5 * diff.quadrupleContract(diff);
+
+        if (m_estimateObjectiveWithDeltaP.size() == m_params.size()) {
+            SField gpJS = gradp_JS();
+            for (size_t p = 0; p < m_params.size(); ++p)
+                result += gpJS[p] * m_estimateObjectiveWithDeltaP[p];
+        }
+        return result;
     }
 
     ////////////////////////////////////////////////////////////////////////
@@ -154,23 +177,29 @@ struct Iterate {
 
     SField gradp_JS() const { return gradp_JS(shapeDerivativeJS()); }
 
-    // The (ij, jk)th residual (jk >= ij) for the nonlinear least squares (a
+    // The (ij, kl)th residual (kl >= ij) for the nonlinear least squares (a
     // single term of the Frobenius distance). The terms are weighted so
     // that the squared norm of the residual vector corresponds to the
     // Frobenius norm of the rank 4 tensor difference S - S^*.
-    Real residual(size_t ij, size_t jk) const {
-        assert(jk >= ij);
+    Real residual(size_t ij, size_t kl) const {
+        assert(kl >= ij);
         Real weight = 1.0;
-        if (jk != ij) weight *= sqrt(2); // Account for lower triangle
+        if (kl != ij) weight *= sqrt(2); // Account for lower triangle
         if (ij >= _N) weight *= sqrt(2); // Left shear doubler
-        if (jk >= _N) weight *= sqrt(2); // Right shear doubler
-        return weight * (S.D(ij, jk) - m_targetS.D(ij, jk));
+        if (kl >= _N) weight *= sqrt(2); // Right shear doubler
+        Real result = weight * (S.D(ij, kl) - m_targetS.D(ij, kl));
+
+        if (m_estimateObjectiveWithDeltaP.size() == m_params.size()) {
+            for (size_t p = 0; p < m_params.size(); ++p)
+                result += jacobian(ij, kl, p) * m_estimateObjectiveWithDeltaP[p];
+        }
+        return result;
     }
 
-    // Derivative of residual(ij, jk) wrt parameter p:
+    // Derivative of residual(ij, kl) wrt parameter p:
     // d/dp (S_ijkl - target_ijkl) = d/dp S_ijkl = <gradS_ijkl, vn_p>
-    Real jacobian(size_t ij, size_t jk, size_t p) const {
-        assert(jk >= ij);
+    Real jacobian(size_t ij, size_t kl, size_t p) const {
+        assert(kl >= ij);
         Real result = 0;
         for (size_t bei = 0; bei < m_sim->mesh().numBoundaryElements(); ++bei) {
             auto be = m_sim->mesh().boundaryElement(bei);
@@ -179,14 +208,14 @@ struct Iterate {
             result +=
                 Quadrature<_Sim::K - 1, 1 + BEGradTensorInterpolant::Deg>::
                 integrate([&] (const VectorND<be.numVertices()> &pt) {
-                    return vn(pt) * grad(pt).D(ij, jk);
+                    return vn(pt) * grad(pt).D(ij, kl);
                 }, be->volume());
         }
 
         Real weight = 1.0;
-        if (jk != ij) weight *= sqrt(2); // Account for lower triangle
+        if (kl != ij) weight *= sqrt(2); // Account for lower triangle
         if (ij >= _N) weight *= sqrt(2); // Left shear doubler
-        if (jk >= _N) weight *= sqrt(2); // Right shear doubler
+        if (kl >= _N) weight *= sqrt(2); // Right shear doubler
         return weight * result;
     }
 
@@ -307,6 +336,9 @@ private:
     _ETensor C, S, m_targetS;
     std::vector<BEGradTensorInterpolant> m_gradS;
     std::vector<typename Inflator<_N>::NormalShapeVelocity> m_vn_p;
+
+    // Linear JS/residual estimate for when meshing fails
+    std::vector<Real> m_estimateObjectiveWithDeltaP;
 
     std::vector<Real> m_params;
 };

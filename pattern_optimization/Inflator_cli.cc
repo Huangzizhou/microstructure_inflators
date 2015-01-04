@@ -60,6 +60,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("default_thickness,t", po::value<double>()->default_value(0.5 * sqrt(2)), "default thickness (of bar diagonal)")
         ("out,o",    po::value<string>(), "Output inflated mesh")
         ("dof,d",    po::value<string>(), "dof file specifying parameters")
+        ("multiDoF,D",                                    "inflate multiple DoF files (names specified on STDIN)")
         ("subdivide,S",  po::value<size_t>()->default_value(0),           "number of subdivisions to run for 3D inflator")
         ("sub_algorithm,A", po::value<string>()->default_value("simple"), "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                             "maximum element volume parameter for wire inflator")
@@ -113,6 +114,27 @@ int main(int argc, const char *argv[])
     Real cellSize = args["cell_size"].as<double>();
     Inflator<3> inflator(args["pattern"].as<string>(),
                          cellSize, defaultThickness);
+    inflator.configureSubdivision(args["sub_algorithm"].as<string>(),
+                                  args["subdivide"].as<size_t>());
+
+    if (args.count("max_volume"))
+        inflator.setMaxElementVolume(args["max_volume"].as<double>());
+
+    if (args.count("multiDoF")) {
+        cout << "multiDoF mode--reading filenames from STDIN" << endl;
+        string name;
+        while (cin >> name) {
+            inflator.inflate(name);
+            cout << "inflated " << name << endl;
+            assert((inflator.elements().size() > 0) &&
+                   (inflator.vertices().size() > 0));
+            if (args.count("output")) {
+                MeshIO::save(args["out"].as<string>() + "." + name + ".msh", inflator.vertices(),
+                             inflator.elements());
+            }
+        }
+        exit(0);
+    }
 
     // Parameter specification precedence:
     //  .dof presides over .opt, which presides over defaults.
@@ -142,12 +164,6 @@ int main(int argc, const char *argv[])
     }
 
     if (args.count("out")) {
-        inflator.configureSubdivision(args["sub_algorithm"].as<string>(),
-                                      args["subdivide"].as<size_t>());
-
-        if (args.count("max_volume"))
-            inflator.setMaxElementVolume(args["max_volume"].as<double>());
-
         inflator.inflate(params);
         MeshIO::save(args["out"].as<string>(), inflator.vertices(),
                      inflator.elements());

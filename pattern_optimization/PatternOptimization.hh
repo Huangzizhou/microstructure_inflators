@@ -28,6 +28,42 @@
 
 namespace PatternOptimization {
 
+// Use previous iterate if evaluating the same point. Otherwise, attempt to
+// inflate the new parameters. Try three times to inflate, and if unsuccessful,
+// estimate the point with linear extrapolation.
+template<class _Iterate, class _Inflator, class _ETensor>
+std::shared_ptr<_Iterate> getIterate(std::shared_ptr<_Iterate> oldIterate,
+        _Inflator &inflator, size_t nParams, const double *params,
+        const _ETensor &targetS) {
+    if (!oldIterate || oldIterate->paramsDiffer(nParams, params)) {
+        std::shared_ptr<_Iterate> newIterate;
+        bool success = true;
+        for (size_t i = 0; i < 3; ++i) {
+            try {
+                newIterate = std::make_shared<_Iterate>(inflator,
+                                nParams, params, targetS);
+            }
+            catch (std::exception &e) {
+                std::cerr << "INFLATOR FAILED: " << e.what() << endl;
+                success = false;
+            }
+            if (success) break;
+        }
+        if (!success) {
+            std::cerr << "3 INFLATION ATTEMPTS FAILED." << std::endl;
+            if (!oldIterate) throw std::runtime_error("Inflation failure on first iterate");
+            newIterate = oldIterate;
+            newIterate->estimatePoint(nParams, params);
+        }
+        return newIterate;
+    }
+    else {
+        // Old iterate is exact, not an approximation
+        oldIterate->disableEstimation();
+        return oldIterate;
+    }
+}
+
 template<class _Sim>
 class Optimizer {
     typedef typename _Sim::VField VField;
@@ -75,12 +111,8 @@ public:
         virtual bool Evaluate(double const * const *parameters,
                 double *residuals, double **jacobians) const {
             size_t nParams = parameter_block_sizes()[0];
-            // Ceres seems to like re-evaluating at the same point, so we detect
-            // this to avoid re-solving.
-            if (!m_iterate || m_iterate->paramsDiffer(nParams, parameters[0])) {
-                m_iterate = std::make_shared<Iterate>(m_inflator,
-                        nParams, parameters[0], m_targetS);
-            }
+            m_iterate = getIterate(m_iterate, m_inflator, nParams,
+                                   parameters[0], m_targetS);
 
             size_t r = 0;
             for (size_t i = 0; i < flatLen(_N); ++i)
@@ -123,12 +155,9 @@ public:
             m_iter(0) {}
         ceres::CallbackReturnType operator()(const ceres::IterationSummary &sum)
         {
-            size_t nParams = m_params.domainSize();
-            auto curr = m_evaluator.currentIterate();
-            if (curr->paramsDiffer(nParams, &m_params[0])) {
-                curr = std::make_shared<Iterate>(m_evaluator.m_inflator,
-                        nParams, &m_params[0], m_evaluator.m_targetS);
-            }
+            auto curr = getIterate(m_evaluator.m_iterate,
+                            m_evaluator.m_inflator, m_params.size(), &m_params[0],
+                            m_evaluator.m_targetS);
             curr->writeDescription(std::cout);
             std::cout << std::endl;
 
@@ -217,8 +246,8 @@ public:
             for (size_t p = 0; p < nParams; ++p)
                 x_vec[p] = x(p);
 
-            m_iterate = std::make_shared<Iterate>(m_inflator,
-                    nParams, &x_vec[0], m_targetS);
+            m_iterate = getIterate(m_iterate, m_inflator, nParams, &x_vec[0],
+                                   m_targetS);
             return m_iterate->evaluateJS();
         }
 
