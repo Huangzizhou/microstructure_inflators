@@ -38,7 +38,7 @@ using namespace std;
 using namespace PatternOptimization;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: ParamRegion_cli pattern.wire outPrefix [options]" << endl;
+    cout << "Usage: ParamRegion_cli pattern.wire outPrefix p0 p1 [options]" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
 }
@@ -49,10 +49,14 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     hidden_opts.add_options()
         ("pattern", po::value<string>(), "Pattern wire file")
         ("out",  po::value<string>(), "PGM output filename prefix")
+        ("p0",   po::value<int>(), "Parameter 0 (vertical axis)")
+        ("p1",   po::value<int>(), "Parameter 1 (horizontal axis)")
         ;
     po::positional_options_description p;
     p.add("pattern", 1);
     p.add("out", 1);
+    p.add("p0", 1);
+    p.add("p1", 1);
 
     po::options_description visible_opts;
     visible_opts.add_options()("help",        "Produce this help message")
@@ -77,8 +81,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     }
 
     bool fail = false;
-    if (vm.count("out") == 0) {
-        cout << "Error: must specify input pattern and output image prefix" << endl;
+    if (vm.count("p1") == 0) {
+        cout << "Error: must specify input pattern, output image prefix, and two parameter indices" << endl;
         fail = true;
     }
 
@@ -141,27 +145,26 @@ int main(int argc, const char *argv[])
         else 
             bounds[p].set(-0.1, 0.1);
     }
-
-
     
     size_t nSamples = args["sampleSize"].as<int>();
     vector<unsigned char> imgBuffer(nSamples * nSamples);
 
-    // Look at all 2-Dim slices
-    for (size_t p0 = 0; p0 < 1; ++p0) {
-        for (size_t p1 = p0; p1 < 1; ++p1) {
-            setDefault(params, bounds);
-            for (size_t v0 = 0; v0 < nSamples; ++v0) {
-                params[p0] = bounds[p0].lower + (Real(v0) * bounds[p1].width()) / (nSamples - 1);
-                for (size_t v1 = 0; v1 < nSamples; ++v1) {
-                    cout << v1 << endl;
-                    params[p1] = bounds[p1].lower + (Real(v1) * bounds[p1].width()) / (nSamples - 1);
-                    unsigned char val = 255;
-                    try { inflator.inflate(params); }
-                    catch (...) { val = 0; }
-                    imgBuffer[v0 * nSamples + v1] = val;
-                }
-            }
+    size_t p0 = args["p0"].as<int>();
+    size_t p1 = args["p1"].as<int>();
+
+    if ((p0 >= nParams) || (p1 >= nParams))
+        throw runtime_error("Invalid slice parameter indices");
+
+    setDefault(params, bounds);
+    for (size_t v0 = 0; v0 < nSamples; ++v0) {
+        params[p0] = bounds[p0].lower + (Real(v0) * bounds[p1].width()) / (nSamples - 1);
+        for (size_t v1 = 0; v1 < nSamples; ++v1) {
+            cout << v1 << endl;
+            params[p1] = bounds[p1].lower + (Real(v1) * bounds[p1].width()) / (nSamples - 1);
+            unsigned char val = 255;
+            try { inflator.inflate(params); }
+            catch (...) { val = 0; }
+            imgBuffer[v0 * nSamples + v1] = val;
         }
     }
 
