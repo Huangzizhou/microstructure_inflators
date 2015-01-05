@@ -156,10 +156,12 @@ public:
 
     Inflator(const std::string &wireMeshPath,
              Real cell_size = 5.0, Real default_thickness = 0.5 * sqrt(2),
-             bool isotropic_params = false)
+             bool isotropic_params = false, bool vertex_thickness = false)
         : m_inflator(wireMeshPath, cell_size, default_thickness) {
-        if (isotropic_params) m_inflator.with_all_isotropic_parameters();
-        else                  m_inflator.with_all_parameters();
+        ParameterCommon::TargetType thickness_type =
+            vertex_thickness ? ParameterCommon::VERTEX : ParameterCommon::EDGE;
+        if (isotropic_params) m_inflator.with_all_isotropic_parameters(thickness_type);
+        else                  m_inflator.with_all_parameters(thickness_type);
         setMaxElementVolume(0.0);
     }
 

@@ -61,6 +61,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("out,o",    po::value<string>(), "Output inflated mesh")
         ("dof,d",    po::value<string>(), "dof file specifying parameters")
         ("isotropicParameters,I",         "Use isotropic DoFs")
+        ("vertexThickness,V",             "Use vertex thickness instead of edge thickness")
         ("multiDoF,D",                    "inflate multiple DoF files (names specified on STDIN)")
         ("subdivide,S",  po::value<size_t>()->default_value(0),           "number of subdivisions to run for 3D inflator")
         ("sub_algorithm,A", po::value<string>()->default_value("simple"), "subdivision algorithm for 3D inflator (simple or loop)")
@@ -114,8 +115,10 @@ int main(int argc, const char *argv[])
     Real defaultThickness = args["default_thickness"].as<double>();
     Real cellSize = args["cell_size"].as<double>();
     bool isotropicParameters = args.count("isotropicParameters");
+    bool vertexThickness = args.count("vertexThickness");
     Inflator<3> inflator(args["pattern"].as<string>(), cellSize,
-                         defaultThickness, isotropicParameters);
+                         defaultThickness, isotropicParameters,
+                         vertexThickness);
     inflator.configureSubdivision(args["sub_algorithm"].as<string>(),
                                   args["subdivide"].as<size_t>());
 

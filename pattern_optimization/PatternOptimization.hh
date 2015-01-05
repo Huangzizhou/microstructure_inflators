@@ -37,8 +37,9 @@ std::shared_ptr<_Iterate> getIterate(std::shared_ptr<_Iterate> oldIterate,
         const _ETensor &targetS) {
     if (!oldIterate || oldIterate->paramsDiffer(nParams, params)) {
         std::shared_ptr<_Iterate> newIterate;
-        bool success = true;
+        bool success;
         for (size_t i = 0; i < 3; ++i) {
+            success = true;
             try {
                 newIterate = std::make_shared<_Iterate>(inflator,
                                 nParams, params, targetS);

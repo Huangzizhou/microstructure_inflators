@@ -49,7 +49,14 @@ struct Iterate {
         }
         std::cout << "Inflating" << std::endl;
         BENCHMARK_START_TIMER("Inflate");
-        inflator.inflate(m_params);
+        try {
+            inflator.inflate(m_params);
+        }
+        catch (...) {
+            // Hack to correct timer behavior--should probably use RAII
+            BENCHMARK_STOP_TIMER("Inflate");
+            throw;
+        }
         BENCHMARK_STOP_TIMER("Inflate");
         std::cout << "Inflated" << std::endl;
 
@@ -337,7 +344,7 @@ private:
     std::vector<BEGradTensorInterpolant> m_gradS;
     std::vector<typename Inflator<_N>::NormalShapeVelocity> m_vn_p;
 
-    // Linear JS/residual estimate for when meshing fails
+    // Requests linear JS/residual estimate for when meshing fails
     std::vector<Real> m_estimateObjectiveWithDeltaP;
 
     std::vector<Real> m_params;

@@ -75,8 +75,6 @@ for i in $(cat analysis/gen_success.txt); do
 
     echo "UNRECOGNIZED FAILURE: $i"
     echo $i >> analysis/run_failure_unrecognized.txt
-
-    exit;
 done
 
 numJobs=$(wc -l < analysis/all_jobs.txt);
