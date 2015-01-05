@@ -155,9 +155,11 @@ public:
     typedef std::vector<Interpolant<Real, 2, 1>> NormalShapeVelocity;
 
     Inflator(const std::string &wireMeshPath,
-             Real cell_size = 5.0, Real default_thickness = 0.5 * sqrt(2))
+             Real cell_size = 5.0, Real default_thickness = 0.5 * sqrt(2),
+             bool isotropic_params = false)
         : m_inflator(wireMeshPath, cell_size, default_thickness) {
-        m_inflator.with_all_parameters();
+        if (isotropic_params) m_inflator.with_all_isotropic_parameters();
+        else                  m_inflator.with_all_parameters();
         setMaxElementVolume(0.0);
     }
 

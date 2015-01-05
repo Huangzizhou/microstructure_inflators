@@ -60,7 +60,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("default_thickness,t", po::value<double>()->default_value(0.5 * sqrt(2)), "default thickness (of bar diagonal)")
         ("out,o",    po::value<string>(), "Output inflated mesh")
         ("dof,d",    po::value<string>(), "dof file specifying parameters")
-        ("multiDoF,D",                                    "inflate multiple DoF files (names specified on STDIN)")
+        ("isotropicParameters,I",         "Use isotropic DoFs")
+        ("multiDoF,D",                    "inflate multiple DoF files (names specified on STDIN)")
         ("subdivide,S",  po::value<size_t>()->default_value(0),           "number of subdivisions to run for 3D inflator")
         ("sub_algorithm,A", po::value<string>()->default_value("simple"), "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                             "maximum element volume parameter for wire inflator")
@@ -112,8 +113,9 @@ int main(int argc, const char *argv[])
 
     Real defaultThickness = args["default_thickness"].as<double>();
     Real cellSize = args["cell_size"].as<double>();
-    Inflator<3> inflator(args["pattern"].as<string>(),
-                         cellSize, defaultThickness);
+    bool isotropicParameters = args.count("isotropicParameters");
+    Inflator<3> inflator(args["pattern"].as<string>(), cellSize,
+                         defaultThickness, isotropicParameters);
     inflator.configureSubdivision(args["sub_algorithm"].as<string>(),
                                   args["subdivide"].as<size_t>());
 
