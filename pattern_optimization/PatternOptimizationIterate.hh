@@ -44,7 +44,7 @@ struct Iterate {
         : m_targetS(targetS)
     {
         m_params.resize(nParams);
-        for (size_t i = 0; i < m_params.size(); ++i) {
+        for (size_t i = 0; i < nParams; ++i) {
             m_params[i] = params[i];
         }
         std::cout << "Inflating" << std::endl;
@@ -95,6 +95,20 @@ struct Iterate {
                 GS[n] = -S.doubleDoubleContract(GE[n]);
         }
 
+        // Precompute gradient of the compliance tensor
+        m_gradp_S.resize(nParams); // Fill with zero tensors.
+        for (size_t p = 0; p < nParams; ++p) {
+            for (size_t bei = 0; bei < m_sim->mesh().numBoundaryElements(); ++bei) {
+                auto be = m_sim->mesh().boundaryElement(bei);
+                const auto &vn = m_vn_p[p][bei]; // parameter normal shape velocity interpolant
+                const auto &grad = m_gradS[bei];
+                m_gradp_S[p] += Quadrature<_Sim::K - 1, 1 + BEGradTensorInterpolant::Deg>::
+                    integrate([&] (const VectorND<be.numVertices()> &pt) {
+                        return vn(pt) * grad(pt);
+                    }, be->volume());
+            }
+        }
+
         std::cout << "Done" << std::endl;
 
         BENCHMARK_STOP_TIMER_SECTION("Eval");
@@ -118,13 +132,6 @@ struct Iterate {
     // Evaluate compliance frobenius norm objective.
     Real evaluateJS() const {
         auto diff = S - m_targetS;
-        // TODO: FIGURE OUT WHAT TO DO WITH THIS HACK.
-        // Ignore "non-orthotropic part" (this part is erroneous)
-        for (size_t j = _N; j < flatLen(_N); ++j) {
-            for (size_t i = 0; i < j; ++i) {
-                diff.D(i, j) = 0.0;
-            }
-        }
         Real result = 0.5 * diff.quadrupleContract(diff);
 
         if (m_estimateObjectiveWithDeltaP.size() == m_params.size()) {
@@ -144,13 +151,6 @@ struct Iterate {
     *///////////////////////////////////////////////////////////////////////
     std::vector<BEGradInterpolant> shapeDerivativeJS() const {
         _ETensor diff = S - m_targetS;
-        // TODO: FIGURE OUT WHAT TO DO WITH THIS HACK.
-        // Ignore "non-orthotropic part" (this part is erroneous)
-        for (size_t j = _N; j < flatLen(_N); ++j) {
-            for (size_t i = 0; i < j; ++i) {
-                diff.D(i, j) = 0.0;
-            }
-        }
         std::vector<BEGradInterpolant> grad(m_gradS.size());
 
         for (size_t be = 0; be < m_gradS.size(); ++be) {
@@ -164,25 +164,15 @@ struct Iterate {
         return grad;
     }
 
-    SField gradp_JS(const std::vector<BEGradInterpolant> &gradJS) const {
+    // Computes grad_p(1/2 sum_ijkl (S_ijkl - target_ijlk|)^2) =
+    //      (S_ijkl - target_ijlk) * grad_p(S_ikjl))
+    SField gradp_JS() const {
         SField result(m_params.size());
-        result.clear();
-        for (size_t p = 0; p < m_params.size(); ++p) {
-            for (size_t bei = 0; bei < m_sim->mesh().numBoundaryElements(); ++bei) {
-                auto be = m_sim->mesh().boundaryElement(bei);
-                const auto &vn = m_vn_p[p][bei]; // parameter normal shape velocity interpolant
-                const auto &grad = gradJS[bei];
-                result[p] +=
-                    Quadrature<_Sim::K - 1, 1 + BEGradTensorInterpolant::Deg>::
-                    integrate([&] (const VectorND<be.numVertices()> &pt) {
-                        return vn(pt) * grad(pt);
-                    }, be->volume());
-            }
-        }
+        _ETensor diff = S - m_targetS;
+        for (size_t p = 0; p < m_params.size(); ++p)
+            result[p] = diff.quadrupleContract(m_gradp_S[p]);
         return result;
     }
-
-    SField gradp_JS() const { return gradp_JS(shapeDerivativeJS()); }
 
     // The (ij, kl)th residual (kl >= ij) for the nonlinear least squares (a
     // single term of the Frobenius distance). The terms are weighted so
@@ -205,25 +195,14 @@ struct Iterate {
 
     // Derivative of residual(ij, kl) wrt parameter p:
     // d/dp (S_ijkl - target_ijkl) = d/dp S_ijkl = <gradS_ijkl, vn_p>
+    // The terms are weighted in accordance with the residual weighting above.
     Real jacobian(size_t ij, size_t kl, size_t p) const {
         assert(kl >= ij);
-        Real result = 0;
-        for (size_t bei = 0; bei < m_sim->mesh().numBoundaryElements(); ++bei) {
-            auto be = m_sim->mesh().boundaryElement(bei);
-            const auto &vn = m_vn_p[p][bei]; // parameter normal shape velocity interpolant
-            const auto &grad = m_gradS[bei];
-            result +=
-                Quadrature<_Sim::K - 1, 1 + BEGradTensorInterpolant::Deg>::
-                integrate([&] (const VectorND<be.numVertices()> &pt) {
-                    return vn(pt) * grad(pt).D(ij, kl);
-                }, be->volume());
-        }
-
         Real weight = 1.0;
         if (kl != ij) weight *= sqrt(2); // Account for lower triangle
         if (ij >= _N) weight *= sqrt(2); // Left shear doubler
         if (kl >= _N) weight *= sqrt(2); // Right shear doubler
-        return weight * result;
+        return weight * m_gradp_S[p].D(ij, kl);
     }
 
     // Boundary normal velocity caused by a parameter velocity "deltaP"
@@ -269,8 +248,7 @@ struct Iterate {
         SField avg_vn(complianceFitGrad.size());
         for (size_t i = 0; i < complianceFitGrad.size(); ++i)
             avg_vn[i] = complianceFitGrad[i].average();
-        auto projectedNormalVelocity =
-            effectiveNormalVelocity(gradp_JS(complianceFitGrad));
+        auto projectedNormalVelocity = effectiveNormalVelocity(gradp_JS());
 
         if (_N == 2) {
             MeshIO::save(name + ".msh", m_sim->mesh());
@@ -342,9 +320,10 @@ private:
     std::shared_ptr<_Sim> m_sim;
     _ETensor C, S, m_targetS;
     std::vector<BEGradTensorInterpolant> m_gradS;
+    std::vector<_ETensor>                m_gradp_S;
     std::vector<typename Inflator<_N>::NormalShapeVelocity> m_vn_p;
 
-    // Requests linear JS/residual estimate for when meshing fails
+    // Requests linear objective/residual estimate for when meshing fails
     std::vector<Real> m_estimateObjectiveWithDeltaP;
 
     std::vector<Real> m_params;
