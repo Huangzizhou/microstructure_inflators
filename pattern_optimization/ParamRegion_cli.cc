@@ -145,7 +145,7 @@ int main(int argc, const char *argv[])
 
     
     size_t nSamples = args["sampleSize"].as<int>();
-    vector<char> imgBuffer(nSamples * nSamples);
+    vector<unsigned char> imgBuffer(nSamples * nSamples);
 
     // Look at all 2-Dim slices
     for (size_t p0 = 0; p0 < 1; ++p0) {
@@ -156,7 +156,7 @@ int main(int argc, const char *argv[])
                 for (size_t v1 = 0; v1 < nSamples; ++v1) {
                     cout << v1 << endl;
                     params[p1] = bounds[p1].lower + (Real(v1) * bounds[p1].width()) / (nSamples - 1);
-                    char val = 255;
+                    unsigned char val = 255;
                     try { inflator.inflate(params); }
                     catch (...) { val = 0; }
                     imgBuffer[v0 * nSamples + v1] = val;
@@ -170,6 +170,6 @@ int main(int argc, const char *argv[])
     ofstream pgmFile(outPrefix + ".pgm");
     if (!pgmFile.is_open()) throw runtime_error("Couldn't open output image");
     pgmFile << "P5" << endl << nSamples << "\t" << nSamples << endl << 255 << endl;
-    pgmFile.write(&imgBuffer[0], imgBuffer.size());
+    pgmFile.write((char *) &imgBuffer[0], imgBuffer.size());
     pgmFile.close();
 }
