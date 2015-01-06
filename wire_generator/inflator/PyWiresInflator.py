@@ -33,7 +33,7 @@ class PyWiresInflator(object):
         if (abs_geometry_correction is not None):
             inflator.with_abs_geometry_correction(np.array(abs_geometry_correction));
         if (geometry_correction_cap is not None):
-            inflator.set_geometry_correction_cap(np.array(geometry_correction_cap));
+            inflator.set_geometry_correction_cap(geometry_correction_cap);
         inflator.inflate();
         self.mesh_vertices = inflator.get_vertices();
         self.mesh_faces = inflator.get_faces();
