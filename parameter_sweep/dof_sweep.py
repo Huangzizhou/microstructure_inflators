@@ -22,7 +22,8 @@ def load_sweep_config(config_file):
         "thickness_range": [#, #],
         "thickness_samples": #,
         "offset_range": [#, #],
-        "offset_samples": #
+        "offset_samples": #,
+        "predefined_dofs": [#, #, none, #, ...]
     }
     """
     with open(config_file, 'r') as fin:
@@ -103,9 +104,24 @@ def generate_sweeps(wire_network, config):
             config["offset_range"][0],
             config["offset_range"][1],
             config["offset_samples"]);
+    predefined_dofs = config.get("predefined_dofs",
+            [""] * (num_thickness_dofs + num_offset_dofs));
+    assert(len(predefined_dofs) == num_thickness_dofs + num_offset_dofs);
+    dof_samples = [];
+    for i in range(len(predefined_dofs)):
+        if i < num_thickness_dofs:
+            if isinstance(predefined_dofs[i], (float, int)):
+                dof_samples.append([predefined_dofs[i]]);
+            else:
+                dof_samples.append(thickness_samples);
+        else:
+            if isinstance(predefined_dofs[i], (float, int)):
+                dof_samples.append([predefined_dofs[i]]);
+            else:
+                dof_samples.append(offset_samples);
 
-    dof_samples = [thickness_samples for i in range(num_thickness_dofs) ] +\
-            [offset_samples for i in range(num_offset_dofs)] ;
+    #dof_samples = [thickness_samples for i in range(num_thickness_dofs) ] +\
+    #        [offset_samples for i in range(num_offset_dofs)] ;
     dofs = np.meshgrid(*dof_samples);
     dofs = np.array([dof.ravel(order="C") for dof in dofs]).T;
 
