@@ -20,7 +20,9 @@ def parse_config_file(config_file):
         "periodic": bool,
         "subdiv": #,
         "subdiv_method": "simple" or "loop"
-        "geometry_correction": [#, #, #],
+        "rel_geometry_correction": [#, #, #],
+        "abs_geometry_correction": [#, #, #],
+        "geometry_correction_cap": #,
 
         # options for specifying parameters
         "thickness": float,
@@ -112,8 +114,9 @@ def extract_options(config):
             "periodic": config.get("periodic", False),
             "subdiv": config.get("subdiv", 1),
             "subdiv_method": str(config.get("subdiv_method", "simple")),
-            "geometry_correction": config.get(
-                "geometry_correction", np.zeros(3)),
+            "rel_geometry_correction": config.get("rel_geometry_correction"),
+            "abs_geometry_correction": config.get("abs_geometry_correction"),
+            "geometry_correction_cap": config.get("geometry_correction_cap"),
             }
     return options;
 

@@ -10,7 +10,10 @@ class PyWiresInflator(object):
         self.parameters = parameters;
 
     def inflate(self, clean_up=True, subdivide_order=1,
-            subdivide_method="simple", geometry_correction=None):
+            subdivide_method="simple",
+            rel_geometry_correction=None,
+            abs_geometry_correction=None,
+            geometry_correction_cap=None):
         wires = self.wire_network.raw_wires;
 
         if self.periodic:
@@ -25,8 +28,12 @@ class PyWiresInflator(object):
         inflator.set_thickness(thickness);
 
         inflator.with_refinement(subdivide_method, subdivide_order);
-        if (geometry_correction is not None):
-            inflator.with_geometry_correction(np.array(geometry_correction));
+        if (rel_geometry_correction is not None):
+            inflator.with_rel_geometry_correction(np.array(rel_geometry_correction));
+        if (abs_geometry_correction is not None):
+            inflator.with_abs_geometry_correction(np.array(abs_geometry_correction));
+        if (geometry_correction_cap is not None):
+            inflator.set_geometry_correction_cap(np.array(geometry_correction_cap));
         inflator.inflate();
         self.mesh_vertices = inflator.get_vertices();
         self.mesh_faces = inflator.get_faces();
