@@ -2,7 +2,6 @@
 
 import argparse
 import numpy as np
-import LinearElasticitySettings
 from BoxMeshGenerator import split_hex_into_tets, split_hex_into_tets_symmetrically
 from BoxMeshGenerator import remove_duplicated_vertices, remove_isolated_vertices
 from BoxMeshGenerator import subdivide_hex
