@@ -129,6 +129,9 @@ public:
         return vn_p;
     }
 
+    // 2D is always printable.
+    bool isPrintable() const { return true; }
+
     void setDoFOutputPrefix(const std::string &pathPrefix) {
         throw std::runtime_error("Writing pattern DoFs unsupported in 2D");
     }
@@ -192,6 +195,10 @@ public:
         m_inflator.load_dofs(dofFile);
         m_inflate_dofs();
     }
+
+    // the printability check actually modifies the inflator's internal state,
+    // so we can't mark this const.
+    bool isPrintable() { return m_inflator.is_printable(); }
 
     // Needs access to mesh data structure to dot velocities with normals
     template<class _FEMMesh>

@@ -60,6 +60,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("default_thickness,t", po::value<double>()->default_value(0.5 * sqrt(2)), "default thickness (of bar diagonal)")
         ("out,o",    po::value<string>(), "Output inflated mesh")
         ("dof,d",    po::value<string>(), "dof file specifying parameters")
+        ("checkPrintability,P",           "Check the wire mesh for printability")
         ("isotropicParameters,I",         "Use isotropic DoFs")
         ("vertexThickness,V",             "Use vertex thickness instead of edge thickness")
         ("multiDoF,D",                    "inflate multiple DoF files (names specified on STDIN)")
@@ -166,6 +167,12 @@ int main(int argc, const char *argv[])
         std::cout << "Param " << p << ": "
             << ((inflator.parameterType(p) == ParameterType::Offset) ? "offset" : "thickness")
             << ", " << params[p] << std::endl;
+    }
+    
+    // Check if the current inflator paramters (e.g. loaded from dof) are
+    // printable.
+    if (args.count("checkPrintability")) {
+        cout << "Printable:\t" << inflator.isPrintable() << endl;
     }
 
     if (args.count("out")) {
