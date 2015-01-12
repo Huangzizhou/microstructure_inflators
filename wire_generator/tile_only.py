@@ -67,7 +67,7 @@ def tile_with_guide_mesh(unit_pattern, mesh, parameters):
     tiled_network = tiler.wire_network;
     return tiled_network;
 
-def tile_with_mixed_patterns(patterns, mesh, thickness_type, dof_type):
+def tile_with_mixed_patterns(patterns, mesh, dof_type, thickness_type):
     patterns = [pattern.raw_wires for pattern in patterns];
     tiler = PyWires.WireTiler(patterns[0]);
     tiled_raw_wires = tiler.tile_with_mixed_patterns(
