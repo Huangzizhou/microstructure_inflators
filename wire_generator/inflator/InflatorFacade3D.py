@@ -54,6 +54,7 @@ class InflatorFacade3D(InflatorFacade):
                 subdivide_order = options.get("subdiv", 1),
                 rel_geometry_correction = options.get("rel_geometry_correction"),
                 abs_geometry_correction = options.get("abs_geometry_correction"),
-                geometry_correction_cap = options.get("geometry_correction_cap"));
+                geometry_correction_cap = options.get("geometry_correction_cap"),
+                geometry_spread = options.get("geometry_spread"));
         return inflator.mesh;
 

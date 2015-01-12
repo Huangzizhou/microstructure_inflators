@@ -43,13 +43,29 @@ class InflatorFacadeMixedPattern(InflatorFacade):
         inflator.set_thickness_type(thickness_type);
         inflator.set_thickness(wire_network.get_attribute("thickness").ravel());
         inflator.with_refinement(options["subdiv_method"], options["subdiv"]);
-        inflator.with_geometry_correction(
-                np.array(options["geometry_correction"])[:wire_network.dim]);
+        self.__apply_geometry_correction(inflator, options);
+
         inflator.inflate();
 
         self.mesh_vertices = inflator.get_vertices();
         self.mesh_faces = inflator.get_faces();
         return self.mesh;
+
+    def __apply_geometry_correction(self, inflator, options):
+        rel_geometry_correction = options.get("rel_geometry_correction");
+        abs_geometry_correction = options.get("abs_geometry_correction");
+        geometry_correction_cap = options.get("geometry_correction_cap");
+        geometry_spread = options.get("geometry_spread");
+
+        if (rel_geometry_correction is not None):
+            inflator.with_rel_geometry_correction(np.array(rel_geometry_correction));
+        if (abs_geometry_correction is not None):
+            inflator.with_abs_geometry_correction(np.array(abs_geometry_correction));
+        if (geometry_correction_cap is not None):
+            inflator.set_geometry_correction_cap(geometry_correction_cap);
+        if (geometry_spread is not None):
+            inflator.set_geometry_spread_constant(geometry_spread);
+
 
     def __apply_vertex_offset(self, wire_network):
         vertices = wire_network.vertices;

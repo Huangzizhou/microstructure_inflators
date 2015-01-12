@@ -23,6 +23,7 @@ def parse_config_file(config_file):
         "rel_geometry_correction": [#, #, #],
         "abs_geometry_correction": [#, #, #],
         "geometry_correction_cap": #,
+        "geometry_spread": #
 
         # options for specifying parameters
         "thickness": float,
@@ -117,6 +118,7 @@ def extract_options(config):
             "rel_geometry_correction": config.get("rel_geometry_correction"),
             "abs_geometry_correction": config.get("abs_geometry_correction"),
             "geometry_correction_cap": config.get("geometry_correction_cap"),
+            "geometry_spread": config.get("geometry_spread"),
             }
     return options;
 
