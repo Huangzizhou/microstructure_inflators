@@ -14,6 +14,8 @@
 #include <Wires/Interfaces/PeriodicExploration.h>
 #include <stdexcept>
 #include <string>
+#include "rref.h"
+#include "ParameterConstraint.hh"
 
 namespace {
     VectorF ToVectorF(const std::vector<Real> &vec) {
@@ -198,7 +200,11 @@ public:
 
     // the printability check actually modifies the inflator's internal state,
     // so we can't mark this const.
-    bool isPrintable() { return m_inflator.is_printable(); }
+    // Also, we must change the current dofs to run the printability test
+    bool isPrintable(const std::vector<Real> &params) {
+        m_inflator.set_dofs(ToVectorF(params));
+        return m_inflator.is_printable();
+    }
 
     // Needs access to mesh data structure to dot velocities with normals
     template<class _FEMMesh>
@@ -274,5 +280,164 @@ private:
     }
 };
 
+template <size_t N>
+class ConstrainedInflator : public Inflator<N> {
+public:
+    typedef Inflator<N> Base;
+    typedef typename Base::NormalShapeVelocity NormalShapeVelocity;
+
+    ConstrainedInflator(const std::vector<string> &constraints,
+            const std::string &wireMeshPath,
+            Real cell_size = 5.0, Real default_thickness = 0.5 * sqrt(2),
+            bool isotropic_params = false, bool vertex_thickness = false)
+        : Base(wireMeshPath, cell_size, default_thickness, isotropic_params,
+               vertex_thickness) {
+        // Impose all equality constraints exactly
+        // Solve for a set of independent variables, and express the
+        // dependent variables in terms of these.
+        size_t fullNumParams = Base::numParameters();
+        size_t expectedCols = fullNumParams + 1;
+        for (const auto &c : constraints) {
+            ParameterConstraint pc(fullNumParams, c);
+            if (!pc.isEqualityConstraint()) continue;
+            m_augmentedConstraintSystem.emplace_back(pc.augmentedRow());
+            if (m_augmentedConstraintSystem.back().size() != expectedCols)
+                throw std::runtime_error("Invalid constraint row");
+        }
+        if (m_augmentedConstraintSystem.size() != constraints.size()) {
+            std::cerr << "WARNING: Only equality constraints are currently implemented."
+                      << std::endl;
+        }
+
+        // By construction, the augmented column will be made independent.
+        // If this doesn't happen, the system is inconsistent.
+        rref(m_augmentedConstraintSystem, m_depIdx, m_depRow);
+
+        // Determine the independent variables (complement of dep)
+        unsigned int currDepVar = 0;
+        for (unsigned int i = 0; i < expectedCols; ++i) {
+            if ((currDepVar < m_depIdx.size()) && (i == m_depIdx[currDepVar]))
+                ++currDepVar;
+            else m_indepIdx.push_back(i);
+        }
+        assert(currDepVar == m_depIdx.size());
+
+        // The augmented column vector must have been made independent.
+        if ((m_indepIdx.size() == 0) || (m_indepIdx.back() != expectedCols - 1))
+            throw std::runtime_error("Couldn't make RHS independent");
+
+        // The last column isn't actually a variable
+        m_indepIdx.pop_back();
+    }
+
+    size_t numParameters() const { return m_indepIdx.size(); }
+
+    void inflate(const std::vector<Real> &params) {
+        Base::inflate(m_fullParamsForReduced(params));
+    }
+
+    void inflate(const std::string dofs) {
+        if (m_depIdx.size() != 0) {
+            std::cerr << "WARNING: inflating constrained pattern from DoFs that may not satisfy constraints!"
+                << std::endl;
+        }
+        Base::inflate(dofs);
+    }
+
+    // Note: doesn't consider what dependent parameters p might control.
+    ParameterType parameterType(size_t p) const {
+        assert(p < m_indepIdx.size());
+        return Base::parameterType(m_indepIdx[p]);
+    }
+
+    // Needs access to mesh data structure to dot velocities with normals
+    template<class _FEMMesh>
+    std::vector<NormalShapeVelocity>
+    computeShapeNormalVelocities(const _FEMMesh &mesh) const {
+        std::vector<NormalShapeVelocity> fullParamVelocity
+            = Base::computeShapeNormalVelocities(mesh);
+
+        size_t nParams = numParameters();
+        std::vector<NormalShapeVelocity> reducedParamVelocity;
+        reducedParamVelocity.reserve(nParams);
+        
+        // Effectively apply transpose of change of variables matrix.
+        for (size_t pIndep = 0; pIndep < nParams; ++pIndep) {
+            // Get the independen't variable's shape velocity.
+            // (identity part of the change of variables matrix).
+            size_t indepIdx = m_indepIdx[pIndep];
+            reducedParamVelocity.push_back(fullParamVelocity.at(indepIdx));
+            auto &vel = reducedParamVelocity.back();
+
+            // Add in how each dependent variable changes when independent
+            // variable, pIndep, changes
+            for (size_t pDep = 0; pDep < m_depIdx.size(); ++pDep) {
+                const auto &row = m_augmentedConstraintSystem[m_depRow[pDep]];
+                Real coeff = -row[indepIdx];
+                const auto &depVel = fullParamVelocity.at(m_depIdx[pDep]);
+                if (coeff != 0.0) {
+                    for (size_t bei = 0; bei < depVel.size(); ++bei)
+                        vel[bei] -= coeff * depVel[bei];
+                }
+            }
+        }
+
+        return reducedParamVelocity;
+    }
+
+    // Forced non-const due to James' inflator interface.
+    bool isPrintable(const std::vector<Real> &params) {
+        return Base::isPrintable(m_fullParamsForReduced(params));
+    }
+
+    // Write parameters in James' DoF format.
+    void writePatternDoFs(const std::string &path,
+                          const std::vector<Real> &params) {
+        Base::writePatternDoFs(path, m_fullParamsForReduced(params));
+    }
+
+private:
+    // Effectively apply the change of variables matrix.
+    std::vector<Real> m_fullParamsForReduced(const std::vector<Real> &rparams) {
+        std::vector<Real> fullParams(Base::numParameters());
+
+        // Copy the independent params over
+        // (identity part of change of variables matrix)
+        assert(rparams.size() == m_indepIdx.size());
+        for (size_t i = 0; i < m_indepIdx.size(); ++i) {
+            assert(m_indepIdx[i] < fullParams.size());
+            fullParams[m_indepIdx[i]] = rparams[i];
+        }
+
+        // Compute the dependent param values
+        for (size_t i = 0; i < m_depIdx.size(); ++i) {
+            Real param = 0;
+            assert(m_depRow[i] < m_augmentedConstraintSystem.size());
+            const auto &row = m_augmentedConstraintSystem[m_depRow[i]];
+
+            for (size_t j = 0; j < m_indepIdx.size(); ++j)
+                param -= rparams[j] * row[m_indepIdx[j]];
+
+            // Include the constraint's RHS value.
+            param += row.back();
+            assert(m_depIdx[i] < fullParams.size());
+            fullParams[m_depIdx[i]] = param;
+        }
+
+        return fullParams;
+    }
+
+    // The full parameters corresponding to each reduced (independent) parameter
+    std::vector<size_t> m_indepIdx;
+    // The full parameters corresponding to the dependent parameters
+    // (empty if no equality constraints are specified)
+    std::vector<size_t> m_depIdx;
+    // The row of m_augmentedConstraintSystem that holds each dependent
+    // parameter's dependencies.
+    std::vector<size_t> m_depRow;
+    // Constraint system in reduced row echelon form (row major)
+    // The last column holds the system RHS.
+    std::vector<vector<Real>> m_augmentedConstraintSystem;
+};
 
 #endif /* end of include guard: INFLATOR_HH */

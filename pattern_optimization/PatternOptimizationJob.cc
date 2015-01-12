@@ -13,6 +13,7 @@
 //          "initial_params": [ ... ],
 //          "radiusBounds": [ low, high ],
 //          "translationBounds": [ low, high ]
+//          "paramConstraints": [ "p1 = p2 + 5", ... ]
 //      }
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
@@ -22,6 +23,7 @@
 #include "PatternOptimizationJob.hh"
 #include <stdexcept>
 #include <fstream>
+#include <string>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -68,6 +70,15 @@ JobBase *parseJobFile(const string &jobFile) {
     parseVector(paramVals, job->initialParams);
     parseVector(radiusBounds, job->radiusBounds);
     parseVector(translationBounds, job->translationBounds);
+
+    if (pt.count("paramConstraints") != 0) {
+        auto constraints = pt.get_child("paramConstraints");
+        for (const auto &val : constraints) {
+            if (!val.first.empty()) throw runtime_error("Failed to read constraints");
+            job->parameterConstraints.emplace_back(val.second.get_value<string>());
+        }
+    }
+
     return job;
 }
 
