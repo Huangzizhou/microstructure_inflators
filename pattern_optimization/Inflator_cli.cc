@@ -29,6 +29,7 @@
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include "PatternOptimizationJob.hh"
 #include "PatternOptimizationIterate.hh"
@@ -58,8 +59,11 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     visible_opts.add_options()("help",        "Produce this help message")
         ("cell_size,c",         po::value<double>()->default_value(5.0),           "Inflation cell size")
         ("default_thickness,t", po::value<double>()->default_value(0.5 * sqrt(2)), "default thickness (of bar diagonal)")
-        ("out,o",    po::value<string>(), "Output inflated mesh")
-        ("dof,d",    po::value<string>(), "dof file specifying parameters")
+        ("out,o",    po::value<string>(),              "Output inflated mesh")
+        ("dof,d",    po::value<string>(),              "dof file specifying parameters")
+        ("parameters,p", po::value<string>(),          "whitespace-delimited parameters")
+        ("constraints,C", po::value<vector<string>>(), "constraint(s) on the pattern parameters")
+        ("checkPrintability,P",           "Check the wire mesh for printability")
         ("isotropicParameters,I",         "Use isotropic DoFs")
         ("vertexThickness,V",             "Use vertex thickness instead of edge thickness")
         ("multiDoF,D",                    "inflate multiple DoF files (names specified on STDIN)")
@@ -116,9 +120,12 @@ int main(int argc, const char *argv[])
     Real cellSize = args["cell_size"].as<double>();
     bool isotropicParameters = args.count("isotropicParameters");
     bool vertexThickness = args.count("vertexThickness");
-    Inflator<3> inflator(args["pattern"].as<string>(), cellSize,
-                         defaultThickness, isotropicParameters,
-                         vertexThickness);
+    vector<string> constraints;
+    if (args.count("constraints"))
+        constraints = args["constraints"].as<vector<string>>();
+    ConstrainedInflator<3> inflator(constraints, args["pattern"].as<string>(),
+            cellSize, defaultThickness, isotropicParameters, vertexThickness);
+
     inflator.configureSubdivision(args["sub_algorithm"].as<string>(),
                                   args["subdivide"].as<size_t>());
 
@@ -142,7 +149,8 @@ int main(int argc, const char *argv[])
     }
 
     // Parameter specification precedence:
-    //  .dof presides over .opt, which presides over defaults.
+    //  --parameters presides over .dof, which presides over .opt, which
+    //  presides over defaults.
     Real defaultOffset = 0.0;
     vector<Real> params(inflator.numParameters());
     for (size_t p = 0; p < inflator.numParameters(); ++p) {
@@ -161,11 +169,32 @@ int main(int argc, const char *argv[])
         inflator.loadPatternDoFs(args["dof"].as<string>(), params);
     }
 
+    if (args.count("parameters")) {
+        string paramString = args["parameters"].as<string>();
+        boost::trim(paramString);
+        std::vector<string> pStrings;
+        boost::split(pStrings, paramString, boost::is_any_of("\t "),
+                     boost::token_compress_on);
+        params.clear();
+        for (const auto &p : pStrings)
+            params.push_back(std::stod(p));
+    }
+
+
+    if (params.size() != inflator.numParameters()) {
+        throw std::runtime_error("Invalid number of parameters specified");
+    }
+
     // Output param types and values (if specified).
     for (size_t p = 0; p < inflator.numParameters(); ++p) {
         std::cout << "Param " << p << ": "
             << ((inflator.parameterType(p) == ParameterType::Offset) ? "offset" : "thickness")
             << ", " << params[p] << std::endl;
+    }
+    
+    // Check if the inflator paramters printable.
+    if (args.count("checkPrintability")) {
+        cout << "Printable:\t" << inflator.isPrintable(params) << endl;
     }
 
     if (args.count("out")) {

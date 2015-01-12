@@ -14,6 +14,7 @@
 //          "initial_params": [ ... ],
 //          "radiusBounds": [ low, high ],
 //          "translationBounds": [ low, high ]
+//          "paramConstraints": [ "p1 = p2 + 5", ... ]
 //      }
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
@@ -37,6 +38,7 @@ public:
     // The ground-truth parameters can be stored here--they are written to the
     // job file for reference.
     std::vector<Real> trueParams;
+    std::vector<std::string> parameterConstraints;
 };
 
 template<size_t _N>

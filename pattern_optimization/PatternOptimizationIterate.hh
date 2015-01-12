@@ -39,14 +39,15 @@ struct Iterate {
     typedef Interpolant<Real, BEGradTensorInterpolant::K,
                     BEGradTensorInterpolant::Deg>   BEGradInterpolant;
 
-    Iterate(Inflator<_N> &inflator, size_t nParams, const double *params,
+    Iterate(ConstrainedInflator<_N> &inflator, size_t nParams, const double *params,
             const _ETensor &targetS)
         : m_targetS(targetS)
     {
         m_params.resize(nParams);
-        for (size_t i = 0; i < nParams; ++i) {
+        for (size_t i = 0; i < nParams; ++i)
             m_params[i] = params[i];
-        }
+        m_printable = inflator.isPrintable(m_params);
+
         std::cout << "Inflating" << std::endl;
         BENCHMARK_START_TIMER("Inflate");
         try {
@@ -109,6 +110,8 @@ struct Iterate {
             }
         }
 
+        m_diffS = S - m_targetS;
+
         std::cout << "Done" << std::endl;
 
         BENCHMARK_STOP_TIMER_SECTION("Eval");
@@ -131,8 +134,7 @@ struct Iterate {
 
     // Evaluate compliance frobenius norm objective.
     Real evaluateJS() const {
-        auto diff = S - m_targetS;
-        Real result = 0.5 * diff.quadrupleContract(diff);
+        Real result = 0.5 * m_diffS.quadrupleContract(m_diffS);
 
         if (m_estimateObjectiveWithDeltaP.size() == m_params.size()) {
             SField gpJS = gradp_JS();
@@ -150,7 +152,6 @@ struct Iterate {
     //          steepest ascent normal velocity perturbation for JS
     *///////////////////////////////////////////////////////////////////////
     std::vector<BEGradInterpolant> shapeDerivativeJS() const {
-        _ETensor diff = S - m_targetS;
         std::vector<BEGradInterpolant> grad(m_gradS.size());
 
         for (size_t be = 0; be < m_gradS.size(); ++be) {
@@ -158,7 +159,7 @@ struct Iterate {
             const auto &GS = m_gradS[be];
                   auto &g = grad[be];
             for (size_t n = 0; n < GS.size(); ++n)
-                g[n] = diff.quadrupleContract(GS[n]);
+                g[n] = m_diffS.quadrupleContract(GS[n]);
         }
 
         return grad;
@@ -168,9 +169,8 @@ struct Iterate {
     //      (S_ijkl - target_ijlk) * grad_p(S_ikjl))
     SField gradp_JS() const {
         SField result(m_params.size());
-        _ETensor diff = S - m_targetS;
         for (size_t p = 0; p < m_params.size(); ++p)
-            result[p] = diff.quadrupleContract(m_gradp_S[p]);
+            result[p] = m_diffS.quadrupleContract(m_gradp_S[p]);
         return result;
     }
 
@@ -184,7 +184,7 @@ struct Iterate {
         if (kl != ij) weight *= sqrt(2); // Account for lower triangle
         if (ij >= _N) weight *= sqrt(2); // Left shear doubler
         if (kl >= _N) weight *= sqrt(2); // Right shear doubler
-        Real result = weight * (S.D(ij, kl) - m_targetS.D(ij, kl));
+        Real result = weight * m_diffS.D(ij, kl);
 
         if (m_estimateObjectiveWithDeltaP.size() == m_params.size()) {
             for (size_t p = 0; p < m_params.size(); ++p)
@@ -226,7 +226,9 @@ struct Iterate {
 
         os << "moduli:\t";
         C.printOrthotropic(os);
+        os << "anisotropy:\t" << C.anisotropy() << endl;
         os << "JS:\t" << evaluateJS() << std::endl;
+        os << "printable:\t" << m_printable << std::endl;
 
         SField gradP = gradp_JS();
         os << "grad_p(J_S):\t";
@@ -300,7 +302,7 @@ struct Iterate {
     }
 
     // Note, must overwrite inflator's parameter state :(
-    void writePatternDoFs(const std::string &name, Inflator<_N> &inflator) {
+    void writePatternDoFs(const std::string &name, ConstrainedInflator<_N> &inflator) {
         inflator.writePatternDoFs(name, m_params);
     }
 
@@ -318,14 +320,14 @@ struct Iterate {
 
 private:
     std::shared_ptr<_Sim> m_sim;
-    _ETensor C, S, m_targetS;
+    _ETensor C, S, m_targetS, m_diffS;
     std::vector<BEGradTensorInterpolant> m_gradS;
     std::vector<_ETensor>                m_gradp_S;
-    std::vector<typename Inflator<_N>::NormalShapeVelocity> m_vn_p;
+    std::vector<typename ConstrainedInflator<_N>::NormalShapeVelocity> m_vn_p;
+    bool m_printable;
 
     // Requests linear objective/residual estimate for when meshing fails
     std::vector<Real> m_estimateObjectiveWithDeltaP;
-
     std::vector<Real> m_params;
 };
 

@@ -3,7 +3,7 @@ use strict;
 use warnings;
 
 print "flippers = [";
-for my $subdiv (0,1,2,3) {
+for my $subdiv (0,1,2) {
     open(FLIPPER, "> S$subdiv.js");
     print FLIPPER <<END_HEADER;
 title = 'Subdiv $subdiv';

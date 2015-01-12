@@ -32,7 +32,8 @@ namespace PatternOptimization {
 // inflate the new parameters. Try three times to inflate, and if unsuccessful,
 // estimate the point with linear extrapolation.
 template<class _Iterate, class _Inflator, class _ETensor>
-std::shared_ptr<_Iterate> getIterate(std::shared_ptr<_Iterate> oldIterate,
+std::shared_ptr<_Iterate>
+getIterate(std::shared_ptr<_Iterate> oldIterate,
         _Inflator &inflator, size_t nParams, const double *params,
         const _ETensor &targetS) {
     if (!oldIterate || oldIterate->paramsDiffer(nParams, params)) {
@@ -74,7 +75,7 @@ class Optimizer {
     static constexpr size_t _N = _Sim::N;
 public:
     typedef ::PatternOptimization::Iterate<_Sim> Iterate;
-    Optimizer(Inflator<_N> &inflator, std::vector<Real> radiusBounds,
+    Optimizer(ConstrainedInflator<_N> &inflator, std::vector<Real> radiusBounds,
               std::vector<Real> translationBounds)
         : m_inflator(inflator), m_radiusBounds(radiusBounds),
           m_transBounds(translationBounds) { }
@@ -101,7 +102,7 @@ public:
 
     struct TensorFitCost : public ceres::CostFunction {
         typedef ceres::CostFunction Base;
-        TensorFitCost(Inflator<_N> &inflator, const _ETensor &targetS)
+        TensorFitCost(ConstrainedInflator<_N> &inflator, const _ETensor &targetS)
             : m_inflator(inflator), m_targetS(targetS) {
             Base::set_num_residuals((_N == 2) ? 6 : 21);
             // We put all the pattern parameters in a single parameter block.
@@ -139,7 +140,7 @@ public:
         virtual ~TensorFitCost() { }
 
     private:
-        Inflator<_N> &m_inflator;
+        ConstrainedInflator<_N> &m_inflator;
         _ETensor m_targetS;
         // Ceres requires Evaluate to be constant, so this caching pointer must
         // be made mutable.
@@ -236,7 +237,7 @@ public:
     // The iterate stored internally also knows how to evaluate the gradient
     // efficiently, so our GradientEvaluator below just accesses it.
     struct DLibObjectiveEvaluator {
-        DLibObjectiveEvaluator(Inflator<_N> &inflator,
+        DLibObjectiveEvaluator(ConstrainedInflator<_N> &inflator,
                 const _ETensor &targetS)
             : m_iterate(NULL), m_inflator(inflator), m_targetS(targetS) {
             nParams = m_inflator.numParameters();
@@ -260,7 +261,7 @@ public:
     private:
         // Iterate is mutable so that operator() can be const as dlib requires
         mutable std::shared_ptr<Iterate> m_iterate;
-        Inflator<_N> &m_inflator;
+        ConstrainedInflator<_N> &m_inflator;
         _ETensor m_targetS;
     };
     
@@ -343,7 +344,7 @@ public:
     }
 
 private:
-    Inflator<_N> &m_inflator;
+    ConstrainedInflator<_N> &m_inflator;
     std::vector<Real> m_patternParams, m_radiusBounds, m_transBounds;
 };
 

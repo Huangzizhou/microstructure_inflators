@@ -58,7 +58,10 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("material,m",   po::value<string>(), "base material")
         ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
         ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
-        ("dofOut",       po::value<string>()->default_value(""),                 "output pattern dofs in James' format at each iteration")
+        ("dofOut",       po::value<string>()->default_value(""),                 "output pattern dofs in James' format at each iteration (3D Only)")
+        ("cell_size,c",  po::value<double>()->default_value(5.0),                "Inflation cell size (3D only)")
+        ("isotropicParameters,I",                                                "Use isotropic DoFs (3D only)")
+        ("vertexThickness,V",                                                    "Use vertex thickness instead of edge thickness (3D only)")
         ("subdivide,S",  po::value<size_t>()->default_value(0),                  "number of subdivisions to run for 3D inflator")
         ("sub_algorithm,A", po::value<string>()->default_value("simple"),        "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                                    "maximum element volume parameter for wire inflator")
@@ -126,13 +129,27 @@ typedef ScalarField<Real> SField;
 template<size_t _N, size_t _FEMDegree>
 void execute(const po::variables_map &args, const Job<_N> *job)
 {
-	Inflator<_N> inflator(args["pattern"].as<string>());
+    shared_ptr<ConstrainedInflator<_N>> inflator_ptr;
+    if (_N == 2) {
+        inflator_ptr = make_shared<ConstrainedInflator<_N>>(
+                job->parameterConstraints,
+                args["pattern"].as<string>());
+    }
+    else {
+        inflator_ptr = make_shared<ConstrainedInflator<_N>>(
+                job->parameterConstraints,
+                args["pattern"].as<string>(),
+                args["cell_size"].as<double>(),
+                0.5 * sqrt(2),
+                args.count("isotropicParameters"),
+                args.count("vertexThickness"));
+        inflator_ptr->configureSubdivision(args["sub_algorithm"].as<string>(),
+                                           args["subdivide"].as<size_t>());
+    }
+
+	ConstrainedInflator<_N> &inflator = *inflator_ptr;
     if (args.count("max_volume"))
         inflator.setMaxElementVolume(args["max_volume"].as<double>());
-    if (_N == 3) {
-        inflator.configureSubdivision(args["sub_algorithm"].as<string>(),
-                                      args["subdivide"].as<size_t>());
-    }
 
     auto targetC = job->targetMaterial.getTensor();
     ETensor<_N> targetS = targetC.inverse();
@@ -178,6 +195,18 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         optimizer.optimize_bfgs(params, targetS, niters, output);
     else if (solver == "lbfgs")
         optimizer.optimize_bfgs(params, targetS, niters, output, 10);
+
+    std::cout << "Final p:";
+    std::vector<Real> result(params.domainSize());
+    for (size_t i = 0; i < result.size(); ++i) {
+        result[i] = params[i];
+        cout << "\t" << params[i];
+    }
+    if (dofOut != "") inflator.writePatternDoFs(dofOut + ".final.dof", result);
+    cout << endl;
+
+
+    BENCHMARK_REPORT();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

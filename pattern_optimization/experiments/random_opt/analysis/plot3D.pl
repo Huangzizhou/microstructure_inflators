@@ -2,7 +2,7 @@
 use warnings;
 use strict;
 
-for my $subdiv (0,1,2,3) {
+for my $subdiv (0,1,2) {
 for my $dist (qw(0.05 0.10 0.20 0.25 0.33 0.50 1.00 16.0)) {
 open(GNUPLOT, '| gnuplot');
 print GNUPLOT <<END_HEADER;
