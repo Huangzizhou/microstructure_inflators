@@ -66,6 +66,13 @@ public:
         setMaxElementVolume(0.0001);
     }
 
+    Inflator(const std::string &wireMeshPath,
+             Real cell_size, Real default_thickness = 0.5 * sqrt(2),
+             bool isotropic_params = false, bool vertex_thickness = false)
+        : m_inflator(wireMeshPath) {
+            throw std::runtime_error("2D inflator is not yet configurable");
+    }
+
     void setMaxElementVolume(Real maxElementVol) { m_tparams.max_area = maxElementVol; }
     void configureSubdivision(const std::string &algorithm, size_t levels) {
         throw std::runtime_error("Subdivision not supported in 2D");
@@ -132,7 +139,7 @@ public:
     }
 
     // 2D is always printable.
-    bool isPrintable() const { return true; }
+    bool isPrintable(const std::vector<Real> &params) const { return true; }
 
     void setDoFOutputPrefix(const std::string &pathPrefix) {
         throw std::runtime_error("Writing pattern DoFs unsupported in 2D");
@@ -363,21 +370,21 @@ public:
         
         // Effectively apply transpose of change of variables matrix.
         for (size_t pIndep = 0; pIndep < nParams; ++pIndep) {
-            // Get the independen't variable's shape velocity.
+            // Get the independent variable's shape velocity.
             // (identity part of the change of variables matrix).
             size_t indepIdx = m_indepIdx[pIndep];
             reducedParamVelocity.push_back(fullParamVelocity.at(indepIdx));
             auto &vel = reducedParamVelocity.back();
 
-            // Add in how each dependent variable changes when independent
-            // variable, pIndep, changes
+            // Add in shape velocity for each variable dependent on pIndep.
+            // (Chain rule)
             for (size_t pDep = 0; pDep < m_depIdx.size(); ++pDep) {
                 const auto &row = m_augmentedConstraintSystem[m_depRow[pDep]];
-                Real coeff = -row[indepIdx];
-                const auto &depVel = fullParamVelocity.at(m_depIdx[pDep]);
-                if (coeff != 0.0) {
+                Real dPdep_dPindep = -row[indepIdx];
+                if (std::abs(dPdep_dPindep) > 1e-10) {
+                    const auto &depVel = fullParamVelocity.at(m_depIdx[pDep]);
                     for (size_t bei = 0; bei < depVel.size(); ++bei)
-                        vel[bei] -= coeff * depVel[bei];
+                        vel[bei] += dPdep_dPindep * depVel[bei];
                 }
             }
         }

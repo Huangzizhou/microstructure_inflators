@@ -43,7 +43,7 @@ void rref(std::vector<std::vector<CType> > &C,
     int i = 0, j = 0;
     dep_idx.clear();
 
-    bool forcingIndependentVars = (forceIndep.size() == n);
+    bool forcingIndependentVars = (forceIndep.size() == size_t(n));
 
     while ((i < m) && (j < n)) {
         // Skip over variables we force to be independent

@@ -126,7 +126,7 @@ typedef ScalarField<Real> SField;
 template<size_t _N, size_t _FEMDegree>
 void execute(const po::variables_map &args, const Job<_N> *job)
 {
-	Inflator<_N> inflator(args["pattern"].as<string>());
+	ConstrainedInflator<_N> inflator({}, args["pattern"].as<string>());
     if (args.count("max_volume"))
         inflator.setMaxElementVolume(args["max_volume"].as<double>());
     if (_N == 3) {
