@@ -101,7 +101,7 @@ def main():
     header.append("poisson");
 
     save_mesh(args.output_mesh, mesh, *header);
-    output_config_file(args.output_mesh, args.index_dir);
+    #output_config_file(args.output_mesh, args.index_dir);
 
 if __name__ == "__main__":
     main();
