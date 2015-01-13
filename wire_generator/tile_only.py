@@ -40,6 +40,9 @@ def tile_only(config):
                 np.array(config["bbox_max"]),
                 np.array(config["repeats"], dtype=int));
 
+    offset = out_wires.get_attribute("vertex_offset");
+    out_wires.vertices = out_wires.vertices + offset;
+
     if config.get("trim", False):
         out_wires.trim();
     return out_wires, guide_mesh;
