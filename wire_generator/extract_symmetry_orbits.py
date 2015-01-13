@@ -12,25 +12,26 @@ def load(wire_file):
     return wire_network;
 
 def extract_orbits(wire_network):
-    isotropic_vertex_attr_name = "isotropic_symmetry_vertex_orbit";
-    orthotropic_vertex_attr_name = "orthotropic_symmetry_vertex_orbit";
-    isotropic_edge_attr_name = "isotropic_symmetry_edge_orbit";
-    orthotropic_edge_attr_name = "orthotropic_symmetry_edge_orbit";
+    isotropic_vertex_attr_name = "vertex_cubic_symmetry_orbit";
+    orthotropic_vertex_attr_name = "vertex_symmetry_orbit";
+    isotropic_edge_attr_name = "edge_cubic_symmetry_orbit";
+    orthotropic_edge_attr_name = "edge_symmetry_orbit";
 
     wire_network.add_attribute(orthotropic_vertex_attr_name);
-    orthotropic_vertex_orbits = wire_network.get_attribute(orthotropic_vertex_attr_name);
+    orthotropic_vertex_orbits = wire_network.get_attribute(
+            orthotropic_vertex_attr_name).ravel().astype(int).tolist();
 
     wire_network.add_attribute(isotropic_vertex_attr_name);
     isotropic_vertex_orbits = wire_network.get_attribute(
-            isotropic_vertex_attr_name);
+            isotropic_vertex_attr_name).ravel().astype(int).tolist();
 
     wire_network.add_attribute(orthotropic_edge_attr_name);
     orthotropic_edge_orbits = wire_network.get_attribute(
-            orthotropic_edge_attr_name);
+            orthotropic_edge_attr_name).ravel().astype(int).tolist();
 
     wire_network.add_attribute(isotropic_edge_attr_name);
     isotropic_edge_orbits = wire_network.get_attribute(
-            isotropic_edge_attr_name);
+            isotropic_edge_attr_name).ravel().astype(int).tolist();
 
     return orthotropic_vertex_orbits, isotropic_vertex_orbits,\
             orthotropic_edge_orbits, isotropic_edge_orbits;
