@@ -63,6 +63,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("dof,d",    po::value<string>(),              "dof file specifying parameters")
         ("parameters,p", po::value<string>(),          "whitespace-delimited parameters")
         ("constraints,C", po::value<vector<string>>(), "constraint(s) on the pattern parameters")
+        ("fullParamOut,F",                             "Print the full, unreduced parameters (these differ from params passed, e.g., by -p under constraints)")
         ("checkPrintability,P",           "Check the wire mesh for printability")
         ("isotropicParameters,I",         "Use isotropic DoFs")
         ("vertexThickness,V",             "Use vertex thickness instead of edge thickness")
@@ -190,6 +191,14 @@ int main(int argc, const char *argv[])
         std::cout << "Param " << p << ": "
             << ((inflator.parameterType(p) == ParameterType::Offset) ? "offset" : "thickness")
             << ", " << params[p] << std::endl;
+    }
+
+    if (args.count("fullParamOut")) {
+        cout << "Full params:";
+        vector<Real> fullParams(inflator.fullParametersForReduced(params));
+        for (Real p : fullParams)
+            cout << "\t" << p;
+        cout << endl;
     }
     
     // Check if the inflator paramters printable.

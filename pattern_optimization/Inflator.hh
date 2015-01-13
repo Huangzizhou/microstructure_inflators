@@ -340,7 +340,7 @@ public:
     size_t numParameters() const { return m_indepIdx.size(); }
 
     void inflate(const std::vector<Real> &params) {
-        Base::inflate(m_fullParamsForReduced(params));
+        Base::inflate(fullParametersForReduced(params));
     }
 
     void inflate(const std::string dofs) {
@@ -394,18 +394,17 @@ public:
 
     // Forced non-const due to James' inflator interface.
     bool isPrintable(const std::vector<Real> &params) {
-        return Base::isPrintable(m_fullParamsForReduced(params));
+        return Base::isPrintable(fullParametersForReduced(params));
     }
 
     // Write parameters in James' DoF format.
     void writePatternDoFs(const std::string &path,
                           const std::vector<Real> &params) {
-        Base::writePatternDoFs(path, m_fullParamsForReduced(params));
+        Base::writePatternDoFs(path, fullParametersForReduced(params));
     }
 
-private:
     // Effectively apply the change of variables matrix.
-    std::vector<Real> m_fullParamsForReduced(const std::vector<Real> &rparams) {
+    std::vector<Real> fullParametersForReduced(const std::vector<Real> &rparams) {
         std::vector<Real> fullParams(Base::numParameters());
 
         // Copy the independent params over
@@ -434,6 +433,7 @@ private:
         return fullParams;
     }
 
+private:
     // The full parameters corresponding to each reduced (independent) parameter
     std::vector<size_t> m_indepIdx;
     // The full parameters corresponding to the dependent parameters
