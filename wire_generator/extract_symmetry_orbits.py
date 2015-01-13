@@ -17,20 +17,20 @@ def extract_orbits(wire_network):
     isotropic_edge_attr_name = "isotropic_symmetry_edge_orbit";
     orthotropic_edge_attr_name = "orthotropic_symmetry_edge_orbit";
 
-    wire_network.attributes.add(orthotropic_vertex_attr_name);
-    orthotropic_vertex_orbits = wire_network.attributes[orthotropic_vertex_attr_name];
+    wire_network.add_attribute(orthotropic_vertex_attr_name);
+    orthotropic_vertex_orbits = wire_network.get_attribute(orthotropic_vertex_attr_name);
 
-    wire_network.attributes.add(isotropic_vertex_attr_name);
-    isotropic_vertex_orbits = wire_network.attributes[
-            isotropic_vertex_attr_name];
+    wire_network.add_attribute(isotropic_vertex_attr_name);
+    isotropic_vertex_orbits = wire_network.get_attribute(
+            isotropic_vertex_attr_name);
 
-    wire_network.attributes.add(orthotropic_edge_attr_name);
-    orthotropic_edge_orbits = wire_network.attributes[
-            orthotropic_edge_attr_name];
+    wire_network.add_attribute(orthotropic_edge_attr_name);
+    orthotropic_edge_orbits = wire_network.get_attribute(
+            orthotropic_edge_attr_name);
 
-    wire_network.attributes.add(isotropic_edge_attr_name);
-    isotropic_edge_orbits = wire_network.attributes[
-            isotropic_edge_attr_name];
+    wire_network.add_attribute(isotropic_edge_attr_name);
+    isotropic_edge_orbits = wire_network.get_attribute(
+            isotropic_edge_attr_name);
 
     return orthotropic_vertex_orbits, isotropic_vertex_orbits,\
             orthotropic_edge_orbits, isotropic_edge_orbits;
