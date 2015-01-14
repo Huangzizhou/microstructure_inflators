@@ -56,6 +56,7 @@ class InflatorFacadeMixedPattern(InflatorFacade):
         abs_geometry_correction = options.get("abs_geometry_correction");
         geometry_correction_cap = options.get("geometry_correction_cap");
         geometry_spread = options.get("geometry_spread");
+        geometry_correction_lookup = options.get("geometry_correction_lookup");
 
         if (rel_geometry_correction is not None):
             inflator.with_rel_geometry_correction(np.array(rel_geometry_correction));
@@ -65,6 +66,8 @@ class InflatorFacadeMixedPattern(InflatorFacade):
             inflator.set_geometry_correction_cap(geometry_correction_cap);
         if (geometry_spread is not None):
             inflator.set_geometry_spread_constant(geometry_spread);
+        if (geometry_correction_lookup is not None):
+            inflator.with_geometry_correction_lookup(geometry_correction_lookup);
 
 
     def __apply_vertex_offset(self, wire_network):

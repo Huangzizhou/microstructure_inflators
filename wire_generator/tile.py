@@ -24,6 +24,7 @@ def parse_config_file(config_file):
         "abs_geometry_correction": [#, #, #],
         "geometry_correction_cap": #,
         "geometry_spread": #
+        "geometry_correction_lookup": filename,
 
         # options for specifying parameters
         "thickness": float,
@@ -66,6 +67,8 @@ def parse_config_file(config_file):
         convert_to_abs_path("dof_file");
     if "wire_list_file" in config:
         convert_to_abs_path("wire_list_file");
+    if "geometry_correction_lookup" in config:
+        convert_to_abs_path("geometry_correction_lookup");
     return config;
 
 def load_mesh(mesh_file):
@@ -119,6 +122,7 @@ def extract_options(config):
             "abs_geometry_correction": config.get("abs_geometry_correction"),
             "geometry_correction_cap": config.get("geometry_correction_cap"),
             "geometry_spread": config.get("geometry_spread"),
+            "geometry_correction_lookup": config.get("geometry_correction_lookup"),
             }
     return options;
 

@@ -14,7 +14,8 @@ class PyWiresInflator(object):
             rel_geometry_correction=None,
             abs_geometry_correction=None,
             geometry_correction_cap=None,
-            geometry_spread=None):
+            geometry_spread=None,
+            geometry_correction_lookup=None):
         wires = self.wire_network.raw_wires;
 
         if self.periodic:
@@ -37,6 +38,8 @@ class PyWiresInflator(object):
             inflator.set_geometry_correction_cap(geometry_correction_cap);
         if (geometry_spread is not None):
             inflator.set_geometry_spread_constant(geometry_spread);
+        if (geometry_correction_lookup is not None):
+            inflator.with_geometry_correction_lookup(geometry_correction_lookup);
         inflator.inflate();
         self.mesh_vertices = inflator.get_vertices();
         self.mesh_faces = inflator.get_faces();
