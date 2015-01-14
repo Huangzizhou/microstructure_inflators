@@ -26,7 +26,7 @@ def parse_sweep_summary_file(filename):
             anisotropy = float(fields[3]);
             num_dofs = int(fields[4]);
             dofs = [float(val) for val in fields[5:]];
-            assert(len(dofs) == num_dofs);
+            assert(len(dofs) >= num_dofs);
 
             if anisotropy > 1.2 or anisotropy < 5.0/6.0:
                 continue;
