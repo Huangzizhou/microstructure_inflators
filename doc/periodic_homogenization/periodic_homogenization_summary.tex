@@ -3,14 +3,14 @@
 \input{preambles}
 
 \begin{document}
-\section{Periodic Homogenization}
+\section{Periodic Homogenization\label{sec:homogen}}
 Considering a heterogeneous object $\Omega^\e$ with periodic
 heterogeneities of size $\e$, as shown schematically in
 \pr{fig:periodic}, our goal is to find the homogenized elasticity
 tensor $C^H_{ijkl}$ as the effective elasticity tensor of the
 microstructure. Parameter $\e$ determines the size of cell $Y$
 relative to the domain $\Omega^\e$ and permits us to perform
-asymptotic analysis as $\e$ goes to zero (\pr{apx:twoscale}).
+asymptotic analysis as $\e$ goes to zero (\pr{apx:asymptotic}).
 \begin{figure}[!hbt]
     \centering
     \includegraphics[width=.28\textwidth]{Images/periodic.pdf}
@@ -50,7 +50,7 @@ microscopic displacements satisfying
 \end{subequations}
 where $\vec{e}^{kl} \coloneqq \frac{1}{2} \left(\vec{e}_k \otimes
 \vec{e}_l + \vec{e}_l \otimes \vec{e}_k \right)$ are the canonical
-basis for symmetric rank 2 tensors. See \pr{apx:twoscale} for more
+basis for symmetric rank 2 tensors. See \pr{apx:asymptotic} for more
 detail on the derivation of \pr{eqn:effective} and \pr{set:cell}.
 
 For each cell shape, \pr{set:cell} needs to be solved numerically for
@@ -96,20 +96,24 @@ tensors into vectors. We end up storing the elasticity tensor as a
 symmetric $6\times 6$ matrix with 21 coefficients.
 
 \appendix
-\section{Two-scale Analysis\label{apx:twoscale}}
-The elastic response of the material under external load $\vec{f}$
-with Neumann and Dirichlet boundary condition on respectively
-$\Gamma_N$ and $\Gamma_D$ is governed by linear elasticity equation
-\begin{align*}
-    -\nabla \cdot [C : e(\vec{u})] = \vec{f} \quad &\text{in } \Omega \\
-    {\bf \hat{n}} \cdot [C : e({\bf u})] = {\bf \tau} \quad &\text{on } \Gamma_N \numberthis \label{eqn:elastostatic} \\
-    {\bf u} = {\bf u}_D \quad &\text{on } \Gamma_D,
-\end{align*}
+\section{Asymptotic Analysis for Periodic Homogenization\label{apx:asymptotic}}
+The elastic response of a material under external load $\vec{f}$ with
+Neumann and Dirichlet boundary condition, on portions of boundary,
+respectively $\Gamma_N$ and $\Gamma_D$ is governed by linear
+elasticity equation
+\begin{subequations}
+  \label{set:elastostatic}
+  \begin{align}
+    -\nabla \cdot [C_{ijkl} [\strain(\vec{u})]_{kl} ] &= \vec{f} \quad &\text{in } \Omega, \\
+    C_{ijkl} [\strain({\bf u})]_{kl}\hat{n}_j &= \tau_i \quad &\text{on } \Gamma_N, \\
+    u_i &= U_i \quad &\text{on } \Gamma_D,
+  \end{align}
+\end{subequations}
 where $\vec{u}$ is the displacement vector and
-$e(\vec{u})=\frac{1}{2}(\nabla \vec{u} + (\nabla \vec{u})^T)$ is the
-strain tensor.
+$\strain(\vec{u})=\frac{1}{2}(\nabla \vec{u} + (\nabla \vec{u})^T)$ is
+the Cauchy strain tensor.
 
-
+\subsection{Two-scale Analysis}
 One homogenization approach is based on the method of two-scale
 asymptotic expansions \cite{allaire2002shape}, which is a heuristic
 derivation of the homogenized elasticity tensor, but once this tensor
@@ -117,115 +121,85 @@ is found it can be rigorously justified. Further detail can be found
 in \cite{allaire2002shape}, here we outline major steps in derivation
 of $C^H$.
 
-Assuming that the solution can be written as an asymptotic expansion
+Using the notation introduced in \pr{sec:homogen} and assuming that
+the solution can be written as an asymptotic expansion
 \[
 \vec{u}^\e({\x}) = \sum_{p = 0}^{\infty} \e^p \vec{u}_p\left(\x, \y\right),
 \]
-with ${\bf u}_p({\x}, {\y})$ constrained to be $Y$-periodic in
-${\y}$.  Each of these functions separates its dependence on $\x$
-(i.e. the smoothly varying, macroscopic part) from its dependence on
-$\y = \x/\e$ (the microscopic fluctuations). Plugging the series into
-\pr{eqn:elastostatic} and collecting coefficients of $\e^p$ terms we
-have
+with ${\bf u}_p({\x}, {\y})$ constrained to be $Y$-periodic in ${\y}$.
+Each of these functions separates its dependence on $\x$ (i.e. the
+smoothly varying, macroscopic part) from its dependence on $\y =
+\x/\e$ (the microscopic fluctuations). Plugging the series into
+\pr{set:elastostatic} and collecting coefficients of $\e^p$ terms, the
+leading terms for $\e$ imply
 \begin{align}
-    \e^{ 0}:\quad  &-\nabla_{\y} \cdot [C({\y}) : e_{\y}({\bf u}_2)] -
-                     \nabla_{\x} \cdot [C({\y}) : e_{\y}({\bf u}_1)] -
-                     \nabla_{\y} \cdot [C({\y}) : e_{\x}({\bf u}_1)] -
-                     \nabla_{\x} \cdot [C({\y}) : e_{\x}({\bf u}_0)] = {\bf f}, \label{eqn:e0}\\
-    \e^{-1}:\quad  &-\nabla_{\y} \cdot [C({\y}) : e_{\y}({\bf u}_1)] -
-                     \nabla_{\x} \cdot [C({\y}) : e_{\y}({\bf u}_0)] -
-                     \nabla_{\y} \cdot [C({\y}) : e_{\x}({\bf u}_0)] = {\bf 0}, \label{eqn:em1} \\
-    \e^{-2}:\quad  &-\nabla_{\y} \cdot [C({\y}) : e_{\y}({\bf u}_0)] = {\bf 0}, \label{eqn:em2}
+  \e^{-2}:\quad  & \vec{u}_0(\x,\y) = \vec{u}(\x), \label{eqn:em2}\\
+  \e^{-1}:\quad  & -\nabla_{\y} \cdot (C_{ijmn}(\y) [\strain_{\y}(\vec{u}_1) + \strain_{\x}(\vec{u})]_{mn}) =  {\bf 0},  \label{eqn:em1}
 \end{align}
-where $e_\x({\bf u}) \coloneqq \frac{1}{2} \left( \nabla_{\x} {\bf u}
-+ (\nabla_{\x} {\bf u})^T \right)$ is the macroscopic strain operator
-and $e_\y$ is the microscopic strain operator, defined similarly.
+where $\strain_\x(\vec{u}) \coloneqq \frac{1}{2} \left( \nabla_{\x} \vec{u}
++ (\nabla_{\x} \vec{u})^T \right)$ is the macroscopic strain operator
+and $\strain_\y$ is the microscopic strain operator, defined similarly.
 
-\pr{eqn:em2} implies that ${\bf u}_0({\x}, {\y}) = {\bf u}({\bf
-  x})$, which by the Fredholm alternative is unique \cite[Lemma
-  2.3.21]{allaire2002shape}.\footnote{Intuitively, \pr{eqn:em2} is a
-  force balance for ${\bf u}_0$ in each instance of the periodic
-  cell.} Plugging in ${\bf u}({\x})$ for ${\bf u}_0$ simplifies
-(\ref{eqn:em1}) to
-\begin{equation}
-    \label{eqn:u1u}
-    -\nabla_{\y} \cdot (C({\y}) : [e_{\y}({\bf u}_1) + e_{\x}({\bf u})]) =  {\bf 0},
-\end{equation}
-which uniquely defines ${\bf u}_1({\x}, {\y})$ at each point
-${\x}$ up to a constant once ${\bf u}$ is known. We can express this
-relationship with a rank 4 tensor $F$ such that $e_\y(\vec{u}_1) =
-F:e_x(\vec(u))$ mapping macroscopic strain to microscopic fluctuation
-strain. \pr{eqn:e0} uniquely defines $\vec{u}_2$ based on $\vec{u}$
+\pr{eqn:em1} implies a linear relationship between
+$\strain_\y(\vec{u}_1)$ and $\strain_\x(\vec{u})$, which We can express
+with a rank 4 tensor $F$ such that $\strain_\y(\vec{u}_1) =
+F:\strain_\x(\vec{u})$ mapping macroscopic strain to microscopic
+fluctuation strain.
+
+The term for $\e^0$ uniquely defines $\vec{u}_2$ based on $\vec{u}$
 and $\vec{u}_1$ if and only if the compatibility condition of the
 Fredholm alternative (zero average right hand side) is
-satisfied. Integrating \pr{eqn:e0}, using Divergence theorem and
+satisfied. Integrating the $\e^0$ term, using Divergence theorem and
 periodicity of $\vec{u}_1$ and $\vec{u}_2$, we have the homogenized
-force balance equation
+elasticity equation
 \begin{align}
-  &C^H \coloneqq \frac{1}{|Y|} \int_Y C({\y}) : F + C({\y}) \, \mathrm{d} {\y}  \\
-  &C^H_{ijkl} = \frac{1}{|Y|} \int_Y C_{ijpq}({\y}) F_{pqkl} + C_{ijkl}({\y}) \, \mathrm{d} {\y}\\
-  &-\nabla_{\x} \cdot \left[ C^H : e_{\x}({\bf u}) \right] = {\bf f} \quad \text{in } \Omega.
+  &C^H_{ijkl} \coloneqq \frac{1}{|Y|} \int_Y C_{ijpq}({\y}) F_{pqkl} + C_{ijkl}({\y}) \, \mathrm{d} {\y}\\
+  &-\nabla_{\x} \cdot \left[ C^H_{ijkl} [\strain_{\x}(\vec{u})]_{kl} \right] = \vec{f} \quad \text{in } \Omega.
 \end{align}
 
-\subsection{Cell Problems}
-All that remains is to use (\ref{eqn:u1u}) to determine rank 4 tensor $F$
-appearing in $C^H$. First we introduce the canonical basis for symmetric rank 2 tensors:
-$$
-e^{ij} = \frac{1}{2} \left({\bf e}_i \otimes {\bf e}_j + {\bf e}_j \otimes {\bf e}_i \right)
-$$
-where ${\bf e}_i$ is the $i^\text{th}$ canonical basis element.Then we
-can trivially expand the macroscopic strain at any point in this
-basis:
-$$
-e_{\x}({\bf u}) = e^{ij} [e_{\x}({\bf u})]_{ij}
-$$
-
-We now take advantage of linearity to state that if Y-periodic ${\bf
-w}^{ij}({\y})$ solves (\ref{eqn:u1u}) for $e_{\x}({\bf u}) = e^{ij}$:
-\begin{equation}
--\nabla_{\y} \cdot (C({\y}) : [e_{\y}({\bf w}^{ij}) + e^{ij}]) = {\bf 0},
-\end{equation}
-Since this solution is unique up to a constant wrt. ${\y}$, we know that
-$$
-e_{\y}({\bf u}_1) = e_{\y}({\bf w}^{ij} [e_{\x}({\bf u})]_{ij}) = e_{\y}({\bf w}^{ij})[e_{\x}({\bf u})]_{ij},
-$$
-which gives us the linear map from $e_{\x}({\bf u})$ to $e_{\y}({\bf u}_1)$
+\subsection{Local Microscopic Displacement}
+It remains to determine rank 4 tensor $F$ appearing in $C^H$ using
+\pr{eqn:em1}. Letting $\vec{e}^{kl}$ to denote canonical basis for
+symmetric rank 2 tensors:
 \[
-F_{pqkl} = [e_{\y}({\bf w}^{kl})]_{pq}
+\vec{e}^{kl} = \frac{1}{2} \left({\bf e}_k \otimes {\bf e}_l + {\bf
+  e}_l \otimes {\bf e}_k \right)
 \]
-Plugging this into the equation for the homogenized elasticity coefficients, we get in index notation:
+where ${\bf e}_k$ is the $k^\text{th}$ canonical basis element. Then
+the macroscopic strain is $\strain_{\x}({\bf u}) = [\strain_{\x}({\bf
+    u})]_{kl}\vec{e}^{kl}$. If Y-periodic ${\bf w}^{kl}({\y})$ solves
+(\ref{eqn:em1}) for $\vec{e}^{kl}$:
+\begin{equation}
+-\nabla_{\y} \cdot (C_{ijmn}(\y)[\strain_\y({\bf w}^{kl}) +
+  \vec{e}^{kl}]_{mn}) = {\bf 0}.
+\end{equation}
+By linearity, $\strain_{\y}({\bf u}_1) = \strain_{\y}({\bf
+  w}^{kl})[\strain_{\x}({\bf u})]_{kl}$, implying
+\begin{equation}
+F_{pqkl} = [\strain_{\y}({\bf w}^{kl})]_{pq}
+\end{equation}
+Plugging this into the equation for the homogenized elasticity
+coefficients, we get
 \begin{equation}
     \label{eqn:Eh}
-C^H_{ijkl}= \frac{1}{|Y|} \int_Y C_{ijpq}({\y}) [e_{\y}({\bf w}^{kl})]_{pq} + C_{ijkl}({\y}) \, \mathrm{d} {\y}.
+    C^H_{ijkl}= \frac{1}{|Y|} \int_Y C_{ijpq}({\y}) [\strain_{\y}({\bf
+        w}^{kl})]_{pq} + C_{ijkl}({\y}) \, \mathrm{d} {\y}.
 \end{equation}
-Thus, once we know each ${\bf w}^{ij}$, we can compute the homogenized elasticity tensor
-with a simple integration over the base cell. We find these by solving the 6 cell problems:
-\begin{align*}
-    -\nabla_{\y} \cdot (C({\y}) : [e_{\y}({\bf w}^{ij}) + e^{ij}]) = {\bf 0} & \quad \text{in } Y \\
-    {\bf w}^{ij}({\y})\ Y \text{-periodic} &     \numberthis \label{eqn:cell} \\
-    \int_\omega \! {\bf w}^{ij}({\y})  \, \mathrm{d} {\y} =  {\bf 0},
-\end{align*}
-one for each canonical basis tensor $e^{ij}$. The last constraint is to pin
-down the remaining translational degree of freedom; since we only care about
-strain $e_{\y}({\bf w}^{ij})$, we can arbitrarily choose to enforce ${\bf
-0}$ average displacement over the microstructure geometry.
-
-\section{Solving the Cell Problems}
-The homogenization task has now been reduced to solving 6 cell
-problems. Using \pr{eqn:microC}, the traction free boundary condition
-on the interior boundaries $\partial\omega \setminus \partial Y$, and
-the fact that macroscopic stress $C^\text{base} : e^{ij}$ is constant
-throughout the base cell, we have
+Once we know each ${\bf w}^{kl}$, we can compute the homogenized
+elasticity tensor with a simple integration over the base cell. We
+find these by solving the 6 cell problems
 \begin{subequations}
-  \label{set:cell2}
-  \begin{align}
-    -\nabla \cdot (C^\text{base} : e({\bf w}^{ij})]) = {\bf 0} & \quad \text{in } \omega \\
-      {\bf \hat n} \cdot \left[ C^\text{base} : e({\bf w}^{ij}) \right]  =  -{\bf \hat{n}} \cdot \left[ C^\text{base} : e^{ij} \right]& \quad \text{on } \partial \omega \setminus \partial Y \\
-      {\bf w}^{ij}({\y})\ Y \text{-periodic} & \\
-      \int_\omega \! {\bf w}^{ij}({\y})  \, \mathrm{d} {\y} =  {\bf 0},
-  \end{align}
+  \begin{gather}
+    -\nabla_{\y} \cdot (C_{ijmn}({\y})[\strain_{\y}({\bf w}^{kl}) + \vec{e}^{kl}]_{mn}) = {\bf 0} \quad \text{in } Y, \\
+    {\bf w}^{kl}({\y})\ Y \text{-periodic}, \\
+    \int_\omega \! {\bf w}^{ij}({\y})  \, \mathrm{d} {\y} =  {\bf 0}.
+  \end{gather}
 \end{subequations}
-
+One for each canonical basis tensor $\vec{e}^{kl}$. The last
+constraint is to pin down the remaining transnational degree of
+freedom; since we only care about strain $\strain_{\y}({\bf w}^{kl})$,
+we can arbitrarily choose to enforce ${\bf 0}$ average displacement
+over the microstructure geometry.
 
 \bibliographystyle{plain}
 \bibliography{References}
