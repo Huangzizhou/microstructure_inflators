@@ -5,7 +5,8 @@ import json
 import os.path
 
 def output_config_file(wire_list_file, guide_mesh_file, thickness_type,
-        dof_type, output_file, spread_const, abs_geometry_correction):
+        dof_type, output_file, spread_const, abs_geometry_correction,
+        geometry_correction_lookup):
     root_dir = os.path.dirname(output_file);
     wire_list_file = os.path.relpath(wire_list_file, root_dir);
     guide_mesh_file = os.path.relpath(guide_mesh_file, root_dir);
@@ -18,6 +19,8 @@ def output_config_file(wire_list_file, guide_mesh_file, thickness_type,
             "dof_type": dof_type,
             "thickness_type": thickness_type
             };
+    if geometry_correction_lookup is not None:
+        config["geometry_correction_lookup"] = geometry_correction_lookup;
     with open(output_file, 'w') as fout:
         json.dump(config, fout, indent=4);
 
@@ -32,6 +35,8 @@ def parse_args():
     parser.add_argument("--abs-geometry-correction",
             help="absolute geometry correction", nargs=3, type=float,
             default=[0, 0, 0]);
+    parser.add_argument("--geometry-correction-lookup", default=None,
+            help="Geometry correction lookup table");
     parser.add_argument("wire_list_file", help="wire list file");
     parser.add_argument("guide_mesh_file", help="guide mesh file");
     parser.add_argument("output_file", help="output config file");
@@ -46,7 +51,8 @@ def main():
             args.dof_type,
             args.output_file,
             args.spread,
-            args.abs_geometry_correction);
+            args.abs_geometry_correction,
+            args.geometry_correction_lookup);
 
 if __name__ == "__main__":
     main();

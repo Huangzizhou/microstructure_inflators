@@ -17,16 +17,22 @@ def parse_sweep_summary_file(filename):
     pattern_param = [];
     materials = [];
     with open(filename, 'r') as fin:
+        line_count = 0;
         for row in fin:
-            fields = row.split();
-            assert(len(fields) > 5);
-            pattern_id = int(fields[0]);
-            young = float(fields[1]);
-            poisson = float(fields[2]);
-            anisotropy = float(fields[3]);
-            num_dofs = int(fields[4]);
-            dofs = [float(val) for val in fields[5:]];
-            assert(len(dofs) >= num_dofs);
+            try:
+                fields = row.split();
+                assert(len(fields) > 5);
+                pattern_id = int(fields[0]);
+                young = float(fields[1]);
+                poisson = float(fields[2]);
+                anisotropy = float(fields[3]);
+                num_dofs = int(fields[4]);
+                dofs = [float(val) for val in fields[5:]];
+                assert(len(dofs) >= num_dofs);
+            except:
+                print("Error parsing line {}".format(line_count));
+                print(row);
+                raise;
 
             if anisotropy > 1.2 or anisotropy < 5.0/6.0:
                 continue;
@@ -39,6 +45,7 @@ def parse_sweep_summary_file(filename):
             pattern_ids.append(pattern_id);
             pattern_param.append(dofs);
             materials.append(material);
+            line_count+=1;
 
     return pattern_ids, pattern_param, materials;
 
