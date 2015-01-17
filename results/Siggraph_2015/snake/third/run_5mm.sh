@@ -12,6 +12,7 @@ $MICROSTRUCTURES_PATH/parameter_lookup/lookup.py \
     results/material_hex.msh \
     results/guide.msh
 
+    #--geometry-correction-lookup=$MICROSTRUCTURES_PATH/wire_generator/examples/geometry_correction_new_pdms.csv \
 $MICROSTRUCTURES_PATH/parameter_lookup/generate_config.py \
     $MICROSTRUCTURES_PATH/patterns/3D/reference_wires/wires.txt \
     results/guide.msh \
