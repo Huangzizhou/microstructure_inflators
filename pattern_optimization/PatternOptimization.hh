@@ -78,8 +78,8 @@ public:
     typedef ::PatternOptimization::Iterate<_Sim> Iterate;
     Optimizer(ConstrainedInflator<_N> &inflator, const std::vector<Real> &radiusBounds,
               const std::vector<Real> &translationBounds,
-              const std::map<int, Real> &varLowerBounds,
-              const std::map<int, Real> &varUpperBounds)
+              const std::map<size_t, Real> &varLowerBounds,
+              const std::map<size_t, Real> &varUpperBounds)
         : m_inflator(inflator), m_radiusBounds(radiusBounds),
           m_transBounds(translationBounds), m_varLowerBounds(varLowerBounds),
           m_varUpperBounds(varUpperBounds) { }
@@ -356,7 +356,7 @@ public:
 private:
     ConstrainedInflator<_N> &m_inflator;
     std::vector<Real> m_patternParams, m_radiusBounds, m_transBounds;
-    std::map<int, Real> m_varLowerBounds, m_varUpperBounds;
+    std::map<size_t, Real> m_varLowerBounds, m_varUpperBounds;
 };
 
 }
