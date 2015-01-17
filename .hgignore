@@ -34,7 +34,6 @@ Luigi/wireinflator2D/lib
 Luigi/wireinflator2D/build
 Luigi/wireinflator2D/python/examples
 lookup_table/
-results/
 tools/
 driver/example
 driver/results
