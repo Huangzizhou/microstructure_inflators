@@ -8,4 +8,4 @@ fi
 dist=$1;
 data=$2;
 
-awk "(\$4 > (1 - $dist) && \$4 < (1 + $dist)) { print; }" $data | sort -g;
+awk "(\$4 > (1 - $dist) && \$4 < (1 + $dist)) { print; }" $data | sort -g | uniq;
