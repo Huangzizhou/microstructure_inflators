@@ -91,7 +91,7 @@ def save_mesh(mesh, mesh_file):
 def load_wire(wire_file):
     network = WireNetwork();
     network.load_from_file(wire_file);
-    network.compute_symmetry_orbits();
+    #network.compute_symmetry_orbits();
     return network;
 
 def load_wires(wire_list_file):
