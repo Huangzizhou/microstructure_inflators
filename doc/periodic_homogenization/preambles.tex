@@ -26,15 +26,6 @@
 \DeclareMathOperator{\rref}{rref}
 \DeclareMathOperator{\cof}{cof}
 
-%\pagestyle{fancy}
-\headheight 24pt
-\headsep    12pt
-\lhead{}
-\fancyfoot[C]{} % hide the default page number at the bottom
-\lfoot{}
-\rfoot{\thepage}
-\renewcommand{\headrulewidth}{0.4pt}
-\renewcommand\footrulewidth{0.4pt}
 \providecommand{\abs}[1]{\lvert#1\rvert}
 \providecommand{\norm}[1]{\lVert#1\rVert}
 \providecommand{\dx}{\, \mathrm{d}x}
@@ -69,8 +60,8 @@
 }
 
 %% + Abtin
+\usepackage{fullpage}
 \usepackage[usenames,dvipsnames]{color}
-\usepackage{soul,marginnote,todonotes,cprotect}
 \usepackage{paralist}
 \usepackage{prettyref}
 \newrefformat{sec}{Section~\ref{#1}}
@@ -83,8 +74,10 @@
 \newrefformat{apx}{Appendix~\ref{#1}}
 \newcommand\pr[1]{\prettyref{#1}}
 
-\newcommand\verbose[1]{\textcolor{magenta}{#1}}
+\newcommand\todo[1]{\textcolor{magenta}{\bf [TODO: #1]}}
 \renewcommand\vec[1]{\ensuremath{\mathbf #1}}
 \def\x{\vec{x}}
 \def\y{\vec{y}}
+\def\u{\vec{u}}
+\def\ue{\vec{u}^\e}
 \def\strain{\varepsilon}
