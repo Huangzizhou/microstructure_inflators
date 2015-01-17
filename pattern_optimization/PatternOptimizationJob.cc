@@ -12,8 +12,9 @@
 //          },
 //          "initial_params": [ ... ],
 //          "radiusBounds": [ low, high ],
-//          "translationBounds": [ low, high ]
-//          "paramConstraints": [ "p1 = p2 + 5", ... ]
+//          "translationBounds": [ low, high ],
+//          "paramConstraints": [ "p1 = p2 + 5", ... ],
+//          "bounds": { "var": 0, "lower": 1, "upper": 2 }
 //      }
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
@@ -76,6 +77,21 @@ JobBase *parseJobFile(const string &jobFile) {
         for (const auto &val : constraints) {
             if (!val.first.empty()) throw runtime_error("Failed to read constraints");
             job->parameterConstraints.emplace_back(val.second.get_value<string>());
+        }
+    }
+
+    // individual variable overriding radius/translation bounds
+    if (pt.count("bounds") !=  0) {
+        try {
+            auto bounds = pt.get_child("bounds");
+            for (const auto &bound : bounds) {
+                size_t var = pt.get<size_t>("var");
+                job->varLowerBounds[var] = pt.get<Real>("lower");
+                job->varUpperBounds[var] = pt.get<Real>("upper");
+            }
+        }
+        catch (...) {
+            throw std::runtime_error("Couldn't parse variable bounds.");
         }
     }
 
