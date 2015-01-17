@@ -20,6 +20,7 @@
 
 #include <cassert>
 #include <memory>
+#include <map>
 
 #include "Inflator.hh"
 #include "PatternOptimizationIterate.hh"
@@ -75,14 +76,23 @@ class Optimizer {
     static constexpr size_t _N = _Sim::N;
 public:
     typedef ::PatternOptimization::Iterate<_Sim> Iterate;
-    Optimizer(ConstrainedInflator<_N> &inflator, std::vector<Real> radiusBounds,
-              std::vector<Real> translationBounds)
+    Optimizer(ConstrainedInflator<_N> &inflator, const std::vector<Real> &radiusBounds,
+              const std::vector<Real> &translationBounds,
+              const std::map<int, Real> &varLowerBounds,
+              const std::map<int, Real> &varUpperBounds)
         : m_inflator(inflator), m_radiusBounds(radiusBounds),
-          m_transBounds(translationBounds) { }
+          m_transBounds(translationBounds), m_varLowerBounds(varLowerBounds),
+          m_varUpperBounds(varUpperBounds) { }
 
     template<class _Vector>
     void getParameterBounds(_Vector &lowerBounds, _Vector &upperBounds) {
         for (size_t p = 0; p < m_inflator.numParameters(); ++p) {
+            // Explicitly specified bounds overried default type-based bounds.
+            if (m_varLowerBounds.count(p)) {
+                lowerBounds(p) = m_varLowerBounds.at(p);
+                upperBounds(p) = m_varUpperBounds.at(p);
+                continue;
+            }
             switch (m_inflator.parameterType(p)) {
                 case ParameterType::Thickness:
                     lowerBounds(p) = m_radiusBounds.at(0);
@@ -346,6 +356,7 @@ public:
 private:
     ConstrainedInflator<_N> &m_inflator;
     std::vector<Real> m_patternParams, m_radiusBounds, m_transBounds;
+    std::map<int, Real> m_varLowerBounds, m_varUpperBounds;
 };
 
 }

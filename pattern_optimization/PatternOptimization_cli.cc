@@ -181,8 +181,22 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         inflator.setDoFOutputPrefix(dofOut);
 
     SField params(job->initialParams);
-    Optimizer<Simulator> optimizer(inflator, job->radiusBounds,
-                                   job->translationBounds);
+    for (const auto &boundEntry : job->varLowerBounds) {
+        if (boundEntry.first > params.domainSize())
+            cerr << "WARNING: bound on nonexistent variable" << endl;
+    }
+
+    for (size_t p = 0; p < params.domainSize(); ++p) {
+        if (job->varLowerBounds.count(p)) {
+             if ((params[p] < job->varLowerBounds.at(p)) ||
+                 (params[p] > job->varUpperBounds.at(p))) {
+                throw std::runtime_error("Initial point infeasible");
+             }
+        }
+    }
+
+    Optimizer<Simulator> optimizer(inflator, job->radiusBounds, job->translationBounds,
+                                   job->varLowerBounds, job->varUpperBounds);
     string solver = args["solver"].as<string>(),
            output = args["output"].as<string>();
     size_t niters = args["nIters"].as<size_t>();

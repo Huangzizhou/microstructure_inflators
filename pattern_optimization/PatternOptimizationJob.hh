@@ -13,8 +13,9 @@
 //          },
 //          "initial_params": [ ... ],
 //          "radiusBounds": [ low, high ],
-//          "translationBounds": [ low, high ]
-//          "paramConstraints": [ "p1 = p2 + 5", ... ]
+//          "translationBounds": [ low, high ],
+//          "paramConstraints": [ "p1 = p2 + 5", ... ],
+//          "bounds": { "var": 0, "lower": 1, "upper": 2 }
 //      }
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
@@ -25,6 +26,7 @@
 #define PATTERNOPTIMIZATIONJOB_HH
 #include <Materials.hh>
 #include <vector>
+#include <map>
 #include <string>
 #include <stdexcept>
 #include <fstream>
@@ -39,6 +41,7 @@ public:
     // job file for reference.
     std::vector<Real> trueParams;
     std::vector<std::string> parameterConstraints;
+    std::map<size_t, Real> varLowerBounds, varUpperBounds;
 };
 
 template<size_t _N>

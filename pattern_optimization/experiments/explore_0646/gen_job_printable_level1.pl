@@ -14,7 +14,7 @@ for (my $i = 0; $i < @inits; $i++) {
     for my $transRange (0.2,0.3,0.4,0.5) {
         for my $radiusRange (0.5, 0.6) {
             for my $poisson (0.10,0.15, 0.175, 0.20,0.25,0.30) {
-                for my $young (0.1, 0.2, 0.3, 0.4, 0.5, 0.8, 1.6, 3.2) {
+                for my $young (0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8, 25.6) {
                     my $exploreDir = "~/microstructures/pattern_optimization/experiments/explore_0646";
                     my $task = "exp_${young}_${poisson}_${radiusRange}_${transRange}_$i";
                     my $optFile = "$dir/$task.opt";
