@@ -40,9 +40,6 @@ def tile_only(config):
                 np.array(config["bbox_max"]),
                 np.array(config["repeats"], dtype=int));
 
-    offset = out_wires.get_attribute("vertex_offset");
-    out_wires.vertices = out_wires.vertices + offset;
-
     if config.get("trim", False):
         out_wires.trim();
     return out_wires, guide_mesh;
@@ -80,6 +77,10 @@ def tile_with_mixed_patterns(patterns, mesh, dof_type, thickness_type):
 
     tiled_wire_network = WireNetwork();
     tiled_wire_network.load_from_raw(tiled_raw_wires);
+
+    offset = tiled_wire_network.get_attribute("vertex_offset");
+    tiled_wire_network.vertices = tiled_wire_network.vertices + offset;
+
     return tiled_wire_network;
 
 def generate_box_guide_mesh(dim, bbox_min, bbox_max, num_cells):
