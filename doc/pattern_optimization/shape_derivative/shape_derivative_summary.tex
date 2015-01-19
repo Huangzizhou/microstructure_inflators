@@ -9,8 +9,8 @@ The minimization problem is generically defined as \note{place-holder;
   \label{eqn:min}
   \argmin_\text{admissible $\omega$} J(\omega),
 \end{equation}
-where $J$ is some deviation metric on the micro structure. Letting $S$
-denote the compliance tensor, we choose
+where $J$ is some objective function on the micro structure. Letting
+$S$ denote the compliance tensor, we choose
 \begin{equation}
   \label{eqn:compObjective}
   J(\omega) = \frac{1}{2}\norm{S^H(\omega) - S^*}^2_F,
@@ -19,9 +19,7 @@ for a microstructure with shape $\omega$. There are several other
 possible choices for the objective functional $J$, such as deviation
 of elasticity tensor or error in displacement. In our setting, we are
 interested in particular values of Poisson ratios and shear moduli
-and the compliance becomes the natural measure. A nice side effect of
-defining $J$ as in \pr{eqn:compObjective} is that $J$ is self-adjoint
-and as a result the shape derivative will have a simple form.
+and the compliance.\note{Justification for use of compliance}
 
 The microstructure boundary $\partial \omega$ is parameterized by a
 vector $\vec{p}$, consisting of, for instance, wire mesh node offsets
@@ -52,9 +50,9 @@ the homogenized elasticity tensor for microstructure with shape
 $\omega$ and perturbation $\vec{v}$ is defined as the G\^ateaux
 derivative \cite{zolesio2001shapes}
 \begin{equation}
-  \d C^H[\vec{v}] \defeq \lim_{t\downarrow 0} \frac{C^H((1+t\vec{v})\omega)-C^H(\omega)}{t},
+  \d C^H[\vec{v}] \defeq \lim_{t\downarrow 0} \frac{C^H(\omega(t,\vec{v}))-C^H(\omega)}{t},
 \end{equation}
-where $(1+t\vec{v})\omega \defeq \{\x+t\vec{v} : \x \in \omega\}$. The
+where $\omega(t,\vec{v}) \defeq \{\x+t\vec{v} : \x \in \omega\}$. The
 homogenized elasticity tensor \note{give ref}, with a bit of
 manipulation, can be rewritten in the energy form as
 \begin{equation}
@@ -63,7 +61,10 @@ manipulation, can be rewritten in the energy form as
   \strain(\vec{w}^{ij})) : C^\text{base} : (\vec{e}^{kl} +
   \strain(\vec{w}^{kl})) \, \mathrm{d} \y.
 \end{equation}
-Using this form, the shape derivative of $C^H$ can be readily written as
+Using this form, taking its variation with respect to a
+\emph{permissible} boundary perturbation, integrating by parts, using
+the divergence theorem, and the fact that $\vec{w}^{ij}$ satisfies the
+cell problem, the shape derivative of $C^H$ can be written as
 \begin{align}
   \label{eqn:elastShapeDer}
   \d C^H_{ijkl}[\vec{v}] =
@@ -84,7 +85,7 @@ Combining the results from \pr{eqn:paramJacobian},
 \para{Numerical computation} The integrand in \pr{eqn:EhEnergy} is
 cubic over each boundary element ($\vec{e}^{ij} +
 \strain(\vec{w}^{ij})$ and $\vec{v}\cdot\hat{\vec{n}}$ are linear) and
-we use cubic basis to evaluate the integral exactly.
+we use quadrature that evaluate the cubic function exactly.
 
 \bibliographystyle{plain}
 \bibliography{References}
