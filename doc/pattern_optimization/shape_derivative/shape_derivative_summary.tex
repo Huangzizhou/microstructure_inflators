@@ -18,22 +18,21 @@ denote the compliance tensor, we choose
 for a microstructure with shape $\omega$. There are several other
 possible choices for the objective functional $J$, such as deviation
 of elasticity tensor or error in displacement. In our setting, we are
-interested in a particular deformation response and compliance becomes
-the natural measure in this context \note{justify why not displacement
-  itself}. A nice side effect of defining $J$ as in
-\pr{eqn:compObjective} is that $J$ is self-adjoint and as a result the
-shape derivative will have a simple form.
+interested in particular values of Poisson ratios and shear moduli
+and the compliance becomes the natural measure. A nice side effect of
+defining $J$ as in \pr{eqn:compObjective} is that $J$ is self-adjoint
+and as a result the shape derivative will have a simple form.
 
 The microstructure boundary $\partial \omega$ is parameterized by a
 vector $\vec{p}$, consisting of, for instance, wire mesh node offsets
-and thicknesses. The variation of $\partial \omega$ with respect to
-$\vec{p}$
+and thicknesses. With proper assumptions, the derivative of $\partial
+\omega$ with respect to $\vec{p}$ is given by
 \begin{equation}
-  \vec{v}_{p_\alpha}(\y,\vec{p}) = \pder{\y}{p_\alpha}\quad\text{for } \y\in \partial\omega.
+  \vec{v}_{p_\alpha}(\y,\vec{p}) \defeq
+  \pder{\y}{p_\alpha}\quad\text{for } \y\in \partial\omega,
 \end{equation}
-(with proper assumptions) defines perturbation velocity fields over
-the boundary. Using $\vec{p}$ the minimization problem can be written
-as
+and defines perturbation velocity fields over the boundary. Using
+$\vec{p}$ the minimization problem can be written as
 \begin{equation}
   \label{eqn:minParam}
   \argmin_\text{admissible $\vec{p}$} J(\vec{p})\text{ where }
@@ -42,29 +41,21 @@ as
 
 The derivative of the objective function is then
 \begin{equation}
-  \pder{J}{p_\alpha} = \left[S^H - S^*\right]_{ijkl} \pder{S^H_{ijkl}}{p_\alpha}.
+  \label{eqn:paramJacobian}
+  \pder{J}{p_\alpha} = [S^H - S^*]: \pder{S^H}{p_\alpha} = [S^H - S^*]: \d S^H[\vec{v}_{p_\alpha}],
 \end{equation}
+where $\d S^H[\vec{v}_{p_\alpha}]$ is the shape derivative of $S^H$
+with perturbation $\vec{v}_{p_{\alpha}}$.
 
-%%%%%%%
-The derivative of $C^H_{ijkl}$ with respect to parameter $p_a$ is just
-$\d C^H_{ijkl}$ evaluated on the $\vec{v}_{p_a}$ velocity field. Thus,
-we can compute the derivative of each homogenized coefficient with
-respect to each parameter $p_a$ provided that we know the normal
-velocity scalar field induced by changing $p_a$, $\vec{v}_{p_a} \cdot
-\hat{\vec{n}}$.
-%%%%%%%
-
-In finding a solution to \pr{eqn:minParam}, the shape derivative of a
-homogenized elasticity tensor is required. The shape derivative of the
-elasticity tensor for microstructure with shape $\omega$ and
-perturbation $\vec{v}$ is defined as the G\^ateaux derivative
-\cite{zolesio2001shapes}
+\para{Shape derivative of elasticity tensor} The shape derivative of
+the homogenized elasticity tensor for microstructure with shape
+$\omega$ and perturbation $\vec{v}$ is defined as the G\^ateaux
+derivative \cite{zolesio2001shapes}
 \begin{equation}
   \d C^H[\vec{v}] \defeq \lim_{t\downarrow 0} \frac{C^H((1+t\vec{v})\omega)-C^H(\omega)}{t},
 \end{equation}
-where $(1+t\vec{v})\omega \defeq \{\x+t\vec{v} : \x \in \omega\}$.
-
-The homogenized elasticity tensor \note{give ref}, with a bit of
+where $(1+t\vec{v})\omega \defeq \{\x+t\vec{v} : \x \in \omega\}$. The
+homogenized elasticity tensor \note{give ref}, with a bit of
 manipulation, can be rewritten in the energy form as
 \begin{equation}
   \label{eqn:EhEnergy}
@@ -74,37 +65,26 @@ manipulation, can be rewritten in the energy form as
 \end{equation}
 Using this form, the shape derivative of $C^H$ can be readily written as
 \begin{align}
-  \label{eqn:paramDerivative}
+  \label{eqn:elastShapeDer}
   \d C^H_{ijkl}[\vec{v}] =
   \frac{1}{|Y|} \int_{\partial \omega} &[(\vec{e}^{ij} + \strain(\vec{w}^{ij})) : C^\text{base}\\
     &: (\vec{e}^{kl} + \strain(\vec{w}^{kl}))] (\vec{v} \cdot \hat{\vec{n}}) \dA(\y).\notag
 \end{align}
 
-\para{Discretization} If linear finite elements are used,
-(\ref{eqn:paramDerivative}) is particularly easy to compute. The
-energy density term is constant on each boundary element and can be
-stored as a per-boundary-element tensor $C^e_{ijkl}$.  Then the
-integral can be computed as:
+\para{Shape derivative of compliance tensor} The compliance tensor is
+the inverse of elasticity tensor, i.e. $S:C=I$. Using direct
+differentiation
 \begin{equation}
-\pder{C^H_{ijkl}}{p_\alpha} =
-\sum_\alpha \frac{1}{|Y|} C^e_{ijkl} \int_e \vec{v}_{p_\alpha} \cdot \hat{{\bf n}} \dA({\y}). % = \frac{1}{|Y|} C^e_{ijkl} v^e,
+  \label{eqn:compShapeDer}
+  \d S^H[\vec{v}] = -S^H : \d C^H[\vec{v}] : S^H.
 \end{equation}
-%% where $v^e$ is the integral of parameter $p_a$'s (linear) normal velocity field
-%% over boundary element $e$. In other words, computing how a particular
-%% $C_{ijkl}$ changes with respect to $p_a$ is just a dot product.
-If higher order elements are used, we can still approximate either the
-energy density term or the normal velocity field as piecewise
-constant. However, to compute the integral exactly requires quadrature
-over each boundary element.
+Combining the results from \pr{eqn:paramJacobian},
+\pr{eqn:elastShapeDer}, and \pr{eqn:compShapeDer}, one can compute $\pder{J}{p_\alpha}$.
 
-\para{Computing the compliance tensor}We perform the computation on
-the flattened tensor representation. Letting $F$ denote the flattening
-operator \note{needs def}, the derivative of the compliance tensor
-$S=C^{-1}$ is given by
-\begin{align}
-    \pder{S}{p_\alpha} = -S : \pder{F(C)}{p_\alpha} : S.
-\end{align}
-\note{check correctness with Julian}
+\para{Numerical computation} The integrand in \pr{eqn:EhEnergy} is
+cubic over each boundary element ($\vec{e}^{ij} +
+\strain(\vec{w}^{ij})$ and $\vec{v}\cdot\hat{\vec{n}}$ are linear) and
+we use cubic basis to evaluate the integral exactly.
 
 \bibliographystyle{plain}
 \bibliography{References}
