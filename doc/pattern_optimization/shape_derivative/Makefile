@@ -9,7 +9,7 @@ force:
 view: $(NAME).pdf
 	skim-load $(NAME).pdf
 
-$(NAME).pdf: $(NAME).tex $(SOURCES) $(IMAGES)
+$(NAME).pdf: $(NAME).tex ${NAME}.bbl $(SOURCES) $(IMAGES)
 	pdflatex -shell-escape $(NAME)
 
 $(NAME).bbl: references.bib

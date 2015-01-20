@@ -62,9 +62,10 @@ the solution $\u$ (usually by means of the so-called energy method)
 
 As implied by \pr{eqn:homogenElasto} and \pr{eqn:AsymSeries}, the
 first term of the series $\u_0$ is identified with the solution of the
-homogenized equation $\u$. Using $\u$, the effective elasticity tensor
-$C^H$ can be computed. Note that the homogenized tensor $C^H$ is
-almost never a spatial average of $C$.
+homogenized equation $\u$. Knowing $\u$ for proper choices of
+$\vec{f}$, the effective elasticity tensor $C^H$ can be computed. Note
+that the homogenized tensor $C^H$ is almost never a spatial average of
+$C$.
 
 To facilitate the analysis, let \x\ denote the macroscopic variable
 and define $\y\coloneqq \x/\e$ as the microscopic variable. For ${\y}
@@ -75,16 +76,16 @@ and define $\y\coloneqq \x/\e$ as the microscopic variable. For ${\y}
     \in \omega, \\ 0 & \text{ otherwise,} \end{cases}
 \end{equation}
 where $C^\text{base}$ is the known material property and is extended
-throughout $\Omega$ by Y-periodicity.
+throughout $\Omega$ by $Y$-periodicity.
 
 Let $\vec{e}^{kl} \coloneqq \frac{1}{2} \left(\vec{e}_k \otimes
 \vec{e}_l + \vec{e}_l \otimes \vec{e}_k \right)$ denote the canonical
-basis for symmetric rank 2 tensors. Define $\vec{w}^{kl}$ as the
+basis for symmetric rank 2 tensors and define $\vec{w}^{kl}$ as the
 microscopic displacements response for $\vec{e}^{kl}$ satisfying
 \begin{subequations}
   \label{set:cell}
   \begin{gather}
-    \nabla \cdot (C^\text{base} : [\strain({\bf w}^{kl})]) = 0 \text{ in } \omega, \\
+    \nabla \cdot (C^\text{base} : \strain({\bf w}^{kl})) = 0 \text{ in } \omega, \\
     [C^\text{base} : \strain({\bf w}^{kl})]\hat{\vec{n}}  =  - [C^\text{base} : \vec{e}^{kl}]\hat{\vec{n}} \text{ on } \partial \omega \backslash \partial Y, \\
     {\bf w}^{kl}({\y})\ Y\text{-periodic}, \\
     \int_\omega \! {\bf w}^{kl}({\y})  \, \mathrm{d} {\y} =  {\bf 0},
@@ -100,8 +101,8 @@ as an integral over the cell $Y$
   \label{eqn:effective}
   C^H_{ijkl} = \frac{1}{|Y|} \int_\omega C_{ijpq}^\text{base}[\strain(\vec{w}^{kl})]_{pq} + C_{ijkl}^\text{base} \, \mathrm{d} \y.
 \end{equation}
-See \pr{apx:asymptotic} for more detail on the derivation of
-\pr{set:cell} and \pr{eqn:effective}.
+See \pr{apx:asymptotic} for the connection between \pr{set:cell} and
+\pr{eqn:effective} and more detail on their derivation.
 
 It is worth noting that $C^H$ does not depend on the choice of domain
 $\Omega$, force term $\vec{f}$, or boundary condition on $\partial
@@ -109,7 +110,7 @@ $\Omega$, force term $\vec{f}$, or boundary condition on $\partial
 
 For each cell shape, \pr{set:cell} needs to be solved numerically for
 the six---instead of nine because of the symmetry in canonical basis
-$\vec{e}^{kl} = \vec{e}^{lk}$---cell problems to compute
+$(\vec{e}^{kl} = \vec{e}^{lk})$---cell problems to compute
 $\vec{w}^{kl}\;(k,l=1,2,3)$, which are in turn used to evaluate
 \pr{eqn:effective}.
 
@@ -118,7 +119,7 @@ The cell problems (\pr{set:cell}) are solved numerically by FEM
 discretization of a single base cell. The volume integral
 (\pr{eqn:effective}) is computed on the same grid.
 
-Given the skeleton of the micro structure by a wire network
+Given the wire network of the microstructure, defining its topology
 \todo{internal ref}, a volume mesh is generated following the STRUT
 algorithm given in \cite{hart2008sculptural} involving the following
 steps:\begin{inparaenum}[(i)]
@@ -147,18 +148,17 @@ To simplify operations such as rank 4 tensor inversion and double
 contractions, we use a symmetric tensor flattening approach to turn
 rank 4 tensors into matrices and rank 2 tensors into vectors. We end
 up storing the elasticity tensor as a symmetric $6\times 6$ matrix
-with 21 coefficients. \todo{give ref}
+with 21 coefficients. \todo{give ref}.
 
 \appendix
 \section{Asymptotic Analysis for Periodic Homogenization\label{apx:asymptotic}}
 As outlined in \pr{sec:homogen}, the homogenization process proceeds
 by considering the solution of \pr{eqn:elastostatic}, the displacement
 $\ue$, as $\e\to 0$. One approach in taking this limit is through
-two-scale asymptotic expansions \cite{allaire2002shape}, which is a
-heuristic derivation of the homogenized elasticity tensor, but once
-this tensor is found it can be rigorously justified. Further detail
-can be found in \cite{allaire2002shape}, here we outline major steps
-in derivation of $C^H$.
+two-scale asymptotic expansions \cite{allaire2002shape}. Further
+detail can be found in
+\cite{allaire2002shape,allaire1992homogenization}, here we outline
+major steps in the derivation of $C^H$.
 
 \subsection{Two-scale Analysis}
 As mentioned in \pr{sec:homogen}, the two-scale method is based on the
@@ -174,21 +174,36 @@ smoothly varying, macroscopic part) from its dependence on $\y =
 identifying each coefficient of $\e^p$ of as an individual equation,
 yields a cascade of equations for $\u_p$
 \begin{align}
-  \e^{-2}:\quad  & \u_0(\x,\y) \equiv \u(\x) \quad\text{(independent of $\y$)}, \label{eqn:em2}\\
-  \e^{-1}:\quad  & -\nabla_\y \cdot (C(\y) : [\strain_\y(\u_1) + \strain_\x(\u)]) =  \vec{0},  \label{eqn:em1}
+  \e^{-2}&:\; -\nabla_\y \cdot [C(\y) : \strain_\y(\u_0)] = \vec{0} \label{eqn:em2} \\
+  \e^{-1}&:\; -\nabla_\y \cdot [C(\y) : (\strain_\y(\u_1) + \strain_\x(\u_0))] - \phantom{x}\notag\\
+  &\hspace{.12\linewidth} \nabla_\x \cdot [C(\y) : \strain_\y(\u_0)] =  \vec{0},  \label{eqn:em1} \\
+  \e^{0}&:\; -\nabla_\y \cdot [C(\y) : (\strain_\y(\u_2) + \strain_\x(\u_1))] - \phantom{x}\notag\\
+  &\hspace{.12\linewidth} \nabla_\x \cdot [C(\y) : (\strain_\y(\u_1)+\strain_\x(\u_0))] =  \vec{f},\label{eqn:em0}
 \end{align}
 where the subscripts $\x$ or $\y$ imply derivative with respect to
-that variable. \pr{eqn:em1} implies a linear relationship between
-$\strain_\y(\u_1)$ and $\strain_\x(\u)$, which We can express with a
-rank 4 tensor $F$ such that $\strain_\y(\u_1) = F:\strain_\x(\u)$
+that variable. \pr{eqn:em2} is satisfied by a function independent of
+$\y$, $\u_0(\x,\y)\equiv \u(\x)$. Using this, \pr{eqn:em1} implies a
+linear relationship between $\strain_\y(\u_1)$ and $\strain_\x(\u)$,
+which we can express with a rank 4 tensor $F$ such that
+\begin{equation}
+  \label{eqn:macro2micro}
+  \strain_\y(\u_1) = F:\strain_\x(\u),
+\end{equation}
 mapping macroscopic strain to microscopic fluctuation strain.
 
 The term for $\e^0$ uniquely defines $\vec{u}_2$ based on $\vec{u}$
 and $\vec{u}_1$ if and only if the compatibility condition of the
 Fredholm alternative (zero average right hand side) is
 satisfied. Integrating the $\e^0$ term, using Divergence theorem and
-periodicity of $\vec{u}_1$ and $\vec{u}_2$, we have the homogenized
-elasticity equation
+periodicity of $\vec{u}_1$ and $\vec{u}_2$ we have
+\[
+  -\nabla_\x \cdot \int_Y C(\y) : [\strain_\y(\u_1) + \strain_\x(\u)] \, \mathrm{d} \y = |Y| {\bf f}.
+\]
+Using \pr{eqn:macro2micro}
+\begin{equation}
+  -\nabla_\x \cdot \left[ \left(\frac{1}{|Y|} \int_Y C(\y) : F + C(\y) \, \mathrm{d} {\bf y} \right) : \strain_\x(\u) \right] = \vec{f},
+\end{equation}
+Comparing this with \pr{eqn:homogenElasto} implies
 \begin{equation}
   C^H = \frac{1}{|Y|} \int_Y C(\y) : F + C(\y) \, \mathrm{d} {\y}
 \end{equation}
@@ -201,8 +216,8 @@ symmetric rank 2 tensors:
 \vec{e}^{kl} = \frac{1}{2} \left({\bf e}_k \otimes {\bf e}_l + {\bf
   e}_l \otimes {\bf e}_k \right)
 \]
-where ${\bf e}_k$ is the $k^\text{th}$ canonical basis element. Then
-the macroscopic strain can be decomposed as $\strain_{\x}({\bf u}) =
+where ${\bf e}_k$ is the $k^\text{th}$ canonical basis. Then the
+macroscopic strain can be decomposed as $\strain_{\x}({\bf u}) =
 [\strain_{\x}({\bf u})]_{kl}\vec{e}^{kl}$. If Y-periodic ${\bf
   w}^{kl}({\y})$ solves (\ref{eqn:em1}) for $\vec{e}^{kl}$:
 \begin{equation}
@@ -232,12 +247,12 @@ find these by solving the 6 cell problems
   \end{gather}
 \end{subequations}
 One for each canonical basis tensor $\vec{e}^{kl}$. The last
-constraint is to pin down the remaining transnational degree of
-freedom; since we only care about strain $\strain_{\y}({\bf w}^{kl})$,
-we can arbitrarily choose to enforce $\vec{0}$ average displacement
-over the microstructure geometry.
+constraint is to fix the remaining transnational degree of freedom;
+since we only care about strain $\strain_{\y}({\bf w}^{kl})$, we can
+arbitrarily choose to enforce $\vec{0}$ average displacement over the
+microstructure geometry.
 
 \bibliographystyle{plain}
-\bibliography{References}
+\bibliography{references}
 
 \end{document}
