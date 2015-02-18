@@ -19,8 +19,14 @@ class PyWiresInflator(object):
         wires = self.wire_network.raw_wires;
 
         if self.periodic:
-            inflator = PyWires.InflatorEngine.create_parametric(wires,
-                    self.parameters.raw_parameters);
+            symm_checker = PyWires.SymmetryChecker(wires);
+            if (symm_checker.has_cubic_symmetry()):
+                print("Using reflective inflator");
+                inflator = PyWires.InflatorEngine.create_isotropic_parametric(
+                        wires, self.parameters.raw_parameters);
+            else:
+                inflator = PyWires.InflatorEngine.create_parametric(wires,
+                        self.parameters.raw_parameters);
         else:
             inflator = PyWires.InflatorEngine.create("simple", wires);
 
