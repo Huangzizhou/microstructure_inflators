@@ -205,6 +205,8 @@ public:
         m_inflate_dofs();
     }
 
+    void setReflectiveInflator(bool use) { m_useReflectiveInflator = use; }
+
     // the printability check actually modifies the inflator's internal state,
     // so we can't mark this const.
     // Also, we must change the current dofs to run the printability test
@@ -263,6 +265,7 @@ private:
 
     Real m_maxElementVol;
     PeriodicExploration m_inflator;
+    bool m_useReflectiveInflator = true;
 
     // Inflate the DoFs already stored in the inflator.
     void m_inflate_dofs() {
@@ -271,7 +274,7 @@ private:
                     std::to_string(m_inflationCount) + ".dof");
         }
 
-        m_inflator.periodic_inflate();
+        m_inflator.periodic_inflate(m_useReflectiveInflator);
         m_inflator.run_tetgen(m_maxElementVol);
 
         ++m_inflationCount;
