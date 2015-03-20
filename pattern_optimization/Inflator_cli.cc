@@ -71,6 +71,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("subdivide,S",  po::value<size_t>()->default_value(0),           "number of subdivisions to run for 3D inflator")
         ("sub_algorithm,A", po::value<string>()->default_value("simple"), "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                             "maximum element volume parameter for wire inflator")
+        ("fullCellInflator",                                              "use the full periodic inflator instead of the reflection-based one")
         ;
 
     po::options_description cli_opts;
@@ -132,6 +133,8 @@ int main(int argc, const char *argv[])
 
     if (args.count("max_volume"))
         inflator.setMaxElementVolume(args["max_volume"].as<double>());
+
+    inflator.setReflectiveInflator(args.count("fullCellInflator") == 0);
 
     if (args.count("multiDoF")) {
         cout << "multiDoF mode--reading filenames from STDIN" << endl;
