@@ -6,7 +6,6 @@ from WireInflator import WireInflator
 from WireTiler import WireTiler
 from utils.Triangulation import Triangulation
 
-import PyCSG
 import PyMeshUtils
 import PyMesh
 

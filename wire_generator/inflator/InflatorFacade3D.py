@@ -2,7 +2,6 @@ import numpy as np
 from InflatorFacade import InflatorFacade
 from WireTiler import WireTiler
 from WireInflator import WireInflator
-from PeriodicWireInflator import PeriodicWireInflator
 from PyWiresInflator import PyWiresInflator
 from PyWiresTiler import PyWiresTiler
 
