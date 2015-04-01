@@ -14,7 +14,7 @@
 //          "radiusBounds": [ low, high ],
 //          "translationBounds": [ low, high ],
 //          "paramConstraints": [ "p1 = p2 + 5", ... ],
-//          "bounds": { "var": 0, "lower": 1, "upper": 2 }
+//          "bounds": [{ "var": 0, "lower": 1, "upper": 2 }]
 //      }
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
@@ -85,9 +85,9 @@ JobBase *parseJobFile(const string &jobFile) {
         try {
             auto bounds = pt.get_child("bounds");
             for (const auto &bound : bounds) {
-                size_t var = pt.get<size_t>("var");
-                job->varLowerBounds[var] = pt.get<Real>("lower");
-                job->varUpperBounds[var] = pt.get<Real>("upper");
+                size_t var = bound.second.get<size_t>("var");
+                job->varLowerBounds[var] = bound.second.get<Real>("lower");
+                job->varUpperBounds[var] = bound.second.get<Real>("upper");
             }
         }
         catch (...) {

@@ -11,10 +11,10 @@ my $margin = (@ARGV == 2) ? $ARGV[1] : 0;
 my @images = glob $pattern;
 my $numImages = @images;
 unlink 'bboxes.txt';
-my $pm = Parallel::ForkManager->new(8);
+my $pm = Parallel::ForkManager->new(2);
 for (my $i = 0; $i < $numImages; ++$i) {
     $pm->start and next;
-    `convert ${images[$i]} -trim -format "%w %h %X %Y" info: >> bboxes.txt`;
+    `convert ${images[$i]} -trim -format "%w %h %X %Y\n" info: >> bboxes.txt`;
     $pm->finish;
 }
 $pm->wait_all_children();

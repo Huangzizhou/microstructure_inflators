@@ -15,7 +15,7 @@
 //          "radiusBounds": [ low, high ],
 //          "translationBounds": [ low, high ],
 //          "paramConstraints": [ "p1 = p2 + 5", ... ],
-//          "bounds": { "var": 0, "lower": 1, "upper": 2 }
+//          "bounds": [{ "var": 0, "lower": 1, "upper": 2 }]
 //      }
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
