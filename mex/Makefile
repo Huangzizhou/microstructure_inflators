@@ -6,8 +6,10 @@
 #	MeshFEM, CSGFEM, MICRO_DIR, TRIANGLE_PATH, CLIPPER_PATH, PYMESH_PATH
 # The following platform-specific variables should be configured in
 # $MeshFEM/platform_config:
-# 	SUITESPARSE_INC, SUITESPARSE_LIB, BOOST_INC, MATLABDIR, VCG_INC, EIGEN_INC
+# 	SUITESPARSE_INC, SUITESPARSE_LIBS, BOOST_INC, MATLABDIR, EIGEN_INC,
 # 	ARCH
+# The following will probably be needed in the future:
+# 	VCG_INC, TRIANGLE_LIBS, CLIPPER_LIBS
 ################################################################################
 include $(MeshFEM)/platform_defs.mk
 
@@ -21,7 +23,7 @@ LDFLAGS   =
 PERHOMO_OBJS=Homogenize.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o $(MeshFEM)/MeshIO.o
 			
 INCLUDES+=-I$(MeshFEM) -I$(CSGFEM) -isystem $(SUITESPARSE_INC) -isystem $(BOOST_INC)
-INCLUDES+=-I$(MICRO_DIR)/Luigi/wireinflator2D/src -isystem $(VCG_INC) -isystem $(EIGEN_INC)
+INCLUDES+=-I$(MICRO_DIR)/Luigi/wireinflator2D/src -isystem $(EIGEN_INC) # -isystem $(VCG_INC) 
 
 CXXFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES)
 CXXFLAGS+=-O2
@@ -32,8 +34,8 @@ MEXEXT    ?= mex$(ARCH)
 
 MEXFLAGS   += -cxx -largeArrayDims -O CXX=$(CXX) -I$(MATLABDIR)/extern/include/ -I$(EIGEN_INC)
 MEXLDFLAGS = -L$(MEXLIBDIR)
-MEXLDLIBS  = -largeArrayDims -lc++ $(SUITESPARSE_LIBS) $(TRIANGLE_LIBS) $(CLIPPER_LIBS)
-LDLIBS  = $(SUITESPARSE_LIBS) $(TRIANGLE_LIBS) $(CLIPPER_LIBS)
+MEXLDLIBS  = -largeArrayDims -lc++ $(SUITESPARSE_LIBS) # $(TRIANGLE_LIBS) $(CLIPPER_LIBS)
+LDLIBS  = $(SUITESPARSE_LIBS) # $(TRIANGLE_LIBS) $(CLIPPER_LIBS)
 
 ifeq ($(debug), yes)
   MEXFLAGS += -v
