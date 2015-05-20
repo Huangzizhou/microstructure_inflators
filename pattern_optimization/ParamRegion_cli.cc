@@ -103,16 +103,23 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 }
 
 struct Bound {
-    Bound() { set(0, 0);  }
-    void set(Real l, Real u) { lower = l; upper = u; }
+    Bound() { set(0, 0, 0);  }
+    void set(Real l, Real u, Real d) { lower = l; upper = u; defaultVal = d; }
     Real midpoint() const { return 0.5 * (lower + upper); } 
     Real width() const { return upper - lower; }
-    Real lower, upper;
+    Real lower, upper, defaultVal;
 };
 
 void setDefault(vector<Real> &params, const vector<Bound> &bounds) {
     for (size_t i = 0; i < params.size(); ++i)
-        params[i] = bounds.at(i).midpoint();
+        params[i] = bounds.at(i).defaultVal;
+}
+
+void print(ostream &os, const vector<Real> &params) {
+    for (Real p : params) {
+        os << p << "\t";
+    }
+    os << endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -123,7 +130,7 @@ void setDefault(vector<Real> &params, const vector<Bound> &bounds) {
 *///////////////////////////////////////////////////////////////////////////////
 int main(int argc, const char *argv[])
 {
-    cout << setprecision(16);
+    cout << setprecision(20);
     po::variables_map args = parseCmdLine(argc, argv);
 
     Real cellSize = args["cell_size"].as<double>();
@@ -141,9 +148,9 @@ int main(int argc, const char *argv[])
     //  .dof presides over .opt, which presides over defaults.
     for (size_t p = 0; p < inflator.numParameters(); ++p) {
         if (inflator.parameterType(p) == ParameterType::Thickness)
-            bounds[p].set(0.3, 0.7);
+            bounds[p].set(0.4, 1.0, 0.4 * sqrt(2));
         else 
-            bounds[p].set(-0.1, 0.1);
+            bounds[p].set(-0.40, 0.40, 0.0);
     }
     
     size_t nSamples = args["sampleSize"].as<int>();
@@ -155,22 +162,25 @@ int main(int argc, const char *argv[])
     if ((p0 >= nParams) || (p1 >= nParams))
         throw runtime_error("Invalid slice parameter indices");
 
+    string outPrefix = args["out"].as<string>();
+    string outName = outPrefix + "." + to_string(p0) + "." + to_string(p1);
+    // ofstream outFile(outName + ".txt");
+
     setDefault(params, bounds);
     for (size_t v0 = 0; v0 < nSamples; ++v0) {
         params[p0] = bounds[p0].lower + (Real(v0) * bounds[p1].width()) / (nSamples - 1);
         for (size_t v1 = 0; v1 < nSamples; ++v1) {
-            cout << v1 << endl;
             params[p1] = bounds[p1].lower + (Real(v1) * bounds[p1].width()) / (nSamples - 1);
+            print(cout, params);
             unsigned char val = 255;
             try { inflator.inflate(params); }
-            catch (...) { val = 0; }
+            catch (std::exception &e) { val = 0; cerr << e.what() << endl;}
             imgBuffer[v0 * nSamples + v1] = val;
         }
     }
 
     // Output PGM
-    string outPrefix = args["out"].as<string>();
-    ofstream pgmFile(outPrefix + ".pgm");
+    ofstream pgmFile(outName + ".pgm");
     if (!pgmFile.is_open()) throw runtime_error("Couldn't open output image");
     pgmFile << "P5" << endl << nSamples << "\t" << nSamples << endl << 255 << endl;
     pgmFile.write((char *) &imgBuffer[0], imgBuffer.size());

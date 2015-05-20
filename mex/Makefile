@@ -13,11 +13,11 @@
 ################################################################################
 include $(MeshFEM)/platform_defs.mk
 
-host      = $(shell hostname -s)
 debug     = yes
 
-CXX       = g++
-CXXFLAGS  = -Wall
+CXX       ?= g++
+CC        ?= gcc
+CXXFLAGS += -Wall
 LDFLAGS   =
 
 PERHOMO_OBJS=Homogenize.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o $(MeshFEM)/MeshIO.o
@@ -34,8 +34,8 @@ MEXEXT    ?= mex$(ARCH)
 
 MEXFLAGS   += -cxx -largeArrayDims -O CXX=$(CXX) -I$(MATLABDIR)/extern/include/ -I$(EIGEN_INC)
 MEXLDFLAGS = -L$(MEXLIBDIR)
-MEXLDLIBS  = -largeArrayDims -lc++ $(SUITESPARSE_LIBS) # $(TRIANGLE_LIBS) $(CLIPPER_LIBS)
-LDLIBS  = $(SUITESPARSE_LIBS) # $(TRIANGLE_LIBS) $(CLIPPER_LIBS)
+MEXLDLIBS  += -largeArrayDims $(SUITESPARSE_LIBS) # $(TRIANGLE_LIBS) $(CLIPPER_LIBS)
+LDLIBS  += $(SUITESPARSE_LIBS) # $(TRIANGLE_LIBS) $(CLIPPER_LIBS)
 
 ifeq ($(debug), yes)
   MEXFLAGS += -v
@@ -51,7 +51,7 @@ clean:
 	-$(RM) *.o *h.gch *~ *.x *.$(MEXEXT)
 
 homogenize.$(MEXEXT): $(OBJS)
-	$(MEX) $(MEXLDFLAGS) -output $@ $(MEXLDLIBS) $^
+	$(MEX) $(MEXLDFLAGS) -output $@ $^ $(MEXLDLIBS)
 
 mex%.o: mex%.cc
 	$(MEX) $(MEXFLAGS) -c $^
