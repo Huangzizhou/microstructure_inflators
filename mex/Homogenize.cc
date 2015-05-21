@@ -33,7 +33,7 @@ void execute(const vector<MeshIO::IOVertex> &inVertices,
     if ((jacobian.rows() == 0) && (jacobian.cols() == 0)) {
         jacobian = Eigen::MatrixXd::Identity(_N, _N);
     }
-    if ((jacobian.rows() != 3) || (jacobian.cols() != 3)) {
+    if ((jacobian.rows() != _N) || (jacobian.cols() != _N)) {
         auto nstr = std::to_string(_N);
         throw std::runtime_error("Jacobian should be " + nstr + "x" + nstr);
     }
