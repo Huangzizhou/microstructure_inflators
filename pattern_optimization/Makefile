@@ -1,3 +1,5 @@
+MeshFEM ?= $(MESHFEM_PATH)
+
 include $(MeshFEM)/platform_defs.mk
 
 SOURCES=PatternOptimization_cli.cc PatternOptimizationJob.cc RandomJob.cc SpacedJob.cc GradientComponentValidation.cc \
@@ -38,7 +40,7 @@ CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
 all: $(TARGETS)
 
 PatternOptimization_cli: $(PATOPT_OBJS)
-	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
 
 RandomJob: $(RANDJOB_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
