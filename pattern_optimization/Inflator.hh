@@ -296,12 +296,11 @@ public:
     typedef Inflator<N> Base;
     typedef typename Base::NormalShapeVelocity NormalShapeVelocity;
 
+    template<typename... BaseArgs>
     ConstrainedInflator(const std::vector<string> &constraints,
-            const std::string &wireMeshPath,
-            Real cell_size = 5.0, Real default_thickness = 0.5 * sqrt(2),
-            bool isotropic_params = false, bool vertex_thickness = false)
-        : Base(wireMeshPath, cell_size, default_thickness, isotropic_params,
-               vertex_thickness) {
+                        BaseArgs... baseArgs)
+        : Base(baseArgs...)
+    {
         // Impose all equality constraints exactly
         // Solve for a set of independent variables, and express the
         // dependent variables in terms of these.

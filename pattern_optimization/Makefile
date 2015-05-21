@@ -27,9 +27,9 @@ PREGION_OBJS=ParamRegion_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
 OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_OBJS) $(INFLATOR_OBJS) $(PREGION_OBJS)
 
-TARGETS=PatternOptimization_cli CreateJob RandomJob SpacedJob GradientComponentValidation Inflator_cli ParamRegion_cli
+TARGETS=PatternOptimization_cli CreateJob RandomJob SpacedJob GradientComponentValidation Inflator_cli Inflator2D_cli ParamRegion_cli
 
-INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem $(VCG_INC) -isystem $(DLIB_INC) -I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
+INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem -I$(CLIPPER_PATH)/include -isystem $(VCG_INC) -isystem $(DLIB_INC) -I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
 LIBS+=-L$(CLIPPER_PATH)/lib -lpolyclipping -L/$(PYMESH_PATH)/lib -lwires
 LIBS+=-L$(TRIANGLE_PATH) -ltriangle
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DBENCHMARK
@@ -56,6 +56,12 @@ GradientComponentValidation: $(GRADVALID_OBJS)
 
 Inflator_cli: $(INFLATOR_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
+Inflator2D_cli: $(filter-out Inflator_cli.o, $(INFLATOR_OBJS)) Inflator2D_cli.o
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
+Inflator2D_cli.o: Inflator_cli.cc Makefile
+	$(CXX) -DDIMENSIONS=2 $(CPPFLAGS) -c $< -o $@
 
 ParamRegion_cli: $(PREGION_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@

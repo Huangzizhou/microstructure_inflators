@@ -34,6 +34,10 @@
 #include "PatternOptimizationJob.hh"
 #include "PatternOptimizationIterate.hh"
 
+#ifndef DIMENSIONS
+#define DIMENSIONS 3
+#endif
+
 namespace po = boost::program_options;
 using namespace std;
 using namespace PatternOptimization;
@@ -119,20 +123,21 @@ int main(int argc, const char *argv[])
     po::variables_map args = parseCmdLine(argc, argv);
 
     Real defaultThickness = args["default_thickness"].as<double>();
-    Real cellSize = args["cell_size"].as<double>();
-    bool isotropicParameters = args.count("isotropicParameters");
-    bool vertexThickness = args.count("vertexThickness");
+
     vector<string> constraints;
     if (args.count("constraints"))
         constraints = args["constraints"].as<vector<string>>();
+
+#if DIMENSIONS==3
+    Real cellSize = args["cell_size"].as<double>();
+    bool isotropicParameters = args.count("isotropicParameters");
+    bool vertexThickness = args.count("vertexThickness");
+
     ConstrainedInflator<3> inflator(constraints, args["pattern"].as<string>(),
             cellSize, defaultThickness, isotropicParameters, vertexThickness);
 
     inflator.configureSubdivision(args["sub_algorithm"].as<string>(),
                                   args["subdivide"].as<size_t>());
-
-    if (args.count("max_volume"))
-        inflator.setMaxElementVolume(args["max_volume"].as<double>());
 
     inflator.setReflectiveInflator(args.count("fullCellInflator") == 0);
 
@@ -151,6 +156,13 @@ int main(int argc, const char *argv[])
         }
         exit(0);
     }
+#else
+    // 2D inflator doesn't support many of the configuration options 3D supports
+    ConstrainedInflator<2> inflator(constraints, args["pattern"].as<string>());
+#endif
+
+    if (args.count("max_volume"))
+        inflator.setMaxElementVolume(args["max_volume"].as<double>());
 
     // Parameter specification precedence:
     //  --parameters presides over .dof, which presides over .opt, which
@@ -169,9 +181,11 @@ int main(int argc, const char *argv[])
         params = job->initialParams;
     }
 
+#if DIMENSIONS == 3
     if (args.count("dof")) {
         inflator.loadPatternDoFs(args["dof"].as<string>(), params);
     }
+#endif
 
     if (args.count("parameters")) {
         string paramString = args["parameters"].as<string>();

@@ -1,7 +1,7 @@
 #ifndef CLIPPERHELPER_H
 #define CLIPPERHELPER_H
 
-#include "clipper.hpp"
+#include <clipper.hpp>
 #include <vcg/space/point2.h>
 #include <vcg/space/point3.h>
 #include <cmath>

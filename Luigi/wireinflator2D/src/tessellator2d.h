@@ -2,7 +2,13 @@
 #define TESSELLATOR2D_H
 
 #include "clipperHelper.h"
-#include "triangle.h"
+
+extern "C" {
+#define ANSI_DECLARATORS
+#define REAL double
+#define VOID int
+#include <triangle.h>
+}
 
 #include <vcg/complex/complex.h>
 #include <vcg/complex/algorithms/update/bounding.h>
