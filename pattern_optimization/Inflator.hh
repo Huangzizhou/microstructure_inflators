@@ -10,6 +10,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef INFLATOR_HH
 #define INFLATOR_HH
+// Must include Functions.hh before WireInflator2D.h since vcg polutes global
+// namespace
+#include <Functions.hh> 
 #include <WireInflator2D.h>
 #include <Wires/Interfaces/PeriodicExploration.h>
 #include <stdexcept>
@@ -74,6 +77,7 @@ public:
     }
 
     void setMaxElementVolume(Real maxElementVol) { m_tparams.max_area = maxElementVol; }
+    Real getMaxElementVolume() const { return m_tparams.max_area; }
     void configureSubdivision(const std::string &algorithm, size_t levels) {
         throw std::runtime_error("Subdivision not supported in 2D");
     }
@@ -178,6 +182,7 @@ public:
     }
 
     void setMaxElementVolume(Real maxElementVol) { m_maxElementVol = maxElementVol; }
+    Real getMaxElementVolume() const { return m_maxElementVol; }
     void configureSubdivision(const std::string &algorithm, size_t levels) {
         m_inflator.with_refinement(algorithm, levels);
     }

@@ -3,10 +3,12 @@ include $(MeshFEM)/platform_defs.mk
 RENDER_OBJS=Render_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o \
 			$(MeshFEM)/MSHFieldParser.o $(MeshFEM)/EdgeFields.o \
 			$(CSGFEM)/draw.o
-OBJS=$(RENDEROPT_OBJS)
-TARGETS=Render_cli
+IVIEW_OBJS=inflate_viewer.o $(MeshFEM)/MeshIO.o 
+IVIEW_LIBS=-framework GLUT -framework OpenGL -L$(CLIPPER_PATH)/lib -lpolyclipping -L/opt/local/lib -lAntTweakBar -lmatheval -ltriangle
+OBJS=$(RENDEROPT_OBJS) $(IVIEW_OBJS)
+TARGETS=Render_cli inflate_viewer
 
-INCLUDES+=-I$(MeshFEM) -I/opt/local/include/freetype2
+INCLUDES+=-I$(MeshFEM) -I/opt/local/include/freetype2 -I$(CLIPPER_PATH)/include -I$(EIGEN_INC) -I.. -I../../Luigi/wireinflator2D/src -isystem $(VCG_INC) -I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
 LIBS+=$(RENDER_LIBS)
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DUSE_MESA
 CPPFLAGS+=-O2
@@ -17,6 +19,9 @@ all: $(TARGETS)
 
 Render_cli: $(RENDER_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
+inflate_viewer: $(IVIEW_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(IVIEW_LIBS) -o $@
 
 %.o: %.cc Makefile
 	$(CXX) $(CPPFLAGS) -c $< -o $@
