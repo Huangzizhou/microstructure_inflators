@@ -4,8 +4,8 @@
 /*! @file
 //      Parses and holds constraints relating the pattern parameters.
 //      Constraints should be LINEAR and of the form:
-//      p0 = p1 + c
-//      p2 < p1 + c
+//      p0  = p1 + c
+//      p2 <= p1 + c
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University

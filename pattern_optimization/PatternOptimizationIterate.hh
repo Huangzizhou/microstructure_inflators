@@ -80,7 +80,7 @@ struct Iterate {
 
         std::vector<VField> w_ij;
         PeriodicHomogenization::solveCellProblems(w_ij, *m_sim);
-        C = PeriodicHomogenization::homogenizedElasticityTensor(w_ij, *m_sim);
+        C = PeriodicHomogenization::homogenizedElasticityTensorDisplacementForm(w_ij, *m_sim);
         S = C.inverse();
         std::vector<BEGradTensorInterpolant> gradEh =
             PeriodicHomogenization::homogenizedElasticityTensorGradient(w_ij, *m_sim);
@@ -134,14 +134,22 @@ struct Iterate {
 
     // Evaluate compliance frobenius norm objective.
     Real evaluateJS() const {
-        Real result = 0.5 * m_diffS.quadrupleContract(m_diffS);
-
-        if (m_estimateObjectiveWithDeltaP.size() == m_params.size()) {
-            SField gpJS = gradp_JS();
-            for (size_t p = 0; p < m_params.size(); ++p)
-                result += gpJS[p] * m_estimateObjectiveWithDeltaP[p];
+        // Note: following is equivalent when computing the exact objective
+        // (i.e. when m_estimateObjectiveWithDeltaP == {}):
+        //      return 0.5 * m_diffS.quadrupleContract(m_diffS);
+        // But linearly approximating the least squares objective is different
+        // from linearly approximating the residual, and we prefer to do the
+        // latter. 
+        
+        // Residual version
+        Real result = 0;
+        for (size_t i = 0; i < flatLen(_N); ++i) {
+            for (size_t j = i; j < flatLen(_N); ++j) {
+                Real r = residual(i, j);
+                result += r * r;
+            }
         }
-        return result;
+        return 0.5 * result;
     }
 
     ////////////////////////////////////////////////////////////////////////
