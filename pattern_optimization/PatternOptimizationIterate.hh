@@ -18,6 +18,8 @@
 
 #include <cassert>
 #include <memory>
+#include <iostream>
+#include <iomanip>
 
 #include <MeshIO.hh>
 
@@ -63,6 +65,10 @@ struct Iterate {
 
         std::cout << "Checking geometry" << std::endl;
         if ((inflator.elements().size() == 0) || (inflator.vertices().size() == 0)) {
+            std::cerr << std::setprecision(16);
+            std::cerr << "Exception while inflating parameters" << std::endl;
+            for (size_t i = 0; i < m_params.size(); ++i) std::cerr << m_params[i] << "\t";
+            std::cerr << std::endl;
             throw std::runtime_error("Empty inflated geometry. Elements: "
                     + std::to_string(inflator.elements().size()) + ", Vertices: "
                     + std::to_string(inflator.vertices().size()));

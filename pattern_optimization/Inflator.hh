@@ -63,16 +63,16 @@ public:
     typedef std::vector<Interpolant<Real, 1, 0>> NormalShapeVelocity;
 
     Inflator(const std::string &wireMeshPath)
-        : m_inflator(wireMeshPath)
+        : m_inflator(WireInflator2D::construct(wireMeshPath))
     {
-        m_paramOp = m_inflator.patternGenerator().getParameterOperations();
+        m_paramOp = m_inflator->getParameterOperations();
         setMaxElementVolume(0.0001);
     }
 
     Inflator(const std::string &wireMeshPath,
              Real cell_size, Real default_thickness = 0.5 * sqrt(2),
              bool isotropic_params = false, bool vertex_thickness = false)
-        : m_inflator(wireMeshPath) {
+        : m_inflator(WireInflator2D::construct(wireMeshPath)) {
             throw std::runtime_error("2D inflator is not yet configurable");
     }
 
@@ -82,7 +82,7 @@ public:
         throw std::runtime_error("Subdivision not supported in 2D");
     }
 
-    size_t numParameters() const { return m_inflator.patternGenerator().numberOfParameters(); }
+    size_t numParameters() const { return m_inflator->numberOfParameters(); }
 
     ParameterType parameterType(size_t p) const {
         ParameterType type;
@@ -100,14 +100,14 @@ public:
 
     void inflate(const std::vector<Real> &params) {
         assert(params.size() == numParameters());
-        CellParameters p_params = m_inflator.createParameters();
+        CellParameters p_params = m_inflator->createParameters();
         for (size_t i = 0; i < params.size(); ++i)
             p_params.parameter(i) = params[i];
 
-        if (!m_inflator.patternGenerator().parametersValid(p_params))
+        if (!m_inflator->parametersValid(p_params))
             throw runtime_error("Invalid parameters specified.");
         WireInflator2D::OutMeshType inflatedMesh;
-        m_inflator.generatePattern(p_params, m_tparams, inflatedMesh);
+        m_inflator->generatePattern(p_params, m_tparams, inflatedMesh);
 
         // Convert to MeshIO format
         clear();
@@ -156,7 +156,7 @@ public:
 
 private:
     // mutable because WireInflator2D doesn't have well-behaved constness
-    mutable WireInflator2D m_inflator;
+    mutable std::shared_ptr<WireInflator2D> m_inflator;
     TessellationParameters m_tparams;
     std::vector<ParameterOperation> m_paramOp;
     WireInflator2D::OutMeshType::EdgeFields m_edge_fields;
@@ -211,6 +211,7 @@ public:
     }
 
     void setReflectiveInflator(bool use) { m_useReflectiveInflator = use; }
+    void setDumpSurfaceMesh(bool dump = true) { m_dumpSurfaceMesh = dump; }
 
     // the printability check actually modifies the inflator's internal state,
     // so we can't mark this const.
@@ -272,7 +273,11 @@ private:
     PeriodicExploration m_inflator;
     bool m_useReflectiveInflator = true;
 
+    // Used for debugging when tetgen fails.
+    bool m_dumpSurfaceMesh = false;
+
     // Inflate the DoFs already stored in the inflator.
+    // (written to surface_debug.msh)
     void m_inflate_dofs() {
         if (m_dofOutPathPrefix != "") {
             m_inflator.save_dofs(m_dofOutPathPrefix + "_" +
@@ -280,6 +285,20 @@ private:
         }
 
         m_inflator.periodic_inflate(m_useReflectiveInflator);
+
+        if (m_dumpSurfaceMesh) {
+            // Debug surface mesh (for when tetgen fails)
+            std::vector<MeshIO::IOElement> triangles;
+            std::vector<MeshIO::IOVertex>  vertices;
+            MatrixFr verts = m_inflator.get_vertices();
+            MatrixIr facs = m_inflator.get_faces();
+            for (size_t i = 0; i < size_t(facs.rows()); ++i)
+                triangles.emplace_back(facs(i, 0), facs(i, 1), facs(i, 2));
+            for (size_t i = 0; i < size_t(verts.rows()); ++i)
+                vertices.emplace_back(Point3D(verts.row(i)));
+            MeshIO::save("surface_debug.msh", vertices, triangles);
+        }
+
         m_inflator.run_tetgen(m_maxElementVol);
 
         ++m_inflationCount;

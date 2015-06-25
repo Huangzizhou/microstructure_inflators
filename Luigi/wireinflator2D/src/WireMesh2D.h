@@ -430,4 +430,8 @@ protected:
 	}
 };
 
+// Morteza: use this to override symmetry orbits.
+template <class EMesh>
+class WireMesh2DMorteza : public WireMesh2D<EMesh> { };
+
 #endif // WIREMESH2D_H

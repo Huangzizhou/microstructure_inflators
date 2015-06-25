@@ -15,73 +15,53 @@
 #include <vcg/complex/algorithms/update/topology.h>
 #include <string>
 #include <strings.h>
+#include <memory>
 
-class WireInflator2D
-{
+template<template<class> class WMesh>
+class WireInflator2DImpl;
+
+class WireInflator2D {
 public:
-	typedef EdgeMeshPattern<TMesh, EMesh> PatternGen;
-	typedef OutMesh<2, 3>                 OutMeshType;
+	typedef OutMesh<2, 3>                        OutMeshType;
 
-	WireInflator2D(const std::string & edgeMeshPath)
-	    : m_pattern(edgeMeshPath)
+    template<template<class> class WMesh = WireMesh2D>
+    static std::shared_ptr<WireInflator2D> construct(const std::string &edgeMeshPath) {
+        return std::make_shared<WireInflator2DImpl<WMesh>>(edgeMeshPath);
+    }
+
+	virtual void generatePattern(const CellParameters & inP,
+	                             const TessellationParameters & inT,
+	                             OutMeshType & out,
+	                             bool genVelocityField = true) = 0;
+	virtual void generateTiledPattern(const Array2D<CellParameters *> & inP,
+                                      const TessellationParameters & inT,
+                                      OutMeshType & out) = 0;
+
+	/*!
+	 * \brief generateQuadsPattern generates a wiremesh pattern over a quad mesh.
+	 * \param nodes vector of nodes (coordinates)
+	 * \param elements vector of elements (node indices)
+	 * \param quadParameters the vector of cell parameters, one per quad.
+	 * \param inT the tessellation parameters
+	 * \param out the output mesh structure
+	 */
+	void generateQuadsPattern(const VectorF & nodes,
+	                          const VectorI & elements,
+	                          const std::vector<CellParameters> & quadParameters,
+	                          const TessellationParameters & inT,
+	                          OutMeshType & out,
+	                          bool averageThicknessOnBoundary = false)
 	{
-		;
-	}
-
-	WireInflator2D( EMesh & edgeMesh)
-	    : m_pattern(edgeMesh)
-	{
-		;
-	}
-
-	WireInflator2D( const VectorF & vertices, const VectorI & edges)
-	{
-		EMesh em;
-
-		bool ok = vectorsToEdgeMesh(vertices, edges, em);
+		PolyMesh pmesh;
+		bool ok = vectorsToPolyMesh(nodes, elements, pmesh);
 		if (!ok)
 		{
-			std::cout << "Invalid input wire-mesh."<< std::endl;
+			std::cout << "Unable to process."<< std::endl
+			          << "Input mesh is invalid." << std::endl;
 			return;
 		}
 
-		PatternGen pg(em);
-		m_pattern = pg;
-	}
-
-	void generatePattern(const CellParameters & inP,
-	                     const TessellationParameters & inT,
-	                     OutMeshType & out,
-	                     bool genVelocityField = true)
-	{
-		TMesh m;
-
-		m_pattern.params() = { inP, inT };
-
-		m_pattern.generate();
-		m_pattern.tessellate(m);
-
-		vcg::tri::Allocator<TMesh>::CompactEveryVector(m);
-
-		vcgMeshToOutMesh(out, m);
-
-		// compute edge velocity field
-		if (genVelocityField)
-			m_pattern.computeVelocityField(m, out.edge_fields);
-	}
-
-	void generateTiledPattern(const Array2D<CellParameters *> & inP, const TessellationParameters & inT, OutMeshType & out)
-	{
-		TMesh m;
-
-		m_pattern.params().tessellationParams = inT;
-
-		m_pattern.tile(inP);
-		m_pattern.tessellate(m);
-
-		vcg::tri::Allocator<TMesh>::CompactEveryVector(m);
-
-		vcgMeshToOutMesh(out, m);
+		generateQuadsPattern(pmesh, quadParameters, inT, out, averageThicknessOnBoundary);
 	}
 
 	/*!
@@ -123,156 +103,21 @@ public:
 		}
 	}
 
-	/*!
-	 * \brief generateQuadsPattern generates a wiremesh pattern over a quad mesh.
-	 * \param nodes vector of nodes (coordinates)
-	 * \param elements vector of elements (node indices)
-	 * \param quadParameters the vector of cell parameters, one per quad.
-	 * \param inT the tessellation parameters
-	 * \param out the output mesh structure
-	 */
-	void generateQuadsPattern(const VectorF & nodes,
-	                          const VectorI & elements,
-	                          const std::vector<CellParameters> & quadParameters,
-	                          const TessellationParameters & inT,
-	                          OutMeshType & out,
-	                          bool averageThicknessOnBoundary = false)
-	{
-		PolyMesh pmesh;
-		bool ok = vectorsToPolyMesh(nodes, elements, pmesh);
-		if (!ok)
-		{
-			std::cout << "Unable to process."<< std::endl
-			          << "Input mesh is invalid." << std::endl;
-			return;
-		}
+	virtual void generateQuadsPattern(PolyMesh & pmesh,
+	                                  const std::vector<CellParameters> & quadParameters,
+	                                  const TessellationParameters & inT,
+	                                  OutMeshType & out,
+	                                  bool averageThicknessOnBoundary = false) = 0;
 
-		generateQuadsPattern(pmesh, quadParameters, inT, out, averageThicknessOnBoundary);
-	}
+	virtual CellParameters createParameters(void) = 0;
 
-	void generateQuadsPattern(PolyMesh & pmesh,
-	                          const std::vector<CellParameters> & quadParameters,
-	                          const TessellationParameters & inT,
-	                          OutMeshType & out,
-	                          bool averageThicknessOnBoundary = false)
-	{
-		typedef PolyMeshUtils<PolyMesh> PMU;
+	virtual bool parametersValid(const CellParameters & params) const = 0;
+    virtual size_t numberOfParameters() const = 0;
+	virtual const std::vector<ParameterOperation> &getParameterOperations(void) const = 0;
+    
+    virtual ~WireInflator2D() { }
 
-		if (!PMU::isQuadMesh(pmesh))
-		{
-			std::cout << "Unable to process."<< std::endl
-			          << "Input mesh is not a quad mesh." << std::endl;
-			return;
-		}
-
-		if ((pmesh.FN() != int(quadParameters.size())))
-		{
-			std::cout << "Unable to process."<< std::endl
-			          << "Cells and parameters number mismatch." << std::endl;
-			return;
-		}
-
-		for (size_t i=0; i<quadParameters.size(); ++i)
-		{
-			if (quadParameters[i].numberOfParameters() != m_pattern.numberOfParameters())
-			{
-				std::cout << "Unable to process."<< std::endl
-				          << "Some quad has an invalid number of parameters." << std::endl;
-				return;
-			}
-		}
-
-		// copy parameters into per face attributes
-		auto faceParams = vcg::tri::Allocator<PolyMesh>::GetPerFaceAttribute<CellParameters>(pmesh, m_pattern.CellParametersAttributeName());
-		for (size_t i=0; i<pmesh.face.size(); ++i)
-		{
-			faceParams[i] = quadParameters[i];
-		}
-
-		// generate the triangulated mesh
-		TMesh m;
-
-		m_pattern.params().tessellationParams = inT;
-
-		m_pattern.generateFromQuads(pmesh, averageThicknessOnBoundary);
-		m_pattern.tessellate(m);
-
-		vcg::tri::Allocator<TMesh>::CompactEveryVector(m);
-
-		vcgMeshToOutMesh(out, m);
-	}
-
-
-	CellParameters createParameters(void)
-	{
-		return CellParameters(m_pattern.numberOfParameters());
-	}
-
-	const PatternGen & patternGenerator(void)
-	{
-		return m_pattern;
-	}
-
-private:
-	PatternGen m_pattern;
-
-	// convert vcg mesh to outmesh structure
-	static void vcgMeshToOutMesh(OutMeshType & out, TMesh & m)
-	{
-		typedef typename OutMeshType::IndexType Index;
-
-		// resize vectors
-		out.nodes.resize(m.vert.size());
-		out.elements.resize(m.face.size());
-		out.edge_fields.clear();
-
-		// fill in nodes
-		for (size_t i=0; i<m.vert.size(); ++i)
-		{
-			// node position
-			const TMesh::VertexType & v = m.vert[i];
-			out.nodes[i] = { {double(v.cP()[0]), double(v.cP()[1])} };
-		}
-
-		// fill in elements
-		for (size_t i=0; i<m.face.size(); ++i)
-		{
-			const TMesh::FaceType & f = m.face[i];
-			out.elements[i] = {
-			    { Index(vcg::tri::Index(m, f.cV(0))),
-			      Index(vcg::tri::Index(m, f.cV(1))),
-			      Index(vcg::tri::Index(m, f.cV(2))) }
-			};
-		}
-	}
-
-	static bool checkFileExt(const std::string & filePath, const std::string & ext)
-	{
-		int diff = (filePath.length() - ext.length());
-		if (diff < 0)
-			return false;
-
-		const char * cfile = filePath.c_str() + diff;
-		const char * cext  = ext.c_str();
-		return (strncasecmp(cfile , cext, ext.length()) == 0);
-	}
-
-	static bool loadQuadMsh(const std::string & file_name, VectorF & nodes, VectorI & elements)
-	{
-		try
-		{
-			MshLoader loader(file_name);
-			if (loader.get_nodes_per_element() != 4)
-				return false;
-
-			nodes    = loader.get_nodes();
-			elements = loader.get_elements();
-
-		} catch (MshLoader::ErrorCode e) { (void)e; return false; }
-
-		return true;
-	}
-
+protected:
 	static bool vectorsToPolyMesh(const VectorF & nodes, const VectorI & elements, PolyMesh & pmesh)
 	{
 		pmesh.Clear();
@@ -353,6 +198,208 @@ private:
 
 		return true;
 	}
+
+	// convert vcg mesh to outmesh structure
+	static void vcgMeshToOutMesh(OutMeshType & out, TMesh & m)
+	{
+		typedef typename OutMeshType::IndexType Index;
+
+		// resize vectors
+		out.nodes.resize(m.vert.size());
+		out.elements.resize(m.face.size());
+		out.edge_fields.clear();
+
+		// fill in nodes
+		for (size_t i=0; i<m.vert.size(); ++i)
+		{
+			// node position
+			const TMesh::VertexType & v = m.vert[i];
+			out.nodes[i] = { {double(v.cP()[0]), double(v.cP()[1])} };
+		}
+
+		// fill in elements
+		for (size_t i=0; i<m.face.size(); ++i)
+		{
+			const TMesh::FaceType & f = m.face[i];
+			out.elements[i] = {
+			    { Index(vcg::tri::Index(m, f.cV(0))),
+			      Index(vcg::tri::Index(m, f.cV(1))),
+			      Index(vcg::tri::Index(m, f.cV(2))) }
+			};
+		}
+	}
+
+	static bool checkFileExt(const std::string & filePath, const std::string & ext)
+	{
+		int diff = (filePath.length() - ext.length());
+		if (diff < 0)
+			return false;
+
+		const char * cfile = filePath.c_str() + diff;
+		const char * cext  = ext.c_str();
+		return (strncasecmp(cfile , cext, ext.length()) == 0);
+	}
+
+	static bool loadQuadMsh(const std::string & file_name, VectorF & nodes, VectorI & elements)
+	{
+		try
+		{
+			MshLoader loader(file_name);
+			if (loader.get_nodes_per_element() != 4)
+				return false;
+
+			nodes    = loader.get_nodes();
+			elements = loader.get_elements();
+
+		} catch (MshLoader::ErrorCode e) { (void)e; return false; }
+
+		return true;
+	}
+
+};
+
+
+template<template<class> class WMesh>
+class WireInflator2DImpl : public WireInflator2D
+{
+public:
+	typedef EdgeMeshPattern<TMesh, EMesh, WMesh> PatternGen;
+
+	WireInflator2DImpl(const std::string & edgeMeshPath)
+	    : m_pattern(edgeMeshPath)
+	{
+		;
+	}
+
+	WireInflator2DImpl( EMesh & edgeMesh)
+	    : m_pattern(edgeMesh)
+	{
+		;
+	}
+
+	WireInflator2DImpl( const VectorF & vertices, const VectorI & edges)
+	{
+		EMesh em;
+
+		bool ok = vectorsToEdgeMesh(vertices, edges, em);
+		if (!ok)
+		{
+			std::cout << "Invalid input wire-mesh."<< std::endl;
+			return;
+		}
+
+		PatternGen pg(em);
+		m_pattern = pg;
+	}
+
+	void generatePattern(const CellParameters & inP,
+	                     const TessellationParameters & inT,
+	                     OutMeshType & out,
+	                     bool genVelocityField = true)
+	{
+		TMesh m;
+
+		m_pattern.params() = { inP, inT };
+
+		m_pattern.generate();
+		m_pattern.tessellate(m);
+
+		vcg::tri::Allocator<TMesh>::CompactEveryVector(m);
+
+		vcgMeshToOutMesh(out, m);
+
+		// compute edge velocity field
+		if (genVelocityField)
+			m_pattern.computeVelocityField(m, out.edge_fields);
+	}
+
+	void generateTiledPattern(const Array2D<CellParameters *> & inP, const TessellationParameters & inT, OutMeshType & out)
+	{
+		TMesh m;
+
+		m_pattern.params().tessellationParams = inT;
+
+		m_pattern.tile(inP);
+		m_pattern.tessellate(m);
+
+		vcg::tri::Allocator<TMesh>::CompactEveryVector(m);
+
+		vcgMeshToOutMesh(out, m);
+	}
+
+	void generateQuadsPattern(PolyMesh & pmesh,
+	                          const std::vector<CellParameters> & quadParameters,
+	                          const TessellationParameters & inT,
+	                          OutMeshType & out,
+	                          bool averageThicknessOnBoundary = false)
+	{
+		typedef PolyMeshUtils<PolyMesh> PMU;
+
+		if (!PMU::isQuadMesh(pmesh))
+		{
+			std::cout << "Unable to process."<< std::endl
+			          << "Input mesh is not a quad mesh." << std::endl;
+			return;
+		}
+
+		if ((pmesh.FN() != int(quadParameters.size())))
+		{
+			std::cout << "Unable to process."<< std::endl
+			          << "Cells and parameters number mismatch." << std::endl;
+			return;
+		}
+
+		for (size_t i=0; i<quadParameters.size(); ++i)
+		{
+			if (quadParameters[i].numberOfParameters() != m_pattern.numberOfParameters())
+			{
+				std::cout << "Unable to process."<< std::endl
+				          << "Some quad has an invalid number of parameters." << std::endl;
+				return;
+			}
+		}
+
+		// copy parameters into per face attributes
+		auto faceParams = vcg::tri::Allocator<PolyMesh>::GetPerFaceAttribute<CellParameters>(pmesh, m_pattern.CellParametersAttributeName());
+		for (size_t i=0; i<pmesh.face.size(); ++i)
+		{
+			faceParams[i] = quadParameters[i];
+		}
+
+		// generate the triangulated mesh
+		TMesh m;
+
+		m_pattern.params().tessellationParams = inT;
+
+		m_pattern.generateFromQuads(pmesh, averageThicknessOnBoundary);
+		m_pattern.tessellate(m);
+
+		vcg::tri::Allocator<TMesh>::CompactEveryVector(m);
+
+		vcgMeshToOutMesh(out, m);
+	}
+
+
+	CellParameters createParameters(void)
+	{
+		return CellParameters(m_pattern.numberOfParameters());
+	}
+
+	const PatternGen & patternGenerator(void)
+	{
+		return m_pattern;
+	}
+
+	bool parametersValid(const CellParameters & params) const { return m_pattern.parametersValid(params); }
+    size_t numberOfParameters() const { return m_pattern.numberOfParameters(); }
+	const std::vector<ParameterOperation> &getParameterOperations(void) const { return m_pattern.getParameterOperations(); }
+
+    virtual ~WireInflator2DImpl() { }
+
+private:
+	PatternGen m_pattern;
+
+
 };
 
 #endif // WIREINFLATOR2D_H
