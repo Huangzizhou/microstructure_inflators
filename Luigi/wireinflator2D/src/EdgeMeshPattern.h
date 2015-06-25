@@ -87,15 +87,15 @@ private:
 };
 
 
-template <class TriMesh, class EMesh>
+template <class TriMesh, class EMesh, template<class> class WMesh>
 class EdgeMeshPattern : public Pattern2D<TriMesh>
 {
 public:
-	typedef WireMesh2D<EMesh>                  WireMesh;
-	typedef EdgeMeshPattern<TriMesh, EMesh>    ThisType;
-	typedef Pattern2D<TriMesh>                 BaseType;
-	typedef typename BaseType::ScalarType      ScalarType;
-	typedef typename BaseType::Coord2Type      Coord2Type;
+	typedef WMesh<EMesh>                              WireMesh;
+	typedef EdgeMeshPattern<TriMesh, EMesh, WMesh>    ThisType;
+	typedef Pattern2D<TriMesh>                        BaseType;
+	typedef typename BaseType::ScalarType             ScalarType;
+	typedef typename BaseType::Coord2Type             Coord2Type;
 
 	typedef typename EMesh::CoordType           ECoordType;
 	typedef typename EMesh::EdgeType            EEdgeType;

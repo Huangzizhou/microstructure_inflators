@@ -101,7 +101,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
-    set<string> solvers = {"gradient_descent", "bfgs", "lbfgs", "levenberg_marquardt"};
+    set<string> solvers = {"gradient_descent", "bfgs", "lbfgs", "levenberg_marquardt", "lm_bd_penalty", "levmar"};
     if (solvers.count(vm["solver"].as<string>()) == 0) {
         cout << "Illegal solver specified" << endl;
         fail = true;
@@ -202,6 +202,10 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     size_t niters = args["nIters"].as<size_t>();
     if (solver == "levenberg_marquardt")
         optimizer.optimize_lm(params, targetS, output);
+    else if (solver == "lm_bd_penalty")
+        optimizer.optimize_lm_bound_penalty(params, targetS, output);
+    else if (solver == "levmar")
+        optimizer.optimize_levmar(params, targetS, niters, output);
     else if (solver == "gradient_descent")
         optimizer.optimize_gd(params, targetS, niters,
                           args["step"].as<double>(), output);

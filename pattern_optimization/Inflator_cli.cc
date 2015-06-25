@@ -2,7 +2,9 @@
 // Inflator_cli.cc
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
-//      Provides a simple command line interface to the 3D inflator.
+//      Provides a simple command line interface to the 2D/3D inflator.
+//      Dimension defaults to 3D, but can be selected using the -DDIMENSION
+//      compiler flag.
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
@@ -76,6 +78,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("sub_algorithm,A", po::value<string>()->default_value("simple"), "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                             "maximum element volume parameter for wire inflator")
         ("fullCellInflator",                                              "use the full periodic inflator instead of the reflection-based one")
+        ("dumpSurfaceMesh",                                               "dump the surface mesh before running tetgen, (for debugging)")
         ;
 
     po::options_description cli_opts;
@@ -140,6 +143,7 @@ int main(int argc, const char *argv[])
                                   args["subdivide"].as<size_t>());
 
     inflator.setReflectiveInflator(args.count("fullCellInflator") == 0);
+    inflator.setDumpSurfaceMesh(args.count("dumpSurfaceMesh"));
 
     if (args.count("multiDoF")) {
         cout << "multiDoF mode--reading filenames from STDIN" << endl;

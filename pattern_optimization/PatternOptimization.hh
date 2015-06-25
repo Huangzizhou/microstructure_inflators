@@ -17,6 +17,7 @@
 #include <ceres/ceres.h>
 #include <glog/logging.h>
 #include <dlib/optimization.h>
+#include <levmar.h>
 
 #include <cassert>
 #include <memory>
@@ -216,6 +217,130 @@ public:
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
         std::cout << summary.BriefReport() << "\n";
+    }
+
+    // Enforce bound constraints with a penalty block instead of
+    // SetParameter{Upper,Lower}Bound
+    struct BoundPenalty : public ceres::CostFunction {
+        typedef ceres::CostFunction Base;
+        BoundPenalty(size_t p, double lower, double upper, size_t numParams)
+            : m_param(p), m_lower(lower), m_upper(upper) {
+            assert(m_param < numParams);
+            Base::set_num_residuals(1);
+            // There is only a single block of pattern parameters
+            Base::mutable_parameter_block_sizes()->assign(1, numParams);
+        }
+
+        // r = w * max(c^2 - 1, 0)
+        // where c = (2p - u - l) / (u - l)
+        virtual bool Evaluate(double const * const *parameters,
+                double *residuals, double **jacobians) const {
+            double p = parameters[0][m_param];
+            size_t nParams = parameter_block_sizes()[0];
+
+            double interval = m_upper - m_lower;
+            double c = (2 * p - m_upper - m_lower) / interval;
+            residuals[0] = m_weight * std::max(c * c - 1.0, 0.0);
+            if (jacobians == NULL) return true;
+            for (size_t i = 0; i < nParams; ++i) {
+                jacobians[0][i] = 0.0;
+            }
+            if ((p < m_lower) || (p > m_upper))
+                jacobians[0][m_param] = m_weight * (8 * p - 4 * (m_lower + m_upper)) / (interval * interval);
+            return true;
+        }
+
+        virtual ~BoundPenalty() { }
+
+    private:
+        size_t m_param;
+        double m_lower, m_upper;
+        double m_weight = 1e10;
+    };
+
+    void optimize_lm_bound_penalty(SField &params, const _ETensor &targetS,
+                  const string &outPath) {
+        TensorFitCost *fitCost = new TensorFitCost(m_inflator, targetS);
+        ceres::Problem problem;
+        problem.AddResidualBlock(fitCost, NULL, params.data());
+
+        size_t nParams = params.domainSize();
+        SField lowerBounds(nParams), upperBounds(nParams);
+        getParameterBounds(lowerBounds, upperBounds);
+        for (size_t p = 0; p < params.domainSize(); ++p) {
+            problem.AddResidualBlock(
+                    new BoundPenalty(p, lowerBounds[p], upperBounds[p], nParams),
+                    NULL, params.data());
+        }
+
+        ceres::Solver::Options options;
+        options.update_state_every_iteration = true;
+        IterationCallback cb(*fitCost, params, outPath);
+        options.callbacks.push_back(&cb);
+
+        ceres::Solver::Summary summary;
+        ceres::Solve(options, &problem, &summary);
+        std::cout << summary.BriefReport() << "\n";
+    }
+
+    struct LevmarEvaluator {
+        LevmarEvaluator(ConstrainedInflator<_N> &inflator, const _ETensor &targetS)
+            : m_inflator(inflator), m_targetS(targetS) { }
+
+        void residual(double *params, double *residual, int numParams, int numResiduals) {
+            m_iterate = getIterate(m_iterate, m_inflator, numParams, params, m_targetS);
+            size_t r = 0;
+            for (size_t i = 0; i < flatLen(_N); ++i)
+                for (size_t j = i; j < flatLen(_N); ++j)
+                    residual[r++] = m_iterate->residual(i, j);
+            assert(r == (size_t) numResiduals);
+        }
+    
+        // Row major Jacobian
+        void jacobian(double *params, double *jacobian, int numParams, int numResiduals) {
+            m_iterate = getIterate(m_iterate, m_inflator, numParams, params, m_targetS);
+            size_t r = 0;
+            for (size_t i = 0; i < flatLen(_N); ++i) {
+                for (size_t j = i; j < flatLen(_N); ++j) {
+                    for (size_t p = 0; p < numParams; ++p)
+                        jacobian[r * numParams + p] = m_iterate->jacobian(i, j, p);
+                    ++r;
+                }
+            }
+            assert(r == (size_t) numResiduals);
+        }
+
+        // Residual and Jacobian evaluation callbacks for levmar
+        // The Jacobian is stored row-major.
+        static void residual(double *params, double *residual, int numParams, int numResiduals, void *instance) { static_cast<LevmarEvaluator *>(instance)->residual(params, residual, numParams, numResiduals); }
+        static void jacobian(double *params, double *jacobian, int numParams, int numResiduals, void *instance) { static_cast<LevmarEvaluator *>(instance)->jacobian(params, jacobian, numParams, numResiduals); }
+
+        ConstrainedInflator<_N> &m_inflator;
+        _ETensor m_targetS;
+        std::shared_ptr<Iterate> m_iterate;
+    };
+
+    void optimize_levmar(SField &params, const _ETensor &targetS, size_t niters, const string &outName) {
+        size_t numResiduals = (_N == 2) ? 6 : 21;
+        size_t numParams = params.domainSize();
+        SField lowerBounds(numParams), upperBounds(numParams);
+        getParameterBounds(lowerBounds, upperBounds);
+
+        LevmarEvaluator eval(m_inflator, targetS);
+
+        double opts[LM_OPTS_SZ], info[LM_INFO_SZ];
+        opts[0]=LM_INIT_MU; opts[1]=1E-15; opts[2]=1E-15; opts[3]=1E-20;
+        opts[4]= LM_DIFF_DELTA; // relevant only if the Jacobian is approximated using finite differences; specifies forward differencing 
+        // TODO: add iteration completed callback.
+        dlevmar_bc_der(LevmarEvaluator::residual, LevmarEvaluator::jacobian,
+                       params.data(),
+                       NULL, // Since our "measurements" are actually residuals, target x is 0
+                       numParams, numResiduals,
+                       lowerBounds.data(), upperBounds.data(),
+                       NULL, // dscl--no diagonal scaling
+                       niters, opts, info, NULL, NULL, static_cast<void *>(&eval));
+        for (size_t i = 0; i < LM_INFO_SZ; ++i)
+            cout << info[i] << "\t";
     }
 
     void optimize_gd(SField &params, const _ETensor &targetS,
