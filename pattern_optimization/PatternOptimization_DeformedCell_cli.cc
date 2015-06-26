@@ -29,6 +29,8 @@
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/algorithm/string.hpp> // requiured for parsing jacobian
+
 
 #include "PatternOptimization.hh"
 #include "PatternOptimizationJob.hh"
@@ -36,6 +38,8 @@
 namespace po = boost::program_options;
 using namespace std;
 using namespace PatternOptimization;
+using namespace PeriodicHomogenization;
+
 
 void usage(int exitVal, const po::options_description &visible_opts) {
     cout << "Usage: PatternOptimization_cli [options] job.opt" << endl;
@@ -56,6 +60,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     visible_opts.add_options()("help",        "Produce this help message")
         ("pattern,p",    po::value<string>(), "Pattern wire mesh (.obj|wire)")
         ("material,m",   po::value<string>(), "base material")
+        ("jacobian,j",   po::value<string>()->default_value("1.0 0.0 0.0 1.0"),  "linear deformation")
+        ("final_mesh,f", po::value<string>(), "output .msh file name prefix")
         ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
         ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
         ("dofOut",       po::value<string>()->default_value(""),                 "output pattern dofs in James' format at each iteration (3D Only)")
@@ -95,6 +101,12 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
+    if (vm.count("final_mesh") == 0) {
+        cout << "Error: must specify output mesh name prefix" << endl;
+        fail = true;
+	}
+
+
     size_t d = vm["degree"].as<size_t>();
     if (d < 1 || d > 2) {
         cout << "Error: FEM Degree must be 1 or 2" << endl;
@@ -127,6 +139,61 @@ using ETensor = ElasticityTensor<Real, _N>;
 typedef ScalarField<Real> SField;
 
 template<size_t _N, size_t _FEMDegree>
+void execute_defCell(const po::variables_map args,
+                     const vector<MeshIO::IOVertex> inVertices,
+                     const vector<MeshIO::IOElement> inElements)
+{
+    auto &mat = HMG<_N>::material;
+    if (args.count("material")) mat.setFromFile(args["material"].as<string>());
+    typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh;
+    typedef LinearElasticity::Simulator<Mesh> Simulator;
+    typedef typename Simulator::VField VField;
+    Simulator sim(inElements, inVertices);
+    auto &mesh = sim.mesh();
+
+    // Parse jacobian.
+    vector<string> jacobianComponents;
+    string jacobianString = args["jacobian"].as<string>();
+    boost::trim(jacobianString);
+    boost::split(jacobianComponents, jacobianString, boost::is_any_of("\t "),
+                 boost::token_compress_on);
+    if (jacobianComponents.size() != _N * _N)
+        throw runtime_error("Invalid deformation jacobian");
+    Eigen::Matrix<Real, _N, _N> jacobian;
+    for (size_t i = 0; i < _N; ++i) {
+        for (size_t j = 0; j < _N; ++j) {
+            jacobian(i, j) = stod(jacobianComponents[_N * i + j]);
+        }
+    }
+
+    auto bbox = mesh.boundingBox();
+    VectorND<_N> center = 0.5 * (bbox.minCorner + bbox.maxCorner);
+    vector<MeshIO::IOVertex> deformedVertices;
+
+    for (size_t vi = 0; vi < mesh.numVertices(); ++vi) {
+        VectorND<_N> p = mesh.vertex(vi).node()->p;
+        deformedVertices.emplace_back((jacobian * (p - center) + center).eval());
+    }
+
+    //Real deformedCellVolume = bbox.volume() * jacobian.determinant();
+
+    vector<VField> w_ij;
+    // Morteza's transformation formulas
+    mat.setTensor(mat.getTensor().transform(jacobian.inverse()));
+    solveCellProblems(w_ij, sim);
+    auto EhDefo = homogenizedElasticityTensor(w_ij, sim).transform(jacobian);
+    cout << setprecision(16);
+    cout << "Elasticity tensor:" << endl;
+    cout << EhDefo << endl << endl;
+    cout << "Homogenized Moduli: ";
+    EhDefo.printOrthotropic(cout);
+    MeshIO::save(args["final_mesh"].as<string>()+"_ref.msh", inVertices, inElements);
+    MeshIO::save(args["final_mesh"].as<string>()+"_def.msh", deformedVertices, inElements);
+
+}
+
+
+template<size_t _N, size_t _FEMDegree>
 void execute(const po::variables_map &args, const Job<_N> *job)
 {
     shared_ptr<ConstrainedInflator<_N>> inflator_ptr;
@@ -151,7 +218,28 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     if (args.count("max_volume"))
         inflator.setMaxElementVolume(args["max_volume"].as<double>());
 
-    auto targetC = job->targetMaterial.getTensor();
+
+    std::cout << "numer of inflator parametrs is " << inflator.numParameters() << endl;
+
+    /////*** things needed for deformed cell optimization ***/////
+    // parse jacobian
+    vector<string> jacobianComponents;
+    string jacobianString = args["jacobian"].as<string>();
+    boost::trim(jacobianString);
+    boost::split(jacobianComponents, jacobianString, boost::is_any_of("\t "),
+                 boost::token_compress_on);
+    if (jacobianComponents.size() != _N * _N)
+        throw runtime_error("Invalid deformation jacobian");
+    Eigen::Matrix<Real, _N, _N> jacobian;
+    for (size_t i = 0; i < _N; ++i) {
+        for (size_t j = 0; j < _N; ++j) {
+            jacobian(i, j) = stod(jacobianComponents[_N * i + j]);
+        }
+    }
+
+
+    // use the deformed target C
+    auto targetC = job->targetMaterial.getTensor().transform(jacobian.inverse());
     ETensor<_N> targetS = targetC.inverse();
 
     cout << "Target moduli:\t";
@@ -223,6 +311,8 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     if (dofOut != "") inflator.writePatternDoFs(dofOut + ".final.dof", result);
     cout << endl;
 
+    cout << "writing down the undeformed and deformed final meshes." << endl;
+    execute_defCell<_N,_FEMDegree>(args, inflator.vertices(), inflator.elements());
 
     BENCHMARK_REPORT();
 }
