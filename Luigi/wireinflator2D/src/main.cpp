@@ -4,8 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 
-typedef WireInflator2D::PatternGen PatternGen;
-
+#if 0
 CellParameters rand_param(const PatternGen & pg)
 {
 	CellParameters p(pg.numberOfParameters());
@@ -27,23 +26,23 @@ int main(int argc, char* argv[])
 	}
 	static const std::string wireMeshPath(argv[1]);
 
-	WireInflator2D wi(wireMeshPath);
+    auto wi = WireInflator2D::construct(wireMeshPath);
 	WireInflator2D::OutMeshType mesh;
 
 	// single cell generations
 	{
 		TessellationParameters t_params;
-		CellParameters         p_params = wi.createParameters();
+		CellParameters         p_params = wi->createParameters();
 		std::cout << p_params.numberOfParameters() << " parameters" << std::endl;
 
 		for (size_t i=0; i<p_params.numberOfParameters(); ++i)
 		{
-			std::pair<double,double> range = wi.patternGenerator().getParameterRange(int(i));
+			std::pair<double,double> range = wi->patternGenerator().getParameterRange(int(i));
 			p_params.parameter(int(i)) = (range.first + range.second) / 2.0;
 		}
-		assert(wi.patternGenerator().parametersValid(p_params));
+		assert(wi->patternGenerator().parametersValid(p_params));
 
-		wi.generatePattern(p_params, t_params, mesh);
+		wi->generatePattern(p_params, t_params, mesh);
 	}
 
 	// tiled grid generation
@@ -59,11 +58,11 @@ int main(int argc, char* argv[])
 				grid(x,y) = ((double(rand()) / RAND_MAX) < 0.2) ? NULL : new CellParameters();
 				if (grid(x,y) != NULL)
 				{
-					*grid(x,y) = rand_param(wi.patternGenerator());
+					*grid(x,y) = rand_param(wi->patternGenerator());
 				}
 			}
 
-		wi.generateTiledPattern(grid, t_params, mesh);
+		wi->generateTiledPattern(grid, t_params, mesh);
 
 		for (int x=0; x<10; ++x)
 			for (int y=0; y<10; ++y)
@@ -83,10 +82,17 @@ int main(int argc, char* argv[])
 		std::vector<CellParameters> quadParams;
 		for (size_t i=0; i<15; ++i)
 		{
-			quadParams.push_back(rand_param(wi.patternGenerator()));
+			quadParams.push_back(rand_param(wi->patternGenerator()));
 		}
 
-		wi.generateQuadsPattern(quadMeshFile, quadParams, t_params, mesh, averageThicknessOnBoundary);
+		wi->generateQuadsPattern(quadMeshFile, quadParams, t_params, mesh, averageThicknessOnBoundary);
 	}
 	return 0;
 }
+#else
+
+int main() {
+    std::cout << "here" << std::endl;
+    return 0;
+}
+#endif

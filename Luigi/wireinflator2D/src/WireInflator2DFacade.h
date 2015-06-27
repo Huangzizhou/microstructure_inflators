@@ -17,7 +17,8 @@ class WireInflatorFacade {
 
     public:
         WireInflatorFacade(std::string wire_file) :
-            m_inflator(wire_file), m_rows(0), m_cols(0) {
+            m_rows(0), m_cols(0) {
+                m_inflator = WireInflator2D::construct(wire_file);
                 m_t_params.max_area = 0.001;
         }
 
@@ -26,8 +27,7 @@ class WireInflatorFacade {
         void set_dimension(size_t rows, size_t cols);
 
         size_t get_num_parameters() {
-            const WireInflator2D::PatternGen& pattern_gen = m_inflator.patternGenerator();
-            return pattern_gen.numberOfParameters();
+            return m_inflator->numberOfParameters();
         }
 
         ParameterType get_parameter_type(size_t i);
@@ -41,11 +41,11 @@ class WireInflatorFacade {
 
         void generate_periodic_pattern() {
             assert((*m_p_params)(0, 0) != NULL);
-            m_inflator.generatePattern(*(*m_p_params)(0, 0), m_t_params, m_mesh);
+            m_inflator->generatePattern(*(*m_p_params)(0, 0), m_t_params, m_mesh);
         }
 
         void generate_tiled_pattern() {
-            m_inflator.generateTiledPattern(*m_p_params, m_t_params, m_mesh);
+            m_inflator->generateTiledPattern(*m_p_params, m_t_params, m_mesh);
         }
 
         void generate_pattern_with_guide_mesh(
@@ -65,5 +65,5 @@ class WireInflatorFacade {
         TessellationParameters m_t_params;
         ParameterGridPtr  m_p_params;
         WireInflator2D::OutMeshType m_mesh;
-        WireInflator2D m_inflator;
+        WireInflator2D::Ptr m_inflator;
 };
