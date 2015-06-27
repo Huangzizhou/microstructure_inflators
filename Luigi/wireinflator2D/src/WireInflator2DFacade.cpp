@@ -28,7 +28,7 @@ void WireInflatorFacade::set_dimension(size_t rows, size_t cols) {
 }
 
 WireInflatorFacade::ParameterType WireInflatorFacade::get_parameter_type(size_t i) {
-    const ParameterOperation& param_op = m_inflator.patternGenerator().getParameterOperations()[i];
+    const ParameterOperation& param_op = m_inflator->getParameterOperations()[i];
     switch (param_op.type) {
         case ParameterOperation::Radius:
             return THICKNESS;
@@ -41,7 +41,7 @@ WireInflatorFacade::ParameterType WireInflatorFacade::get_parameter_type(size_t 
 
 VectorI WireInflatorFacade::get_affected_vertex_orbit(size_t i) {
     VectorI vertex_orbit;
-    const ParameterOperation& param_op = m_inflator.patternGenerator().getParameterOperations()[i];
+    const ParameterOperation& param_op = m_inflator->getParameterOperations()[i];
     size_t count = 0;
     switch (param_op.type) {
         case ParameterOperation::Radius:
@@ -63,7 +63,7 @@ VectorI WireInflatorFacade::get_affected_vertex_orbit(size_t i) {
 }
 
 MatrixF WireInflatorFacade::get_offset_direction(size_t i) {
-    const ParameterOperation& param_op = m_inflator.patternGenerator().getParameterOperations()[i];
+    const ParameterOperation& param_op = m_inflator->getParameterOperations()[i];
     if (param_op.type == ParameterOperation::Translation) {
         const size_t num_nodes = param_op.nodes_displ.size();
         MatrixF offset_dir(num_nodes, 2);
@@ -94,21 +94,12 @@ void WireInflatorFacade::set_parameter(size_t row, size_t col, const VectorF& pa
         err_msg << "Out of bound: " << col << " >= " << m_cols;
         throw RuntimeError(err_msg.str());
     }
-    const WireInflator2D::PatternGen& pattern_gen = m_inflator.patternGenerator();
-    CellParameters* p = new CellParameters(pattern_gen.numberOfParameters());
 
-    const size_t num_param = p->numberOfParameters();
+    const size_t num_param = m_inflator->numberOfParameters();
+    CellParameters* p = new CellParameters(m_inflator->numberOfParameters());
+
     for (size_t i=0; i<num_param; i++) {
-        std::pair<double, double> range = pattern_gen.getParameterRange(i);
-        if (param[i] >= range.first && param[i] <= range.second) {
-            p->parameter(i) = param[i];
-        } else {
-            std::stringstream err_msg;
-            err_msg << "param " << i << "=" << param[i]
-                << " is out of range ["
-                << range.first << ", " << range.second << "]";
-            throw RuntimeError(err_msg.str());
-        }
+        p->parameter(i) = param[i];
     }
 
     (*m_p_params)(col, row) = p;
@@ -120,28 +111,17 @@ void WireInflatorFacade::generate_pattern_with_guide_mesh(
     const size_t num_cells = raw_parameters.rows();
     const size_t num_params = get_num_parameters();
     assert(raw_parameters.cols() == num_params);
-    const WireInflator2D::PatternGen& pattern_gen = m_inflator.patternGenerator();
 
     ParameterVector parameters(num_cells);
     for (size_t i=0; i<num_cells; i++) {
         const VectorF& param = raw_parameters.row(i);
         parameters[i] = CellParameters(num_params);
         for (size_t j=0; j<num_params; j++) {
-            std::pair<double, double> range = pattern_gen.getParameterRange(j);
-            if (param[j] >= range.first && param[j] <= range.second) {
-                parameters[i].parameter(j) = param[j];
-            } else {
-                std::stringstream err_msg;
-                err_msg << "param " << j << "=" << param[j]
-                    << " of cell " << i
-                    << " is out of range ["
-                    << range.first << ", " << range.second << "]";
-                throw RuntimeError(err_msg.str());
-            }
+            parameters[i].parameter(j) = param[j];
         }
     }
 
-    m_inflator.generateQuadsPattern(vertices, faces, parameters, m_t_params, m_mesh);
+    m_inflator->generateQuadsPattern(vertices, faces, parameters, m_t_params, m_mesh);
 }
 
 VectorF WireInflatorFacade::get_vertices() {

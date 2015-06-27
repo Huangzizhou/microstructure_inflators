@@ -22,10 +22,11 @@ class WireInflator2DImpl;
 
 class WireInflator2D {
 public:
+    typedef std::shared_ptr<WireInflator2D> Ptr;
 	typedef OutMesh<2, 3>                        OutMeshType;
 
     template<template<class> class WMesh = WireMesh2D>
-    static std::shared_ptr<WireInflator2D> construct(const std::string &edgeMeshPath) {
+    static Ptr construct(const std::string &edgeMeshPath) {
         return std::make_shared<WireInflator2DImpl<WMesh>>(edgeMeshPath);
     }
 
