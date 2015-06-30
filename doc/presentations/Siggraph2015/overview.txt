@@ -1,0 +1,8 @@
+Intro/Motivation                    Julian
+Periodic Homogenization             Julian
+Wire Model + Pattern Enumeration    James
+    (Cubic symmetry, printability constraints,
+     tileability)
+Pattern Optimization + results      Julian
+Material Optimization               James
+Printed results + experiments       James
