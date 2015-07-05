@@ -49,6 +49,18 @@ class ParameterHandler2D(object):
                         "Unknown parameter type: {}".format(param_type));
         return target_parameters;
 
+    def parse_raw_luigi_param(self, **kwargs):
+        num_params = self.inflator.get_num_parameters();
+        print(num_params);
+        params = np.zeros(num_params);
+        for i in range(num_params):
+            param_name = "dof_{}".format(i);
+            if param_name not in kwargs:
+                raise RuntimeError("Cannot extract param {} from quad mesh".format(i));
+            params[i] = kwargs[param_name];
+        return params;
+
+
     def __evaluate_formula(self, parameters, **kwargs):
         formulas = parameters.raw_parameters.get_formulas();
         values = parameters.dofs;
