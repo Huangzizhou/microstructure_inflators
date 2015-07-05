@@ -44,7 +44,7 @@ class WireInflator2D(object):
         self.inflator.set_max_triangle_area(0.001);
         self.inflator.generate_tiled_pattern();
 
-    def tile_quad_mesh(self, quad_mesh):
+    def tile_quad_mesh(self, quad_mesh, extract_luigi_raw_param=True):
         num_cells = quad_mesh.get_num_faces();
         attribute_names = [];
         attribute_values = [];
@@ -66,8 +66,12 @@ class WireInflator2D(object):
         for i in range(num_cells):
             area = areas[i];
             scale_factor = sqrt(area);
-            p = self.parameter_handler.convert_to_flattened_parameters(
-                    self.parameters, **attribute_dict[i]);
+            if extract_luigi_raw_param:
+                p = self.parameter_handler.parse_raw_luigi_param(
+                        **attribute_dict[i]);
+            else:
+                p = self.parameter_handler.convert_to_flattened_parameters(
+                        self.parameters, **attribute_dict[i]);
             self.__scale_thickness_parameters(p, 1.0);
             parameters.append(p);
         parameters = np.array(parameters, order="C");
