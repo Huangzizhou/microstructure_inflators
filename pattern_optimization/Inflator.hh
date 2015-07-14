@@ -69,6 +69,17 @@ public:
         setMaxElementVolume(0.0001);
     }
 
+    // MHS JUL14, 2015: 
+    // A new constructor that takes in "const int symmetryMode" 
+    // as its last parameter to pass to WireMesh2DMorteza 
+    Inflator(const std::string &wireMeshPath, const int symmetryMode)
+        : m_inflator(WireInflator2D::construct<WireMesh2DMorteza>(wireMeshPath, symmetryMode))
+    {
+        m_paramOp = m_inflator->getParameterOperations();
+        setMaxElementVolume(0.0001);
+    }
+
+
     Inflator(const std::string &wireMeshPath,
              Real cell_size, Real default_thickness = 0.5 * sqrt(2),
              bool isotropic_params = false, bool vertex_thickness = false)
