@@ -141,7 +141,8 @@ typedef ScalarField<Real> SField;
 template<size_t _N, size_t _FEMDegree>
 void execute_defCell(const po::variables_map args,
                      const vector<MeshIO::IOVertex> inVertices,
-                     const vector<MeshIO::IOElement> inElements)
+                     const vector<MeshIO::IOElement> inElements,
+                     const Job<_N> *job)
 {
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
@@ -185,11 +186,19 @@ void execute_defCell(const po::variables_map args,
     cout << setprecision(16);
     cout << "Elasticity tensor:" << endl;
     cout << EhDefo << endl << endl;
+    cout << "and its anisotropy is: " << EhDefo.anisotropy() << endl;
     cout << "Homogenized Moduli: ";
     EhDefo.printOrthotropic(cout);
     MeshIO::save(args["final_mesh"].as<string>()+"_ref.msh", inVertices, inElements);
     MeshIO::save(args["final_mesh"].as<string>()+"_def.msh", deformedVertices, inElements);
 
+
+	// printing out the target C
+    auto targetC = job->targetMaterial.getTensor();
+
+	cout << "target Moduli was: " << endl;
+	cout << targetC << endl;
+	cout << "and its anisotropy is: " << targetC.anisotropy() << endl;
 }
 
 
@@ -200,7 +209,8 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     if (_N == 2) {
         inflator_ptr = make_shared<ConstrainedInflator<_N>>(
                 job->parameterConstraints,
-                args["pattern"].as<string>());
+                args["pattern"].as<string>(),
+                3); // MHS JUL14, 2015: the last parameter is a symmetryMode (see the corresponding constructor in Inflator.hh for more details)
     }
     else {
         inflator_ptr = make_shared<ConstrainedInflator<_N>>(
@@ -264,6 +274,9 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
+    // Morteza's transformation formulas
+    mat.setTensor(mat.getTensor().transform(jacobian.inverse()));
+
     string dofOut = args["dofOut"].as<string>();
     if (dofOut != "")
         inflator.setDoFOutputPrefix(dofOut);
@@ -312,7 +325,7 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     cout << endl;
 
     cout << "writing down the undeformed and deformed final meshes." << endl;
-    execute_defCell<_N,_FEMDegree>(args, inflator.vertices(), inflator.elements());
+    execute_defCell<_N,_FEMDegree>(args, inflator.vertices(), inflator.elements(), job);
 
     BENCHMARK_REPORT();
 }
