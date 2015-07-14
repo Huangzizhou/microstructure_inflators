@@ -4,8 +4,10 @@
 #include <vcg/complex/complex.h>
 #include <vcg/complex/algorithms/update/topology.h>
 #include <vcg/complex/algorithms/update/flag.h>
-
+#include <Eigen/Dense>
+#include <Eigen/Eigenvalues>
 #include <cstdlib>
+#include <math.h>
 
 template <class EMesh, class PolyMesh>
 class WireMeshEmbedding
@@ -141,6 +143,110 @@ private:
 			vi->P()[2] = 0;
 		}
 	}
+
+	// MHS on JUL14, 2015:
+	// This method returns the deformation corresponding to the equivalent parallelogram for each
+	// bilinear quad in the quad mesh.
+	// TODO: maybe you should make this public so that you can call it from outside ...
+	// TODO: there are a lot of cout statements for debug purposes that should be deleted later ...
+	static void getDefs(PolyMesh & pmesh)
+	{
+		for (auto fc = pmesh.face.begin(); fc != pmesh.face.end(); fc++)
+		{
+
+			/* PCoordType myV1 = fc->cP(1) - fc->cP(0); */
+			/* PCoordType myV2 = fc->cP(2) - fc->cP(1); */
+
+			/* double crossProduct = myV1[0] * myV2[1] - myV1[1] * myV2[0]; */
+
+			/* cout << endl; */
+			/* if (crossProduct > 0) */
+			/* 	cout << "CCW" << endl; */
+			/* else */ 
+			/* 	cout << "CW" << endl; */
+
+			/* cout << fc->cP(0)[0] << ", " << fc->cP(0)[1] << endl; */
+			/* cout << fc->cP(1)[0] << ", " << fc->cP(1)[1] << endl; */
+			/* cout << fc->cP(2)[0] << ", " << fc->cP(2)[1] << endl; */
+			/* cout << fc->cP(3)[0] << ", " << fc->cP(3)[1] << endl; */
+
+
+			
+			/* char lowerLeftVertIndx = 0; */
+			/* for (int i = 1; i < fc->VN(); i++) */
+			/* 	if (fc->cP(i)[0] <= fc->cP(lowerLeftVertIndx)[0] && */ 
+			/* 		fc->cP(i)[1] <= fc->cP(lowerLeftVertIndx)[1]) */
+			/* 		lowerLeftVertIndx = i; */
+
+			/* cout << endl << "lower left vertex id is ..." << lowerLeftVertIndx << endl; */
+
+
+			/* PCoordType p1 = fc->cP((lowerLeftVertIndx + 2)%4); */
+			/* PCoordType p2 = fc->cP((lowerLeftVertIndx + 3)%4); */
+			/* PCoordType p3 = fc->cP((lowerLeftVertIndx + 0)%4); */
+			/* PCoordType p4 = fc->cP((lowerLeftVertIndx + 1)%4); */
+
+			PCoordType p1 = fc->cP(0);
+			PCoordType p2 = fc->cP(1);
+			PCoordType p3 = fc->cP(2);
+			PCoordType p4 = fc->cP(3);
+
+			// Explain how the equivalent parallelograms are computed:
+			// refer to the corresponding paper
+			// assume face vertices are defined in a clock-wise manner ... 
+			// note that in the paper it is counter-clock-wise ...
+			
+			PCoordType p1_equivalent = (p1 + p1 + p1) / 4.0 + (p2 - p3 + p4) / 4.0; 
+			PCoordType p2_equivalent = (p2 + p2 + p2) / 4.0 + (p3 - p4 + p1) / 4.0;
+			PCoordType p3_equivalent = (p3 + p3 + p3) / 4.0 + (p4 - p1 + p2) / 4.0;
+			PCoordType p4_equivalent = (p4 + p4 + p4) / 4.0 + (p1 - p2 + p3) / 4.0;
+
+			PCoordType alpha = (p2_equivalent - p3_equivalent); //  / 2.0 by construction but this is droped because the undefored cell in the above papers calculations has size 2;
+			PCoordType beta  = (p4_equivalent - p3_equivalent); //  / 2.0;
+			
+
+			/* cout << endl << endl; */
+			/* //cout << "Face Vertices of the Original Quads:------" << endl; */
+			/* cout << p1[0] << ", " << p1[1] << endl; */
+			/* cout << p2[0] << ", " << p2[1] << endl; */
+			/* cout << p3[0] << ", " << p3[1] << endl; */
+			/* cout << p4[0] << ", " << p4[1] << endl; */
+
+			/* //cout << "Face Vertices of the Equivalent Quads:------" << endl; */
+			/* cout << p1_equivalent[0] << ", " << p1_equivalent[1] << endl; */
+			/* cout << p2_equivalent[0] << ", " << p2_equivalent[1] << endl; */
+			/* cout << p3_equivalent[0] << ", " << p3_equivalent[1] << endl; */
+			/* cout << p4_equivalent[0] << ", " << p4_equivalent[1] << endl; */
+
+			/* cout << endl << endl; */
+
+			Eigen::Matrix<double, 2, 2> jacobian;
+			jacobian(0, 0) = alpha[0];
+			jacobian(0, 1) = beta[0];
+			jacobian(1, 0) = alpha[1];
+			jacobian(1, 1) = beta[1];
+
+			/* double maxElement = jacobian.array().abs().matrix().maxCoeff(); */
+			/* jacobian = jacobian / maxElement; */
+
+			jacobian = jacobian / sqrt(jacobian.determinant());
+
+			cout  << jacobian(0, 0) << "\t" << jacobian(0, 1) << "\t" << jacobian(1, 0) << "\t" << jacobian(1, 1) << endl; 
+
+			/*
+			cout << endl << " F is ... " << endl << jacobian << endl;
+			cout << endl << " F^T F is ... " << endl << jacobian.transpose() * jacobian << endl;
+			cout << endl << " U is ... " << endl << stretch << endl;
+			cout << endl << " U^2 is ... " << endl << stretch * stretch << endl;
+
+			cout << endl << "sanity check FTF - U2 is ... " << endl << (jacobian.transpose() * jacobian - stretch * stretch) << endl;
+
+			cout << "----------" << endl << endl;
+			*/
+
+		}
+	}
+
 
 	static void createParametrization(PolyMesh & pmesh)
 	{
