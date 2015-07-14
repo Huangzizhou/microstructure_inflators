@@ -30,6 +30,14 @@ public:
         return std::make_shared<WireInflator2DImpl<WMesh>>(edgeMeshPath);
     }
 
+	// MHS on JUL14, 2015:
+	// A new constructor that takes "const int symmetryMode" 
+	// to pass to WireMesh2DMorteza
+	template<template<class> class WMesh = WireMesh2D>
+    static Ptr construct(const std::string &edgeMeshPath, const int symmetryMode) {
+        return std::make_shared<WireInflator2DImpl<WMesh>>(edgeMeshPath, symmetryMode);
+    }
+
 	virtual void generatePattern(const CellParameters & inP,
 	                             const TessellationParameters & inT,
 	                             OutMeshType & out,
@@ -268,6 +276,15 @@ public:
 
 	WireInflator2DImpl(const std::string & edgeMeshPath)
 	    : m_pattern(edgeMeshPath)
+	{
+		;
+	}
+
+	// MHS JUL14, 2015: 
+	// A new constructor that takes in "const int symmetryMode" 
+	// to pass to WireMesh2DMorteza
+	WireInflator2DImpl(const std::string & edgeMeshPath, const int symmetryMode)
+	    : m_pattern(edgeMeshPath, symmetryMode)
 	{
 		;
 	}

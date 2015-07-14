@@ -148,6 +148,19 @@ public:
 		this->setup();
 	}
 
+	// MHS on JUL14, 2015: 
+	// This is a new constructor that passes the symmetryMode to WireMesh2D
+	// *** Added "setSymmetrymode" member function to both WireMesh2D and WireMesh2DMorteza
+	EdgeMeshPattern(const std::string & edgeMeshPath, const int symmetryMode)
+		: m_wire(edgeMeshPath, symmetryMode)
+	{
+		assert(m_wire.isValid());
+		this->setup();
+	}
+
+
+
+
 	TessellatorSettings & getTessellationSettings(void)
 	{
 		return m_tri_settings;
