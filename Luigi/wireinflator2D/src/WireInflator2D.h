@@ -20,6 +20,13 @@
 template<template<class> class WMesh>
 class WireInflator2DImpl;
 
+// This is now an abstract base class so that we can dynamically choose between
+// different WMesh template parameters (see WireInflator2DImpl) in the calling
+// code.
+// 
+// This change was made so that Morteza could create an inflator with one WMesh
+// type when his deformed cells experienced small shearing and a different WMesh
+// type in the large shearing regime.
 class WireInflator2D {
 public:
     typedef std::shared_ptr<WireInflator2D> Ptr;
@@ -118,11 +125,13 @@ public:
 	                                  OutMeshType & out,
 	                                  bool averageThicknessOnBoundary = false) = 0;
 
-	virtual CellParameters createParameters(void) = 0;
+	CellParameters createParameters(void) const { return CellParameters(this->numberOfParameters()); }
+
 
 	virtual bool parametersValid(const CellParameters & params) const = 0;
     virtual size_t numberOfParameters() const = 0;
 	virtual const std::vector<ParameterOperation> &getParameterOperations(void) const = 0;
+	virtual std::pair<double,double> getParameterRange(int i) const = 0;
     
     virtual ~WireInflator2D() { }
 
@@ -398,11 +407,6 @@ public:
 	}
 
 
-	CellParameters createParameters(void)
-	{
-		return CellParameters(m_pattern.numberOfParameters());
-	}
-
 	const PatternGen & patternGenerator(void)
 	{
 		return m_pattern;
@@ -411,6 +415,7 @@ public:
 	bool parametersValid(const CellParameters & params) const { return m_pattern.parametersValid(params); }
     size_t numberOfParameters() const { return m_pattern.numberOfParameters(); }
 	const std::vector<ParameterOperation> &getParameterOperations(void) const { return m_pattern.getParameterOperations(); }
+	std::pair<double,double> getParameterRange(int i) const { return m_pattern.getParameterRange(i); }
 
     virtual ~WireInflator2DImpl() { }
 

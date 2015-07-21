@@ -765,6 +765,8 @@ protected:
 		}
 		ClipperLib::PolyTree pt;
 		clip.Clear();
+        // WARNING: CLIPPER MUST BE COMPILED WITH use_lines DEFINED FOR OPEN
+        // PATHS LIKE THIS TO WORK.
 		clip.AddPaths(tmp, ClipperLib::ptSubject, false);
 		clip.AddPaths(profile, ClipperLib::ptClip, true);
 		clip.Execute(ClipperLib::ctIntersection, pt, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
