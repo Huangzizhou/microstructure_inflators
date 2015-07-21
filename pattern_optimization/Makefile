@@ -29,10 +29,10 @@ OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_
 
 TARGETS=PatternOptimization_cli CreateJob RandomJob SpacedJob GradientComponentValidation Inflator_cli Inflator2D_cli ParamRegion_cli
 
-INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem -I$(CLIPPER_PATH)/include -isystem $(VCG_INC) -isystem $(DLIB_INC) -I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools -I$(LEVMAR_INC)
+INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem -I$(CLIPPER_PATH)/include -isystem $(VCG_INC) -isystem $(DLIB_INC) -I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
 LIBS+=-L$(CLIPPER_PATH)/lib -lpolyclipping -L/$(PYMESH_PATH)/lib -lwires
 LIBS+=-L$(TRIANGLE_PATH) -ltriangle
-LIBS+=$(LEVMAR_LIB)/liblevmar.a
+LIBS+=$(HOME)/Research/libraries/levmar-2.6/build/liblevmar.a
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DBENCHMARK
 CPPFLAGS+=-O2
 # CPPFLAGS+=-O0 -g
