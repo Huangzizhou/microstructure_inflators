@@ -14,7 +14,10 @@
 #include <Materials.hh>
 #include <PeriodicHomogenization.hh>
 #include "GlobalBenchmark.hh"
-
+// I thought these are needed to call static functions from WireMesh2D.h, but they are not!
+//#include "EdgeMeshUtils.h"
+//#include "WireMesh2D.h"
+#include "EdgeMeshType.h"
 #include "Inflator.hh"
 
 #include <vector>
@@ -62,6 +65,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("material,m",   po::value<string>(), "base material")
         ("jacobian,j",   po::value<string>()->default_value("1.0 0.0 0.0 1.0"),  "linear deformation")
         ("final_mesh,f", po::value<string>(), "output .msh file name prefix")
+        ("sym",          po::value<int>()->default_value(0), "symmetry mode")
+        ("sym_new",      po::value<int>()->default_value(1), "new symmetry mode")
         ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
         ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
         ("dofOut",       po::value<string>()->default_value(""),                 "output pattern dofs in James' format at each iteration (3D Only)")
@@ -74,6 +79,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
         ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
+        ("initialPs,i",  po::value<string>()->default_value(""),                 "initial parameters of the pattern")
         ;
 
     po::options_description cli_opts;
@@ -199,6 +205,27 @@ void execute_defCell(const po::variables_map args,
 	cout << "target Moduli was: " << endl;
 	cout << targetC << endl;
 	cout << "and its anisotropy is: " << targetC.anisotropy() << endl;
+
+
+	// targetC - C
+	cout << "printing C-Diff:" << endl;
+	ETensor<_N> finC = EhDefo;
+	ETensor<_N> tarC = targetC;
+	ETensor<_N> diffC = finC - tarC;
+
+	cout << diffC << endl;
+	cout << "its norm is: " << diffC.quadrupleContract(diffC) / 2.0 << endl;
+	
+
+	// targetS - S
+	cout << "printing S-Diff:" << endl;
+	ETensor<_N> finS = EhDefo.inverse();
+	ETensor<_N> tarS = targetC.inverse();
+	ETensor<_N> diffS = finS - tarS;
+
+	cout << diffS << endl;
+	cout << "its norm is: " << diffS.quadrupleContract(diffS) / 2.0 << endl;
+	
 }
 
 
@@ -210,7 +237,7 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         inflator_ptr = make_shared<ConstrainedInflator<_N>>(
                 job->parameterConstraints,
                 args["pattern"].as<string>(),
-                3); // MHS JUL14, 2015: the last parameter is a symmetryMode (see the corresponding constructor in Inflator.hh for more details)
+                args["sym"].as<int>()); // MHS JUL14, 2015: the last parameter is a symmetryMode (see the corresponding constructor in Inflator.hh for more details)
     }
     else {
         inflator_ptr = make_shared<ConstrainedInflator<_N>>(
@@ -281,7 +308,29 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     if (dofOut != "")
         inflator.setDoFOutputPrefix(dofOut);
 
-    SField params(job->initialParams);
+	// MHS on JUL16, 2015:
+	// initialize the parameters by the cli input if cli[i]!= ""
+	// and                       by job->initialParams otherwise
+   	SField params(job->initialParams);
+	if (args["initialPs"].as<string>() != "")
+	{
+		vector<string> inputParams;
+    	string inputParamsString = args["initialPs"].as<string>();
+   	 	boost::trim(inputParamsString);
+    	boost::split(inputParams, inputParamsString, boost::is_any_of("\t "),
+        	         boost::token_compress_on);
+
+		if (params.domainSize() != inputParams.size())
+			throw runtime_error("Invalid number of initial parameters.");
+		else
+		{    
+			for (int i = 0; i < inputParams.size(); ++i)
+				params[i] = stod(inputParams[i]);
+		}
+	}
+	cout << endl << params << endl;
+
+
     for (const auto &boundEntry : job->varLowerBounds) {
         if (boundEntry.first > params.domainSize())
             cerr << "WARNING: bound on nonexistent variable" << endl;
@@ -323,6 +372,12 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     }
     if (dofOut != "") inflator.writePatternDoFs(dofOut + ".final.dof", result);
     cout << endl;
+
+	std::vector<double> newParams = WireMesh2DMorteza<EMesh>::generateNewParameters(args["sym"].as<int>(), args["sym_new"].as<int>(), result, args["pattern"].as<string>());
+	cout << endl << "----------" << endl << "printing out the new list of paramerrs:" << endl;
+	for (size_t i = 0; i < newParams.size(); ++i)
+		cout << newParams[i] << "\t";
+	cout << endl << "----------" << endl << endl;
 
     cout << "writing down the undeformed and deformed final meshes." << endl;
     execute_defCell<_N,_FEMDegree>(args, inflator.vertices(), inflator.elements(), job);
