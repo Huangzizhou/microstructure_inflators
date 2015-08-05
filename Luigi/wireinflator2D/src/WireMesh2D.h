@@ -1231,11 +1231,11 @@ protected:
 			case 0: // no symmetry
 				metaEM.addBaseSymmetry();
 				break;
-			case 1: // symmetry about x = 0 only 
+			case 1: // symmetry about y = 0 (or x-axis) only 
 				metaEM.addUpDownSymmetry();
 				metaEM.addBaseSymmetry();
 				break;
-			case 2: // symmetry about y = 0 only
+			case 2: // symmetry about x = 0 (or y-axis) only
 				metaEM.addLeftRightSymmetry();
 				metaEM.addBaseSymmetry();
 				break;
