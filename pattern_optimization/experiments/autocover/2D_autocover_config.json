@@ -1,0 +1,9 @@
+{
+    "dim": 2,
+    "pattern": 0,
+    "material": "b9creator",
+    "targetERange": [0.15, 85.0],
+    "targetNuRange": [0.0, 0.95],
+    "targetNSubdiv": 40,
+    "numIters": 5
+}
