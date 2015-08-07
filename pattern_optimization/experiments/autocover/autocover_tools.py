@@ -11,9 +11,10 @@ def materialSpaceGrid(dim, approxERange, approxNuRange, targetNSubdiv):
     if (len(approxERange) != 2 or len(approxNuRange) != 2):
         raise Exception("Invalid approximate material property ranges")
     logESpace, nuSpacing = spacing(approxERange, approxNuRange, targetNSubdiv)
+    # Constrain nu to a range where the elasticity tensor is positive definite
     nuMin = -1.0
     nuMax =  0.5 if dim == 3 else 1.0
-    return Grid(logESpace, nuSpacing, nuMin, nuMax)
+    return Grid(logESpace, nuSpacing, nuMin + 1e-3, nuMax - 1e-3)
 
 # Create a PatternOptimization instance filled with jobs to expand the 
 # current frontier (and fill in holes) of a given lookup table.
@@ -55,6 +56,12 @@ def coverageExpansionOptimizer(dim, pat, mat, lut, grid, constraints):
         targetE, targetNu = grid.pointAtIndices(*pt)
         lutPointDists = norm(tableUnroundedIndices - pt, axis=1)
         order = np.argsort(lutPointDists)
+        # Skip gridpoints too far away from existing points
+        # (so coverage grows outword more smoothly, and we don't waste time
+        # trying to hit unreachable regions)
+        if (lutPointDists[order[0]] > 2):
+            continue
+
         # TODO: take N closest points that are within some minimal distance of each other.
         startLUTIndices = np.unique([order[0],
                                      order[min(math.ceil(0.05 * len(order)), len(order) - 1)],
@@ -63,6 +70,7 @@ def coverageExpansionOptimizer(dim, pat, mat, lut, grid, constraints):
     return opt
 
 def roundName(i): return "round_%04i" % i
+def roundDirectory(i): return roundName(i)
 def roundLUTPath(i): return roundName(i) + '.txt'
 
 def analyzeRuns(prevLUT, num, pat):
@@ -76,15 +84,9 @@ def analyzeRuns(prevLUT, num, pat):
     lut.union(prevLUT)
     return lut
 
-# Autocover rounds can be run in two modes: hpc and non-hpc.
-# - In non-hpc mode, all jobs are run and analyzed (writing lookup table to
-#   'round_xxxx.txt') before this function returns.
-#
-# - In hpc mode, an array job for the round is launched via qsub, and this
-#   function immediately returns its job id. Analysis is deferred to the next
-#   call to autocoverRound, which must occur after the full array job finishes.
-#   Analysis for the final round must be run separately (via analyzeRuns() above).
-def autocoverRound(num, dim, pat, mat, approxERange, approxNuRange, targetNSubdiv, hpc=False):
+# Construct the optimizer for this autocover round (with jobs enqueued)
+def autocoverRoundOptimizer(num, dim, pat, mat, approxERange, approxNuRange,
+        targetNSubdiv):
     if (num < 1): raise Exception("Autocover rounds should be numbered 1, ...")
     prev = num - 1
 
@@ -103,10 +105,4 @@ def autocoverRound(num, dim, pat, mat, approxERange, approxNuRange, targetNSubdi
 
     lut = LUT(roundLUTPath(num - 1))
     roundDir = roundName(num)
-    opt = coverageExpansionOptimizer(dim, pat, mat, lut, grid, constraints)
-    if (hpc): return opt.submitJobs(roundDir)
-    else:
-        opt.run(roundDir)
-        outLUT = analyzeRuns(lut, num, pat)
-        outLUT.write(roundLUTPath(num))
-        return None
+    return coverageExpansionOptimizer(dim, pat, mat, lut, grid, constraints)

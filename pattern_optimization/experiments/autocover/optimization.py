@@ -68,14 +68,12 @@ class PatternOptimization:
                 except: sys.stderr.write("WARNING: optimization '%s/%i.job' died\n" % (directory, i))
         self.jobs = [] # remove finished jobs from queue
 
-    # Submit all jobs as an array job to the HPC batch system.
+    # Submit an array job for jobs numbered firstJobIndex..lastJobIndex
     # Return the array job's id.
-    def submitArrayJob(self, directory, args=['--solver', 'levenberg_marquardt']):
-        numJobs = len(self.jobs)
-        self.writeJobs(directory)
-        cmd = [paths.optimizer(self.dim), '${PBS_ARRAYID}',
+    def submitArrayJob(self, directory, firstJobIndex, lastJobIndex, args=['--solver', 'levenberg_marquardt']):
+        if (lastJobIndex <= firstJobIndex): raise Exception("Invalid job index range")
+        cmd = [paths.optimizer(self.dim), directory + '/${PBS_ARRAYID}.job',
             '-p', paths.pattern(self.pattern, self.dim), '-m', self.material] + args
-        outPath = directory + '/stdout_%i.txt' % i
         pbsScript = """\
         ###-----PBS Directives Start-----###
 
@@ -89,18 +87,20 @@ class PatternOptimization:
         #PBS -m a
         #PBS -e localhost:${{PBS_O_WORKDIR}}/{name}.e${{PBS_JOBID}}
         #PBS -o localhost:${{PBS_O_WORKDIR}}/{name}.o${{PBS_JOBID}}
-        #PBS -t 0-{maxIdx}
+        #PBS -t {firstIndex}-{lastIndex}
 
         ###-----PBS Directives End-----###
         cd ${{PBS_O_WORKDIR}}
-        {command}
+        {command} > {directory}/stdout_${{PBS_ARRAYID}}.txt
         """
-        pbsScript = dedent(pbsScript).format(name=directory,
-                maxIdx=numJobs - 1, command = " ".join(cmd))
-        subprocess.Popen(["qsub", "-"], stdin=subprocess.PIPE,
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
-        qsub_stdout, qsub_stderr = subprocess.communicate(pbsScript)
+        pbsScript = dedent(pbsScript).format(
+                name="ac_%i_%s" % (self.pattern, directory),
+                firstIndex=firstJobIndex, lastIndex=lastJobIndex,
+                command = " ".join(cmd), directory=directory)
+        p = subprocess.Popen(["qsub", "-"], stdin=subprocess.PIPE,
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE)
+        qsub_stdout, qsub_stderr = p.communicate(pbsScript)
         if qsub_stderr != "":
             print "WARNING: nonempty stderr response from qsub: ", qsub_stderr
         return qsub_stdout
