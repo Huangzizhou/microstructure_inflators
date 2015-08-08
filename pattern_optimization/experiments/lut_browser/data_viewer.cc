@@ -28,7 +28,9 @@
 #include <OpenGL/glu.h>
 #include <GLUT/glut.h>
 
-#include "colors.hh"
+#include <colors.hh>
+#include "../../LookupTable.hh"
+typedef IsotropicLookupTable<double> LUT;
 
 #include <boost/filesystem/operations.hpp>
 
@@ -41,26 +43,6 @@ using namespace std;
 // Also, expects event x, y to be in [0, 1]^2
 class View;
 typedef shared_ptr<View> ViewPtr;
-
-#include <sstream>
-std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
-    std::stringstream ss(s);
-    std::string item;
-    while (std::getline(ss, item, delim))
-        elems.push_back(item);
-    return elems;
-}
-
-std::vector<std::string> split(const std::string &s, char delim) {
-    std::vector<std::string> elems;
-    split(s, delim, elems);
-    return elems;
-}
-
-void drawString(const std::string &str) {
-    for (char c : str)
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, c);
-}
 
 // Stores a 2D view coordinate system transform (to map event locations to
 // subview coordinates)
@@ -107,6 +89,11 @@ private:
 
 typedef ViewTransform<float> ViewTransformf;
 
+void drawString(const std::string &str) {
+    for (char c : str)
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, c);
+}
+
 class View : public std::enable_shared_from_this<View> {
 public:
     virtual void render() const = 0;
@@ -125,12 +112,14 @@ public:
 // A range that supports auto-min and auto-max
 // The interval is [min, max)
 struct DataRange {
-    DataRange() : m_min(0), m_max(0) { }
+    // Empty range supporting union
+    DataRange() : m_min(std::numeric_limits<float>::infinity()), m_max(-std::numeric_limits<float>::infinity()) { }
     DataRange(const std::vector<float> &data) { setAutoMin(data); setAutoMax(data); }
     DataRange(float min, float max) : m_min(min), m_max(max) { }
 
-    void setAutoMin(const std::vector<float> &data) { m_min = (data.size() == 0) ? 0.0 : *std::min_element(data.begin(), data.end()); }
-    void setAutoMax(const std::vector<float> &data) { m_max = (data.size() == 0) ? 0.0 : *std::max_element(data.begin(), data.end()); }
+    // With a padding so the extreme values are included in the range.
+    void setAutoMin(const std::vector<float> &data, float padding=1e-6) { m_min = (data.size() == 0) ? 0.0 : *std::min_element(data.begin(), data.end()) - padding; }
+    void setAutoMax(const std::vector<float> &data, float padding=1e-6) { m_max = (data.size() == 0) ? 0.0 : *std::max_element(data.begin(), data.end()) + padding; }
     void setMin(float m) { m_min = m; }
     void setMax(float m) { m_max = m; }
 
@@ -148,6 +137,16 @@ struct DataRange {
 
     // Query if in [min, max)
     bool inRange(float f) const { return (f >= min()) && (f < max()); }
+
+    DataRange unionRange(const DataRange &r) const {
+        return DataRange (std::min(min(), r.min()),
+                          std::max(max(), r.max()));
+    }
+
+    DataRange intersectRange(const DataRange &r) const {
+        return DataRange (std::max(min(), r.min()),
+                          std::min(max(), r.max()));
+    }
 
     friend std::ostream &operator<<(std::ostream &os, const DataRange &dr) {
         os << "[" << dr.min() << ", " << dr.max() << ")";
@@ -173,14 +172,11 @@ struct DataBins {
 private:
     void m_computeBins(const std::vector<float> &data, const DataRange &dr, size_t numBins) {
         m_bins.assign(numBins, 0);
+        float range = dr.size();
         for (auto f : data) {
-            // could optimize
-            for (size_t i = 0; i < numBins; ++i) {
-                if (dr.subrange(numBins, i).inRange(f)) {
-                    ++m_bins[i];
-                    break;
-                }
-            }
+            int b = floor(numBins * ((f - dr.min()) / range));
+            if ((b >= 0) && (size_t(b) < numBins))
+                ++m_bins[b];
         }
     }
     std::vector<size_t> m_bins;
@@ -188,6 +184,9 @@ private:
 
 class Plot : public View {
 public:
+    typedef ColorMap<RGBColorf, float> CMap;
+    typedef std::shared_ptr<CMap> CMapPointer;
+
     void setForegroundColor(const RGBColorf &c) { m_fgcolor = c; }
     void setBackgroundColor(const RGBColorf &c) { m_bgcolor = c; }
     void setSelectionColor (const RGBColorf &c) { m_slcolor = c; }
@@ -198,6 +197,19 @@ public:
     const RGBColorf &foregroundColor() const { return m_fgcolor; }
     const RGBColorf &backgroundColor() const { return m_bgcolor; }
     const RGBColorf &selectionColor () const { return m_slcolor; }
+
+    // Set the colormap used to color each data series independently
+    // (otherwise foregroundColor() is used for all series)
+    void setSeriesColormap(CMapName name) { m_seriesCMap = make_shared<CMap>(name); }
+    CMapPointer seriesColormap() { return m_seriesCMap; }
+
+    // By default, plots support only one series.
+    virtual size_t numSeries() const { return 1; }
+
+    RGBColorf seriesColor(size_t s) const {
+        if (m_seriesCMap) return (*m_seriesCMap)(float(s) / float(numSeries()));
+        else              return foregroundColor();
+    }
 
     void setPointSize(float ps) { m_pointSize = ps; }
 
@@ -220,6 +232,7 @@ public:
     
 protected:
     RGBColorf m_fgcolor, m_bgcolor, m_slcolor;
+    CMapPointer m_seriesCMap;
     float m_pointSize = 1.0;
 };
 
@@ -230,6 +243,7 @@ public:
     HistogramPlot(const std::vector<float> &data) { setData(data); }
     HistogramPlot(const std::vector<float> &data, size_t numBins) { setData(data, numBins); }
     HistogramPlot(const std::vector<float> &data, size_t numBins, const DataRange &dr) { setData(data, dr, numBins); }
+    HistogramPlot(const std::vector<float> &data, const DataRange &dr) { setData(data, dr); }
 
     virtual void render() const {
         Plot::render();
@@ -241,11 +255,11 @@ public:
             float yoffset = 0;
             for (size_t i = 0; i < m_bins.numBins(); ++i) {
                 float height = m_bins.count(i) / maxCount;
-                xoffset += width;
                 glVertex3f(xoffset        , yoffset, 0);
                 glVertex3f(xoffset + width, yoffset, 0);
                 glVertex3f(xoffset + width, yoffset + height, 0);
                 glVertex3f(xoffset        , yoffset + height, 0);
+                xoffset += width;
             }
         }
         glEnd();
@@ -272,21 +286,37 @@ private:
 class LogscaleYPlot : public Plot {
 public:
     LogscaleYPlot() { }
-    void setData(const std::vector<float> &xdata, const std::vector<float> &ydata) {
-        if (xdata.size() != ydata.size())
+    void setData(const std::vector<std::vector<float>> &series_xdata,
+                 const std::vector<std::vector<float>> &series_ydata) {
+        if (series_xdata.size() != series_ydata.size())
             throw std::runtime_error("Unmatched data sizes");
-        m_xdata = xdata;
-        m_ydata = ydata;
-        resetSelection();
+        for (size_t s = 0; s < series_xdata.size(); ++s) {
+            if (series_xdata[s].size() != series_ydata[s].size())
+                throw std::runtime_error("Unmatched data sizes");
+        }
+        m_series_xdata = series_xdata;
+        m_series_ydata = series_ydata;
+        m_updateViewCoordCache();
+        updateSelection();
+    }
+
+    void setData(const std::vector<float> &xdata, const std::vector<float> &ydata) {
+        setData(std::vector<std::vector<float>>(1, xdata), std::vector<std::vector<float>>(1, ydata));
     }
 
     void setPlotRange(DataRange xRange, DataRange yRange) {
         m_xRange = xRange;
         m_yRange = yRange;
+        m_updateViewCoordCache();
     }
+
     void autoPlotRange() {
-        m_xRange = DataRange(m_xdata);
-        m_yRange = DataRange(m_ydata);
+        DataRange xrange, yrange;
+        for (size_t s = 0; s < numSeries(); ++s) {
+            xrange = xrange.unionRange(DataRange(m_series_xdata[s]));
+            yrange = yrange.unionRange(DataRange(m_series_ydata[s]));
+        }
+        setPlotRange(xrange, yrange);
     }
 
     DataRange xRange() const { return m_xRange; }
@@ -294,15 +324,23 @@ public:
 
     virtual void render() const {
         Plot::render();
-        glColor3fv(foregroundColor());
         glPointSize(m_pointSize);
+        size_t index = 0;
+        // TODO: this is now a bottleneck--should be sped up by using a VBO.
         glBegin(GL_POINTS); {
-            for (size_t i = 0; i < numPoints(); ++i) {
-                float x = m_xdata[i], y = m_ydata[i];
-                m_plotToView(x, y);
-                if (m_pointSelected[i]) glColor3fv(selectionColor());
-                glVertex3f(x, y, 0.0);
-                if (m_pointSelected[i]) glColor3fv(foregroundColor());
+            for (size_t s = 0; s < numSeries(); ++s) {
+                // Get data points (already transformed into view coordinates!)
+                const auto &xdata = m_series_viewx_cache[s];
+                const auto &ydata = m_series_viewy_cache[s];
+                auto fgcolor = seriesColor(s);
+                glColor4fv(fgcolor);
+                for (size_t i = 0; i < xdata.size(); ++i) {
+                    float x = xdata[i], y = ydata[i];
+                    if (m_pointSelected.at(index)) glColor3fv(selectionColor());
+                    glVertex3f(x, y, 0.0);
+                    if (m_pointSelected.at(index)) glColor3fv(fgcolor);
+                    ++index;
+                }
             }
         }
         glEnd();
@@ -318,7 +356,13 @@ public:
         }
     }
 
-    size_t numPoints() const { return m_xdata.size(); }
+    virtual size_t numSeries() const { return m_series_xdata.size(); }
+    size_t numPoints() const {
+        size_t count = 0;
+        for (size_t s = 0; s < numSeries(); ++s) count += numPointsInSeries(s);
+        return count;
+    }
+    size_t numPointsInSeries(size_t s) const { return m_series_xdata.at(s).size(); }
 
     void setSelectionRadius(float radius) {
         m_selectionRadius = radius;
@@ -330,17 +374,29 @@ public:
     void setSelectionAspect(float aspect) { m_selectionAspect = aspect; }
 
     void resetSelection() { m_pointSelected.assign(numPoints(), false); }
+    void updateSelection() { m_selectPoint(m_lastSelectCenterX, m_lastSelectCenterY); }
+
     size_t selectionSize() const {
         size_t count = 0;
         for (bool b : m_pointSelected) if (b) ++count;
         return count;
     }
+
+    // Index in concatenated series data!
     std::vector<size_t> selectedPointIndices() const {
         std::vector<size_t> result;
         result.reserve(selectionSize());
         for (size_t i = 0; i < numPoints(); ++i) if (m_pointSelected[i]) result.push_back(i);
         return result;
     }
+
+    std::pair<size_t, size_t> getSeriesAndOffset(size_t index) const {
+        if (index >= numPoints()) throw std::runtime_error("Index out of bounds");
+        size_t series = 0;
+        while (index >= numPointsInSeries(series)) index -= numPointsInSeries(series++);
+        return std::make_pair(series, index);
+    }
+
     void setSelectionChangedCallback(const CallBack &cb) { m_selChangedCallback = cb; }
 
     virtual bool mousePress(  int button, float x, float y) { m_selectPoint(x, y); return true; }
@@ -360,31 +416,30 @@ public:
     }
 
 private:
-    float m_selectionRadius = 5.0 / 512, m_selectionAspect = 1.0;
-    DataRange m_xRange, m_yRange;
-    std::vector<float> m_xdata, m_ydata;
-    std::vector<bool> m_pointSelected;
-    CallBack m_selChangedCallback;
-    float m_lastSelectCenterX = std::numeric_limits<float>::min(),
-          m_lastSelectCenterY = std::numeric_limits<float>::min();
-
     // Select the data points around a click location (in view coordinates)
     // The distance is measured in view space, taking aspect ratio into account.
     void m_selectPoint(float x, float y) {
         m_lastSelectCenterX = x, m_lastSelectCenterY = y;
 
-        std::vector<bool> oldSelection(m_pointSelected);
+        std::vector<bool> oldSelection(std::move(m_pointSelected));
         bool selectionChanged = false;
+        if (oldSelection.size() != numPoints()) {
+            selectionChanged = true;
+            oldSelection.assign(numPoints(), false);
+        }
         resetSelection();
-        for (size_t i = 0; i < numPoints(); ++i) {
-            float xd = m_xdata[i], yd = m_ydata[i];
-            m_plotToView(xd, yd);
-            float distx = xd - x, disty = yd - y;
-            distx /= m_selectionAspect;
-            float dist = sqrt(distx * distx + disty * disty);
-            if (dist < m_selectionRadius) 
-                m_pointSelected[i] = true;
-            selectionChanged  = selectionChanged || (m_pointSelected[i] != oldSelection[i]);
+        size_t index = 0;
+        for (size_t s = 0; s < numSeries(); ++s) {
+            for (size_t si = 0; si < numPointsInSeries(s); ++si) {
+                float xd = m_series_viewx_cache[s][si], yd = m_series_viewy_cache[s][si];
+                float distx = xd - x, disty = yd - y;
+                distx /= m_selectionAspect;
+                float dist = sqrt(distx * distx + disty * disty);
+                if (dist < m_selectionRadius) 
+                    m_pointSelected[index] = true;
+                selectionChanged  = selectionChanged || (m_pointSelected[index] != oldSelection[index]);
+                ++index;
+            }
         }
         if (selectionChanged && m_selChangedCallback)
             m_selChangedCallback(shared_from_this());
@@ -403,6 +458,32 @@ private:
     // out-of-place coordinate transforms
     void m_plotToView(float inx, float iny, float &outx, float &outy) const { outx = inx, outy = iny; m_plotToView(outx, outy); }
     void m_viewToPlot(float inx, float iny, float &outx, float &outy) const { outx = inx, outy = iny; m_viewToPlot(outx, outy); }
+
+    void m_updateViewCoordCache() {
+        m_series_viewx_cache.resize(numSeries());
+        m_series_viewy_cache.resize(numSeries());
+        for (size_t s = 0; s < numSeries(); ++s) {
+            size_t np = numPointsInSeries(s);
+            m_series_viewx_cache[s].assign(np, 0.0);
+            m_series_viewy_cache[s].assign(np, 0.0);
+            for (size_t p = 0; p < np; ++p) {
+                m_plotToView(m_series_xdata[s][p], m_series_ydata[s][p],
+                             m_series_viewx_cache[s][p], m_series_viewy_cache[s][p]);
+            }
+        }
+    }
+
+    // Data members
+    float m_selectionRadius = 5.0 / 512, m_selectionAspect = 1.0;
+    DataRange m_xRange, m_yRange;
+    std::vector<bool> m_pointSelected;
+    CallBack m_selChangedCallback;
+    float m_lastSelectCenterX = std::numeric_limits<float>::infinity(),
+          m_lastSelectCenterY = std::numeric_limits<float>::infinity();
+    vector<vector<float>> m_series_xdata, m_series_ydata;
+    // cached view coordinates of the data--must be updated with
+    // m_updateViewCoordCache when the data or the axes change
+    vector<vector<float>> m_series_viewx_cache, m_series_viewy_cache;
 };
 
 class Layout : public View {
@@ -494,30 +575,29 @@ protected:
     // Find the subview at a particular point in this view's coordinate
     // and get its size/offset in this view.
     ViewPtr m_findSubview(float x, float y, float &size, float &offset) {
+        ViewPtr responder;
         for (size_t i = 0; i < m_subviews.size(); ++i) {
             size = m_subviewPercentages[i];
             offset = 0;
             if (m_layoutDir == Direction::Horizontal) {
-                if (x < size)
-                    return m_subviews[i]->viewForPoint(x / size, y);
+                if (x < size) { responder = m_subviews[i]->viewForPoint(x / size, y); break; }
                 x -= size;
                 offset += size;
             }
             else if (m_layoutDir == Direction::Vertical) {
-                if (y < size)
-                    return m_subviews[i]->viewForPoint(x, y / size);
+                if (y < size) { responder = m_subviews[i]->viewForPoint(x, y / size); break; }
                 y -= size;
                 offset += size;
             }
             else if (m_layoutDir == Direction::Stacked) {
-                // Return the first subview that responds
+                // Return the topmost (*last*) subview that responds
                 size = 1.0; // Stacked views keep the same coordinate system.
-                auto respondedSubview = m_subviews[i]->viewForPoint(x, y); 
-                if (respondedSubview) return respondedSubview;
+                auto rsv = m_subviews[i]->viewForPoint(x, y); 
+                if (rsv) responder = rsv;
             }
             else assert(false);
         }
-        return ViewPtr();
+        return responder;
     }
 
     Direction m_layoutDir;
@@ -595,166 +675,115 @@ private:
     ViewTransformf m_activeViewTransform;
 };
 
-struct LookupTable {
-    LookupTable() { }
-    LookupTable(const std::string &path) { load(path); }
-
-    void load(const std::string &path) {
-        std::ifstream lutStream(path);
-        if (!lutStream.is_open())
-            throw std::runtime_error("Couldn't open " + path);
-
-        std::string line;
-        while (std::getline(lutStream, line)) {
-            records.emplace_back(line);
-        }
-    }
-
-    void write(const std::string &path) const {
-        std::ofstream outFile(path);
-        if (!outFile.is_open())
-            throw std::runtime_error("Couldn't open " + path + " for writing");
-        write(outFile);
-    }
-
-    void write(std::ostream &os) const {
-        for (auto r : records)
-            os << r << endl;
-    }
-
-    struct Record {
-        Record(const std::string &lutLine) {
-            std::runtime_error invalidColSize("Invalid number of columns in LUT.");
-            auto tokens = split(lutLine, '\t');
-            if (tokens.size() < 5) throw invalidColSize;
-            size_t nParams = std::stoi(tokens[4]);
-            if (tokens.size() != 5 + nParams) throw invalidColSize;
-            pattern = std::stoi(tokens[0]);
-            E = std::stod(tokens[1]);
-            nu = std::stod(tokens[2]);
-            anisotropy = std::stod(tokens[3]);
-
-            for (size_t i = 0; i < nParams; ++i)
-                patternParams.push_back(std::stod(tokens[5 + i]));
-        }
-
-        size_t numParams() const { return patternParams.size(); }
-        size_t pattern;
-        double E, nu, anisotropy;
-        std::vector<double> patternParams;
-
-        // Write record without trailing newline.
-        friend std::ostream &operator<<(std::ostream &os, const Record &r) {
-            std::ios state(NULL);
-            state.copyfmt(os);
-            os << std::setfill('0') << std::setw(4) << r.pattern << '\t';
-            os.copyfmt(state);
-            os << r.E << '\t' << r.nu << '\t' << r.anisotropy << '\t' << r.numParams(); 
-            for (auto p : r.patternParams)
-                os << '\t' << p;
-            return os;
-        }
-    };
-
-    std::set<size_t> patterns() const {
-        std::set<size_t> result;
-        for (const auto &r : records) result.insert(r.pattern);
-        return result;
-    }
-
-    size_t  pattern(size_t r) const { return records.at(r).pattern; }
-    double        E(size_t r) const { return records.at(r).E; }
-    double       nu(size_t r) const { return records.at(r).nu; }
-    double        A(size_t r) const { return records.at(r).anisotropy; }
-    size_t numParams() const { 
-        std::set<size_t> result;
-        for (const auto &r : records) result.insert(r.numParams());
-        if (result.size() > 1) throw std::runtime_error("All LUT entries must have the same number of paramters for this operation.");
-        if (result.size() == 0) return 0;
-        return *result.begin();
-    }
-
-    // All of this is extremely inefficient for now!
-    LookupTable selectPattern(size_t pattern) {
-        LookupTable result;
-        for (const auto &r : records) {
-            if (r.pattern == pattern)
-                result.records.push_back(r);
-        }
-        return result;
-    }
-    LookupTable subset(const std::vector<size_t> idxs) {
-        LookupTable result;
-        for (size_t i : idxs) result.records.push_back(records.at(i));
-        return result;
-    }
-
-    size_t size() const { return records.size(); }
-
-    // Allow type conversion of fields
-    template<typename T> void  getEs(                   std::vector<T> &out) const { out.clear(), out.reserve(size()); for (const auto &r : records) out.push_back(r.E); }
-    template<typename T> void getNus(                   std::vector<T> &out) const { out.clear(), out.reserve(size()); for (const auto &r : records) out.push_back(r.nu); }
-    template<typename T> void  getAs(                   std::vector<T> &out) const { out.clear(), out.reserve(size()); for (const auto &r : records) out.push_back(r.anisotropy); }
-    template<typename T> void  getParamValues(size_t p, std::vector<T> &out) const {
-        if (p >= numParams()) {
-            throw std::runtime_error("Invalid parameter " + std::to_string(p));
-        }                                                                           
-                                                                                     out.clear(), out.reserve(size()); for (const auto &r : records) out.push_back(r.patternParams.at(p));
-    }
-
-    template<typename T> std::vector<T>  getEs()                  const { std::vector<T> result;              getEs(result); return result; }
-    template<typename T> std::vector<T> getNus()                  const { std::vector<T> result;             getNus(result); return result; }
-    template<typename T> std::vector<T>  getAs()                  const { std::vector<T> result;              getAs(result); return result; }
-    template<typename T> std::vector<T>  getParamValues(size_t p) const { std::vector<T> result;  getParamValues(p, result); return result; }
-
-    std::vector<Record> records;
-};
-
 ////////////////////////////////////////////////////////////////////////////////
 // Globals
 ////////////////////////////////////////////////////////////////////////////////
 ViewPtr g_mainView;
 shared_ptr<UIHandler> g_uiHandler;
 shared_ptr<Layout> g_histLayout;
-LookupTable g_fullLut, g_lut;
-vector<shared_ptr<HistogramPlot>> g_selectedParamHistograms, g_fullParamHistograms;
-shared_ptr<LogscaleYPlot> g_logscalePlot;
 
-std::vector<size_t> g_patterns;
-size_t g_currPattern;
+vector<shared_ptr<HistogramPlot>> g_selectedParamHistograms;
+// Ranges of each parameter over all tables.
+vector<DataRange> g_paramRanges;
+shared_ptr<LogscaleYPlot> g_allTablesLogscalePlot, g_currentTableLogscalePlot;
+
+vector<LUT> g_dataTables, g_dataTablesCurrPattern;
+vector<string> g_dataTablePaths;
+
+set<size_t> g_patterns;
+size_t g_currPattern, g_currTableIdx;
 
 ////////////////////////////////////////////////////////////////////////////////
 // View data for a particular pattern
 ////////////////////////////////////////////////////////////////////////////////
-void selectPattern(size_t pat) {
+void selectTableAndPattern(size_t table, size_t pat) {
+    g_currTableIdx = table;
     g_currPattern = pat;
-    glutSetWindowTitle(("Lookup Table Viewer: Pattern " + to_string(pat)).c_str());
+    glutSetWindowTitle(("LUT Viewer: " + g_dataTablePaths.at(g_currTableIdx) +
+                        ", Pattern " + to_string(g_currPattern)).c_str());
 
-    g_lut = g_fullLut.selectPattern(pat);
-    g_logscalePlot->setData(g_lut.getNus<float>(), g_lut.getEs<float>());
-    g_logscalePlot->autoPlotRange();
+    // Get the data for the current pattern
+    g_dataTablesCurrPattern.clear();
+    g_dataTablesCurrPattern.reserve(g_dataTables.size());
+    for (size_t i = 0; i < g_dataTables.size(); ++i)
+        g_dataTablesCurrPattern.push_back(g_dataTables[i].selectPattern(g_currPattern));
+
+    vector<vector<vector<float>>> series_paramValues; // series->param->pt_idx
+    size_t nParams = g_dataTablesCurrPattern.front().numParams();
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Extract the series data and update the all-series logscale plot of all
+    // series
+    ////////////////////////////////////////////////////////////////////////////
+    vector<vector<float>> series_xdata, series_ydata;
+    series_xdata.reserve(g_dataTablesCurrPattern.size());
+    series_ydata.reserve(g_dataTablesCurrPattern.size());
+    for (const auto &tab : g_dataTablesCurrPattern) {
+        series_xdata.emplace_back(tab.getNus<float>());
+        series_ydata.emplace_back(tab.getEs<float>());
+    }
+
+    g_allTablesLogscalePlot->setData(series_xdata, series_ydata);
+    g_allTablesLogscalePlot->autoPlotRange();
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Create new parameter histograms
+    // WARNING: This must happen before changing the *current* logscale plot data,
+    // otherwise the selection changed callback will access histograms that
+    // don't exist yet.
+    ////////////////////////////////////////////////////////////////////////////
+    // Get parameter values and compute their ranges
+    g_paramRanges.assign(nParams, DataRange());
+    for (const auto &tab : g_dataTablesCurrPattern) {
+        series_paramValues.emplace_back(nParams, vector<float>());
+        for (size_t p = 0; p < nParams; ++p) {
+            series_paramValues.back()[p] = tab.getParamValues<float>(p);
+            g_paramRanges[p] = g_paramRanges[p].unionRange(series_paramValues.back()[p]);
+        }
+    }
 
     g_histLayout->clearSubviews();
-    g_fullParamHistograms.clear();
     g_selectedParamHistograms.clear();
 
-    size_t nParams = g_lut.numParams();
     for (size_t p = 0; p < nParams; ++p) {
-        auto paramHistFull = make_shared<HistogramPlot>(g_lut.getParamValues<float>(p));
-        auto paramHistSelected = make_shared<HistogramPlot>();
-        paramHistFull->setBackgroundColor(1, 1, 1);
-        paramHistFull->setForegroundColor(0.75,0.75,0.75);
-        paramHistSelected->setBackgroundColor(0, 0, 0, 0);
-        paramHistSelected->setForegroundColor(1.0,0.0,0.0);
-
         auto stacker = make_shared<Layout>(Layout::Direction::Stacked);
-        stacker->addSubview(paramHistFull);
+        bool bottom = true;
+        for (size_t s = 0; s < series_paramValues.size(); ++s) {
+            if (s == g_currTableIdx) continue; // histogram for all tables but the current.
+            auto paramHistSeries = make_shared<HistogramPlot>(series_paramValues.at(s).at(p), g_paramRanges[p]);
+            if (bottom) paramHistSeries->setBackgroundColor(1, 1, 1, 1);
+            else        paramHistSeries->setBackgroundColor(1, 1, 1, 0);
+            bottom = false;
+            paramHistSeries->setForegroundColor(g_allTablesLogscalePlot->seriesColor(s));
+            stacker->addSubview(paramHistSeries);
+        }
+
+        // Put current histogram on top.
+        {
+            size_t s = g_currTableIdx; // histogram for current table
+            auto currTableParamHist = make_shared<HistogramPlot>(series_paramValues.at(s).at(p), g_paramRanges[p]);
+            if (bottom) currTableParamHist->setBackgroundColor(1, 1, 1, 1);
+            else        currTableParamHist->setBackgroundColor(1, 1, 1, 0.25);
+            currTableParamHist->setForegroundColor(0, 0, 0, 0.75);
+            stacker->addSubview(currTableParamHist);
+        }
+
+        auto paramHistSelected = make_shared<HistogramPlot>();
+        paramHistSelected->setBackgroundColor(1, 1, 1, 0);
+        paramHistSelected->setForegroundColor(1, 0, 0, 0.75);
         stacker->addSubview(paramHistSelected);
         g_histLayout->addSubview(stacker);
 
         g_selectedParamHistograms.push_back(paramHistSelected);
-        g_fullParamHistograms.push_back(paramHistFull);
     }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Update the *current* logscale plot
+    ////////////////////////////////////////////////////////////////////////////
+    g_currentTableLogscalePlot->setData(series_xdata.at(g_currTableIdx), series_ydata.at(g_currTableIdx));
+    g_currentTableLogscalePlot->setPlotRange(g_allTablesLogscalePlot->xRange(), g_allTablesLogscalePlot->yRange());
+
+    glutPostRedisplay();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -795,24 +824,33 @@ void KeyboardFunc(unsigned char c, int x, int y) {
         while (boost::filesystem::exists(filePath(i))) ++i;
 
         // Write selected subset.
-        LookupTable selectedLUT = g_lut.subset(g_logscalePlot->selectedPointIndices());
+        LUT selectedLUT = g_dataTablesCurrPattern.at(g_currTableIdx).subset(g_currentTableLogscalePlot->selectedPointIndices());
         if (selectedLUT.size() > 0) {
             selectedLUT.write(filePath(i));
             cout << "Wrote " << selectedLUT.size() << " points to " << filePath(i) << endl;
         }
     }
-    if ((c == 'p' || c == 'n') && (g_patterns.size() > 1)) {
-        int inc = (c == 'n') ? 1 : -1;
+    if ((tolower(c) == 'p') && (g_patterns.size() > 1)) {
+        // Cycle through patterns
         auto p = find(g_patterns.begin(), g_patterns.end(), g_currPattern);
         if (p == g_patterns.end()) p = g_patterns.begin();
         else {
-            if (c == 'n') { if (++p == g_patterns.end()) p = g_patterns.begin(); }
+            // p: increment, P: decrement
+            if (c == 'p') { if (++p == g_patterns.end()) p = g_patterns.begin(); }
             else {
                 if (p == g_patterns.begin()) p = g_patterns.end();
                 --p;
             }
         }
-        selectPattern(*p);
+        selectTableAndPattern(g_currTableIdx, *p);
+        handled = true;
+    }
+    if ((tolower(c) == 't') && (g_dataTables.size() > 1)) {
+        // cycle through tables
+        size_t newIdx = g_currTableIdx + (c == 't' ? 1 : -1);
+        if (newIdx == g_dataTables.size()) newIdx = 0;
+        if (newIdx > g_dataTables.size()) newIdx = g_dataTables.size() - 1;
+        selectTableAndPattern(newIdx, g_currPattern);
         handled = true;
     }
     if (!handled) handled = g_uiHandler->keyboardFunc(c);
@@ -874,9 +912,12 @@ void Display()
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
-        cerr << "Usage: data_viewer dataTable [pattern]" << endl;
+        cerr << "Usage: data_viewer dataTable [dataTable2...]" << endl;
         exit(-1);
     }
+
+    for (int i = 1; i < argc; ++i)
+        g_dataTablePaths.emplace_back(argv[i]);
 
     // Initialize GLUT
     glutInit(&argc, argv);
@@ -888,7 +929,8 @@ int main(int argc, char *argv[])
 
     cout << "Help" << endl;
     cout << "+/-:\tchange selection radius" << endl;
-    cout << "p/n:\tcycle through patterns" << endl;
+    cout << "p/P:\tcycle through patterns" << endl;
+    cout << "t/T:\tcycle through data tables" << endl;
 
     // Set GLUT event callbacks
     glutMouseFunc(MouseFunc);
@@ -901,52 +943,71 @@ int main(int argc, char *argv[])
     glutDisplayFunc(Display);
     glutReshapeFunc(Reshape);
 
-    try {
+    // try {
         auto mainLayout = make_shared<Layout>(Layout::Direction::Horizontal);
         g_mainView = mainLayout;
-        g_logscalePlot = make_shared<LogscaleYPlot>();
-        g_logscalePlot->setBackgroundColor(1, 1, 1);
-        g_logscalePlot->setForegroundColor(0.0,0.0,0.0);
-        g_logscalePlot->setSelectionColor(1.0,0.0,0.0);
-        g_logscalePlot->setPointSize(2.0);
-        g_logscalePlot->setSelectionChangedCallback(
-            [&](ViewPtr v) {
-                auto lv = dynamic_pointer_cast<LogscaleYPlot>(v);
-                assert(lv);
-                auto selSubset = g_lut.subset(lv->selectedPointIndices());
-                size_t nParams = g_lut.numParams();
-                for (size_t p = 0; p < nParams; ++p) {
-                    if (selSubset.size()) g_selectedParamHistograms[p]->setData(selSubset.getParamValues<float>(p), g_fullParamHistograms[p]->dataRange());
-                    else g_selectedParamHistograms[p]->setData(std::vector<float>());
-                }
-            }
-        );
+        g_allTablesLogscalePlot = make_shared<LogscaleYPlot>();
+        g_allTablesLogscalePlot->setBackgroundColor(1, 1, 1, 1.0); // white
+        g_allTablesLogscalePlot->setSeriesColormap(COLORMAP_JET);
+        g_allTablesLogscalePlot->seriesColormap()->setAlpha(0.5);
+        g_allTablesLogscalePlot->setPointSize(2.0);
 
-        mainLayout->addSubview(g_logscalePlot);
+        g_currentTableLogscalePlot = make_shared<LogscaleYPlot>();
+        g_currentTableLogscalePlot->setBackgroundColor(1, 1, 1, 0); // transparent
+        g_currentTableLogscalePlot->setForegroundColor(0.0,0.0,0.0);
+        g_currentTableLogscalePlot->setSelectionColor(1.0,0.0,0.0);
+        g_currentTableLogscalePlot->setPointSize(4.0);
+
+        // stack g_currentTableLogscalePlot atop g_allTablesLogscalePlot
+        auto plotStacker = make_shared<Layout>(Layout::Direction::Stacked);
+        plotStacker->addSubview(g_allTablesLogscalePlot);
+        plotStacker->addSubview(g_currentTableLogscalePlot);
+        mainLayout->addSubview(plotStacker);
+
         g_histLayout = make_shared<Layout>(Layout::Direction::Vertical);
         mainLayout->addSubview(g_histLayout);
 
         mainLayout->setSubviewPercentages({0.75, 0.25});
 
         g_uiHandler = make_shared<UIHandler>(g_mainView);
-        g_uiHandler->setFirstResponder(g_logscalePlot);
+        g_uiHandler->setFirstResponder(g_currentTableLogscalePlot);
 
-        g_fullLut.load(argv[1]);
-        cout << "Patterns:";
-        for (size_t pat : g_fullLut.patterns()) {
-            cout << " " << pat;
-            g_patterns.push_back(pat);
+        for (const string &s : g_dataTablePaths) {
+            g_dataTables.emplace_back(s);
+            g_dataTables.back().patterns(g_patterns);
         }
+
+        cout << "Patterns:";
+        for (size_t pat : g_patterns)
+            cout << " " << pat;
         cout << endl;
-        if (argc < 3) selectPattern(*g_fullLut.patterns().begin());
-        else          selectPattern(stoi(argv[2]));
+
+        if (g_patterns.size() == 0) throw runtime_error("No patterns read.");
+
+        selectTableAndPattern(0, *g_patterns.begin());
+
+        // Must set the callback after creating the histograms (in
+        // selectTableAndPattern)--otherwise it may be called before the
+        // histogram views exist.
+        g_currentTableLogscalePlot->setSelectionChangedCallback(
+            [&](ViewPtr v) {
+                auto lv = dynamic_pointer_cast<LogscaleYPlot>(v);
+                assert(lv);
+                auto selSubset = g_dataTablesCurrPattern.at(g_currTableIdx).subset(lv->selectedPointIndices());
+                size_t nParams = g_dataTablesCurrPattern.at(g_currTableIdx).numParams();
+                for (size_t p = 0; p < nParams; ++p) {
+                    if (selSubset.size()) g_selectedParamHistograms[p]->setData(selSubset.getParamValues<float>(p), g_paramRanges[p]);
+                    else g_selectedParamHistograms[p]->setData(std::vector<float>());
+                }
+            }
+        );
 
         // Call the GLUT main loop
         glutMainLoop();
-    }
-    catch (const exception &e) {
-        cerr << "Caught exception: " << e.what() << endl;
-    }
+    // }
+    // catch (const exception &e) {
+    //     cerr << "Caught exception: " << e.what() << endl;
+    // }
 
     return 0;
 }
