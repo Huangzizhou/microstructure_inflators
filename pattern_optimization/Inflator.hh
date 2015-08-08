@@ -93,6 +93,10 @@ public:
         throw std::runtime_error("Subdivision not supported in 2D");
     }
 
+    void setReflectiveInflator(bool use) {
+        throw std::runtime_error("Reflective inflator not supported in 2D");
+    }
+
     size_t numParameters() const { return m_inflator->numberOfParameters(); }
 
     ParameterType parameterType(size_t p) const {

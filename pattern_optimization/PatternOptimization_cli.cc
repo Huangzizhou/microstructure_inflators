@@ -68,6 +68,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
         ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
+        ("fullCellInflator",                                                     "use the full periodic inflator instead of the reflection-based one")
         ;
 
     po::options_description cli_opts;
@@ -145,6 +146,7 @@ void execute(const po::variables_map &args, const Job<_N> *job)
                 args.count("vertexThickness"));
         inflator_ptr->configureSubdivision(args["sub_algorithm"].as<string>(),
                                            args["subdivide"].as<size_t>());
+        inflator_ptr->setReflectiveInflator(args.count("fullCellInflator") == 0);
     }
 
 	ConstrainedInflator<_N> &inflator = *inflator_ptr;
