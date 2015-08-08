@@ -693,6 +693,7 @@ protected:
 	/// parameters
 	TessellatorSettings m_tri_settings;
 	WireMesh        m_wire;
+	WireMesh 		m_wire_square_inflated;
 	InputParameters m_params;
 
 	void setup()
@@ -721,6 +722,14 @@ protected:
 	template <class PolyMesh>
 	void generateOneElement(EMesh & em, PolyMesh & pmesh, const typename PolyMesh::FaceType & f)
 	{
+		/*
+		 * Note that if you inflate em into a square cell you will end up with the correct inflated version
+		 * In other words, em displacement and raduis parameters are set to the desired (square-cell) values 
+		 */
+
+		EMesh em0; // this will hold the original em sent to this function 
+		vcg::tri::Append<EMesh,EMesh>::MeshCopy(em0, em, false, true);
+
 		typedef WireMeshEmbedding<EMesh, PolyMesh> WireEmbedding;
 
 		if (!m_wire.isValid())
@@ -729,14 +738,14 @@ protected:
 		this->m_base_paths.clear();
 
 		// embed within the quad
-		WireEmbedding::embedWireMesh(em, f, pmesh);
+		WireEmbedding::embedWireMesh(em, f, pmesh); 
 
 		vcg::tri::RequireVEAdjacency(em);
 		vcg::tri::RequireEEAdjacency(em);
 
 		ClipperLib::Paths profile;
 		//inflateEdgeMesh(em, profile);
-		inflateEdgeMesh(em, profile, pmesh, f);
+		inflateEdgeMesh(em0, em, profile, pmesh, f);
 
 		// get the clipping quad
 		ClipperLib::Path clip_poly;
@@ -894,8 +903,47 @@ protected:
 	// First:  for each edge in the mesh it creates a circle at each vertex and a trapazoid connnecting the two vertecies by means of the circle tangents.
 	// Second: it interpolates each point on the circles and the trapazoid into the quad specified by f
 	template<class PolyMesh>
-	void inflateEdgeMesh(EMesh & em, ClipperLib::Paths & profile, PolyMesh & pmesh, const typename PolyMesh::FaceType & f)
+	void inflateEdgeMesh(EMesh & em0, EMesh & em, ClipperLib::Paths & profile, PolyMesh & pmesh, const typename PolyMesh::FaceType & f)
 	{
+/* 		EMesh emSquare; */
+/* 		m_wire.getUnmodifiedEdgeMesh(emSquare); */
+
+
+
+/* 		std::cout << "----- POINTS IN ORIGINAL EDGE MESH -----" << std::endl; */
+/* 		for (int i = 0; i < emSquare.vert.size(); ++i) */
+/* 		{ */
+/* 			std::cout << "point " << i << "'s coordinates are (" << emSquare.vert[i].cP()[0] << ", " << emSquare.vert[i].cP()[1] << ")\n" ; */
+/* 		} */
+/* 		std::cout << std::endl; */
+
+/* 		std::cout << "----- POINTS IN ORIGINAL-TRANSFORMED EDGE MESH -----" << std::endl; */
+/* 		for (int i = 0; i < emSquare.vert.size(); ++i) */
+/* 		{ */
+/* 			vcg::Point2d pt(emSquare.vert[i].cP()[0], emSquare.vert[i].cP()[1]); */
+/* 			PCoordType t = qpar.interpolate(pt, f); */
+/* 			std::cout << "point " << i << "'s coordinates are (" << t[0] << ", " << t[1] << ")\n" ; */
+/* 		} */
+/* 		std::cout << std::endl; */
+
+
+/* 		std::cout << "----- POINTS IN EMBEDDED EDGE MESH -----" << std::endl; */
+/* 		for (int i = 0; i < em.vert.size(); ++i) */
+/* 		{ */
+/* 			std::cout << "point " << i << "'s coordinates are (" << em.vert[i].cP()[0] << ", " << em.vert[i].cP()[1] << ")\n" ; */
+/* 		} */
+/* 		std::cout << std::endl; */
+
+
+/* 		std::cout << "----- FACE POINTS -----" << std::endl; */
+/* 		for (int i = 0; i < 4; ++i) */
+/* 		{ */
+/* 			std::cout << "point " << i << "'s coordinates are (" << f.cP(i)[0] << ", " << f.cP(i)[1] << ")\n" ; */
+/* 		} */
+/* 		std::cout << std::endl; */
+
+
+
 		ClipperLib::Clipper clip;
 
 		// generate the isosceles trapezoids corresponding to the edges
@@ -915,8 +963,8 @@ protected:
 			Coord2Type p1_inQuad(ScalarType(v1.cP()[0]), ScalarType(v1.cP()[1]));
 
 			// transform them back to the corresponding coordinates in the unit square 
-			Coord2Type p0 = quadInterpolateInv<PolyMesh>(p0_inQuad, f);
-			Coord2Type p1 = quadInterpolateInv<PolyMesh>(p1_inQuad, f);
+			Coord2Type p0 = quadInterpolateInv<PolyMesh>(em0, p0_inQuad, pmesh, f);
+			Coord2Type p1 = quadInterpolateInv<PolyMesh>(em0, p1_inQuad, pmesh, f);
 
 			/* std::cout << std::endl << "-------- we are at edge  " << i << std::endl; */
 			/* std::cout << "points before inversion are:" << std::endl; */
@@ -952,12 +1000,12 @@ protected:
 		
 			// obtain the corresponding of each point in the quad and add them to the edge_path
 			ClipperLib::Path edge_path;
-			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p0, f) ) );
-			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p0 + (leftRot * r0), f) ) );
-			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p1 + (leftRot * r1), f) ) );
-			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p1, f) ) );
-			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p1 - (rightRot * r1), f) ) );
-			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p0 - (rightRot * r0), f) ) );
+			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p0, pmesh, f) ) );
+			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p0 + (leftRot * r0), pmesh, f) ) );
+			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p1 + (leftRot * r1), pmesh, f) ) );
+			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p1, pmesh, f) ) );
+			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p1 - (rightRot * r1), pmesh, f) ) );
+			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p0 - (rightRot * r0), pmesh, f) ) );
 			
 			clip.AddPath(edge_path, ClipperLib::ptSubject, true);
 		}
@@ -970,7 +1018,7 @@ protected:
 				continue;
 
 			Coord2Type p_inQuad(ScalarType(v.cP()[0]), ScalarType(v.cP()[1]));
-			Coord2Type p = quadInterpolateInv<PolyMesh>(p_inQuad, f);
+			Coord2Type p = quadInterpolateInv<PolyMesh>(em0, p_inQuad, pmesh, f);
 
 
 			ClipperLib::Path circle;
@@ -983,7 +1031,7 @@ protected:
 			deformedC.clear();
 			for (int j = 0; j < c.size(); ++j)
 			{
-				deformedC.push_back(quadInterpolate<PolyMesh>(c[j], f));
+				deformedC.push_back(quadInterpolate<PolyMesh>(c[j], pmesh, f));
 			}
 			
 
@@ -1004,9 +1052,13 @@ protected:
 	// MHS on AUG06, 2015
 	// interpolate
 	template<class PolyMesh>
-	Coord2Type quadInterpolate(const Coord2Type & t, const typename PolyMesh::FaceType & face) const
+	Coord2Type quadInterpolate(const Coord2Type & t, PolyMesh & pmesh, const typename PolyMesh::FaceType & face) const
 	{
-		char index0 = 0; 
+		typedef WireMeshEmbedding<EMesh, PolyMesh> WireEmbedding;
+		typedef typename WireEmbedding::QuadParametrization QuadParametrization;
+		QuadParametrization qpar = WireEmbedding::getQuadParametrizationHandle(pmesh)[&face];
+
+		char index0 = qpar.index0; 
 		char index1 = (index0+1)%4;
 		char index2 = (index0+2)%4;
 		char index3 = (index0+3)%4;
@@ -1023,47 +1075,30 @@ protected:
 
 
 	template<class PolyMesh>
-	Coord2Type quadInterpolateInv(const Coord2Type & p, const typename PolyMesh::FaceType & face) const
+	Coord2Type quadInterpolateInv(const EMesh & e0, const Coord2Type & p, PolyMesh & pmesh, const typename PolyMesh::FaceType & face)
 	{
-		char index0 = 0; 
-		char index1 = (index0+1)%4;
-		char index2 = (index0+2)%4;
-		char index3 = (index0+3)%4;
-	    Coord2Type a(ScalarType(face.cP(index0)[0]), ScalarType(face.cP(index0)[1]));
-		Coord2Type b(ScalarType(face.cP(index1)[0]), ScalarType(face.cP(index1)[1]));
-		Coord2Type c(ScalarType(face.cP(index2)[0]), ScalarType(face.cP(index2)[1]));
-		Coord2Type d(ScalarType(face.cP(index3)[0]), ScalarType(face.cP(index3)[1]));
+		typedef WireMeshEmbedding<EMesh, PolyMesh>				 WireEmbedding;
+		typedef typename WireEmbedding::QuadParametrization		 QuadParametrization;
+		typedef typename WireEmbedding::PCoordType				 PCoordType;
 
+		QuadParametrization qpar = WireEmbedding::getQuadParametrizationHandle(pmesh)[&face];
 
-		Coord2Type e = b-a;
-		Coord2Type f = d-a;
-		Coord2Type g = a-b+c-d;
-		Coord2Type h = p-a;
+		std::vector<double> distances;
+		distances.clear();
+		for (int i = 0; i < e0.vert.size(); ++i)
+		{
+			PCoordType newPT = qpar.interpolate(vcg::Point2d(double(e0.vert[i].cP()[0]), double(e0.vert[i].cP()[1])), face);
+			vcg::Point2d diff  = vcg::Point2d( double(newPT[0]), double(newPT[1]) ) - vcg::Point2d( double(p.X()), double(p.Y()) );
+			distances.push_back(diff.Norm());
+		}
 
+		int targetVertex = 0;
+		for (int i = 1; i < distances.size(); ++i)
+			if (distances[i] < distances[targetVertex])
+				targetVertex = i;
 
-		ScalarType k2 = g.X() * f.Y() - g.Y() * f.X();
-		ScalarType k1 = e.X() * f.Y() - e.Y() * f.X() + h.X() * g.Y() - h.Y() * g.X();
-		ScalarType k0 = h.X() * e.Y() - h.Y() * e.X();
-
-		ScalarType w = k1*k1 - 4.0*k0*k2;
-		if( w<0.0 )
-			std::cout << "SOME THING IS WRONG" << std::endl;
-
-		w = std::sqrt( w );
-		
-		double v1 = (k2 >= 0.000001) ? (-k1 - w)/(2.0*k2) : -k0/k1;
-		double u1 = ((e.X() + g.X()*v1) >= 0.000001) ? (h.X() - f.X()*v1)/(e.X() + g.X()*v1) : (h.Y() - f.Y()*v1)/(e.Y() + g.Y()*v1);
-
-		double v2 = (k2 >= 0.000001) ? (-k1 + w)/(2.0*k2) : -k0/k1;
-		double u2 = ((e.X() + g.X()*v2) >= 0.000001) ? (h.X() - f.X()*v2)/(e.X() + g.X()*v2) : (h.Y() - f.Y()*v2)/(e.Y() + g.Y()*v2);
-
-		double u = u1;
-		double v = v1;
-
-		if( v<0.0 || v>1.0 || u<0.0 || u>1.0 ) { u=u2;   v=v2;   }
-		if( v<0.0 || v>1.0 || u<0.0 || u>1.0 ) { throw("could not find the inverse!"); }
-
-		return Coord2Type(ScalarType(u), ScalarType(v));
+	
+		return Coord2Type(ScalarType(e0.vert[targetVertex].cP()[0]), ScalarType(e0.vert[targetVertex].cP()[1]));
 	}
 
 	double maxEdgeLength(void) const
