@@ -1,5 +1,6 @@
+#!/usr/bin/env python
 import json, sys, paths
-from autocover_tools import autocoverRound
+from autocover_tools import *
 
 if (len(sys.argv) != 3):
     print "usage: ./autocover.py startingRoundNumber config"
@@ -14,6 +15,9 @@ config = json.load(file(configPath))
 numIters = config['numIters']
 for roundNum in range(roundNum, numIters):
     print "Running round %i/%i" % (roundNum, numIters)
-    autocoverRound(roundNum, config['dim'], config['pattern'],
+    opt = autocoverRoundOptimizer(roundNum, config['dim'], config['pattern'],
             paths.material(config['material']), config['targetERange'],
             config['targetNuRange'], config['targetNSubdiv'])
+    opt.run(roundDirectory(roundNum))
+    outLUT = analyzeRuns(lut, roundNum, pat)
+    outLUT.write(roundLUTPath(roundNum))
