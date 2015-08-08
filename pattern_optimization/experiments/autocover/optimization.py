@@ -3,10 +3,21 @@ from LookupTable import LUT
 import paths, os, sys, subprocess
 
 class PatternOptimization:
-    def __init__(self, dim, pat, mat):
-        self.dim = dim
-        self.pattern = pat
-        self.material = mat
+    def __init__(self, config):
+        self.dim = config['dim']
+        self.pattern = config['pattern']
+        self.material = paths.material(config['material'])
+        self.patoptArgs = config.get('args', ['-I', '--solver', 'levenberg_marquardt'])
+
+        # Read variable bounds from config, with dim-dependent defaults
+        if (self.dim == 2):
+            self.radiusBounds      = config.get(     'radiusBounds', [0.02, 0.17])
+            self.translationBounds = config.get('translationBounds', [-0.14, 0.14])
+        elif (self.dim == 3):
+            self.radiusBounds      = config.get(     'radiusBounds', [0.3, 0.8])
+            self.translationBounds = config.get('translationBounds', [-0.3, 0.3])
+        else: raise Exception("Invalid dimension")
+
         self.jobs = []
         self.outputs = []
         self.constraints = []
@@ -25,14 +36,6 @@ class PatternOptimization:
 
     def enqueueJob(self, targetE, targetNu, initialParams):
         # TODO: make bounds configurable
-
-        if (self.dim == 2):
-            radiusBounds = [0.02, 0.17]
-            translationBounds = [-0.14, 0.14]
-        elif (self.dim == 3):
-            radiusBounds = [0.3, 0.8]
-            transRange   = [-0.3, 0.3]
-        else: raise Exception("Invalid dimension")
 
         formatSequence = lambda x: ", ".join(map(str, x))
 
@@ -53,15 +56,15 @@ class PatternOptimization:
         }
         """
         jobContents = dedent(jobContents) % (self.dim, targetE, targetNu, constraintString,
-                formatSequence(initialParams), formatSequence(radiusBounds),
-                formatSequence(translationBounds))
+                formatSequence(initialParams), formatSequence(self.radiusBounds),
+                formatSequence(self.translationBounds))
         self.jobs.append(jobContents)
 
-    def run(self, directory, args=['-I', '--solver', 'levenberg_marquardt']):
+    def run(self, directory):
         self.writeJobs(directory)
         for i in range(len(self.jobs)):
             cmd = [paths.optimizer(self.dim), directory + '/%i.job' % i,
-                '-p', paths.pattern(self.pattern, self.dim), '-m', self.material] + args
+                '-p', paths.pattern(self.pattern, self.dim), '-m', self.material] + self.patoptArgs
             outPath = directory + '/stdout_%i.txt' % i
             with open(outPath, 'w') as outLog:
                 try: subprocess.call(cmd, stdout=outLog)
@@ -70,10 +73,10 @@ class PatternOptimization:
 
     # Submit an array job for jobs numbered firstJobIndex..lastJobIndex
     # Return the array job's id.
-    def submitArrayJob(self, directory, firstJobIndex, lastJobIndex, args=['--solver', 'levenberg_marquardt']):
+    def submitArrayJob(self, directory, firstJobIndex, lastJobIndex):
         if (lastJobIndex <= firstJobIndex): raise Exception("Invalid job index range")
         cmd = [paths.optimizer(self.dim), directory + '/${PBS_ARRAYID}.job',
-            '-p', paths.pattern(self.pattern, self.dim), '-m', self.material] + args
+            '-p', paths.pattern(self.pattern, self.dim), '-m', self.material] + self.patoptArgs
         pbsScript = """\
         ###-----PBS Directives Start-----###
 

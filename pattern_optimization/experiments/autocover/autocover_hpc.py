@@ -46,15 +46,12 @@ if (roundNum == numIters + 1):
 # through--create the round's jobs and launch as many as possible.
 opt = None
 if (subRoundJobOffset == 0):
-    opt = autocoverRoundOptimizer(roundNum, config['dim'], config['pattern'],
-            paths.material(config['material']), config['targetERange'],
-            config['targetNuRange'], config['targetNSubdiv'])
+    opt = autocoverRoundOptimizer(roundNum, config)
     opt.writeJobs(roundDirectory(roundNum))
     numJobsInRound = len(opt.jobs)
 else:
     # create dummy optimizer used to submit array jobs for subsequent sub-rounds
-    opt = PatternOptimization(config['dim'], config['pattern'],
-            paths.material(config['material']))
+    opt = PatternOptimization(config)
 
 if (subRoundJobOffset >= numJobsInRound): raise Exception("Error: invalid sub-round job offset")
 numToSubmit = min(numJobsInRound - subRoundJobOffset, maxSimultaneousJobs)
@@ -95,5 +92,5 @@ pbsScript = pbsScript.format(name="ac_%i_r%s" % (config['pattern'], nextRoundStr
 p = subprocess.Popen(["qsub", "-"],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 qsub_stdout, qsub_stderr = p.communicate(pbsScript)
-print "qsub stdout: ", qsub_stdout
+print "qsub stdout: ", qsub_stdout,
 print "qsub stderr: ", qsub_stderr

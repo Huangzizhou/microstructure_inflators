@@ -1,0 +1,17 @@
+{
+    "dim": 3,
+    "pattern": 77,
+    "material": "B9Creator",
+
+    "targetERange": [0.015, 30],
+    "targetNuRange": [-0.18, 0.48],
+    "targetNSubdiv": 40,
+
+    "radiusBounds": [0.3, 0.7],
+    "translationBounds": [-0.4, 0.4],
+
+    "numIters": 20,
+    "maxSimultaneousJobs": 500,
+
+    "args": ["-I", "-S1", "-v0", "--fullCellInflator", "--solver", "levenberg_marquardt"]
+}

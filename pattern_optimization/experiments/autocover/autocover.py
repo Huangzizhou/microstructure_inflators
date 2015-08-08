@@ -15,9 +15,7 @@ config = json.load(file(configPath))
 numIters = config['numIters']
 for roundNum in range(roundNum, numIters):
     print "Running round %i/%i" % (roundNum, numIters)
-    opt = autocoverRoundOptimizer(roundNum, config['dim'], config['pattern'],
-            paths.material(config['material']), config['targetERange'],
-            config['targetNuRange'], config['targetNSubdiv'])
+    opt = autocoverRoundOptimizer(roundNum, config)
     opt.run(roundDirectory(roundNum))
-    outLUT = analyzeRuns(lut, roundNum, pat)
+    outLUT = analyzeRuns(lut, roundNum, opt.pattern)
     outLUT.write(roundLUTPath(roundNum))

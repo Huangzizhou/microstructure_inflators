@@ -2,9 +2,16 @@
     "dim": 2,
     "pattern": 0,
     "material": "B9Creator",
+
     "targetERange": [0.15, 85.0],
     "targetNuRange": [0.0, 0.95],
     "targetNSubdiv": 40,
+
+    "radiusBounds": [0.02, 0.17],
+    "translationBounds": [-0.14, 0.14],
+
     "numIters": 20,
-    "maxSimultaneousJobs": 500
+    "maxSimultaneousJobs": 500,
+
+    "args": ["--solver", "levenberg_marquardt"]
 }

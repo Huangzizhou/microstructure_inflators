@@ -7,18 +7,20 @@ import os
 
 # The grid is chosen so that a (~targetNSubdiv x ~NSubdivsubdiv) subset of
 # lattice points fully cover the approxERange and approxNuRange ranges.
-def materialSpaceGrid(dim, approxERange, approxNuRange, targetNSubdiv):
+def materialSpaceGrid(config):
+    approxERange =  config['targetERange']
+    approxNuRange = config['targetNuRange']
     if (len(approxERange) != 2 or len(approxNuRange) != 2):
         raise Exception("Invalid approximate material property ranges")
-    logESpace, nuSpacing = spacing(approxERange, approxNuRange, targetNSubdiv)
+    logESpace, nuSpacing = spacing(approxERange, approxNuRange, config['targetNSubdiv'])
     # Constrain nu to a range where the elasticity tensor is positive definite
     nuMin = -1.0
-    nuMax =  0.5 if dim == 3 else 1.0
+    nuMax =  0.5 if config['dim'] == 3 else 1.0
     return Grid(logESpace, nuSpacing, nuMin + 1e-3, nuMax - 1e-3)
 
 # Create a PatternOptimization instance filled with jobs to expand the 
 # current frontier (and fill in holes) of a given lookup table.
-def coverageExpansionOptimizer(dim, pat, mat, lut, grid, constraints):
+def coverageExpansionOptimizer(config, lut, grid, constraints):
     # within 1/10 of the distance between gridpoints counts as a hit
     hitThreshold = 0.1
 
@@ -50,7 +52,7 @@ def coverageExpansionOptimizer(dim, pat, mat, lut, grid, constraints):
 
     unreached = gridPoints.difference(hitPoints)
 
-    opt = PatternOptimization(dim, pat, mat)
+    opt = PatternOptimization(config)
     opt.setConstraints(constraints)
     for pt in unreached:
         targetE, targetNu = grid.pointAtIndices(*pt)
@@ -85,12 +87,14 @@ def analyzeRuns(prevLUT, num, pat):
     return lut
 
 # Construct the optimizer for this autocover round (with jobs enqueued)
-def autocoverRoundOptimizer(num, dim, pat, mat, approxERange, approxNuRange,
-        targetNSubdiv):
+def autocoverRoundOptimizer(num, config):
     if (num < 1): raise Exception("Autocover rounds should be numbered 1, ...")
     prev = num - 1
 
-    grid = materialSpaceGrid(dim, approxERange, approxNuRange, targetNSubdiv)
+    dim = config['dim']
+    pat = config['pattern']
+
+    grid = materialSpaceGrid(config)
     constraints = pattern_constraints.lookup(pat, dim)
 
     # Read in previous round's lookup table, extracting it from finished runs
@@ -105,4 +109,4 @@ def autocoverRoundOptimizer(num, dim, pat, mat, approxERange, approxNuRange,
 
     lut = LUT(roundLUTPath(num - 1))
     roundDir = roundName(num)
-    return coverageExpansionOptimizer(dim, pat, mat, lut, grid, constraints)
+    return coverageExpansionOptimizer(config, lut, grid, constraints)
