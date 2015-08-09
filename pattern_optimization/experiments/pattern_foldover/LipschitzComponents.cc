@@ -7,7 +7,7 @@
 //      Lipschitz continuity criterion:
 //          d_param(p_1, p_2) <= lipschitz_constant * d_mat(Ch(p1), Ch(p2))
 //      *OR* if their parameter distance is below the specified threshold:
-//          d_param(p_1, p_2) < threshold
+//          d_param(p_1, p_2) < absolute_distance_threshold
 //      where d_param and d_mat are some norm-induced metrics.
 //      We nondimensionalize by dividing each side of the inequalities by the
 //      norm of p1/Ch(p1).
@@ -21,6 +21,13 @@
 //      When deciding if a point belongs to a component, we apply the continuity
 //      criteria above against every point in the component.
 //
+//      We also require the minimum parameter distance to any point in a
+//      component to be below another threshold to prevent the Lipschitz
+//      criterion from allowing distant components to merge:
+//          min_{p in candidateComponent} d_param(p_1, p) < min_distance_max
+//      (Our greedy approach should still work reasonably well for this
+//      criterion since we expand out in a ball.)
+//
 //      The material property midpoint and d_param are computed in (log E, nu)
 //      space to reflect the sampling strategy.
 */ 
@@ -32,6 +39,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <algorithm>
+#include <limits>
 
 #include "../../LookupTable.hh"
 #include "utils.hh"
@@ -67,15 +75,16 @@ vector<double> distToPoints(double ptLogE, double ptNu,
 
 int main(int argc, char *argv[])
 {
-    if (argc != 5) {
-        cerr << "Usage: ./LipschitzComponents dataTable pattern lipschitz_constant threshold" << endl;
+    if (argc != 6) {
+        cerr << "Usage: ./LipschitzComponents dataTable pattern lipschitz_constant absolute_distance_threshold min_distance_max" << endl;
         exit(-1);
     }
 
     LUT lut(argv[1]);
     LUT patternLut = lut.selectPattern(stoi(argv[2]));
     double lipschitz_constant = stod(argv[3]);
-    double threshold = stod(argv[4]);
+    double absDistanceThreshold = stod(argv[4]);
+    double min_distance_max = stod(argv[5]);
 
     auto Es = patternLut.getEs<double>();
     auto nus = patternLut.getNus<double>();
@@ -113,24 +122,22 @@ int main(int argc, char *argv[])
             // // Continuity criteria
             // double matDist = materialDist(logEs[closestIdx], nus[closestIdx], ptLogE, ptNu);
             // double paramDist = (params.col(closestIdx) - params.col(i)).norm();
-            // if ((paramDist < threshold) || (paramDist < lipschitz_constant * matDist)) {
+            // if ((paramDist < absDistanceThreshold) || (paramDist < lipschitz_constant * matDist)) {
             //     containingComponents.push_back(c);
             // }
 
             bool containedInC = true;
+            double minParamDist = numeric_limits<double>::max();
             for (size_t ci : components[c]) {
                 double matDist = materialDist(logEs[ci], nus[ci], logEs[i], nus[i]);
                 double paramDist = (params.col(ci) - params.col(i)).norm();
-                if ((ci == 36839 || ci == 36844) && (i == 36839 || i == 36844)) {
-                    cout << "matDist: " << matDist << ", paramDist: " << paramDist << endl;
-                    cout << "line 1: " <<  Es[ci] << ", " << nus[ci] << ", " << params.col(ci)[0] << ", " << params.col(ci)[1] << ", " << params.col(ci)[2] << ", " << params.col(ci)[3] << ", " << params.col(ci)[4] << ", " << params.col(ci)[5] << endl;
-                    cout << "line 2: " <<  Es[i ] << ", " << nus[i ] << ", " << params.col(i )[0] << ", " << params.col(i )[1] << ", " << params.col(i )[2] << ", " << params.col(i )[3] << ", " << params.col(i )[4] << ", " << params.col(i )[5] << endl;
-                }
-                if (!((paramDist < threshold) || (paramDist < lipschitz_constant * matDist))) {
+                minParamDist = min(minParamDist, paramDist);
+                if (!((paramDist < absDistanceThreshold) || (paramDist < lipschitz_constant * matDist))) {
                     containedInC = false;
                     break;
                 }
             }
+            if (minParamDist > min_distance_max) containedInC = false;
             if (containedInC)
                 containingComponents.push_back(c);
         }
