@@ -38,7 +38,7 @@ maxSimultaneousJobs = config.get('maxSimultaneousJobs', 500)
 # final iteration and quit
 numIters = config['numIters']
 if (roundNum == numIters + 1):
-    outLUT = analyzeRuns(None, numIters, config['pattern'])
+    outLUT = analyzeRuns(config['dim'], None, numIters, config['pattern'])
     outLUT.write(roundLUTPath(numIters))
     sys.exit(0)
 

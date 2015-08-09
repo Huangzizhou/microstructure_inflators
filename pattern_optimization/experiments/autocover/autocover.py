@@ -17,5 +17,5 @@ for roundNum in range(roundNum, numIters):
     print "Running round %i/%i" % (roundNum, numIters)
     opt = autocoverRoundOptimizer(roundNum, config)
     opt.run(roundDirectory(roundNum))
-    outLUT = analyzeRuns(lut, roundNum, opt.pattern)
+    outLUT = analyzeRuns(config['dim'], None, roundNum, opt.pattern)
     outLUT.write(roundLUTPath(roundNum))

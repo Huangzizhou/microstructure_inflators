@@ -115,14 +115,19 @@ class LUT:
                               + formatEntries(self.params[i][0:self.numParams[i]])) + "\n")
         f.close()
 
-def extract(pat, directory, printableOnly = True):
+def extract(dim, pat, directory, printableOnly = True):
     # TODO: try also extracting only the last point of each run
     # (this is the one we want if patterm optimization is truly working)
     moduli, aniso, params, printable = [], [], [], []
     for fname in glob(directory + '/stdout_*.txt'):
         for line in file(fname):
-            m = re.search('^moduli:\s*(\S*)\s*(\S*)\s*(\S*)\s*(\S*)', line)
-            if (m): moduli.append(map(float, [m.group(1), m.group(3)]))
+            m = re.search('^moduli:\s*\S*.*', line)
+            if (m):
+                m = m.group(0).strip().split('\t')
+                # 2D: m = ['moduli', Ex, Ey, nu_xy, mu_xy]
+                # 3D: m = ['moduli', Ex, Ey, Ez, nu_yz, ...]
+                if dim == 2: moduli.append(map(float, [m[1], m[3]]))
+                if dim == 3: moduli.append(map(float, [m[1], m[4]]))
             p = re.search('^p:\s*(.*)', line)
             if (p): params.append(map(float, p.group(1).split()))
             a = re.search('^anisotropy:\s*(.*)', line)
