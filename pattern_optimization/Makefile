@@ -1,5 +1,15 @@
 MeshFEM ?= $(MESHFEM_PATH)
 
+INCLUDES=-I$(MeshFEM) -I$(CSGFEM) -I$(EIGEN_INC) -isystem $(SUITESPARSE_INC) -isystem $(BOOST_INC) \
+		 -isystem $(CERES_INC) -isystem $(LIBMATHEVAL_INC) -isystem $(CLIPPER_INC)
+INCLUDES+=-isystem $(CLIPPER_INC) -isystem $(VCGLIB_INC) -isystem $(DLIB_INC)
+INCLUDES+=-I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
+INCLUDES+=-I../Luigi/wireinflator2D/src
+
+LIBS=$(BOOST_LFLAGS) $(SUITESPARSE_LFLAGS) $(CERES_LFLAGS) $(LIBMATHEVAL_LFLAGS)
+LIBS+=$(CLIPPER_LFLAGS) $(TRIANGLE_LFLAGS) $(LEVMAR_LFLAGS)
+LIBS+=-L$(PYMESH_PATH)/lib -lwires
+
 include $(MeshFEM)/platform_defs.mk
 
 SOURCES=PatternOptimization_cli.cc PatternOptimizationJob.cc RandomJob.cc SpacedJob.cc GradientComponentValidation.cc \
@@ -29,10 +39,6 @@ OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_
 
 TARGETS=PatternOptimization_cli CreateJob RandomJob SpacedJob GradientComponentValidation Inflator_cli Inflator2D_cli ParamRegion_cli
 
-INCLUDES+=-I$(MeshFEM) -I../Luigi/wireinflator2D/src -isystem $(CLIPPER_PATH)/include/polyclipping -isystem $(VCG_INC) -isystem $(DLIB_INC) -I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
-LIBS+=-L$(CLIPPER_PATH)/lib -lpolyclipping -L/$(PYMESH_PATH)/lib -lwires
-LIBS+=-L$(TRIANGLE_PATH) -ltriangle
-LIBS+=$(LEVMAR_LIB)/liblevmar.a
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DBENCHMARK
 CPPFLAGS+=-O2
 # CPPFLAGS+=-O0 -g
