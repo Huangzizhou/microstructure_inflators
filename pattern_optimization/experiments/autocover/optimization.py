@@ -77,6 +77,7 @@ class PatternOptimization:
         if (lastJobIndex <= firstJobIndex): raise Exception("Invalid job index range")
         cmd = [paths.optimizer(self.dim), directory + '/${PBS_ARRAYID}.job',
             '-p', paths.pattern(self.pattern, self.dim), '-m', self.material] + self.patoptArgs
+        # TODO: figure out how to redirect stdout/sterr out of existence
         pbsScript = """\
         ###-----PBS Directives Start-----###
 
@@ -88,13 +89,15 @@ class PatternOptimization:
         #PBS -l mem=4GB
         #PBS -M fjp234@nyu.edu
         #PBS -m a
-        #PBS -e localhost:${{PBS_O_WORKDIR}}/{name}.e${{PBS_JOBID}}
-        #PBS -o localhost:${{PBS_O_WORKDIR}}/{name}.o${{PBS_JOBID}}
         #PBS -t {firstIndex}-{lastIndex}
 
         ###-----PBS Directives End-----###
         cd ${{PBS_O_WORKDIR}}
-        {command} > {directory}/stdout_${{PBS_ARRAYID}}.txt
+
+        STDOUT_FILE=${{PBS_MEMDISK}}/stdout_${{PBS_JOBID}}.${{PBS_ARRAYID}}.txt
+        timeout -s KILL 85m {command} > $STDOUT_FILE 2>&1
+
+        mv $STDOUT_FILE {directory}/stdout_${{PBS_ARRAYID}}.txt
         """
         pbsScript = dedent(pbsScript).format(
                 name="ac_%i_%s" % (self.pattern, directory),

@@ -59,4 +59,4 @@ def releaseStuckDependents():
 while True:
     try: releaseStuckDependents()
     except Exception as e: print "EXCEPTION: ", e.message
-    time.sleep(5)
+    time.sleep(20)
