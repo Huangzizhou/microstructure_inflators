@@ -36,8 +36,10 @@ def releaseStuckDependents():
     # print "currently held: ", "\t".join(held)
     for h in held:
         fullName = subprocess.check_output('qstat -f %s | grep Job_Name' % h, shell=True).split('=')[1].strip()
-        depend = subprocess.check_output('qstat -f %s | grep depend' % h, shell=True).strip()
-        if (depend == ""): raise "Empty dependency (qstat glitch--job may eventually run)"
+        depend = ""
+        try: depend = subprocess.check_output('qstat -f %s | grep depend' % h, shell=True).strip()
+        except: pass
+        if (depend == ""): raise Exception("Empty dependency for job %s (qstat glitch--job may eventually run)" % h)
         # Currently we only support a single (possibly array) dependency
         m = re.match('depend = (after[^:]*):([0-9]+)\[?\]?.soho\S*$', depend)
         if (not m): raise Exception("Unrecognized dependency line")
@@ -58,5 +60,5 @@ def releaseStuckDependents():
 
 while True:
     try: releaseStuckDependents()
-    except Exception as e: print "EXCEPTION: ", e.message
+    except Exception as e: print "EXCEPTION: ", e
     time.sleep(20)
