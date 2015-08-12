@@ -33,6 +33,8 @@
 #include "PatternOptimization.hh"
 #include "PatternOptimizationJob.hh"
 
+#include "PatternOptimizationConfig.hh"
+
 namespace po = boost::program_options;
 using namespace std;
 using namespace PatternOptimization;
@@ -198,11 +200,8 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         }
     }
 
-    bool ignoreShear = args.count("ignoreShear");
-    if (ignoreShear) {
-        cout << "Ignoring shear components" << endl;
-        // TODO: SET CONFIG
-    }
+    PatternOptimization::Config::get().ignoreShear = args.count("ignoreShear");
+    if (PatternOptimization::Config::get().ignoreShear) cout << "Ignoring shear components" << endl;
     Optimizer<Simulator> optimizer(inflator, job->radiusBounds, job->translationBounds,
                                    job->varLowerBounds, job->varUpperBounds);
     string solver = args["solver"].as<string>(),

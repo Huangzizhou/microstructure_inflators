@@ -23,6 +23,8 @@
 
 #include <MeshIO.hh>
 
+#include "PatternOptimizationConfig.hh"
+
 namespace PatternOptimization {
 template<class _Sim>
 struct Iterate {
@@ -42,8 +44,8 @@ struct Iterate {
                     BEGradTensorInterpolant::Deg>   BEGradInterpolant;
 
     Iterate(ConstrainedInflator<_N> &inflator, size_t nParams, const double *params,
-            const _ETensor &targetS, bool ignoreShear = false)
-        : m_targetS(targetS), m_ignoreShear(ignoreShear)
+            const _ETensor &targetS)
+        : m_targetS(targetS)
     {
         m_params.resize(nParams);
         for (size_t i = 0; i < nParams; ++i)
@@ -159,14 +161,14 @@ struct Iterate {
     }
 
     // S_ijkl - target_ijkl
-    // EXCEPT when m_ignoreShear = true, in which case the "shear modulus
+    // EXCEPT when ignoreShear = true, in which case the "shear modulus
     // components" are zeroed out. (rows/cols >= _N)
     _ETensor diffS() const {
-        if (m_ignoreShear) {
+        if (PatternOptimization::Config::get().ignoreShear) {
             _ETensor zeroedShear = m_diffS;
             for (size_t i = _N; i < flatLen(_N); ++i)
                 for (size_t j = i; j < flatLen(_N); ++j)
-                    zeroedShear(i, j) = 0.0;
+                    zeroedShear.D(i, j) = 0.0;
             return zeroedShear;
         }
         return m_diffS;
@@ -211,7 +213,7 @@ struct Iterate {
         assert(kl >= ij);
         Real weight = 1.0;
         if (kl != ij) weight *= sqrt(2); // Account for lower triangle
-        if (m_ignoreShear) {
+        if (PatternOptimization::Config::get().ignoreShear) {
             if (ij >= _N) weight = 0.0; // Zero out shear components
             if (kl >= _N) weight = 0.0; // Zero out shear components
         }
@@ -235,7 +237,7 @@ struct Iterate {
         assert(kl >= ij);
         Real weight = 1.0;
         if (kl != ij) weight *= sqrt(2); // Account for lower triangle
-        if (m_ignoreShear) {
+        if (PatternOptimization::Config::get().ignoreShear) {
             if (ij >= _N) weight = 0.0; // Zero out shear components
             if (kl >= _N) weight = 0.0; // Zero out shear components
         }
@@ -366,7 +368,6 @@ private:
     std::vector<_ETensor>                m_gradp_S;
     std::vector<typename ConstrainedInflator<_N>::NormalShapeVelocity> m_vn_p;
     bool m_printable;
-    bool m_ignoreShear;
 
     // Requests linear objective/residual estimate for when meshing fails
     std::vector<Real> m_estimateObjectiveWithDeltaP;
