@@ -75,12 +75,12 @@ def roundName(i): return "round_%04i" % i
 def roundDirectory(i): return roundName(i)
 def roundLUTPath(i): return roundName(i) + '.txt'
 
-def analyzeRuns(dim, prevLUT, num, pat, printableOnly):
+def analyzeRuns(dim, prevLUT, num, pat, printableOnly, isotropicOnly):
     if prevLUT == None:
         # the previous round's lookup table better exist (we need to union it)
         prevLUT = LUT(roundLUTPath(num - 1))
     lut = extractLUT(dim, pat, roundName(num), printableOnly = printableOnly)
-    lut.filterAnisotropy(0.95, 1.05)
+    if isotropicOnly: lut.filterAnisotropy(0.95, 1.05)
     # TODO: determine convergence by diffing against previous round lookup table?
     # also, could remove duplicates by doing a sort | uniq
     lut.union(prevLUT)
@@ -105,7 +105,7 @@ def autocoverRoundOptimizer(num, config):
     if (os.path.exists(roundLUTPath(prev))):
         lut = LUT(roundLUTPath(prev))
     elif (os.path.exists(roundName(prev))):
-        lut = analyzeRuns(dim, None, prev, pat, printableOnly)
+        lut = analyzeRuns(dim, None, prev, pat, printableOnly, config.get('isotropic', True))
         lut.write(roundLUTPath(prev))
     else: raise Exception("Previous round (%i) does not exist" % (num - 1))
 

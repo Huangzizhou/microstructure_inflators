@@ -18,5 +18,5 @@ for roundNum in range(roundNum, numIters):
     opt = autocoverRoundOptimizer(roundNum, config)
     opt.run(roundDirectory(roundNum))
     outLUT = analyzeRuns(config['dim'], None, roundNum, opt.pattern,
-            config.get('printable', True))
+            config.get('printable', True), config.get('isotropic', True))
     outLUT.write(roundLUTPath(roundNum))
