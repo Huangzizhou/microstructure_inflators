@@ -97,6 +97,7 @@ def autocoverRoundOptimizer(num, config):
 
     grid = materialSpaceGrid(config)
     constraints = pattern_constraints.lookup(pat, dim)
+    if (not printableOnly): constraints = [] # no equality constraints for unprintable!
 
     # Read in previous round's lookup table, extracting it from finished runs
     # if it doesn't exist
