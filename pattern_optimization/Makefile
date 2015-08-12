@@ -5,6 +5,7 @@ INCLUDES+=-I$(MeshFEM) -I$(CSGFEM) -I$(EIGEN_INC) -isystem $(SUITESPARSE_INC) -i
 		 -isystem $(CERES_INC) -isystem $(LIBMATHEVAL_INC) -isystem $(CLIPPER_INC)
 INCLUDES+=-isystem $(CLIPPER_INC) -isystem $(VCGLIB_INC) -isystem $(DLIB_INC)
 INCLUDES+=-I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
+INCLUDES+=-isystem $(TRIANGLE_INC)
 INCLUDES+=-I../Luigi/wireinflator2D/src
 
 LIBS=$(BOOST_LFLAGS) $(SUITESPARSE_LFLAGS) $(CERES_LFLAGS) $(LIBMATHEVAL_LFLAGS)
