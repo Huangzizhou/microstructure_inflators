@@ -69,6 +69,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
         ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
         ("fullCellInflator",                                                     "use the full periodic inflator instead of the reflection-based one")
+        ("ignoreShear",                                                          "Ignore the shear components in the isotropic tensor fitting")
         ;
 
     po::options_description cli_opts;
@@ -149,7 +150,7 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         inflator_ptr->setReflectiveInflator(args.count("fullCellInflator") == 0);
     }
 
-	ConstrainedInflator<_N> &inflator = *inflator_ptr;
+    ConstrainedInflator<_N> &inflator = *inflator_ptr;
     if (args.count("max_volume"))
         inflator.setMaxElementVolume(args["max_volume"].as<double>());
 
@@ -197,6 +198,11 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         }
     }
 
+    bool ignoreShear = args.count("ignoreShear");
+    if (ignoreShear) {
+        cout << "Ignoring shear components" << endl;
+        // TODO: SET CONFIG
+    }
     Optimizer<Simulator> optimizer(inflator, job->radiusBounds, job->translationBounds,
                                    job->varLowerBounds, job->varUpperBounds);
     string solver = args["solver"].as<string>(),
