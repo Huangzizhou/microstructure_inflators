@@ -507,8 +507,112 @@ public:
 		return "cell_parameters";
 	}
 
+
+	template <class PolyMesh> 
+	void printEdgeNeighbors(PolyMesh & pmesh, const bool useParametrization)
+	{
+		std::cout << "-------------------------------------" << std::endl;
+		std::cout << "printing out the quads and the edges " << std::endl;
+		std::cout << "-------------------------------------" << std::endl;
+
+		typedef WireMeshEmbedding<EMesh, PolyMesh> WireEmbedding;
+		typedef typename WireEmbedding::QuadParametrization QuadParametrization;
+		if (!m_wire.isValid())
+			throw("the wire mesh is not valid!");
+
+		if (!PolyMeshUtils<PolyMesh>::isQuadMesh(pmesh))
+			throw("the quad mesh is not valid!");
+
+		this->setTessellationParameters();
+		this->m_paths.clear();
+		
+		WireEmbedding::preprocessQuadMesh(pmesh);
+
+		for (int i = 0; i < pmesh.face.size(); ++i)
+		{
+			std::cout<< "currently at face " << i+1 << std::endl;
+
+			typename PolyMesh::FaceType &f = pmesh.face[i];
+
+			for (int e = 0; e < f.VN(); ++e)
+			{
+			 	char edgeNumber, edgeP0, edgeP1;
+				if (!useParametrization)
+				{
+					edgeNumber = e;
+					edgeP0 = (edgeNumber)     % f.VN();
+					edgeP1 = (edgeNumber + 1) % f.VN();
+				}
+				else
+				{
+					QuadParametrization qpar = WireEmbedding::getQuadParametrizationHandle(pmesh)[f];
+					edgeNumber = (e + qpar.index0) % 4;
+					edgeP0 = (edgeNumber)     % f.VN();
+					edgeP1 = (edgeNumber + 1) % f.VN();
+				}
+
+				std::cout << "edge " << e << " or ectula edge " << (int)edgeNumber << " consists of " << "(" << f.V(edgeP0)->cP()[0] << "," << f.V(edgeP0)->cP()[1] << ")" << 
+					                                      								"-------->" << "(" << f.V(edgeP1)->cP()[0] << "," << f.V(edgeP1)->cP()[1] << ")" << std::endl; 
+			}
+
+			std::cout << std::endl << std::endl;
+		}
+
+
+		std::cout << "-------------------------------------" << std::endl;
+		std::cout << "printing out the quads and the edges " << std::endl;
+		std::cout << "-------------------------------------" << std::endl;
+
+		for (int i = 0; i < pmesh.face.size(); ++i)
+		{
+			std::cout<< "currently at face " << i+1 << std::endl;
+			typename PolyMesh::FaceType &f = pmesh.face[i];
+			typedef typename PolyMesh::FacePointer     PFacePointer;
+
+			for (int e = 0; e < f.VN(); ++e)
+			{
+			 	char edgeNumber;
+				std::vector<char> neighEdges;
+				std::vector<PFacePointer> neighFaces;
+				neighEdges.clear();
+				if (!useParametrization)
+				{
+					edgeNumber = e;
+					neighEdges = WireEmbedding::idxToElementInAdjacentFaceEdge(pmesh, f, edgeNumber);
+					neighFaces = WireEmbedding::adjacentFaceEdge(pmesh, f, edgeNumber);
+				}
+				else
+				{
+					QuadParametrization qpar = WireEmbedding::getQuadParametrizationHandle(pmesh)[f];
+					edgeNumber = (e + qpar.index0) % 4;
+					neighEdges = WireEmbedding::idxToElementInAdjacentFaceEdge(pmesh, f, e);
+					neighFaces = WireEmbedding::adjacentFaceEdge(pmesh, f, e);
+				}
+				if (neighEdges.size() <= 0)
+					std::cout << "edge " << (int)edgeNumber << " has no dual edge" << std::endl; 
+				else
+				{
+					size_t jj;
+					for (jj = 0; jj < pmesh.face.size(); ++jj)
+					{
+						if (& pmesh.face[jj] == neighFaces[0])
+							break;
+					}
+					std::cout << "edge " << (int)edgeNumber << " s dual edge is edge " << (int) (neighEdges[0]) << " in face " << jj+1 << std::endl;
+				}
+			}
+			std::cout << std::endl << std::endl;
+
+
+		}
+
+
+
+	}
+
+
 	template <class PolyMesh>
-	bool generateFromQuads(PolyMesh & pmesh, bool averageThicknessOnBoundary = false)
+	bool generateFromQuads(PolyMesh & pmesh, bool averageThicknessOnBoundary = false, bool preProcessQuad = true)
 	{
 		typedef WireMeshEmbedding<EMesh, PolyMesh> WireEmbedding;
 
@@ -520,8 +624,9 @@ public:
 
 		this->setTessellationParameters();
 		this->m_paths.clear();
-
-		WireEmbedding::preprocessQuadMesh(pmesh);
+		
+		if (preProcessQuad)
+			WireEmbedding::preprocessQuadMesh(pmesh);
 
 		ClipperLib::Clipper clipper;
 		for (size_t i=0; i<pmesh.face.size(); ++i)
@@ -549,6 +654,7 @@ public:
 			{
 				EMesh em;
 				m_wire.getUnmodifiedEdgeMesh(em);
+
 				for (size_t vindex=0; vindex<em.vert.size(); ++vindex)
 				{
 					const EVertexType & v = em.vert[vindex];
@@ -608,6 +714,11 @@ public:
 				}
 			}
 
+			/* std::cout << "there are " << boundaryVtx.size() << " bounary vertices" << std::endl; */
+			/* for (size_t kk = 0; kk < boundaryVtx.size(); ++kk) */
+			/* 	std::cout << boundaryVtx[kk].vindex << ", " << boundaryVtx[kk].parameter << "\t"; */
+			/* std::cout << std::endl; */
+
 			// retrieve cell parameters
 			CellParameters params;
 			auto faceParams = vcg::tri::Allocator<PolyMesh>::template FindPerFaceAttribute<CellParameters>(pmesh, CellParametersAttributeName());
@@ -634,21 +745,41 @@ public:
 				for (BoundaryVertex & bv : boundaryVtx)
 				{
 					auto quality = em.vert[bv.vindex].cQ();
-					std::vector<typename PolyMesh::FacePointer> adj;
+					std::vector<typename PolyMesh::FacePointer> adjFaces;
+					std::vector<char> 							elementIdxInAdjFaces; // element is an edge(or a vertex) when bv.type == BoundaryVertex::Edge (or == BoundaryVertex::Vertex)
 					switch (bv.type) {
 					case BoundaryVertex::Edge :
-						adj = WireEmbedding::adjacentFaceEdge(pmesh, f, bv.index);
+						adjFaces = WireEmbedding::adjacentFaceEdge(pmesh, f, bv.index);
+						elementIdxInAdjFaces = WireEmbedding::idxToElementInAdjacentFaceEdge(pmesh, f, bv.index);
 						break;
 					case BoundaryVertex::Vertex :
-						adj = WireEmbedding::adjacentFaceVertex(pmesh, f, bv.index);
+						adjFaces = WireEmbedding::adjacentFaceVertex(pmesh, f, bv.index);
+						elementIdxInAdjFaces = WireEmbedding::idxToElementInAdjacentFaceVertex(pmesh, f, bv.index);
 						break;
 					default: return false;
 					}
-					for (typename PolyMesh::FacePointer fa : adj)
+
+
+					int counter = 0;
+					for (typename PolyMesh::FacePointer fa : adjFaces)
 					{
-						quality += faceParams[fa].cParameter(bv.parameter);
+						/* quality += faceParams[fa].cParameter(bv.parameter); */
+						// compute the parameter index in the adjacent face (previously this was assumed to be the same as the parameter index in the current face!)
+						size_t adjFaceParameterIdx = -1;
+						for (size_t jj = 0; jj < boundaryVtx.size(); ++jj)
+						{
+							BoundaryVertex bv2 = boundaryVtx[jj];
+							if (bv2.type == BoundaryVertex::Edge && bv2.index == elementIdxInAdjFaces[counter])
+							{
+								adjFaceParameterIdx = bv2.parameter;
+								break;
+							}
+						}
+						if (adjFaceParameterIdx >= 0)
+							quality += faceParams[fa].cParameter(adjFaceParameterIdx);
+						++counter;
 					}
-					em.vert[bv.vindex].Q() = (quality/(adj.size()+1));
+					em.vert[bv.vindex].Q() = (quality/(adjFaces.size()+1));
 				}
 
 				this->generateOneElement(em, pmesh, f);

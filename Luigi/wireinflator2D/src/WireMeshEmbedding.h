@@ -106,6 +106,25 @@ public:
 		return ret;
 	}
 
+	static std::vector<char> idxToElementInAdjacentFaceEdge(PolyMesh & pmesh, const PFaceType & f, unsigned char edgeIdx)
+	{
+		std::vector<char> ret;
+		if (edgeIdx >= 0 && edgeIdx < f.VN())
+		{
+			QuadParamHandle qpar = getQuadParametrizationHandle(pmesh);
+			unsigned char actualIndex = (qpar[&f].index0 + edgeIdx) % 4;
+			PFacePointer af = f.FFp(actualIndex);
+			char		 adjFaceEdgeIdx = f.cFFi(actualIndex);
+
+			if (af != &f)
+			{
+				char actualAdjFaceEdgeIdx = (adjFaceEdgeIdx + qpar[af].index0) % 4;
+				ret.push_back(actualAdjFaceEdgeIdx);
+			}
+		}
+		return ret;
+	}
+	
 	static std::vector<PFacePointer> adjacentFaceVertex(PolyMesh & pmesh, const PFaceType & f, unsigned char vertIdx)
 	{
 		std::vector<PFacePointer> ret;
@@ -123,6 +142,85 @@ public:
 			}
 		}
 		return ret;
+	}
+
+	// MHS on AUG14, 2015:
+	// this is not being used, right now. It must be updated in case it is needed in the future!
+	static std::vector<char> idxToElementInAdjacentFaceVertex(PolyMesh & pmesh, const PFaceType & f, unsigned char vertIdx)
+	{
+		std::vector<char> ret;
+		return ret;
+	}
+
+
+
+	// MHS on JUL14, 2015:
+	// This method returns the deformation (F) corresponding to the equivalent parallelogram for each
+	// bilinear quad in the quad mesh.
+	static void  getJacobians(PolyMesh 						& pmesh, 
+			                  std::vector<Eigen::Matrix2d>	& defs,
+			                  std::vector<double> 			& angles)
+	{
+		defs.clear();
+		angles.clear();
+
+
+		for (auto fc = pmesh.face.begin(); fc != pmesh.face.end(); fc++)
+		{
+			QuadParametrization qpar = getQuadParametrizationHandle(pmesh)[fc];
+
+			char index0 = qpar.index0;
+			char index1 = (index0 + 1) % 4;
+			char index2 = (index0 + 2) % 4;
+			char index3 = (index0 + 3) % 4;
+
+			PCoordType p1 = fc->cP(index0);
+			PCoordType p2 = fc->cP(index1);
+			PCoordType p3 = fc->cP(index2);
+			PCoordType p4 = fc->cP(index3);
+
+			PCoordType direction = p2 - p1;
+
+			double cosAngle = direction[0] / sqrt(direction[0] * direction[0] + direction[1] * direction[1]);
+			double angle    = acos(cosAngle);
+
+			PCoordType p1_equivalent = (p1 + p1 + p1) / 4.0 + (p2 - p3 + p4) / 4.0; 
+			PCoordType p2_equivalent = (p2 + p2 + p2) / 4.0 + (p3 - p4 + p1) / 4.0;
+			PCoordType p3_equivalent = (p3 + p3 + p3) / 4.0 + (p4 - p1 + p2) / 4.0;
+			PCoordType p4_equivalent = (p4 + p4 + p4) / 4.0 + (p1 - p2 + p3) / 4.0;
+
+			PCoordType alpha = (p2_equivalent - p1_equivalent); 
+			PCoordType beta  = (p4_equivalent - p1_equivalent); 
+
+			Eigen::Matrix2d jacobian;
+			jacobian(0, 0) = alpha[0];
+			jacobian(0, 1) = beta[0];
+			jacobian(1, 0) = alpha[1];
+			jacobian(1, 1) = beta[1];
+			
+			jacobian = jacobian / std::sqrt(std::abs(jacobian.determinant()));
+
+			defs.push_back(jacobian); 
+			angles.push_back(angle);
+		}
+	}
+
+	// MHS on AUG10 2015:
+	// This method returns the symmetric right stretc (U)
+	static void getStretches(PolyMesh & pmesh,
+			                 std::vector<Eigen::Matrix2d>	& stretches,
+			                 std::vector<double> 			& angles)
+	{
+		std::vector<Eigen::Matrix2d> defs;
+		getDeformations(pmesh, defs, angles);
+		
+		
+		stretches.clear();
+		for (size_t i = 0; i < defs.size(); ++i)
+		{
+			Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> es(defs[i] * defs[i].transpose());
+			stretches.push_back(es.operatorSqrt());
+		}
 	}
 
 private:
@@ -144,108 +242,7 @@ private:
 		}
 	}
 
-	// MHS on JUL14, 2015:
-	// This method returns the deformation corresponding to the equivalent parallelogram for each
-	// bilinear quad in the quad mesh.
-	// TODO: maybe you should make this public so that you can call it from outside ...
-	// TODO: there are a lot of cout statements for debug purposes that should be deleted later ...
-	static void getDefs(PolyMesh & pmesh)
-	{
-		for (auto fc = pmesh.face.begin(); fc != pmesh.face.end(); fc++)
-		{
 
-			/* PCoordType myV1 = fc->cP(1) - fc->cP(0); */
-			/* PCoordType myV2 = fc->cP(2) - fc->cP(1); */
-
-			/* double crossProduct = myV1[0] * myV2[1] - myV1[1] * myV2[0]; */
-
-			/* cout << endl; */
-			/* if (crossProduct > 0) */
-			/* 	cout << "CCW" << endl; */
-			/* else */ 
-			/* 	cout << "CW" << endl; */
-
-			/* cout << fc->cP(0)[0] << ", " << fc->cP(0)[1] << endl; */
-			/* cout << fc->cP(1)[0] << ", " << fc->cP(1)[1] << endl; */
-			/* cout << fc->cP(2)[0] << ", " << fc->cP(2)[1] << endl; */
-			/* cout << fc->cP(3)[0] << ", " << fc->cP(3)[1] << endl; */
-
-
-			
-			/* char lowerLeftVertIndx = 0; */
-			/* for (int i = 1; i < fc->VN(); i++) */
-			/* 	if (fc->cP(i)[0] <= fc->cP(lowerLeftVertIndx)[0] && */ 
-			/* 		fc->cP(i)[1] <= fc->cP(lowerLeftVertIndx)[1]) */
-			/* 		lowerLeftVertIndx = i; */
-
-			/* cout << endl << "lower left vertex id is ..." << lowerLeftVertIndx << endl; */
-
-
-			/* PCoordType p1 = fc->cP((lowerLeftVertIndx + 2)%4); */
-			/* PCoordType p2 = fc->cP((lowerLeftVertIndx + 3)%4); */
-			/* PCoordType p3 = fc->cP((lowerLeftVertIndx + 0)%4); */
-			/* PCoordType p4 = fc->cP((lowerLeftVertIndx + 1)%4); */
-
-			PCoordType p1 = fc->cP(0);
-			PCoordType p2 = fc->cP(1);
-			PCoordType p3 = fc->cP(2);
-			PCoordType p4 = fc->cP(3);
-
-			// Explain how the equivalent parallelograms are computed:
-			// refer to the corresponding paper
-			// assume face vertices are defined in a clock-wise manner ... 
-			// note that in the paper it is counter-clock-wise ...
-			
-			PCoordType p1_equivalent = (p1 + p1 + p1) / 4.0 + (p2 - p3 + p4) / 4.0; 
-			PCoordType p2_equivalent = (p2 + p2 + p2) / 4.0 + (p3 - p4 + p1) / 4.0;
-			PCoordType p3_equivalent = (p3 + p3 + p3) / 4.0 + (p4 - p1 + p2) / 4.0;
-			PCoordType p4_equivalent = (p4 + p4 + p4) / 4.0 + (p1 - p2 + p3) / 4.0;
-
-			PCoordType alpha = (p2_equivalent - p3_equivalent); //  / 2.0 by construction but this is droped because the undefored cell in the above papers calculations has size 2;
-			PCoordType beta  = (p4_equivalent - p3_equivalent); //  / 2.0;
-			
-
-			/* cout << endl << endl; */
-			/* //cout << "Face Vertices of the Original Quads:------" << endl; */
-			/* cout << p1[0] << ", " << p1[1] << endl; */
-			/* cout << p2[0] << ", " << p2[1] << endl; */
-			/* cout << p3[0] << ", " << p3[1] << endl; */
-			/* cout << p4[0] << ", " << p4[1] << endl; */
-
-			/* //cout << "Face Vertices of the Equivalent Quads:------" << endl; */
-			/* cout << p1_equivalent[0] << ", " << p1_equivalent[1] << endl; */
-			/* cout << p2_equivalent[0] << ", " << p2_equivalent[1] << endl; */
-			/* cout << p3_equivalent[0] << ", " << p3_equivalent[1] << endl; */
-			/* cout << p4_equivalent[0] << ", " << p4_equivalent[1] << endl; */
-
-			/* cout << endl << endl; */
-
-			Eigen::Matrix<double, 2, 2> jacobian;
-			jacobian(0, 0) = alpha[0];
-			jacobian(0, 1) = beta[0];
-			jacobian(1, 0) = alpha[1];
-			jacobian(1, 1) = beta[1];
-
-			/* double maxElement = jacobian.array().abs().matrix().maxCoeff(); */
-			/* jacobian = jacobian / maxElement; */
-
-			jacobian = jacobian / sqrt(jacobian.determinant());
-
-			cout  << jacobian(0, 0) << "\t" << jacobian(0, 1) << "\t" << jacobian(1, 0) << "\t" << jacobian(1, 1) << endl; 
-
-			/*
-			cout << endl << " F is ... " << endl << jacobian << endl;
-			cout << endl << " F^T F is ... " << endl << jacobian.transpose() * jacobian << endl;
-			cout << endl << " U is ... " << endl << stretch << endl;
-			cout << endl << " U^2 is ... " << endl << stretch * stretch << endl;
-
-			cout << endl << "sanity check FTF - U2 is ... " << endl << (jacobian.transpose() * jacobian - stretch * stretch) << endl;
-
-			cout << "----------" << endl << endl;
-			*/
-
-		}
-	}
 
 
 	static void createParametrization(PolyMesh & pmesh)
