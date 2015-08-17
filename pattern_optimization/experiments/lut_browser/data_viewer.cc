@@ -770,7 +770,7 @@ void selectTableAndPattern(size_t table, size_t pat) {
 
         auto paramHistSelected = make_shared<HistogramPlot>();
         paramHistSelected->setBackgroundColor(1, 1, 1, 0);
-        paramHistSelected->setForegroundColor(1, 0, 0, 0.75);
+        paramHistSelected->setForegroundColor(1, 0, 0, 0.95);
         stacker->addSubview(paramHistSelected);
         g_histLayout->addSubview(stacker);
 

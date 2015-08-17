@@ -23,6 +23,8 @@
 
 #include <MeshIO.hh>
 
+#include "PatternOptimizationConfig.hh"
+
 namespace PatternOptimization {
 template<class _Sim>
 struct Iterate {
@@ -158,6 +160,20 @@ struct Iterate {
         return 0.5 * result;
     }
 
+    // S_ijkl - target_ijkl
+    // EXCEPT when ignoreShear = true, in which case the "shear modulus
+    // components" are zeroed out. (rows/cols >= _N)
+    _ETensor diffS() const {
+        if (PatternOptimization::Config::get().ignoreShear) {
+            _ETensor zeroedShear = m_diffS;
+            for (size_t i = _N; i < flatLen(_N); ++i)
+                for (size_t j = i; j < flatLen(_N); ++j)
+                    zeroedShear.D(i, j) = 0.0;
+            return zeroedShear;
+        }
+        return m_diffS;
+    }
+
     ////////////////////////////////////////////////////////////////////////
     /*! Computes grad(1/2 sum_ijkl (S_ijkl - target_ijlk|)^2) =
     //      (S_ijkl - target_ijlk) * grad(S_ikjl))
@@ -167,13 +183,13 @@ struct Iterate {
     *///////////////////////////////////////////////////////////////////////
     std::vector<BEGradInterpolant> shapeDerivativeJS() const {
         std::vector<BEGradInterpolant> grad(m_gradS.size());
-
+        auto deltaS = diffS();
         for (size_t be = 0; be < m_gradS.size(); ++be) {
             // Compute each nodal value of the interpolant.
             const auto &GS = m_gradS[be];
                   auto &g = grad[be];
             for (size_t n = 0; n < GS.size(); ++n)
-                g[n] = m_diffS.quadrupleContract(GS[n]);
+                g[n] = deltaS.quadrupleContract(GS[n]);
         }
 
         return grad;
@@ -182,9 +198,10 @@ struct Iterate {
     // Computes grad_p(1/2 sum_ijkl (S_ijkl - target_ijlk|)^2) =
     //      (S_ijkl - target_ijlk) * grad_p(S_ikjl))
     SField gradp_JS() const {
+        auto deltaS = diffS();
         SField result(m_params.size());
         for (size_t p = 0; p < m_params.size(); ++p)
-            result[p] = m_diffS.quadrupleContract(m_gradp_S[p]);
+            result[p] = deltaS.quadrupleContract(m_gradp_S[p]);
         return result;
     }
 
@@ -196,8 +213,14 @@ struct Iterate {
         assert(kl >= ij);
         Real weight = 1.0;
         if (kl != ij) weight *= sqrt(2); // Account for lower triangle
-        if (ij >= _N) weight *= sqrt(2); // Left shear doubler
-        if (kl >= _N) weight *= sqrt(2); // Right shear doubler
+        if (PatternOptimization::Config::get().ignoreShear) {
+            if (ij >= _N) weight = 0.0; // Zero out shear components
+            if (kl >= _N) weight = 0.0; // Zero out shear components
+        }
+        else {
+            if (ij >= _N) weight *= sqrt(2); // Left shear doubler
+            if (kl >= _N) weight *= sqrt(2); // Right shear doubler
+        }
         Real result = weight * m_diffS.D(ij, kl);
 
         if (m_estimateObjectiveWithDeltaP.size() == m_params.size()) {
@@ -214,8 +237,14 @@ struct Iterate {
         assert(kl >= ij);
         Real weight = 1.0;
         if (kl != ij) weight *= sqrt(2); // Account for lower triangle
-        if (ij >= _N) weight *= sqrt(2); // Left shear doubler
-        if (kl >= _N) weight *= sqrt(2); // Right shear doubler
+        if (PatternOptimization::Config::get().ignoreShear) {
+            if (ij >= _N) weight = 0.0; // Zero out shear components
+            if (kl >= _N) weight = 0.0; // Zero out shear components
+        }
+        else {
+            if (ij >= _N) weight *= sqrt(2); // Left shear doubler
+            if (kl >= _N) weight *= sqrt(2); // Right shear doubler
+        }
         return weight * m_gradp_S[p].D(ij, kl);
     }
 

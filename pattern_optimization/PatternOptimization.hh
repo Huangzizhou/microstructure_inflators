@@ -28,6 +28,8 @@
 #include <EdgeFields.hh>
 #include <MSHFieldWriter.hh>
 
+#include "PatternOptimizationConfig.hh"
+
 namespace PatternOptimization {
 
 // Use previous iterate if evaluating the same point. Otherwise, attempt to
