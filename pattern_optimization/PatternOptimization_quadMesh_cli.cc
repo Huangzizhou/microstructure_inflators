@@ -71,7 +71,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("pattern,p",					po::value<string>(), "Pattern wire mesh (.obj|wire)")
         ("material,m",					po::value<string>(), "base material")
         ("quad,q",						po::value<string>(), "quad mesh (.obj|msh)")
-        ("out_folder,f",				po::value<string>(), "folder name to store the results")
+        ("regularization,r",            po::value<double>()->default_value(0.0), "regularization weight")
         ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
         ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
         ("dofOut",       po::value<string>()->default_value(""),                 "output pattern dofs in James' format at each iteration (3D Only)")
@@ -82,6 +82,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("sub_algorithm,A", po::value<string>()->default_value("simple"),        "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                                    "maximum element volume parameter for wire inflator")
         ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
+        ("sym",          po::value<int>()->default_value(3),                 "symmetry mode")
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
         ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
         ("fullCellInflator",                                                     "use the full periodic inflator instead of the reflection-based one")
@@ -123,11 +124,6 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 		fail = true;
 	}
 	
-	if (vm.count("out_folder") == 0) {
-		cout << "Error: must specify a name for the output folder!" << endl;
-		fail = true;
-	}
-
 	if (fail || vm.count("help"))
 		usage(fail, visible_opts);
 
@@ -188,27 +184,26 @@ template<size_t _N>
 using ETensor = ElasticityTensor<Real, _N>;
 typedef ScalarField<Real> SField;
 
-
 template<size_t _N, size_t _FEMDegree>
 void execute(const po::variables_map &args, 
 			 const Job<_N> *job, 
 			 const Eigen::Matrix2d deformation, 
-			 const int symMode, 
-			 vector<MeshIO::IOVertex> & refMeshVertices,
-             vector<MeshIO::IOElement> &  refMeshElements,
-			 vector<double> & finalParams) 
+			 const int quadID,
+			 vector<MeshIO::IOVertex>  & refMeshVertices,
+             vector<MeshIO::IOElement> & refMeshElements,
+			 vector<double>            & outParams) 
 {
+
     shared_ptr<ConstrainedInflator<_N>> inflator_ptr;
     if (_N == 2) {
-        /* inflator_ptr = make_shared<ConstrainedInflator<_N>>( */
-        /*         job->parameterConstraints, */
-        /*         args["pattern"].as<string>(), */
-        /*         args["sym"].as<int>()); // the last parameter is a symmetryMode (see the corresponding constructor in Inflator.hh for more details) */
-        
-        // this uses the original Luigi's symmetry stuff
         inflator_ptr = make_shared<ConstrainedInflator<_N>>(
                 job->parameterConstraints,
-                args["pattern"].as<string>()); // MHS JUL14, 2015: the last parameter is a symmetryMode (see the corresponding constructor in Inflator.hh for more details)
+                args["pattern"].as<string>(),
+                args["sym"].as<int>()); // this  parameter is a symmetryMode (see the corresponding constructor in Inflator.hh for more details)
+        // this uses the original Luigi's symmetry stuff
+        /* inflator_ptr = make_shared<ConstrainedInflator<_N>>( */
+        /*         job->parameterConstraints, */
+        /*         args["pattern"].as<string>()); // */
     }
     else {
         inflator_ptr = make_shared<ConstrainedInflator<_N>>(
@@ -230,16 +225,17 @@ void execute(const po::variables_map &args,
 
     std::cout << "numer of inflator parametrs is " << inflator.numParameters() << endl;
 
-
     // use the deformed target C
     auto targetC = job->targetMaterial.getTensor().transform(deformation.inverse());
+
     ETensor<_N> targetS = targetC.inverse();
 
     cout << "Target moduli:\t";
     targetC.printOrthotropic(cout);
     cout << endl;
 
-    cout << "target tensor: " << targetC << endl;
+    cout << "target tensor: " << endl<< targetC << endl;
+
 
     if (job->numParams() != inflator.numParameters()) {
         for (size_t i = 0; i < inflator.numParameters(); ++i) {
@@ -260,11 +256,23 @@ void execute(const po::variables_map &args,
     // Morteza's transformation formulas
     mat.setTensor(mat.getTensor().transform(deformation.inverse()));
 
+	cout << "base material stiffness" << endl << mat.getTensor() << endl;
+
+	/* char myC = 'c'; */
+    /* while (myC != 'n') */
+    	/* myC = getchar(); */
+
     string dofOut = args["dofOut"].as<string>();
     if (dofOut != "")
         inflator.setDoFOutputPrefix(dofOut);
 
-   	SField params(job->initialParams);
+
+
+
+	SField params(job->initialParams);
+	SField initialParams(job->initialParams);
+
+
    	
 	// cout << endl << params << endl;
 
@@ -285,11 +293,34 @@ void execute(const po::variables_map &args,
 
     Optimizer<Simulator> optimizer(inflator, job->radiusBounds, job->translationBounds,
                                    job->varLowerBounds, job->varUpperBounds);
-    string solver = args["solver"].as<string>(),
-           output = args["output"].as<string>();
+
+
+
+    auto savePath = current_path() / args["output"].as<string>() / "inter_meshes";
+    if (!exists(savePath) ||  !is_directory(savePath))
+    	create_directory(savePath);
+
+
+    string output1 = savePath.string();
+
+
+	string quadFolder = "quad_" + to_string(quadID);
+	savePath = current_path() / args["output"].as<string>() / "inter_meshes" / quadFolder;
+    if (!exists(savePath) ||  !is_directory(savePath))
+    	create_directory(savePath);
+
+
+    string output2 = savePath.string();
+
+    string output  = output1;
+
+	string solver = args["solver"].as<string>();
     size_t niters = args["nIters"].as<size_t>();
+
     if (solver == "levenberg_marquardt")
         optimizer.optimize_lm(params, targetS, output);
+    else if (solver == "levenberg_marquardt_reg")
+        optimizer.optimize_lm_regularized(params, initialParams, args["regularization"].as<double>(), targetS, output1, output2);
     else if (solver == "lm_bd_penalty")
         optimizer.optimize_lm_bound_penalty(params, targetS, output);
     else if (solver == "levmar")
@@ -299,16 +330,18 @@ void execute(const po::variables_map &args,
                           args["step"].as<double>(), output);
     else if (solver == "bfgs")
         optimizer.optimize_bfgs(params, targetS, niters, output);
+	else if (solver == "bfgs_reg")
+        optimizer.optimize_bfgs_regularized(params, initialParams, args["regularization"].as<double>(), targetS, output1, output2,  niters, 10);
     else if (solver == "lbfgs")
         optimizer.optimize_bfgs(params, targetS, niters, output, 10);
 
     //std::cout << "Final p:";
     std::vector<Real> result(params.domainSize());
-    finalParams.clear();
+    outParams.clear();
     for (size_t i = 0; i < result.size(); ++i) {
         result[i] = params[i];
         //cout << "\t" << params[i];
-        finalParams.push_back(params[i]);
+        outParams.push_back(params[i]);
     }
 
     refMeshVertices = inflator.vertices();
@@ -321,22 +354,91 @@ void execute(const po::variables_map &args,
     cout << endl;
 }
 
+/* template<size_t _N, size_t _FEMDegree> */
+/* void squareOptimizer (const po::variables_map &args, */ 
+/* 		       const Job<_N> *job, */ 
+/* 		       const int symmetryMode, */ 
+/* 		       ETensor<_N>    & tensorC, */
+/* 		       vector<double> & finalC, */ 
+/* 		       vector<double> & finalParams) */
+/* { */
+/* 	vector<MeshIO::IOVertex> refMeshVertices; */
+/* 	vector<MeshIO::IOElement> refMeshElements; */
+  
+/* 	Eigen::Matrix2d def; */
+
+/* 	def << 1.0, 0.0, */
+/* 		   0.0, 1.0; */
+
+/* 	vector<double> dummyVec; */
+/*     string solver = "levenberg_marquardt"; */
+/* 	execute<_N, _FEMDegree>(args, job, def, symmetryMode, solver, refMeshVertices, refMeshElements, dummyVec, finalParams, true); */
+	
+/* 	// compute the effective C of the deformed cell */
+/* 	auto &mat = HMG<_N>::material; */
+/*     if (args.count("material")) mat.setFromFile(args["material"].as<string>()); */
+/*     typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh; */
+/*     typedef LinearElasticity::Simulator<Mesh> Simulator; */
+/*     typedef typename Simulator::VField VField; */
+/*     Simulator sim(refMeshElements, refMeshVertices); */
+/*     auto &mesh = sim.mesh(); */
+
+/*     vector<VField> w_ij; */
+/*     mat.setTensor(mat.getTensor().transform(def.inverse())); */
+/*     solveCellProblems(w_ij, sim); */
+/*     auto effectiveC = homogenizedElasticityTensor(w_ij, sim).transform(def); */
+
+/*     tensorC = effectiveC; */
+
+/* 	double E1, E2, nu, mu; */
+/* 	effectiveC.getOrthotropic2D(E1, E2, nu, mu); */
+/* 	auto diffC = effectiveC - job->targetMaterial.getTensor(); */
+/* 	auto diffS = effectiveC.inverse() - job->targetMaterial.getTensor().inverse(); */
+/* 	double fNormC = diffC.quadrupleContract(diffC) / 2.0; */
+/* 	double fNormS = diffS.quadrupleContract(diffS) / 2.0; */
+	
+/* 	finalC.clear(); */
+/* 	finalC = {E1, E2, nu, mu, fNormC, fNormS}; */
+
+/* 	vector<ETensor<_N>> tensorC_vec; */
+/* 	vector<vector<double>> finalC_vec; */
+	
+/* 	tensorC_vec.push_back(tensorC); */
+/* 	finalC_vec.push_back(finalC); */
+
+	
+/*  	// write the square meshes */
+/* 	std::string refMeshName = "square_ref.msh"; */
+
+/*     auto savePath = current_path() / args["out_folder"].as<string>() / "meshes"; */
+
+
+/*     if (!exists(savePath) ||  !is_directory(savePath)) */
+/*     	create_directory(savePath); */
+
+/* 	MeshIO::save(savePath.string() + "/" + refMeshName, refMeshVertices, refMeshElements); */
+
+/* 	// write the tensors and errors */
+/* 	tableToFile(finalC_vec, savePath/"..", "sqr_optimization_results.txt"); */    
+/* 	tableToFile(tensorC_vec, savePath/"..", "sqr_final_C.txt"); */    
+
+/* } */
 
 template<size_t _N, size_t _FEMDegree>
 void cellPass (const po::variables_map &args, 
 		       const Job<_N> *job, 
 		       const Eigen::Matrix2d def, 
 		       const double angle,
-		       const int symmetryMode, 
 		       const int passID,
 		       const int quadID,
-		       vector<double> & finalC, 
-		       vector<double> & finalParams)
+		       vector<double> & outParams,
+		       ETensor<_N>    & tensorC,
+		       vector<double> & finalC)
 {
 	vector<MeshIO::IOVertex> refMeshVertices;
 	vector<MeshIO::IOElement> refMeshElements;
-  
-	execute<_N, _FEMDegree>(args, job, def, symmetryMode, refMeshVertices, refMeshElements, finalParams);
+
+	execute<_N, _FEMDegree>(args, job, def, quadID, refMeshVertices, refMeshElements, outParams);
 	
 	// compute the effective C of the deformed cell
 	auto &mat = HMG<_N>::material;
@@ -351,6 +453,8 @@ void cellPass (const po::variables_map &args,
     mat.setTensor(mat.getTensor().transform(def.inverse()));
     solveCellProblems(w_ij, sim);
     auto effectiveC = homogenizedElasticityTensor(w_ij, sim).transform(def);
+
+    tensorC = effectiveC;
 
 	double E1, E2, nu, mu;
 	effectiveC.getOrthotropic2D(E1, E2, nu, mu);
@@ -391,8 +495,7 @@ void cellPass (const po::variables_map &args,
 	std::string defMeshName = "quad_" + to_string(quadID) + "_pass_" + to_string(passID) + "_def.msh";
 	std::string refMeshName = "quad_" + to_string(quadID) + "_pass_" + to_string(passID) + "_ref.msh";
 
-    auto savePath = current_path() / args["out_folder"].as<string>() / "meshes";
-
+    auto savePath = current_path() / args["output"].as<string>() / "final_meshes";
 
     if (!exists(savePath) ||  !is_directory(savePath))
     	create_directory(savePath);
@@ -406,8 +509,8 @@ void meshPass (const po::variables_map &args,
 		       const Job<_N> *job, 
 		       const vector<Eigen::Matrix2d> defs, 
 		       const vector<double> angles,
-		       const int symmetryMode,
 		       const int passID,
+		       vector<ETensor<_N>>    & tensorTable,
 		       vector<vector<double>> & stiffnessTable,  
 		       vector<vector<double>> & parameterTable)
 {
@@ -421,11 +524,18 @@ void meshPass (const po::variables_map &args,
 		newDefs.push_back(*def);
 	}
 
+
 	stiffnessTable.clear();
 	parameterTable.clear();
+	tensorTable.clear();
 
-	vector<double> stiffnessRow, parameterRow;
-	
+	vector<double> parameterRow, stiffnessRow;
+	ETensor<_N> stiffnessTensor;
+
+
+	/* // run square optimization ... */
+	/* squareOptimizer<_N, _FEMDegree>(args, job, symmetryMode, stiffnessTensor, stiffnessRow, squarParams); */
+
 	int quadID = 0;
 	for (auto def = newDefs.begin(); def != newDefs.end(); ++def)
 	{
@@ -435,24 +545,25 @@ void meshPass (const po::variables_map &args,
 		// 3) store the in targetC and targetParams
 		// 4) create the output percell meshes (prepend the passID to the file names)
 		// 5) create the output tiled mesh (prepend the passID to the file name)
-		cellPass<_N, _FEMDegree>(args, job, *def, angles[quadID], symmetryMode, passID, quadID, stiffnessRow, parameterRow);
+		cellPass<_N, _FEMDegree>(args, job, *def, angles[quadID], passID, quadID, parameterRow, stiffnessTensor, stiffnessRow);
 
 		stiffnessTable.push_back(stiffnessRow);
 		parameterTable.push_back(parameterRow);
+		tensorTable.push_back(stiffnessTensor);
 		++quadID;
 	}
 }
+
 
 template<size_t _N, size_t _FEMDegree>
 void tileQuad (const po::variables_map &args, 
 		       const Job<_N> *job, 
 		       const bool avgThick,
-		       const int symmetryMode,
 		       const vector<vector<double>> & parameterTable,
 		       PolyMesh & pmesh)
 {
 	// tile the quad mesh using the parameterTable ... 
-    auto wi = WireInflator2D::construct(args["pattern"].as<string>());
+    auto wi = WireInflator2D::construct(args["pattern"].as<string>(), args["sym"].as<int>());
     WireInflator2D::OutMeshType mesh;
 
     CellParameters p_params = wi->createParameters();
@@ -495,7 +606,7 @@ void tileQuad (const po::variables_map &args,
 		tiledMeshName = "tiled_avg_thick_no.msh";
 
 	
-    auto meshPath = current_path() / args["out_folder"].as<string>() / "meshes";
+    auto meshPath = current_path() / args["output"].as<string>() / "meshes";
 
 
     if (!exists(meshPath) ||  !is_directory(meshPath))
@@ -503,6 +614,22 @@ void tileQuad (const po::variables_map &args,
 
 	MeshIO::save(meshPath.string() + "/" + tiledMeshName, outVertices, outElements);
 
+}
+
+
+// helper functions to generate the output files/meshes
+void tableToFile(const vector<ETensor<2>> & table,
+                 path savePath,
+                 const std::string fileName)
+{
+    ofstream out;
+    out.open(savePath.string() + "/" + fileName);
+
+    for (auto it = table.begin(); it != table.end(); ++it)
+    {
+        out << *it << endl;
+    }
+    out.close();
 }
 
 // helper functions to generate the output files/meshes
@@ -517,7 +644,10 @@ void tableToFile(const vector<vector<double>> & table,
 	{
 		vector<double> row = *it;
 		for (size_t i = 0; i < row.size() - 1; ++i)
+		{
+			out << showpos << scientific;
 			out << row[i] << "\t";
+		}
 		out << row.back() << "\n";
 	}
 	out.close();
@@ -534,7 +664,10 @@ void tableToFile(const vector<Eigen::Matrix2d> & table,
 	for (auto it = table.begin(); it != table.end(); ++it)
 	{
 		Eigen::Matrix2d mat = *it;
-		out << mat(0, 0) << "\t" << mat(0, 1) << "\t" <<mat(1, 0) << "\t" <<mat(1, 1) << "\n";
+		out << showpos << scientific <<  mat(0, 0) << "\t"
+			<< showpos << scientific <<  mat(0, 1) << "\t"
+			<< showpos << scientific <<  mat(1, 0) << "\t"
+			<< showpos << scientific <<  mat(1, 1) << "\n";
 	}
 	out.close();
 }
@@ -594,14 +727,14 @@ int main(int argc, const char *argv[])
 
     auto job = parseJobFile(args["job"].as<string>());
 
-    auto savePath = current_path() / args["out_folder"].as<string>();
+    auto savePath = current_path() / args["output"].as<string>();
 
 
     if (!exists(savePath) ||  !is_directory(savePath))
     	create_directory(savePath);
 
 
-	std::string outPathStr = args["out_folder"].as<string>();
+	std::string outPathStr = args["output"].as<string>();
     
 
 	// read in the quadMesh
@@ -617,19 +750,20 @@ int main(int argc, const char *argv[])
 	for (size_t i = 0; i < angles.size(); ++i)
 		cout << "angle of quad " << i+1 << " is " << angles[i] * 180.0 / 3.141595  << endl;
 
+
+
 	tableToFile(defs, savePath, "defs.txt");
 
 	vector<vector<double>> stiffnessTable, parameterTable;
+	vector<ETensor<2>> tensorTable;
 
 	auto job2D = dynamic_cast<Job<2> *>(job);
 
-	meshPass<2, 2>(args, job2D, defs, angles, 1, 0, stiffnessTable, parameterTable);
-
-
+	meshPass<2, 2>(args, job2D, defs, angles, 1, tensorTable, stiffnessTable, parameterTable);
 	writeTilerParameters(stiffnessTable, parameterTable, savePath, "tile_params.txt");
 
-	tileQuad<2, 2> (args, job2D, true,  1, parameterTable, pmesh);
-	tileQuad<2, 2> (args, job2D, false, 1, parameterTable, pmesh);
+	tileQuad<2, 2> (args, job2D, true, parameterTable, pmesh);
+	tileQuad<2, 2> (args, job2D, false, parameterTable, pmesh);
 
     return 0;
 }
