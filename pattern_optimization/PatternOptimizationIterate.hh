@@ -160,6 +160,13 @@ struct Iterate {
         return 0.5 * result;
     }
 
+    Real evaluateRT(SField &initialParams, double regularizationWeight) const {
+    	Real result = 0.0;
+		for (size_t p = 0; p < m_params.size(); ++p)
+    		result += regularizationWeight * (m_params[p] - initialParams[p]) * (m_params[p] - initialParams[p]);
+    	return result;
+	}
+
     // S_ijkl - target_ijkl
     // EXCEPT when ignoreShear = true, in which case the "shear modulus
     // components" are zeroed out. (rows/cols >= _N)
@@ -205,7 +212,22 @@ struct Iterate {
         return result;
     }
 
-    // The (ij, kl)th residual (kl >= ij) for the nonlinear least squares (a
+    SField gradp_RT(SField &initialParams, double regularizationWeight) const {
+    	SField result(m_params.size());
+    	for (size_t p = 0; p < m_params.size(); ++p)
+    		result[p] = 2.0 * regularizationWeight * (m_params[p] - initialParams[p]);
+    	return result;
+	}
+
+	SField getParams() const {
+		SField result(m_params.size());
+		for (size_t p = 0; p < m_params.size(); ++p)
+			result[p] = m_params[p];
+		return result;
+	}
+
+
+	// The (ij, kl)th residual (kl >= ij) for the nonlinear least squares (a
     // single term of the Frobenius distance). The terms are weighted so
     // that the squared norm of the residual vector corresponds to the
     // Frobenius norm of the rank 4 tensor difference S - S^*.
