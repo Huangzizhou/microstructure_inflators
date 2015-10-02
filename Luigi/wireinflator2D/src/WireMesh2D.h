@@ -629,6 +629,36 @@ public:
 			}
 		}
 	}
+
+	static size_t findOperationIdx(const int nodeID, const std::vector<ParameterOperation> & allOps)
+	{
+		// this method assumes that the raduis operations are first in the list
+
+		// extract raduis ops
+		std::vector<ParameterOperation> radiusOps;
+		radiusOps.clear();
+		for (auto op : allOps)
+		{
+			if (op.type == ParameterOperation::Radius)
+				radiusOps.push_back(op);
+		}
+
+		int idx = -1;
+		int counter = 0;
+		for (auto op : radiusOps)
+		{
+			std::vector<int>::iterator it;
+			it = find(op.nodes.begin(), op.nodes.end(), nodeID);
+			if (it != op.nodes.end())
+			{
+				idx = counter;
+				break;
+			}
+			++counter;
+		}
+		return idx;
+	}
+
 protected:
 	EMesh 								m_em;
 	std::vector<ParameterOperation>		m_radius_ops;
@@ -1095,11 +1125,15 @@ public:
 		if (!this->isValid() || node < 0 || node >= m_em.VN())
 			return -1;
 
-		auto tag = vcg::tri::Allocator<EMesh>::template FindPerVertexAttribute<int>(m_em, SymmetryOrbitAttributeName());
-		if (!vcg::tri::Allocator<EMesh>::IsValidHandle(m_em, tag))
-			return -1;
+		return metaEMesh<EMesh>::findOperationIdx(node, m_operations);
+		/* auto tag = vcg::tri::Allocator<EMesh>::template FindPerVertexAttribute<int>(m_em, SymmetryOrbitAttributeName()); */
+		/* if (!vcg::tri::Allocator<EMesh>::IsValidHandle(m_em, tag)) */
+		/* { */
+		/* 	std::cout << "THIS WAS CALLED!" << std::endl; */
+		/* 	return -1; */
+		/* } */
 
-		return m_orbits_idx[tag[node]];
+		/* return m_orbits_idx[tag[node]]; */
 	}
 
 	static std::vector<double> generateNewParameters(const int currentSymmetry, const int targetSymmetry, std::vector<double> inParams, const std::string & edgeMeshPath)
