@@ -40,7 +40,7 @@ public:
 	// MHS on JUL14, 2015:
 	// A new constructor that takes "const int symmetryMode" 
 	// to pass to WireMesh2DMorteza
-	template<template<class> class WMesh = WireMesh2D>
+	template<template<class> class WMesh = WireMesh2DMorteza>
     static Ptr construct(const std::string &edgeMeshPath, const int symmetryMode) {
         return std::make_shared<WireInflator2DImpl<WMesh>>(edgeMeshPath, symmetryMode);
     }
