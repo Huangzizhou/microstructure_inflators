@@ -1,22 +1,20 @@
 ////////////////////////////////////////////////////////////////////////////////
-// PatternOptimization_cli.cc
+// PatternOptimization_DeformedCell_cli.cc
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
 //      Evolves the microstructure parameters to bring the structure's
-//      homogenized elasticity tensor closer to a target tensor.
+//      homogenized elasticity tensor of the deformed closer to a target tensor.
 */ 
-//  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
+//  Author:  Morteza H Siboni, hakimi1364@gmail.com
+//  Note  :  Base on Julinan's PatternOptmization_cli.cc
 //  Company:  New York University
-//  Created:  09/12/2014 01:15:28
+//  Created:  2015 
 ////////////////////////////////////////////////////////////////////////////////
 #include <MeshIO.hh>
 #include "LinearElasticity.hh"
 #include <Materials.hh>
 #include <PeriodicHomogenization.hh>
 #include "GlobalBenchmark.hh"
-// I thought these are needed to call static functions from WireMesh2D.h, but they are not!
-//#include "EdgeMeshUtils.h"
-//#include "WireMesh2D.h"
 #include "EdgeMeshType.h"
 #include "Inflator.hh"
 
@@ -63,10 +61,9 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     visible_opts.add_options()("help",        "Produce this help message")
         ("pattern,p",    po::value<string>(), "Pattern wire mesh (.obj|wire)")
         ("material,m",   po::value<string>(), "base material")
-        ("jacobian,j",   po::value<string>()->default_value("1.0 0.0 0.0 1.0"),  "linear deformation")
-        ("final_mesh,f", po::value<string>(), "output .msh file name prefix")
-        ("sym",          po::value<int>()->default_value(0), "symmetry mode")
-        ("sym_new",      po::value<int>()->default_value(1), "new symmetry mode")
+        ("jacobians,j",  po::value<string>(), "a .txt file includeing the jacobinas 'J11 J12 J21 J22'")
+        ("sym",          po::value<int>()->default_value(3), "symmetry mode")
+        ("regularization,r",          po::value<double>()->default_value(0.0), "regularization weight")
         ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
         ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
         ("dofOut",       po::value<string>()->default_value(""),                 "output pattern dofs in James' format at each iteration (3D Only)")
@@ -80,7 +77,9 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
         ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
         ("fullCellInflator",                                                     "use the full periodic inflator instead of the reflection-based one")
-        ("initialPs,i",  po::value<string>()->default_value(""),                 "initial parameters of the pattern")
+        ("patternOut",   po::value<string>()->default_value(""),                                    "filename.txt that includes the optimized pattern parameters on a square cell 'p1 p2 ...'")
+        ("stiffnessOut", po::value<string>()->default_value(""),                                    "filename.txt that includes the optimized stiffness in flatened format 'C11 ...'")
+        ("costOut",      po::value<string>()->default_value(""),                                    "filename.txt that includes the intial/final/reltive change of the cost function  'initial final costChange'")
         ;
 
     po::options_description cli_opts;
@@ -108,19 +107,13 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
-    if (vm.count("final_mesh") == 0) {
-        cout << "Error: must specify output mesh name prefix" << endl;
-        fail = true;
-	}
-
-
     size_t d = vm["degree"].as<size_t>();
     if (d < 1 || d > 2) {
         cout << "Error: FEM Degree must be 1 or 2" << endl;
         fail = true;
     }
 
-    set<string> solvers = {"gradient_descent", "bfgs", "lbfgs", "levenberg_marquardt", "lm_bd_penalty", "levmar"};
+    set<string> solvers = {"gradient_descent", "bfgs", "lbfgs", "levenberg_marquardt", "levenberg_marquardt_reg", "lm_bd_penalty", "levmar"};
     if (solvers.count(vm["solver"].as<string>()) == 0) {
         cout << "Illegal solver specified" << endl;
         fail = true;
@@ -229,16 +222,46 @@ void execute_defCell(const po::variables_map args,
 	
 }
 
-
-template<size_t _N, size_t _FEMDegree>
-void execute(const po::variables_map &args, const Job<_N> *job)
+template<size_t _N>
+void readDeformations(const po::variables_map &args, vector<Eigen::Matrix<Real, _N, _N>> &defs)
 {
+	defs.clear();
+	ifstream in;
+	in.open(args["jacobians"].as<string>());
+
+	Real J11, J12, J21, J22;
+	while(in >> J11 >> J12 >> J21 >> J22)
+	{
+		Eigen::Matrix<Real, _N, _N> jacobian;
+		jacobian << J11, J12,
+				    J21, J22;
+		defs.push_back(jacobian);
+	}
+
+}
+
+// new execute TODO edit it 
+template<size_t _N, size_t _FEMDegree>
+void execute(const po::variables_map &args, 
+			 const Job<_N> *job, 
+			 const Eigen::Matrix<Real, _N, _N> deformation, 
+			 vector<MeshIO::IOVertex>  & refMeshVertices,
+             vector<MeshIO::IOElement> & refMeshElements,
+			 vector<Real>            & outParams,
+			 vector<Real>            & stiffness,
+			 vector<Real>            & costs) 
+{
+
     shared_ptr<ConstrainedInflator<_N>> inflator_ptr;
     if (_N == 2) {
         inflator_ptr = make_shared<ConstrainedInflator<_N>>(
                 job->parameterConstraints,
                 args["pattern"].as<string>(),
-                args["sym"].as<int>()); // MHS JUL14, 2015: the last parameter is a symmetryMode (see the corresponding constructor in Inflator.hh for more details)
+                args["sym"].as<int>()); // this  parameter is a symmetryMode (see the corresponding constructor in Inflator.hh for more details)
+        // this uses the original Luigi's symmetry stuff
+        /* inflator_ptr = make_shared<ConstrainedInflator<_N>>( */
+        /*         job->parameterConstraints, */
+        /*         args["pattern"].as<string>()); // */
     }
     else {
         inflator_ptr = make_shared<ConstrainedInflator<_N>>(
@@ -258,34 +281,10 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         inflator.setMaxElementVolume(args["max_volume"].as<double>());
 
 
-    std::cout << "numer of inflator parametrs is " << inflator.numParameters() << endl;
-
-    /////*** things needed for deformed cell optimization ***/////
-    // parse jacobian
-    vector<string> jacobianComponents;
-    string jacobianString = args["jacobian"].as<string>();
-    boost::trim(jacobianString);
-    boost::split(jacobianComponents, jacobianString, boost::is_any_of("\t "),
-                 boost::token_compress_on);
-    if (jacobianComponents.size() != _N * _N)
-        throw runtime_error("Invalid deformation jacobian");
-    Eigen::Matrix<Real, _N, _N> jacobian;
-    for (size_t i = 0; i < _N; ++i) {
-        for (size_t j = 0; j < _N; ++j) {
-            jacobian(i, j) = stod(jacobianComponents[_N * i + j]);
-        }
-    }
-
-
     // use the deformed target C
-    auto targetC = job->targetMaterial.getTensor().transform(jacobian.inverse());
+    auto targetC = job->targetMaterial.getTensor().transform(deformation.inverse());
+
     ETensor<_N> targetS = targetC.inverse();
-
-    cout << "Target moduli:\t";
-    targetC.printOrthotropic(cout);
-    cout << endl;
-
-    cout << "target tensor: " << targetC << endl;
 
     if (job->numParams() != inflator.numParameters()) {
         for (size_t i = 0; i < inflator.numParameters(); ++i) {
@@ -304,33 +303,15 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
     // Morteza's transformation formulas
-    mat.setTensor(mat.getTensor().transform(jacobian.inverse()));
+    mat.setTensor(mat.getTensor().transform(deformation.inverse()));
 
     string dofOut = args["dofOut"].as<string>();
     if (dofOut != "")
         inflator.setDoFOutputPrefix(dofOut);
 
-	// MHS on JUL16, 2015:
-	// initialize the parameters by the cli input if cli[i]!= ""
-	// and                       by job->initialParams otherwise
-   	SField params(job->initialParams);
-	if (args["initialPs"].as<string>() != "")
-	{
-		vector<string> inputParams;
-    	string inputParamsString = args["initialPs"].as<string>();
-   	 	boost::trim(inputParamsString);
-    	boost::split(inputParams, inputParamsString, boost::is_any_of("\t "),
-        	         boost::token_compress_on);
 
-		if (params.domainSize() != inputParams.size())
-			throw runtime_error("Invalid number of initial parameters.");
-		else
-		{    
-			for (int i = 0; i < inputParams.size(); ++i)
-				params[i] = stod(inputParams[i]);
-		}
-	}
-	cout << endl << params << endl;
+	SField params(job->initialParams);
+	SField initialParams(job->initialParams);
 
 
     for (const auto &boundEntry : job->varLowerBounds) {
@@ -347,13 +328,22 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         }
     }
 
+    Real initialCost, finalCost;
+    ETensor<_N> transformedOptimizedC;
+
     Optimizer<Simulator> optimizer(inflator, job->radiusBounds, job->translationBounds,
                                    job->varLowerBounds, job->varUpperBounds);
-    string solver = args["solver"].as<string>(),
-           output = args["output"].as<string>();
+
+
+    string output = args["output"].as<string>();
+
+	string solver = args["solver"].as<string>();
     size_t niters = args["nIters"].as<size_t>();
+
     if (solver == "levenberg_marquardt")
         optimizer.optimize_lm(params, targetS, output);
+    else if (solver == "levenberg_marquardt_reg")
+        optimizer.optimize_lm_regularized(params, initialParams, args["regularization"].as<double>(), targetS, output, initialCost, finalCost, transformedOptimizedC);
     else if (solver == "lm_bd_penalty")
         optimizer.optimize_lm_bound_penalty(params, targetS, output);
     else if (solver == "levmar")
@@ -363,28 +353,83 @@ void execute(const po::variables_map &args, const Job<_N> *job)
                           args["step"].as<double>(), output);
     else if (solver == "bfgs")
         optimizer.optimize_bfgs(params, targetS, niters, output);
+	/* else if (solver == "bfgs_reg") */
+        /* optimizer.optimize_bfgs_regularized(params, initialParams, args["regularization"].as<double>(), targetS, output1, output2,  niters, 10); */
     else if (solver == "lbfgs")
         optimizer.optimize_bfgs(params, targetS, niters, output, 10);
 
-    std::cout << "Final p:";
+    //std::cout << "Final p:";
     std::vector<Real> result(params.domainSize());
+    outParams.clear();
     for (size_t i = 0; i < result.size(); ++i) {
         result[i] = params[i];
-        cout << "\t" << params[i];
+        //cout << "\t" << params[i];
+        outParams.push_back(params[i]);
     }
+
+
+	costs.push_back(initialCost);
+	costs.push_back(finalCost);
+	costs.push_back(std::abs(finalCost - initialCost));
+
+	ETensor<_N> C = transformedOptimizedC.transform(deformation);
+	C.getUpperRight2D(stiffness);
+
+    refMeshVertices = inflator.vertices();
+    refMeshElements = inflator.elements();
+
+
+
     if (dofOut != "") inflator.writePatternDoFs(dofOut + ".final.dof", result);
+
     cout << endl;
+}
 
-	std::vector<double> newParams = WireMesh2DMorteza<EMesh>::generateNewParameters(args["sym"].as<int>(), args["sym_new"].as<int>(), result, args["pattern"].as<string>());
-	cout << endl << "----------" << endl << "printing out the new list of paramerrs:" << endl;
-	for (size_t i = 0; i < newParams.size(); ++i)
-		cout << newParams[i] << "\t";
-	cout << endl << "----------" << endl << endl;
 
-    cout << "writing down the undeformed and deformed final meshes." << endl;
-    execute_defCell<_N,_FEMDegree>(args, inflator.vertices(), inflator.elements(), job);
+template<size_t _N, size_t _FEMDegree>
+void runPatternOptimization(const po::variables_map &args, 
+							const Job<_N> *job, 
+							const vector<Eigen::Matrix<Real, _N, _N>> defsTable, 
+							vector<vector<Real>>           & paramsTable,
+							vector<vector<Real>>           & stiffnessTable,
+							vector<vector<Real>>           & costsTable)
+{
+	vector<MeshIO::IOVertex>   refMeshVertices;
+	vector<MeshIO::IOElement>  refMeshElements;
 
-    BENCHMARK_REPORT();
+	vector<Real> currentParams, currentStiffness, currentCosts;
+
+	for (auto def = defsTable.begin(); def != defsTable.end(); ++def){
+		execute<_N, _FEMDegree>(args, job, *def, refMeshVertices, refMeshElements, currentParams, currentStiffness, currentCosts);
+		paramsTable.push_back(currentParams);
+		stiffnessTable.push_back(currentStiffness);
+		costsTable.push_back(currentCosts);
+		
+		currentParams.clear();
+		currentStiffness.clear();
+		currentCosts.clear();
+	}
+}
+
+// helper functions to generate the output files/meshes
+template<typename _Real>
+void tableToFile(const vector<vector<_Real>> & table,
+				 const std::string fileName)
+{
+	ofstream out;
+	out.open(fileName);
+
+	for (auto it = table.begin(); it != table.end(); ++it)
+	{
+		vector<_Real> row = *it;
+		for (size_t i = 0; i < row.size() - 1; ++i)
+		{
+			out << showpos << scientific;
+			out << row[i] << "\t";
+		}
+		out << row.back() << "\n";
+	}
+	out.close();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -401,16 +446,35 @@ int main(int argc, const char *argv[])
 
     auto job = parseJobFile(args["job"].as<string>());
 
+
+	vector<Eigen::Matrix<Real, 2, 2>> defs;
+	vector<Eigen::Matrix<Real, 2, 2>> sampleDefs;
+	readDeformations<2>(args, defs);
+
+
+	for(size_t i = 0; i < 10; ++i)
+		sampleDefs.push_back(defs[i]);
+	
+	vector<vector<Real>>	paramsTable;
+	vector<vector<Real>>	stiffnessTable;
+	vector<vector<Real>>	costsTable;
+
     size_t deg = args["degree"].as<size_t>();
-    if (auto job2D = dynamic_cast<Job<2> *>(job)) {
-        if (deg == 1) execute<2, 1>(args, job2D);
-        if (deg == 2) execute<2, 2>(args, job2D);
-    }
-    else if (auto job3D = dynamic_cast<Job<3> *>(job)) {
-        if (deg == 1) execute<3, 1>(args, job3D);
-        if (deg == 2) execute<3, 2>(args, job3D);
-    }
-    else throw std::runtime_error("Invalid job file.");
+	auto job2D = dynamic_cast<Job<2> *>(job);
+	if (deg == 1) runPatternOptimization<2, 1>(args, job2D, sampleDefs, paramsTable, stiffnessTable, costsTable);
+	if (deg == 2) runPatternOptimization<2, 2>(args, job2D, sampleDefs, paramsTable, stiffnessTable, costsTable);
+
+	string patternOut = args["patternOut"].as<string>();
+	if (patternOut != "")
+		tableToFile<Real>(paramsTable, patternOut);
+
+	string stiffnessOut = args["stiffnessOut"].as<string>();
+	if (stiffnessOut != "")
+		tableToFile<Real>(stiffnessTable, stiffnessOut);
+
+	string costOut = args["costOut"].as<string>();
+	if (costOut != "")
+		tableToFile<Real>(costsTable, costOut);
 
     return 0;
 }
