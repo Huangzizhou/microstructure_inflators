@@ -347,14 +347,14 @@ struct Iterate {
                 SField nvel(mesh.numBoundaryElements());
                 for (size_t bei = 0; bei < mesh.numBoundaryElements(); ++bei)
                     nvel[bei] = vn[bei].average();
-                writer.addField("avg_normal_velocity" + std::to_string(p), nvel, MSHFieldWriter::PER_ELEMENT);
-                writer.addField("avg_normal_velocity_direction" + std::to_string(p), directionField(nvel), MSHFieldWriter::PER_ELEMENT);
+                writer.addField("avg_normal_velocity" + std::to_string(p), nvel, DomainType::PER_ELEMENT);
+                writer.addField("avg_normal_velocity_direction" + std::to_string(p), directionField(nvel), DomainType::PER_ELEMENT);
             }
-            writer.addField("avg_gradFit", avg_vn, MSHFieldWriter::PER_ELEMENT);
-            writer.addField("avg_gradFit_direction", directionField(avg_vn), MSHFieldWriter::PER_ELEMENT);
+            writer.addField("avg_gradFit", avg_vn, DomainType::PER_ELEMENT);
+            writer.addField("avg_gradFit_direction", directionField(avg_vn), DomainType::PER_ELEMENT);
 
-            writer.addField("projectedVn", projectedNormalVelocity, MSHFieldWriter::PER_ELEMENT);
-            writer.addField("projectedVn_direction", directionField(projectedNormalVelocity), MSHFieldWriter::PER_ELEMENT);
+            writer.addField("projectedVn", projectedNormalVelocity, DomainType::PER_ELEMENT);
+            writer.addField("projectedVn_direction", directionField(projectedNormalVelocity), DomainType::PER_ELEMENT);
         }
     }
 
