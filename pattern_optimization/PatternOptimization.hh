@@ -113,6 +113,7 @@ public:
     // Forward declaration so friend-ing can happen
     class IterationCallback;
     class IterationCallback2;
+    class IterationCallback3;
 
     struct TensorFitCost : public ceres::CostFunction {
         typedef ceres::CostFunction Base;
@@ -162,6 +163,7 @@ public:
 
         friend class IterationCallback;
         friend class IterationCallback2;
+        friend class IterationCallback3;
     };
 
     class IterationCallback : public ceres::IterationCallback {
@@ -327,6 +329,57 @@ public:
         size_t m_flag;
     };
 
+	// MHS on Oct 26 2015:
+	// this is a new callback for use with lm_regularized
+	// TODO: see if you can avoid it by using the original "IterationCallback"
+   	class IterationCallback3 : public ceres::IterationCallback {
+    public:
+        IterationCallback3(TensorFitCost &evalulator, SField &initialParams, SField &params, 
+						   _ETensor &stiffness, 
+						   const double regularizationWeight,
+						   const string outPath)
+            : m_evaluator(evalulator), m_initialParams(initialParams), m_params(params), m_weight(regularizationWeight), m_outPath(outPath), m_stiffness(&stiffness) {}
+
+        ceres::CallbackReturnType operator()(const ceres::IterationSummary &sum)
+        {
+        	auto curr = getIterate(m_evaluator.m_iterate,
+        			m_evaluator.m_inflator, m_params.size(), &m_params[0],
+        			m_evaluator.m_targetS);
+
+            if (m_outPath != "")
+                curr->writeMeshAndFields(m_outPath + "_" + std::to_string(m_iter));
+
+			curr->writeDescription(std::cout);
+			std::cout << std::endl;
+
+			Real JS  = curr->evaluateJS();
+			Real RT  = curr->evaluateRT(m_initialParams, m_weight);
+			
+			_ETensor C = curr->elasticityTensor();
+			
+			*m_stiffness      = C;
+
+            ++m_iter;
+
+            return ceres::SOLVER_CONTINUE;
+        }
+        /* Real &getInitialCost()   {return m_initialCost;} */
+        /* Real &getTotalCost()     {return m_totalCost;} */
+        /* Real &getStifnessCost()  {return m_stiffnessCost;} */
+        /* _ETensor &getStiffness() {return m_stiffness;} */
+
+        virtual ~IterationCallback3() { }
+    private:
+        TensorFitCost &m_evaluator;
+        SField &m_params;
+        SField &m_initialParams;
+        double m_weight;
+        size_t m_iter;
+        string m_outPath;
+        _ETensor * m_stiffness;
+    };
+
+
     void optimize_lm(SField &params, const _ETensor &targetS,
                   const string &outPath) {
         TensorFitCost *fitCost = new TensorFitCost(m_inflator, targetS);
@@ -399,8 +452,10 @@ public:
     							 SField &initialParams,
     							 const double regularizationWeight,
     							 const _ETensor &targetS,
-                  				 const string &outPath1,
-                  				 const string &outPath2) {
+    							 const string outPath, 
+    							 Real & initialCost,
+    							 Real & finalCost,
+    							 _ETensor & stiffness) {
         TensorFitCost *fitCost = new TensorFitCost(m_inflator, targetS);
         ceres::Problem problem;
         problem.AddResidualBlock(fitCost, NULL, params.data());
@@ -416,7 +471,7 @@ public:
 
         ceres::Solver::Options options;
         options.update_state_every_iteration = true;
-        IterationCallback2 cb(*fitCost, initialParams, params, regularizationWeight, outPath1, outPath2);
+        IterationCallback3 cb(*fitCost, initialParams, params, stiffness, regularizationWeight, outPath);
         options.callbacks.push_back(&cb);
         // options.minimizer_type = ceres::LINE_SEARCH;
         // options.line_search_direction_type = ceres::BFGS;
@@ -433,6 +488,8 @@ public:
         ceres::Solve(options, &problem, &summary);
         std::cout << summary.BriefReport() << "\n";
         std::cout << summary.FullReport() << "\n";
+        initialCost = summary.initial_cost;
+        finalCost   = summary.final_cost;
     }
 
     // MHS on AUG 25, 2015:
