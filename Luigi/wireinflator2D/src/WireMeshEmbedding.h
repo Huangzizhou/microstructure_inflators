@@ -212,7 +212,7 @@ public:
 			                 std::vector<double> 			& angles)
 	{
 		std::vector<Eigen::Matrix2d> defs;
-		getDeformations(pmesh, defs, angles);
+		getJacobians(pmesh, defs, angles);
 		
 		
 		stretches.clear();
