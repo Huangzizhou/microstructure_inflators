@@ -451,18 +451,14 @@ int main(int argc, const char *argv[])
 	vector<Eigen::Matrix<Real, 2, 2>> sampleDefs;
 	readDeformations<2>(args, defs);
 
-
-	for(size_t i = 0; i < 10; ++i)
-		sampleDefs.push_back(defs[i]);
-	
 	vector<vector<Real>>	paramsTable;
 	vector<vector<Real>>	stiffnessTable;
 	vector<vector<Real>>	costsTable;
 
     size_t deg = args["degree"].as<size_t>();
 	auto job2D = dynamic_cast<Job<2> *>(job);
-	if (deg == 1) runPatternOptimization<2, 1>(args, job2D, sampleDefs, paramsTable, stiffnessTable, costsTable);
-	if (deg == 2) runPatternOptimization<2, 2>(args, job2D, sampleDefs, paramsTable, stiffnessTable, costsTable);
+	if (deg == 1) runPatternOptimization<2, 1>(args, job2D, defs, paramsTable, stiffnessTable, costsTable);
+	if (deg == 2) runPatternOptimization<2, 2>(args, job2D, defs, paramsTable, stiffnessTable, costsTable);
 
 	string patternOut = args["patternOut"].as<string>();
 	if (patternOut != "")

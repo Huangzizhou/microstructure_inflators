@@ -14,9 +14,7 @@ LIBS+=$(LEVMAR_LFLAGS)
 
 SOURCES=PatternOptimization_cli.cc \
 		PatternOptimization_DeformedCell_cli.cc \
-		PatternOptimization_quadMesh_cli.cc \
 		GetQuadDeformations_cli.cc \
-		PatternOptimization_givenDefs_cli.cc \
 		PatternOptimizationJob.cc RandomJob.cc SpacedJob.cc GradientComponentValidation.cc Inflator_cli.cc ParamRegion_cli.cc
 PATOPT_OBJS=PatternOptimization_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
@@ -24,13 +22,7 @@ PATOPT_OBJS=PatternOptimization_cli.o PatternOptimizationJob.o \
 DEFPATOPT_OBJS=PatternOptimization_DeformedCell_cli.o PatternOptimizationJob.o \
             $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
             $(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
-QUADPATOPT_OBJS=PatternOptimization_quadMesh_cli.o PatternOptimizationJob.o \
-            $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
-            $(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
 GETQUADDEFS_OBJS=GetQuadDeformations_cli.o PatternOptimizationJob.o \
-            $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
-            $(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
-GIVDEFPATOPT_OBJS=PatternOptimization_givenDefs_cli.o PatternOptimizationJob.o \
             $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
             $(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
 CREATJOB_OBJS=CreateJob.o \
@@ -55,9 +47,7 @@ OBJS=$(PATOPT_OBJS) $(DEFPATOPT_OBJS) $(QUADPATOPT_OBJS) $(GIVDEFPATOPT_OBJS) $(
 
 TARGETS=PatternOptimization_cli \
 		PatternOptimization_DeformedCell_cli \
-		PatternOptimization_quadMesh_cli \
 		GetQuadDeformations_cli \
-		PatternOptimization_givenDefs_cli \
 		CreateJob RandomJob SpacedJob GradientComponentValidation Inflator_cli Inflator2D_cli ParamRegion_cli
 
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DBENCHMARK
@@ -70,15 +60,8 @@ all: $(TARGETS)
 PatternOptimization_cli: $(PATOPT_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
 
-PatternOptimization_quadMesh_cli: $(QUADPATOPT_OBJS)
-	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
-
 GetQuadDeformations_cli: $(GETQUADDEFS_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
-
-PatternOptimization_givenDefs_cli: $(GIVDEFPATOPT_OBJS)
-	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
-
 
 PatternOptimization_DeformedCell_cli: $(DEFPATOPT_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
