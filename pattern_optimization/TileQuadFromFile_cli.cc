@@ -11,6 +11,8 @@
 ////  Created:  OCT 2015 
 //////////////////////////////////////////////////////////////////////////////////
 #include <MeshIO.hh>
+#include <MSHFieldWriter.hh>
+#include <MSHFieldParser.hh>
 #include "LinearElasticity.hh"
 #include <Materials.hh>
 #include <PeriodicHomogenization.hh>
@@ -43,6 +45,8 @@
 
 #include "PatternOptimization.hh"
 #include "PatternOptimizationJob.hh"
+
+#include <vcg/complex/complex.h>
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
@@ -117,10 +121,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 	return vm;
 }
 
-template<size_t cols>
 void readTable(std::string fileName, vector<vector<Real>> & dataTable)
 {
-	cout << endl << "# of cols is" << cols << endl;
 	ifstream in;
 	in.open(fileName);
 	string line;
@@ -132,20 +134,16 @@ void readTable(std::string fileName, vector<vector<Real>> & dataTable)
 		boost::split(numbers, line, boost::is_any_of("\t "),
 					 boost::token_compress_on);
 
-
-
-		if (numbers.size() != cols)
-			throw runtime_error("invalid number of columns");
-		
+	
 		vector<Real> row;
 		for (size_t i = 0; i < numbers.size(); ++i)
 			row.push_back(stod(numbers[i]));
 		
 		dataTable.push_back(row);
 	}
-
-	cout << "read " << dataTable.size() << " lines from " << fileName << "." << endl << endl;
-
+	cout << "----------" << endl;
+	cout << "read " << dataTable.size() << " lines from " << fileName << "." << endl;
+	cout << "----------" << endl;
 }
 
 // read the quad mesh:
@@ -166,15 +164,71 @@ void readQuadMesh(const string & quadMeshPath, PolyMesh & pmesh)
 	/* 	qpar.index0 = 0; */
 	/* } */
 
-	int faceCounter = 0;
-	for(auto fc = pmesh.face.begin(); fc != pmesh.face.end(); ++fc)
+	/* int faceCounter = 0; */
+	/* for(auto fc = pmesh.face.begin(); fc != pmesh.face.end(); ++fc) */
+	/* { */
+	/* 	cout << "points in face " << faceCounter << " are: " << "("  << fc->cP(0)[0] << "," << fc->cP(0)[1] << ") " << */
+	/* 		                                                    "("  << fc->cP(1)[0] << "," << fc->cP(1)[1] << ") " << */
+	/* 		                                                    "("  << fc->cP(2)[0] << "," << fc->cP(2)[1] << ") " << */
+	/* 		                                                    "("  << fc->cP(3)[0] << "," << fc->cP(3)[1] << ")"  << endl; */ 
+	/* 	++faceCounter; */
+	/* } */
+}
+
+
+void findQuadIdsForElements(const std::vector<MeshIO::IOVertex>  &verts,
+		                    const std::vector<MeshIO::IOElement> &elems,
+		                    PolyMesh &pmesh, std::vector<size_t> & ids)
+{
+
+	typedef ClipperLib::IntPoint 				IntPoint;
+
+	const int multiplier = (1 << 24);
+
+	std::vector<IntPoint> elementCenters;
+
+	for (size_t i = 0; i < elems.size(); ++i)
 	{
-		cout << "points in face " << faceCounter << " are: " << "("  << fc->cP(0)[0] << "," << fc->cP(0)[1] << ") " <<
-			                                                    "("  << fc->cP(1)[0] << "," << fc->cP(1)[1] << ") " <<
-			                                                    "("  << fc->cP(2)[0] << "," << fc->cP(2)[1] << ") " <<
-			                                                    "("  << fc->cP(3)[0] << "," << fc->cP(3)[1] << ")"  << endl; 
-		++faceCounter;
+		int idx0 = elems[i][0];
+		int idx1 = elems[i][1];
+		int idx2 = elems[i][2];
+		Point3D p0 = verts[idx0];
+		Point3D p1 = verts[idx1];
+		Point3D p2 = verts[idx2];
+
+		double centerX = (p0[0] + p1[0] + p2[0]) / 3.0;
+		double centerY = (p0[1] + p1[1] + p2[1]) / 3.0;
+
+		elementCenters.push_back(ClipperLib::IntPoint(ClipperLib::cInt(multiplier * centerX), ClipperLib::cInt(multiplier * centerY)));
 	}
+
+	std::vector<ClipperLib::Path> facePaths;
+	for (auto f = pmesh.face.begin(); f != pmesh.face.end(); ++f)
+	{
+		// get the clipping quad
+		ClipperLib::Path facePath;
+		for (char i=0; i<f->VN(); i++)
+		{
+			IntPoint pt = ClipperLib::IntPoint(ClipperLib::cInt(multiplier * f->cP(i)[0]), ClipperLib::cInt(multiplier * f->cP(i)[1]));
+			facePath.push_back(pt);
+		}
+
+		facePaths.push_back(facePath);
+	}
+
+	for (size_t i = 0; i < elementCenters.size(); ++i)
+		for (size_t j = 0; j < facePaths.size(); ++j)
+		{
+			int isInside = ClipperLib::PointInPolygon(elementCenters[i], facePaths[j]);
+			int flag = 0;
+			if (isInside != 0)
+			{
+				flag = 1;
+				ids.push_back(j);
+			}
+			if (flag == 1)
+				break;
+		}
 }
 
 template<size_t _N>
@@ -184,6 +238,7 @@ void tileQuad (const po::variables_map &args)
 	// read in the quadMesh
     PolyMesh pmesh;
     readQuadMesh(args["quad"].as<string>(), pmesh);
+	
 	// tile the quad mesh using the parameterTable ... 
     auto wi = WireInflator2D::construct(args["pattern"].as<string>(), args["sym"].as<int>());
     WireInflator2D::OutMeshType mesh;
@@ -194,14 +249,18 @@ void tileQuad (const po::variables_map &args)
     size_t nParams = p_params.numberOfParameters();
 	
 	vector<vector<Real>> parameterTable;
-	switch (nParams){
-		case 9:
-			readTable<9>(args["inParam"].as<string>(), parameterTable);
-			break;
-		case 13:
-			break;
-	}
+	readTable(args["inParam"].as<string>(), parameterTable);
 
+	// check to make sure you have correct number of parameters
+	if (parameterTable.size()!= pmesh.face.size()){
+		throw("invalid number of rows in the parameter table!");
+		return;
+	} 
+	else if (parameterTable[0].size() != nParams){
+		throw("incorrect number of parameters!");
+		return;
+	}
+		
 
     for(size_t i = 0; i < parameterTable.size(); ++i)
 	{
@@ -228,9 +287,42 @@ void tileQuad (const po::variables_map &args)
 
 
 	std::string tiledMeshName = args["output"].as<string>();
-	MeshIO::save(tiledMeshName, outVertices, outElements);
+	
+	// writing the final tiled mesh and adding the necessary fields to each element
+	MSHFieldWriter writer(tiledMeshName, outVertices, outElements, false);
 
+
+	std::vector<size_t> ids; // holds the quad id that each element belongs to
+	findQuadIdsForElements(outVertices, outElements, pmesh, ids);
+
+	ScalarField<Real> idsField(ids.size());
+	for (size_t i = 0; i < ids.size(); ++i)
+		idsField[i] = ids[i] * 1.0;
+
+	// adding the id element
+    writer.addField("id", idsField, DomainType::PER_ELEMENT);
+
+    // adding the optimization costs 
+    if (args["inCost"].as<string>() != ""){
+	    vector<vector<Real>> optimizationCosts;
+	    readTable(args["inCost"].as<string>(), optimizationCosts);
+	    if (optimizationCosts.size() != pmesh.face.size())
+	    	throw ("invalid number of rows in the cost table!");
+	   
+	   	ScalarField<Real> initCost(outElements.size());
+	   	ScalarField<Real> finaCost(outElements.size());
+
+	   	for (size_t i = 0; i < outElements.size(); ++i)
+		{
+			initCost[i] = optimizationCosts[ids[i]][0];
+			finaCost[i] = optimizationCosts[ids[i]][1];
+		}
+
+		writer.addField("initCost", initCost, DomainType::PER_ELEMENT);
+		writer.addField("finaCost", finaCost, DomainType::PER_ELEMENT);
+	}
 }
+
 
 void checkPmesh(PolyMesh & pmesh)
 {
