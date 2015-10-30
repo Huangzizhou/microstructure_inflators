@@ -892,7 +892,7 @@ protected:
 		clip.Execute(ClipperLib::ctIntersection, this->m_base_paths, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
 
 		// get the border segments adjacent to another quad
-		clip_poly.push_back(clip_poly.back());
+		clip_poly.push_back(clip_poly.back()); // MHS on Oct 29, 2015: this line seems unnecessary!!!
 		ClipperLib::Paths tmp;
 		for (int i=0; i<f.VN(); ++i)
 		{
