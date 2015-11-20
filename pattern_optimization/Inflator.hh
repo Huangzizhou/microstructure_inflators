@@ -16,6 +16,8 @@
 #include <WireInflator2D.h>
 #include <Wires/Interfaces/PeriodicExploration.h>
 #include <stdexcept>
+#include <iostream>
+#include <iomanip>
 #include <string>
 #include "rref.h"
 #include "ParameterConstraint.hh"
@@ -177,6 +179,119 @@ private:
     WireInflator2D::OutMeshType::EdgeFields m_edge_fields;
 };
 
+#ifdef ISOSURFACE_INFLATOR
+#include "../isosurface_inflator/IsosurfaceInflator.hh"
+// Use isosurface inflator as 3D inflator
+template<>
+class Inflator<3> : public InflatorBase<Inflator<3>> {
+public:
+    typedef InflatorBase<Inflator<3>> Base;
+    // Piecewise linear normal shape velocity.
+    typedef std::vector<Interpolant<Real, 2, 1>> NormalShapeVelocity;
+
+    Inflator(const std::string &wireMeshPath,
+             Real cell_size = 5.0, Real default_thickness = 0.5 * sqrt(2),
+             bool isotropic_params = false, bool vertex_thickness = false)
+        : m_inflator(isotropic_params ? "cubic" : "orthotropic", vertex_thickness, wireMeshPath) {
+    }
+
+    void setMaxElementVolume(Real maxElementVol) {
+        // TODO: IMPLEMENT
+        // (configure mesher via m_inflator.meshingOptions())
+        throw std::runtime_error("Unimplemented.");
+    }
+    void configureSubdivision(const std::string &algorithm, size_t levels) {
+        if (levels != 0)
+            throw std::runtime_error("IsosurfaceInflator doesn't support subdivision");
+    }
+
+    size_t numParameters() const { return m_inflator.numParams(); }
+
+    ParameterType parameterType(size_t p) const {
+        return m_inflator.isThicknessParam(p) ? ParameterType::Thickness
+                                              : ParameterType::Offset;
+    }
+
+    void inflate(const std::vector<Real> &params) {
+        try {
+            m_inflator.inflate(params);
+            // Could avoid duplicate storage for this inflator...
+            m_vertices = m_inflator.vertices();
+            m_elements = m_inflator.elements();
+        }
+        catch (...) {
+            std::cerr << setprecision(16);
+            std::cerr << "Exception while inflating parameters" << std::endl;
+            for (size_t i = 0; i < params.size(); ++i) std::cerr << params[i] << "\t";
+            std::cerr << std::endl;
+            throw;
+        }
+    }
+
+    void inflate(const std::string &dofFile) {
+        throw std::runtime_error("IsosurfaceInflator doesn't support DoF files.");
+    }
+
+    void setReflectiveInflator(bool use)      { if (!use) throw std::runtime_error("IsosurfaceInflator is always reflective."); }
+    void setDumpSurfaceMesh(bool dump = true) { if (dump) throw std::runtime_error("IsosurfaceInflator does not do surface meshing."); }
+
+    bool isPrintable(const std::vector<Real> &params) const {
+        return m_inflator.isPrintable(params);
+    }
+
+    template<class _FEMMesh>
+    std::vector<NormalShapeVelocity>
+    computeShapeNormalVelocities(const _FEMMesh &mesh) const {
+        // IsosurfaceInflator computes the velocity of each vertex as a scalar
+        // normal velocity vnp, and a vertex normal.
+        // Get the normal velocity over each face by dotting with the face normal
+        // and linearly interpolating.
+        std::vector<std::vector<Real>> nsv_p = m_inflator.normalShapeVelocities();
+        std::vector<Point3D>               n = m_inflator.vertexNormals();
+
+        size_t numBE = mesh.numBoundaryElements();
+        size_t nParams = numParameters();
+
+        std::vector<NormalShapeVelocity> vn_p(nParams, NormalShapeVelocity(numBE));
+        for (size_t p = 0; p < nParams; ++p) {
+            NormalShapeVelocity &vn = vn_p[p];
+            const auto &nsv = nsv_p.at(p);
+            for (auto be : mesh.boundaryElements()) {
+                assert(be.numVertices() == vn[be.index()].size());
+                // Interpolate the boundary element corner's normal velocities.
+                for (size_t bvi = 0; bvi < be.numVertices(); ++bvi) {
+                    size_t vi = be.vertex(bvi).volumeVertex().index();
+                    vn[be.index()][bvi] = nsv.at(vi) * n.at(vi).dot(be->normal());
+                }
+            }
+        }
+
+        return vn_p;
+    }
+
+    // Configure automatic logging of every set of inflated DoF parameters.
+    // If pathPrefix is nonempty, a dof file will be written at
+    // pathPrefix_$inflationNumber.dof
+    void setDoFOutputPrefix(const std::string &pathPrefix) {
+        throw std::runtime_error("IsosurfaceInflator does not support DoF files.");
+    }
+
+    // Note, overwrites the dofs in m_inflator
+    void loadPatternDoFs(const std::string &path, std::vector<Real> &params) {
+        throw std::runtime_error("Writing pattern DoFs unsupported in 2D");
+    }
+
+    // Write parameters in James' DoF format.
+    void writePatternDoFs(const std::string &path,
+                          const std::vector<Real> &params) {
+        throw std::runtime_error("IsosurfaceInflator does not support DoF files.");
+    }
+
+private:
+    IsosurfaceInflator m_inflator;
+};
+
+#else // !ISOSURFACE_INFLATOR
 // 3D inflator is James' PeriodicExploration
 template<>
 class Inflator<3> : public InflatorBase<Inflator<3>> {
@@ -328,6 +443,7 @@ private:
             m_vertices.emplace_back(Point3D(verts.row(i)));
     }
 };
+#endif // !ISOSURFACE_INFLATOR
 
 template <size_t N>
 class ConstrainedInflator : public Inflator<N> {

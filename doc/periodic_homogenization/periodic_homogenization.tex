@@ -478,14 +478,19 @@ Here we used integration by parts (for symmetric tensors) to move the strain
 operator off ${\bf w}^{ij}$. The resulting volume integral vanishes because ${\bf
 w}^{kl}$ solves the $kl^\text{th}$ cell problem. The surface integral vanishes
 because row vector ${\bf w}^{ij} \cdot [C({\bf y}) : (e^{kl} + e_{\bf
-y}({\bf w}^{kl}))]$ is Y-periodic. Notice that this periodicity only holds
+y}({\bf w}^{kl}))]$ is Y-periodic.
+
+Notice that this periodicity only holds
 in the continuous case where $e_{\bf y}({\bf w}^{kl})$ is periodic due to ${\bf
-w}^{kl}$'s
-periodicity. When we discretize (with FEM) this no longer holds exactly.
-However, there $e_{\bf y}({\bf w}^{kl})$'s periodicity still holds in a weak sense.
-Weak periodicity is sufficent for the boundary integral to vanish because in the
-integrand, $e_{\bf y}({\bf w}^{kl})$ is dotted with ${\bf w}^{ij}$, which is a linear
-combination of shape functions.
+w}^{kl}$'s periodicity. When we discretize (with FEM) this no longer holds exactly.
+However, notice that the term we want to vanish,
+$ \frac{1}{|Y|} \int_Y e_{\bf y}({\bf w}^{ij}) : C({\bf y}) : (e^{kl} + e_{\bf y}({\bf w}^{kl})) \,
+\mathrm{d} {\bf y}$, can be written as a linear combination of
+$ \frac{1}{|Y|} \int_Y e_{\bf y}(\phi) : C({\bf y}) : (e^{kl} + e_{\bf y}({\bf
+w}^{kl})) $
+for basis functions $\phi$. For each $\phi$, we recognize this as a row of the
+FEM system for the $kl^\text{th}$ cell problem, which will be exactly zero (up
+to roundoff error). Thus the term does indeed vanish in the discrete case.
 
 \section{Rigorous Justification}
 The derivation is only a heuristic procedure, not a proof that that the
