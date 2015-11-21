@@ -196,8 +196,7 @@ public:
     };
 
 
-
-    void optimize_lm(SField &params, const _ETensor &targetS, size_t maxIters,
+    void optimize_lm(SField &params, const _ETensor &targetS,
                   const string &outPath) {
         TensorFitCost *fitCost = new TensorFitCost(m_inflator, targetS);
         ceres::Problem problem;
@@ -212,7 +211,6 @@ public:
         }
 
         ceres::Solver::Options options;
-        options.max_num_iterations = maxIters; // Ceres default: 50
         options.update_state_every_iteration = true;
         IterationCallback cb(*fitCost, params, outPath);
         options.callbacks.push_back(&cb);
@@ -363,9 +361,8 @@ public:
     }
 
     struct LevmarEvaluator {
-        LevmarEvaluator(ConstrainedInflator<_N> &inflator, const _ETensor &targetS,
-                const std::string &outPath)
-            : m_inflator(inflator), m_targetS(targetS), m_outPath(outPath) { }
+        LevmarEvaluator(ConstrainedInflator<_N> &inflator, const _ETensor &targetS)
+            : m_inflator(inflator), m_targetS(targetS) { }
 
         void residual(double *params, double *residual, int numParams, int numResiduals) {
             m_iterate = getIterate(m_iterate, m_inflator, numParams, params, m_targetS);
@@ -390,25 +387,14 @@ public:
             assert(r == (size_t) numResiduals);
         }
 
-        void callback(int iter, double *params, int numParams, int numResiduals) {
-            auto curr = getIterate(m_iterate, m_inflator, numParams, params, m_targetS);
-            curr->writeDescription(std::cout);
-            std::cout << std::endl;
-
-            if (m_outPath != "")
-                curr->writeMeshAndFields(m_outPath + "_" + std::to_string(iter));
-        }
-
         // Residual and Jacobian evaluation callbacks for levmar
         // The Jacobian is stored row-major.
         static void residual(double *params, double *residual, int numParams, int numResiduals, void *instance) { static_cast<LevmarEvaluator *>(instance)->residual(params, residual, numParams, numResiduals); }
         static void jacobian(double *params, double *jacobian, int numParams, int numResiduals, void *instance) { static_cast<LevmarEvaluator *>(instance)->jacobian(params, jacobian, numParams, numResiduals); }
-        static void callback(int       iter, double   *params, int numParams, int numResiduals, void *instance) { static_cast<LevmarEvaluator *>(instance)->callback(  iter,   params, numParams, numResiduals); }
 
         ConstrainedInflator<_N> &m_inflator;
         _ETensor m_targetS;
         std::shared_ptr<Iterate> m_iterate;
-        std::string m_outPath;
     };
 
     void optimize_levmar(SField &params, const _ETensor &targetS, size_t niters, const string &outName) {
@@ -417,13 +403,13 @@ public:
         SField lowerBounds(numParams), upperBounds(numParams);
         getParameterBounds(lowerBounds, upperBounds);
 
-        LevmarEvaluator eval(m_inflator, targetS, outName);
+        LevmarEvaluator eval(m_inflator, targetS);
 
         double opts[LM_OPTS_SZ], info[LM_INFO_SZ];
         opts[0]=LM_INIT_MU; opts[1]=1E-15; opts[2]=1E-15; opts[3]=1E-20;
         opts[4]= LM_DIFF_DELTA; // relevant only if the Jacobian is approximated using finite differences; specifies forward differencing 
         // TODO: add iteration completed callback.
-        dlevmar_bc_der(LevmarEvaluator::residual, LevmarEvaluator::jacobian, LevmarEvaluator::callback,
+        dlevmar_bc_der(LevmarEvaluator::residual, LevmarEvaluator::jacobian,
                        params.data(),
                        NULL, // Since our "measurements" are actually residuals, target x is 0
                        numParams, numResiduals,
