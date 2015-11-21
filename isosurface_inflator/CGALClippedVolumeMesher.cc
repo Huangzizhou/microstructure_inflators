@@ -102,6 +102,7 @@ mesh(const SignedDistanceFunction &sdf,
 
     Mesh_domain domain(cgal_sdfunc,
             K::Sphere_3(Point(c[0], c[1], c[2]), r * r), meshingOptions.domainErrorBound);
+    // std::cout << "Adding features..." << std::endl;
     domain.add_features(polylines.begin(), polylines.end());
 
     // Mesh criteria
@@ -113,6 +114,7 @@ mesh(const SignedDistanceFunction &sdf,
                            edge_size              = meshingOptions.edgeSize);
 
     // Mesh generation
+    // std::cout << "Making mesh..." << std::endl;
     C3t3 c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria);
 
     // Access triangulation directly
