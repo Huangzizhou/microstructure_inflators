@@ -1,24 +1,25 @@
 ////////////////////////////////////////////////////////////////////////////////
-// GradientComponentValidation.cc
+// ShapeVelocityValidation.cc
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
-//      Validates a single component of the pattern optimization gradient. Does
-//      this by doing a fine 1D sweep of the objective around the sample point,
-//      writing the objective and gradient component for each sample.
+//      Validates the shape velocity by computing the shape derivative of the
+//      trivial object volume functional:
+//          dVol[v] = d[v] int_omega 1 dV = int_domega v.n dA
+//      In other words, we consider the integral of the normal shape velocity
+//      scalar field over the whole surface. By printing both this quantity and
+//      the volume for a fine 1D sweep over pattern parameters, we can see how
+//      well it approximates the true derivative of volume.
+//  Output:
+//      iterate    paramValue    volume    dVol
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
-//  Created:  12/26/2014 14:57:55
+//  Created:  11/21/2015 14:04:43
 ////////////////////////////////////////////////////////////////////////////////
 #include <MeshIO.hh>
+#include <MSHFieldWriter.hh>
 #include <LinearElasticity.hh>
-#include <Materials.hh>
-#include <PeriodicHomogenization.hh>
 #include <GlobalBenchmark.hh>
-
-#include "Inflator.hh"
-#include "PatternOptimizationJob.hh"
-#include "PatternOptimizationIterate.hh"
 
 #include <vector>
 #include <queue>
@@ -33,12 +34,15 @@
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
+#include "../../Inflator.hh"
+#include "../../PatternOptimizationJob.hh"
+
 namespace po = boost::program_options;
 using namespace std;
 using namespace PatternOptimization;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: GradientComponentValidation [options] job.opt component_idx -l'lower_bd' -u'upper_bd' nsamples" << endl;
+    cout << "Usage: ShapeVelocityValidation [options] job.opt component_idx -l'lower_bd' -u'upper_bd' nsamples" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
 }
@@ -57,22 +61,19 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     p.add("nsamples", 1);
 
     po::options_description visible_opts;
-    visible_opts.add_options()("help",        "Produce this help message")
+    visible_opts.add_options()("help",      "Produce this help message")
         ("lower_bd,l", po::value<double>(), "sweep lower bound (must be positional to support negative values)")
         ("upper_bd,u", po::value<double>(), "sweep upper bound (must be positional to support negative values)")
         ("pattern,p",       po::value<string>(), "Pattern wire mesh (.obj|wire)")
-        ("material,m",      po::value<string>(), "base material")
-        ("degree,d",        po::value<size_t>()->default_value(2),        "FEM Degree")
-        ("output,o",        po::value<string>()->default_value(""),       "output .js mesh + fields at each iteration")
-        ("matrixOut,O",     po::value<string>()->default_value(""),       "output matrix at each iteration")
         ("volumeMeshOut",   po::value<string>()->default_value(""),       "output volume mesh at each iteration")
-        ("dofOut",          po::value<string>()->default_value(""),       "output pattern dofs in James' format at each iteration")
+        ("velocityOut,o",   po::value<string>(),                          "output shape velocity scalar field at each iteration")
         ("subdivide,S",  po::value<size_t>()->default_value(0),           "number of subdivisions to run for 3D inflator")
         ("sub_algorithm,A", po::value<string>()->default_value("simple"), "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                             "maximum element volume parameter for wire inflator")
-        ("cell_size,c",  po::value<double>()->default_value(5.0),                "Inflation cell size (3D only)")
-        ("isotropicParameters,I",                                                "Use isotropic DoFs (3D only)")
-        ("vertexThickness,V",                                                    "Use vertex thickness instead of edge thickness (3D only)")
+        ("cell_size,c",  po::value<double>()->default_value(5.0),         "Inflation cell size (3D only)")
+        ("directSDNormalVelocity,n",                                      "For isosurface inflator: use signed distance normal velocity directly (instead of multiplying by vertex normal . face normal)")
+        ("isotropicParameters,I",                                         "Use isotropic DoFs (3D only)")
+        ("vertexThickness,V",                                             "Use vertex thickness instead of edge thickness (3D only)")
         ;
 
     po::options_description cli_opts;
@@ -100,12 +101,6 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
-    size_t d = vm["degree"].as<size_t>();
-    if (d < 1 || d > 2) {
-        cout << "Error: FEM Degree must be 1 or 2" << endl;
-        fail = true;
-    }
-
     set<string> subdivisionAlgorithms = {"simple", "loop"};
     if (subdivisionAlgorithms.count(vm["sub_algorithm"].as<string>()) == 0) {
         cout << "Illegal subdivision algorithm specified" << endl;
@@ -122,10 +117,6 @@ template<size_t _N>
 using HMG = LinearElasticity::HomogenousMaterialGetter<Materials::Constant>::template Getter<_N>;
 
 template<size_t _N>
-using ETensor = ElasticityTensor<Real, _N>;
-typedef ScalarField<Real> SField;
-
-template<size_t _N, size_t _FEMDegree>
 void execute(const po::variables_map &args, const Job<_N> *job)
 {
     ConstrainedInflator<_N> inflator(job->parameterConstraints,
@@ -141,14 +132,9 @@ void execute(const po::variables_map &args, const Job<_N> *job)
                                       args["subdivide"].as<size_t>());
     }
 
-    auto targetC = job->targetMaterial.getTensor();
-    ETensor<_N> targetS = targetC.inverse();
-
-    cout << "Target moduli:\t";
-    targetC.printOrthotropic(cout);
-    cout << endl;
-
-    // cout << "target tensor: " << targetC << endl;
+    // Only relevant to isosurface inflator...
+    if (args.count("directSDNormalVelocity"))
+        Config::get().useSDNormalShapeVelocityDirectly = true;
 
     if (job->numParams() != inflator.numParameters()) {
         for (size_t i = 0; i < inflator.numParameters(); ++i) {
@@ -159,47 +145,57 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         throw runtime_error("Invalid number of parameters.");
     }
 
-    typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh;
-    typedef LinearElasticity::Simulator<Mesh> Simulator;
+    // Need to use LinearElasticity for the periodic cell boundary condtions--in
+    // the future that code should probably be moved into the general LinearFEM
+    // class.
+    using Mesh      = LinearElasticity::Mesh<_N, 1, HMG>;
+    using Simulator = LinearElasticity::Simulator<Mesh>;
 
-    // Set up simulators' (base) material
-    auto &mat = HMG<_N>::material;
-    if (args.count("material")) mat.setFromFile(args["material"].as<string>());
-
-    SField params(job->initialParams);
-    string output = args["output"].as<string>();
-    string matrixOutput = args["matrixOut"].as<string>();
+    vector<Real> params(job->initialParams);
     string volumeMeshOut = args["volumeMeshOut"].as<string>();
     size_t compIdx = args["component_idx"].as<size_t>();
-    assert(compIdx < params.domainSize());
+    assert(compIdx < params.size());
     double lowerBound = args["lower_bd"].as<double>();
     double upperBound = args["upper_bd"].as<double>();
     size_t nSamples = args["nsamples"].as<size_t>();
 
-    string dofOut = args["dofOut"].as<string>();
-    if (dofOut != "")
-        inflator.setDoFOutputPrefix(dofOut);
-
     for (size_t i = 0; i < nSamples; ++i) {
         params[compIdx] = lowerBound + ((nSamples == 1) ? 0.0
                         : (upperBound - lowerBound) * (double(i) / (nSamples - 1)));
-        Iterate<Simulator> it(inflator, params.domainSize(), &params[0], targetS);
-        std::cout << i << "\t" << params[compIdx] << "\t"
-                  << it.evaluateJS() << "\t" << it.gradp_JS()[compIdx] << std::endl;
-        if (output != "")          it.writeMeshAndFields(       output + "_" + std::to_string(i));
-        if (matrixOutput != "")  it.dumpSimulationMatrix( matrixOutput + "_" + std::to_string(i) + ".txt");
-        if (volumeMeshOut != "")      it.writeVolumeMesh(volumeMeshOut + "_" + std::to_string(i) + ".msh");
+        inflator.inflate(params);
+        Simulator sim(inflator.elements(), inflator.vertices());
+        sim.applyPeriodicConditions();
+        const auto &mesh = sim.mesh();
+        auto vn_p = inflator.computeShapeNormalVelocities(mesh);
+        assert(vn_p.size() == params.size());
+        const auto &vn = vn_p[compIdx];
+        assert(vn.size() == mesh.numBoundaryElements());
+
+        Real normalVelocityIntegral = 0;
+        for (auto be : mesh.boundaryElements())
+            normalVelocityIntegral += vn.at(be.index()).integrate(be->volume());
+
+        cout << i << "\t"
+             << params[compIdx] << "\t"
+             << mesh.volume() << "\t"
+             << normalVelocityIntegral << "\t"
+             << endl;
+
+        if (volumeMeshOut != "") MeshIO::save(volumeMeshOut + "_" + std::to_string(i) + ".msh", mesh);
+        if (args.count("velocityOut")) {
+            ScalarField<Real> pboundaryIndicator(mesh.numBoundaryElements());
+            for (auto be : mesh.boundaryElements()) {
+                pboundaryIndicator[be.index()] = be->isPeriodic ? 1.0 : 0.0;
+            }
+            MSHBoundaryFieldWriter writer(args["velocityOut"].as<string>() + "_" + std::to_string(i) + ".msh", mesh);
+            writer.addField("vn", vn);
+            writer.addField("periodic boundary", pboundaryIndicator);
+        }
     }
 
     BENCHMARK_REPORT();
 }
 
-////////////////////////////////////////////////////////////////////////////////
-/*! Program entry point
-//  @param[in]  argc    Number of arguments
-//  @param[in]  argv    Argument strings
-//  @return     status  (0 on success)
-*///////////////////////////////////////////////////////////////////////////////
 int main(int argc, const char *argv[])
 {
     cout << setprecision(20);
@@ -208,15 +204,10 @@ int main(int argc, const char *argv[])
 
     auto job = parseJobFile(args["job"].as<string>());
 
-    size_t deg = args["degree"].as<size_t>();
-    if (auto job2D = dynamic_cast<Job<2> *>(job)) {
-        if (deg == 1) execute<2, 1>(args, job2D);
-        if (deg == 2) execute<2, 2>(args, job2D);
-    }
-    else if (auto job3D = dynamic_cast<Job<3> *>(job)) {
-        if (deg == 1) execute<3, 1>(args, job3D);
-        if (deg == 2) execute<3, 2>(args, job3D);
-    }
+    if (auto job2D = dynamic_cast<Job<2> *>(job))
+        execute<2>(args, job2D);
+    else if (auto job3D = dynamic_cast<Job<3> *>(job))
+        execute<3>(args, job3D);
     else throw std::runtime_error("Invalid job file.");
 
     return 0;

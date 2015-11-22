@@ -18,9 +18,14 @@ namespace PatternOptimization {
 
 class Config {
 private:
-    Config() : ignoreShear(false) { }
+    Config() { }
 public:
-    bool ignoreShear;
+    bool ignoreShear = false;
+    // For isosurface inflator: whether to use the normal velocity scalar field
+    // directly (true) or to multiply by (vertex normal . face normal).
+    // Note: the direct version empirically seems to be working better...
+    // It should be used by default.
+    bool useSDNormalShapeVelocityDirectly = true;
     static Config &get() {
         static Config configSingleton;
         return configSingleton;

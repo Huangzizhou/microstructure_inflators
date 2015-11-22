@@ -21,6 +21,7 @@
 #include <string>
 #include "rref.h"
 #include "ParameterConstraint.hh"
+#include "PatternOptimizationConfig.hh"
 
 namespace {
     VectorF ToVectorF(const std::vector<Real> &vec) {
@@ -244,8 +245,6 @@ public:
     computeShapeNormalVelocities(const _FEMMesh &mesh) const {
         // IsosurfaceInflator computes the velocity of each vertex as a scalar
         // normal velocity vnp, and a vertex normal.
-        // Get the normal velocity over each face by dotting with the face normal
-        // and linearly interpolating.
         std::vector<std::vector<Real>> nsv_p = m_inflator.normalShapeVelocities();
         std::vector<Point3D>               n = m_inflator.vertexNormals();
 
@@ -258,10 +257,26 @@ public:
             const auto &nsv = nsv_p.at(p);
             for (auto be : mesh.boundaryElements()) {
                 assert(be.numVertices() == vn[be.index()].size());
+                if (be->isPeriodic) {
+                    // Shape velocity should be exactly 0 on the periodic boundary.
+                    // (If we don't enforce this, the nonzero shape velocity from
+                    // (domega intersect dY) vertices will leak into the
+                    // periodic boundary faces.
+                    vn[be.index()] *= 0;
+                    continue;
+                }
                 // Interpolate the boundary element corner's normal velocities.
                 for (size_t bvi = 0; bvi < be.numVertices(); ++bvi) {
                     size_t vi = be.vertex(bvi).volumeVertex().index();
-                    vn[be.index()][bvi] = nsv.at(vi) * n.at(vi).dot(be->normal());
+                    // Note: the direct version empirically seems to be working better...
+                    // It should be used by default.
+                    if (PatternOptimization::Config::get().useSDNormalShapeVelocityDirectly)
+                        vn[be.index()][bvi] = nsv.at(vi);
+                    else {
+                        // Get the normal velocity over each face by dotting with the face normal
+                        // and linearly interpolating.
+                        vn[be.index()][bvi] = nsv.at(vi) * n.at(vi).dot(be->normal());
+                    }
                 }
             }
         }
