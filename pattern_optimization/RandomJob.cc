@@ -64,6 +64,9 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("sub_algorithm,A", po::value<string>()->default_value("simple"), "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                             "maximum element volume parameter for wire inflator")
         ("max_distance,D", po::value<double>()->default_value(1),         "maximum distance to true pattern parameters from random initial point (in relative units)")
+        ("cell_size,c",  po::value<double>()->default_value(5.0),                "Inflation cell size (3D only)")
+        ("isotropicParameters,I",                                                "Use isotropic DoFs (3D only)")
+        ("vertexThickness,V",                                                    "Use vertex thickness instead of edge thickness (3D only)")
         ;
 
     po::options_description cli_opts;
@@ -132,7 +135,12 @@ typedef ScalarField<Real> SField;
 template<size_t _N, size_t _FEMDegree>
 void execute(const po::variables_map &args, const Job<_N> *job)
 {
-	ConstrainedInflator<_N> inflator({}, args["pattern"].as<string>());
+    ConstrainedInflator<_N> inflator(job->parameterConstraints,
+                args["pattern"].as<string>(),
+                args["cell_size"].as<double>(),
+                0.5 * sqrt(2),
+                args.count("isotropicParameters"),
+                args.count("vertexThickness"));
     if (args.count("max_volume"))
         inflator.setMaxElementVolume(args["max_volume"].as<double>());
     if (_N == 3) {
