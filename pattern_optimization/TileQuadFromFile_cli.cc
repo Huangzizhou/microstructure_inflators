@@ -251,6 +251,7 @@ void tileQuad (const po::variables_map &args)
 	vector<vector<Real>> parameterTable;
 	readTable(args["inParam"].as<string>(), parameterTable);
 
+	cout << pmesh.face.size() << "\t" << parameterTable.size() << "\t" << parameterTable[0].size() << endl;
 	// check to make sure you have correct number of parameters
 	if (parameterTable.size()!= pmesh.face.size()){
 		throw("invalid number of rows in the parameter table!");
@@ -289,7 +290,7 @@ void tileQuad (const po::variables_map &args)
 	std::string tiledMeshName = args["output"].as<string>();
 	
 	// writing the final tiled mesh and adding the necessary fields to each element
-	MSHFieldWriter writer(tiledMeshName, outVertices, outElements, false);
+	MSHFieldWriter writer(tiledMeshName, outVertices, outElements,  MeshIO::MESH_GUESS, false);
 
 
 	std::vector<size_t> ids; // holds the quad id that each element belongs to
