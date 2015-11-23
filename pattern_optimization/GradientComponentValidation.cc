@@ -19,6 +19,7 @@
 #include "Inflator.hh"
 #include "PatternOptimizationJob.hh"
 #include "PatternOptimizationIterate.hh"
+#include "PatternOptimizationConfig.hh"
 
 #include <vector>
 #include <queue>
@@ -70,9 +71,10 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("subdivide,S",  po::value<size_t>()->default_value(0),           "number of subdivisions to run for 3D inflator")
         ("sub_algorithm,A", po::value<string>()->default_value("simple"), "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                             "maximum element volume parameter for wire inflator")
-        ("cell_size,c",  po::value<double>()->default_value(5.0),                "Inflation cell size (3D only)")
-        ("isotropicParameters,I",                                                "Use isotropic DoFs (3D only)")
-        ("vertexThickness,V",                                                    "Use vertex thickness instead of edge thickness (3D only)")
+        ("cell_size,c",  po::value<double>()->default_value(5.0),         "Inflation cell size (3D only)")
+        ("directSDNormalVelocity,n",                                      "For isosurface inflator: use signed distance normal velocity directly (instead of multiplying by vertex normal . face normal)")
+        ("isotropicParameters,I",                                         "Use isotropic DoFs (3D only)")
+        ("vertexThickness,V",                                             "Use vertex thickness instead of edge thickness (3D only)")
         ;
 
     po::options_description cli_opts;
@@ -140,6 +142,9 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         inflator.configureSubdivision(args["sub_algorithm"].as<string>(),
                                       args["subdivide"].as<size_t>());
     }
+
+    // Only relevant to isosurface inflator...
+    Config::get().useSDNormalShapeVelocityDirectly = args.count("directSDNormalVelocity");
 
     auto targetC = job->targetMaterial.getTensor();
     ETensor<_N> targetS = targetC.inverse();

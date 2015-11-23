@@ -23,19 +23,6 @@
 #include "ParameterConstraint.hh"
 #include "PatternOptimizationConfig.hh"
 
-namespace {
-    VectorF ToVectorF(const std::vector<Real> &vec) {
-        VectorF result(vec.size());
-        for (size_t i = 0; i < vec.size(); ++i) result(i) = vec[i];
-        return result;
-    }
-    std::vector<Real> FromVectorF(const VectorF &vec) {
-        std::vector<Real> result(vec.rows());
-        for (int i = 0; i < vec.rows(); ++i) result[i] = vec(i);
-        return result;
-    }
-}
-
 enum class ParameterType { Thickness, Offset };
 
 template<class _Derived>
@@ -307,6 +294,19 @@ private:
 };
 
 #else // !ISOSURFACE_INFLATOR
+namespace {
+    VectorF ToVectorF(const std::vector<Real> &vec) {
+        VectorF result(vec.size());
+        for (size_t i = 0; i < vec.size(); ++i) result(i) = vec[i];
+        return result;
+    }
+    std::vector<Real> FromVectorF(const VectorF &vec) {
+        std::vector<Real> result(vec.rows());
+        for (int i = 0; i < vec.rows(); ++i) result[i] = vec(i);
+        return result;
+    }
+}
+
 // 3D inflator is James' PeriodicExploration
 template<>
 class Inflator<3> : public InflatorBase<Inflator<3>> {

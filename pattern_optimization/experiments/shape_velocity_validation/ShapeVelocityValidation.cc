@@ -36,6 +36,7 @@
 
 #include "../../Inflator.hh"
 #include "../../PatternOptimizationJob.hh"
+#include "../../PatternOptimizationConfig.hh"
 
 namespace po = boost::program_options;
 using namespace std;
@@ -133,8 +134,7 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     }
 
     // Only relevant to isosurface inflator...
-    if (args.count("directSDNormalVelocity"))
-        Config::get().useSDNormalShapeVelocityDirectly = true;
+    Config::get().useSDNormalShapeVelocityDirectly = args.count("directSDNormalVelocity");
 
     if (job->numParams() != inflator.numParameters()) {
         for (size_t i = 0; i < inflator.numParameters(); ++i) {
