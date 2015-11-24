@@ -86,7 +86,7 @@ class PatternOptimization:
         #PBS -N {name}
         #PBS -l nodes=1:ppn=2
         #PBS -l walltime=1:30:00
-        #PBS -l mem=4GB
+        #PBS -l mem=32GB
         #PBS -M fjp234@nyu.edu
         #PBS -m a
         #PBS -t {firstIndex}-{lastIndex}

@@ -1,0 +1,20 @@
+###-----PBS Directives Start-----###
+
+#PBS -V
+#PBS -S /bin/bash
+#PBS -N gv_d2_direct
+#PBS -l nodes=1:ppn=4
+#PBS -l walltime=1:30:00
+#PBS -l mem=32GB
+#PBS -M fjp234@nyu.edu
+#PBS -m a
+#PBS -e localhost:\${PBS_O_WORKDIR}/\${PBS_JOBNAME}.e\${PBS_JOBID}
+#PBS -o localhost:\${PBS_O_WORKDIR}/\${PBS_JOBNAME}.o\${PBS_JOBID}
+#PBS -t 0-8
+
+###-----PBS Directives End-----###
+PATOPT=$HOME/microstructures/pattern_optimization
+resultdir=$SCRATCH/gradient_validation/isosurface_inflator/direct_nsv/d2/
+mkdir -p $resultdir
+cd $resultdir
+$PATOPT/GradientComponentValidation -n -p $MICRO_DIR/patterns/3D/reference_wires/pattern0746.wire -m $MICRO_DIR/materials/B9Creator.material -d2 -l0.03 -u0.10 $PATOPT/default_job_isoinflator.opt ${PBS_ARRAYID} 40 -IV > p${PBS_ARRAYID}.txt

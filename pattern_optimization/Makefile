@@ -14,7 +14,7 @@ CPPFLAGS+=-O2
 
 INCLUDES=-I$(LEVMAR_INC) # bring levmar in first since we have a modified copy that might be overriden by the system's
 INCLUDES+=-I$(MeshFEM) -I$(CSGFEM) -I$(EIGEN_INC) -isystem $(SUITESPARSE_INC) -isystem $(BOOST_INC) \
-		 -isystem $(CERES_INC) -isystem $(LIBMATHEVAL_INC) -isystem $(CLIPPER_INC)
+		 -isystem $(CERES_INC) -isystem $(LIBMATHEVAL_INC)
 INCLUDES+=-isystem $(CLIPPER_INC) -isystem $(VCGLIB_INC) -isystem $(DLIB_INC)
 INCLUDES+=-I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
 INCLUDES+=-isystem $(TRIANGLE_INC)
