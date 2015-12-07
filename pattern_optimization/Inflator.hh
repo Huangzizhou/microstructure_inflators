@@ -71,19 +71,19 @@ public:
 
 
     Inflator(const std::string &wireMeshPath,
-             Real cell_size, Real default_thickness = 0.5 * sqrt(2),
-             bool isotropic_params = false, bool vertex_thickness = false)
+             Real /* cell_size */, Real /* default_thickness = 0.5 * sqrt(2) */,
+             bool /* isotropic_params = false */, bool /* vertex_thickness = false */)
         : m_inflator(WireInflator2D::construct(wireMeshPath)) {
             throw std::runtime_error("2D inflator is not yet configurable");
     }
 
     void setMaxElementVolume(Real maxElementVol) { m_tparams.max_area = maxElementVol; }
     Real getMaxElementVolume() const { return m_tparams.max_area; }
-    void configureSubdivision(const std::string &algorithm, size_t levels) {
+    void configureSubdivision(const std::string &/* algorithm */, size_t /* levels */) {
         throw std::runtime_error("Subdivision not supported in 2D");
     }
 
-    void setReflectiveInflator(bool use) {
+    void setReflectiveInflator(bool /* use */) {
         throw std::runtime_error("Reflective inflator not supported in 2D");
     }
 
@@ -148,14 +148,14 @@ public:
     }
 
     // 2D is always printable.
-    bool isPrintable(const std::vector<Real> &params) const { return true; }
+    bool isPrintable(const std::vector<Real> &/* params */) const { return true; }
 
-    void setDoFOutputPrefix(const std::string &pathPrefix) {
+    void setDoFOutputPrefix(const std::string &/* pathPrefix */) {
         throw std::runtime_error("Writing pattern DoFs unsupported in 2D");
     }
 
-    void writePatternDoFs(const std::string &path,
-                          const std::vector<Real> &params) {
+    void writePatternDoFs(const std::string &/* path */,
+                          const std::vector<Real> &/* params */) {
         throw std::runtime_error("Writing pattern DoFs unsupported in 2D");
     }
 
@@ -178,17 +178,17 @@ public:
     typedef std::vector<Interpolant<Real, 2, 1>> NormalShapeVelocity;
 
     Inflator(const std::string &wireMeshPath,
-             Real cell_size = 5.0, Real default_thickness = 0.5 * sqrt(2),
+             Real /* cell_size */ = 5.0, Real /* default_thickness */ = 0.5 * sqrt(2),
              bool isotropic_params = false, bool vertex_thickness = false)
         : m_inflator(isotropic_params ? "cubic" : "orthotropic", vertex_thickness, wireMeshPath) {
     }
 
-    void setMaxElementVolume(Real maxElementVol) {
+    void setMaxElementVolume(Real /* maxElementVol */) {
         // TODO: IMPLEMENT
         // (configure mesher via m_inflator.meshingOptions())
         throw std::runtime_error("Unimplemented.");
     }
-    void configureSubdivision(const std::string &algorithm, size_t levels) {
+    void configureSubdivision(const std::string &/* algorithm */, size_t levels) {
         if (levels != 0)
             throw std::runtime_error("IsosurfaceInflator doesn't support subdivision");
     }
@@ -216,7 +216,7 @@ public:
         }
     }
 
-    void inflate(const std::string &dofFile) {
+    void inflate(const std::string &/* dofFile */) {
         throw std::runtime_error("IsosurfaceInflator doesn't support DoF files.");
     }
 
@@ -227,6 +227,8 @@ public:
         return m_inflator.isPrintable(params);
     }
 
+    // NOTE: assumes periodic boundary conditions have already been applied
+    // (for proper clearing of boundary velocity).
     template<class _FEMMesh>
     std::vector<NormalShapeVelocity>
     computeShapeNormalVelocities(const _FEMMesh &mesh) const {
@@ -274,18 +276,18 @@ public:
     // Configure automatic logging of every set of inflated DoF parameters.
     // If pathPrefix is nonempty, a dof file will be written at
     // pathPrefix_$inflationNumber.dof
-    void setDoFOutputPrefix(const std::string &pathPrefix) {
+    void setDoFOutputPrefix(const std::string &/* pathPrefix */) {
         throw std::runtime_error("IsosurfaceInflator does not support DoF files.");
     }
 
     // Note, overwrites the dofs in m_inflator
-    void loadPatternDoFs(const std::string &path, std::vector<Real> &params) {
+    void loadPatternDoFs(const std::string &/* path */, std::vector<Real> &/* params */) {
         throw std::runtime_error("Writing pattern DoFs unsupported in 2D");
     }
 
     // Write parameters in James' DoF format.
-    void writePatternDoFs(const std::string &path,
-                          const std::vector<Real> &params) {
+    void writePatternDoFs(const std::string &/* path */,
+                          const std::vector<Real> &/* params */) {
         throw std::runtime_error("IsosurfaceInflator does not support DoF files.");
     }
 

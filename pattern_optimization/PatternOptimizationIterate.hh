@@ -38,13 +38,13 @@ struct Iterate {
     typedef PeriodicHomogenization::
             BEHTensorGradInterpolant<_Sim>          BEGradTensorInterpolant;
     // 2 * (deg - 1) boundary element interpolant of a scalar field used to
-    // represent the per-boundary-element value of the shape derivative a
+    // represent the per-boundary-element value of the shape derivative of a
     // scalar function.
     typedef Interpolant<Real, BEGradTensorInterpolant::K,
                     BEGradTensorInterpolant::Deg>   BEGradInterpolant;
 
     Iterate(ConstrainedInflator<_N> &inflator, size_t nParams, const double *params,
-            const _ETensor &targetS)
+            const _ETensor &targetS, bool keepFluctuationDisplacements = false)
         : m_targetS(targetS)
     {
         m_params.resize(nParams);
@@ -84,10 +84,12 @@ struct Iterate {
                                        inflator.vertices());
         std::cout << "Done" << std::endl;
         std::cout << "Homogenizing" << std::endl;
+
+        // Shape velocities must be computed after periodic boundary conditions
+        // are applied!
+        PeriodicHomogenization::solveCellProblems(w_ij, *m_sim);
         m_vn_p = inflator.computeShapeNormalVelocities(m_sim->mesh());
 
-        std::vector<VField> w_ij;
-        PeriodicHomogenization::solveCellProblems(w_ij, *m_sim);
         C = PeriodicHomogenization::homogenizedElasticityTensorDisplacementForm(w_ij, *m_sim);
         S = C.inverse();
         std::vector<BEGradTensorInterpolant> gradEh =
@@ -121,6 +123,8 @@ struct Iterate {
         m_diffS = S - m_targetS;
 
         std::cout << "Done" << std::endl;
+
+        if (!keepFluctuationDisplacements) w_ij.clear();
 
         BENCHMARK_STOP_TIMER_SECTION("Eval");
     }
@@ -383,13 +387,17 @@ struct Iterate {
     const _ETensor &elasticityTensor() const { return C; }
     const _ETensor &complianceTensor() const { return S; }
 
-private:
+protected:
     std::shared_ptr<_Sim> m_sim;
     _ETensor C, S, m_targetS, m_diffS;
     std::vector<BEGradTensorInterpolant> m_gradS;
     std::vector<_ETensor>                m_gradp_S;
     std::vector<typename ConstrainedInflator<_N>::NormalShapeVelocity> m_vn_p;
     bool m_printable;
+
+    // Fluctuation displacements--only kept if requested in constructor (a subclasses
+    // might need them).
+    std::vector<VField> w_ij;
 
     // Requests linear objective/residual estimate for when meshing fails
     std::vector<Real> m_estimateObjectiveWithDeltaP;
