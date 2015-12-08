@@ -48,6 +48,11 @@ public:
         return result;
     }
 
+    // Direct differentation version of gradient
+    Real gradientWCS_direct_component(size_t p) const {
+        return m_objective.directDerivative(*m_sim, w_ij, m_vn_p.at(p));
+    }
+
     // Adjoint method version of gradient: evaluates linear functional form of
     // shape derivative
     ScalarField<Real> gradientWCS_adjoint() const {

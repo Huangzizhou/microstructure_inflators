@@ -191,8 +191,9 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *
         WCStressOptimization::Iterate<Simulator> it(inflator, params.domainSize(), &params[0], targetS);
         std::cout << i << "\t" << params[compIdx] << "\t"
                   << it.evaluateJS() << "\t" << it.gradp_JS()[compIdx] << "\t"
-                  << it.evaluateWCS() << "\t" << it.gradientWCS_direct()[compIdx] << "\t"
-                  << it.gradientWCS_adjoint()[compIdx]
+                  << it.evaluateWCS() << "\t";
+        std::cout << it.gradientWCS_direct_component(compIdx) << "\t";
+        std::cout << it.gradientWCS_adjoint()[compIdx]
                   << std::endl;
         if (output != "")          it.writeMeshAndFields(       output + "_" + std::to_string(i));
         if (matrixOutput != "")  it.dumpSimulationMatrix( matrixOutput + "_" + std::to_string(i) + ".txt");
