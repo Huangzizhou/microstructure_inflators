@@ -67,7 +67,7 @@ struct Iterate {
 
         std::cout << "Checking geometry" << std::endl;
         if ((inflator.elements().size() == 0) || (inflator.vertices().size() == 0)) {
-            std::cerr << std::setprecision(19);
+            std::cerr << std::setprecision(20);
             std::cerr << "Exception while inflating parameters" << std::endl;
             for (size_t i = 0; i < m_params.size(); ++i) std::cerr << m_params[i] << "\t";
             std::cerr << std::endl;

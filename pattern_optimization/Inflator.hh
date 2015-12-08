@@ -208,7 +208,7 @@ public:
             m_elements = m_inflator.elements();
         }
         catch (...) {
-            std::cerr << setprecision(16);
+            std::cerr << setprecision(20);
             std::cerr << "Exception while inflating parameters" << std::endl;
             for (size_t i = 0; i < params.size(); ++i) std::cerr << params[i] << "\t";
             std::cerr << std::endl;
