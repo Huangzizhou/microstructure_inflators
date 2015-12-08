@@ -212,8 +212,8 @@ struct IntegratedWorstCaseObjective {
     // Evaluate objective by integrating over m
     template<class Mesh>
     Real evaluate(const Mesh &m) const {
-        Real result = 0;
         assert(m.numElements() == wcStress.size());
+        Real result = 0;
         for (auto e : m.elements())
             result += Integrand::j(wcStress(e.index()), e.index()) * e->volume();
         return result;
@@ -257,6 +257,9 @@ struct IntegratedWorstCaseObjective {
                 if (be->isPeriodic) { r *= 0; continue; }
                 r = Integrand::j(wcStress(e.index()), e.index());
                 for (size_t pq = 0; pq < flatLen(N); ++pq) {
+                    // Sum is only over the "upper triangle" of integrands
+                    Real shearDoubler = (pq >= Sim::N) ? 2.0 : 1.0;
+
                     Strain strain_lambda, strain_w;
                     BdryStrain strain_lambda_bdry, strain_w_bdry;
                     e->strain(e, lambda[pq], strain_lambda);
@@ -266,8 +269,8 @@ struct IntegratedWorstCaseObjective {
                     restrictInterpolant(e, be, strain_w,      strain_w_bdry     );
                     r -= Interpolation<Sim::K - 1, 2 * Strain::Deg>::interpolant(
                             [&] (const VectorND<Simplex::numVertices(Sim::K - 1)> &p) {
-                                return C.doubleContract(strain_lambda_bdry(p))
-                                        .doubleContract(strain_w_bdry(p));
+                                return ( C.doubleContract(strain_lambda_bdry(p))
+                                          .doubleContract(strain_w_bdry(p)) ) * shearDoubler;
                             });
                 }
             }
@@ -289,17 +292,39 @@ struct IntegratedWorstCaseObjective {
 
         const auto &mesh = sim.mesh();
 
-        Real result = 0;
+        Real dotKLTerm = 0;
         SMF tau, dot_w_kl_strain;
         for (size_t kl = 0; kl < dot_w.size(); ++kl) {
             tau_kl(kl, tau);
+            // Sum is only over the "upper triangle" of integrands
+            Real shearDoubler = (kl >= Sim::N) ? 2.0 : 1.0;
             dot_w_kl_strain = sim.averageStrainField(dot_w[kl]);
             for (auto e : mesh.elements()) {
-                result += e->volume() * (tau(e.index())
+                dotKLTerm += shearDoubler * e->volume() * (tau(e.index())
                                 .doubleContract(dot_w_kl_strain(e.index())));
             }
         }
 
+        // // Validate tau_kl by calculating WCS at the offset fluctuation
+        // // displacements.
+        // auto offset_w = w;
+        // Real delta = 1e-8;
+        // for (size_t kl = 0; kl < dot_w.size(); ++kl) {
+        //     auto step = dot_w[kl];
+        //     step *= delta;
+        //     offset_w[kl] += step;
+        // }
+        // IntegratedWorstCaseObjective offsetObj(worstCaseFrobeniusStress(sim.mesh().element(0)->E(), wcStress.Sh,
+        //         PeriodicHomogenization::macroStrainToMicroStrainTensors(offset_w, sim)));
+        // Real offsetDiff = offsetObj.evaluate(sim.mesh()) - evaluate(sim.mesh());
+        // std::cout << std::endl;
+        // std::cout << "Tau vs offset objective diff:\t" << result << "\t" << offsetDiff / delta << std::endl;
+        // offsetObj.wcStress.wcMacroStress = wcStress.wcMacroStress;
+        // offsetDiff = offsetObj.evaluate(sim.mesh()) - evaluate(sim.mesh());
+        // std::cout << "Offset diff with eigenvector fixed: " << result << "\t" << offsetDiff / delta << std::endl;
+        // std::cout << std::endl;
+
+        Real advectionTerm = 0;
         // Assumes j is piecewise constant!
         // TODO: implement boundary element->element map in FEMMesh to simplify
         for (auto e : mesh.elements()) {
@@ -309,11 +334,13 @@ struct IntegratedWorstCaseObjective {
                 auto be = mesh.boundaryElement(e.interface(fi).boundaryEntity().index());
                 if (!be) continue;
                 if (be->isPeriodic) continue;
-                result += vn[be.index()].integrate(be->volume()) * jval;
+                advectionTerm += vn[be.index()].integrate(be->volume()) * jval;
             }
         }
 
-        return result;
+        std::cout << dotKLTerm << '\t' << advectionTerm << '\t';
+
+        return dotKLTerm + advectionTerm;
     }
 
     WorstCaseStress<N> wcStress;

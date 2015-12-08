@@ -218,14 +218,12 @@ int main(int argc, const char *argv[])
 
     size_t deg = args["degree"].as<size_t>();
     if (auto job2D = dynamic_cast<PatternOptimization::Job<2> *>(job)) {
-        throw std::runtime_error("Disabled");
-        // if (deg == 1) execute<2, 1>(args, job2D);
-        // if (deg == 2) execute<2, 2>(args, job2D);
+        if (deg == 1) execute<2, 1>(args, job2D);
+        if (deg == 2) execute<2, 2>(args, job2D);
     }
     else if (auto job3D = dynamic_cast<PatternOptimization::Job<3> *>(job)) {
         if (deg == 1) execute<3, 1>(args, job3D);
-        else { throw std::runtime_error("Disabled"); }
-        // if (deg == 2) execute<3, 2>(args, job3D);
+        if (deg == 2) execute<3, 2>(args, job3D);
     }
     else throw std::runtime_error("Invalid job file.");
 
