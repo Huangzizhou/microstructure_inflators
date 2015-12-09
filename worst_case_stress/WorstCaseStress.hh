@@ -254,7 +254,7 @@ struct IntegratedWorstCaseObjective {
                 auto be = mesh.boundaryElement(e.interface(fi).boundaryEntity().index());
                 if (!be) continue;
                 auto &r = result.at(be.index());
-                if (be->isPeriodic) { r *= 0; continue; }
+                if (be->isPeriodic) { r = 0; continue; }
                 r = Integrand::j(wcStress(e.index()), e.index());
                 for (size_t pq = 0; pq < flatLen(N); ++pq) {
                     // Sum is only over the "upper triangle" of integrands

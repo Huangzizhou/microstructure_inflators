@@ -251,7 +251,7 @@ public:
                     // (If we don't enforce this, the nonzero shape velocity from
                     // (domega intersect dY) vertices will leak into the
                     // periodic boundary faces.
-                    vn[be.index()] *= 0;
+                    vn[be.index()] = 0;
                     continue;
                 }
                 // Interpolate the boundary element corner's normal velocities.
