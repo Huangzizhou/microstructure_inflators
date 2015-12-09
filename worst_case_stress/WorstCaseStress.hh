@@ -230,7 +230,7 @@ struct IntegratedWorstCaseObjective {
     // Per-boundary-element interpolant to be integrated against normal shape
     // velocity to evaluate the shape derivative. This can be interpreted as
     // the objective's steepest ascent normal velocity field:
-    //      j - strain(lambda^pq) : C : strain(w^pq)
+    //      j - strain(lambda^pq) : C : [strain(w^pq) + e^pq]
     template<class Sim>
     using StrainEnergyBdryInterpolant = Interpolant<Real, Sim::K - 1, 2 * Sim::Strain::Deg>;
     template<class Sim>
@@ -261,16 +261,17 @@ struct IntegratedWorstCaseObjective {
                     Real shearDoubler = (pq >= Sim::N) ? 2.0 : 1.0;
 
                     Strain strain_lambda, strain_w;
-                    BdryStrain strain_lambda_bdry, strain_w_bdry;
+                    BdryStrain strain_lambda_bdry, strain_u_bdry;
                     e->strain(e, lambda[pq], strain_lambda);
                     e->strain(e,      w[pq], strain_w);
 
                     restrictInterpolant(e, be, strain_lambda, strain_lambda_bdry);
-                    restrictInterpolant(e, be, strain_w,      strain_w_bdry     );
+                    restrictInterpolant(e, be, strain_w,      strain_u_bdry     );
+                    strain_u_bdry += Sim::SMatrix::CanonicalBasis(pq);
                     r -= Interpolation<Sim::K - 1, 2 * Strain::Deg>::interpolant(
                             [&] (const VectorND<Simplex::numVertices(Sim::K - 1)> &p) {
                                 return ( C.doubleContract(strain_lambda_bdry(p))
-                                          .doubleContract(strain_w_bdry(p)) ) * shearDoubler;
+                                          .doubleContract(strain_u_bdry(p)) ) * shearDoubler;
                             });
                 }
             }
