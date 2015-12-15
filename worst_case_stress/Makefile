@@ -43,9 +43,13 @@ GRADVALID_OBJS=GradientComponentValidation.o ../pattern_optimization/PatternOpti
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
 
+LPHOLE_GRADVALID_OBJS=LpHoleGradientComponentValidation.o ../pattern_optimization/PatternOptimizationJob.o \
+			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
+			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
+
 OBJS=$(M2MSTRESS_OBJS) $(GRADVALID_OBJS)
 
-TARGETS=MacroMicroStress_cli GradientComponentValidation
+TARGETS=MacroMicroStress_cli GradientComponentValidation LpHoleGradientComponentValidation
 
 all: $(TARGETS)
 
@@ -53,6 +57,9 @@ MacroMicroStress_cli: $(M2MSTRESS_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 GradientComponentValidation: $(GRADVALID_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
+LpHoleGradientComponentValidation: $(LPHOLE_GRADVALID_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 %.o: %.cc Makefile
