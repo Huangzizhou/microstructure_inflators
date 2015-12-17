@@ -69,6 +69,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("volumeMeshOut",   po::value<string>()->default_value(""),       "output volume mesh at each iteration")
         ("nsubdiv,n",  po::value<size_t>()->default_value(64),            "number of subdivisions of Lp hole boundary")
         ("max_area,a", po::value<double>()->default_value(0.001),         "maximum triangle area for meshing")
+        ("pnorm,P",    po::value<double>()->default_value(1.0),           "the pnorm used in the Lp global worst case stress measure")
         ;
 
     po::options_description cli_opts;
@@ -118,6 +119,8 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> &j
     LpHoleInflator inflator;
     inflator.setMaxElementVolume(args["max_area"].as<double>());
     inflator.setNumSubdiv(args["nsubdiv"].as<size_t>());
+
+    WCStressOptimization::Config::get().globalObjectivePNorm = args["pnorm"].as<double>();
 
     auto targetC = job.targetMaterial.getTensor();
     ETensor<_N> targetS = targetC.inverse();

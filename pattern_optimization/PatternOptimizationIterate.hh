@@ -423,7 +423,7 @@ getIterate(std::shared_ptr<_Iterate> oldIterate,
                                 nParams, params, targetS);
             }
             catch (std::exception &e) {
-                std::cerr << "INFLATOR FAILED: " << e.what() << endl;
+                std::cerr << "INFLATOR FAILED: " << e.what() << std::endl;
                 success = false;
             }
             if (success) break;
