@@ -149,7 +149,7 @@ void execute(const po::variables_map &args,
     BENCHMARK_START_TIMER("Worst Case Frobenius Norm");
     auto wcs = worstCaseFrobeniusStress(mat.getTensor(), Sh,
                                         macroStrainToMicroStrainTensors(w_ij, sim));
-    BENCHMARK_START_TIMER("Worst Case Frobenius Norm");
+    BENCHMARK_STOP_TIMER("Worst Case Frobenius Norm");
 
     writer.addField("wc macro stress", wcs.wcMacroStress);
     writer.addField("wc micro stress", wcs.wcMicroStress());

@@ -56,7 +56,7 @@ public:
 
     MeshingOptions &meshingOptions();
 
-    bool isPrintable(const std::vector<Real> &params) const {
+    bool isPrintable(const std::vector<Real> &/* params */) const {
         // TODO: implement!
         return true;
     }

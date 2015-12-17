@@ -25,6 +25,8 @@
 #include <PeriodicHomogenization.hh>
 #include <tuple>
 
+#include "WCStressOptimizationConfig.hh"
+
 // Local alias of PeriodicHomogenization namespace.
 namespace {
     namespace PH = PeriodicHomogenization;
@@ -223,15 +225,15 @@ struct IntegratedWorstCaseObjective {
         assert(m.numElements() == wcStress.size());
         Real result = 0;
         for (auto e : m.elements())
-            result += Integrand::j(wcStress(e.index()), e.index()) * e->volume();
+            result += integrand.j(wcStress(e.index()), e.index()) * e->volume();
         return result;
     }
 
-    ScalarField<Real> integrand() const {
+    ScalarField<Real> integrandValues() const {
         const size_t numElems = wcStress.size();
         ScalarField<Real> result(numElems);
         for (size_t i = 0; i < numElems; ++i)
-            result(i) = Integrand::j(wcStress(i), i);
+            result(i) = integrand.j(wcStress(i), i);
         return result;
     }
 
@@ -260,7 +262,7 @@ struct IntegratedWorstCaseObjective {
     void tau_kl(size_t kl, SMF &result) const {
         wcStress.sensitvityToCellStrain(kl, result);
         for (size_t e = 0; e < wcStress.size(); ++e)
-            result(e) *= Integrand::j_prime(wcStress(e), e);
+            result(e) *= integrand.j_prime(wcStress(e), e);
     }
 
     // Per-boundary-element interpolant to be integrated against normal shape
@@ -292,7 +294,7 @@ struct IntegratedWorstCaseObjective {
                 if (!be) continue;
                 auto &r = result.at(be.index());
                 if (be->isPeriodic) { r = 0; continue; }
-                r = Integrand::j(wcStress(e.index()), e.index());
+                r = integrand.j(wcStress(e.index()), e.index());
                 for (size_t pq = 0; pq < flatLen(N); ++pq) {
                     // Sum is only over the "upper triangle" of integrands
                     Real shearDoubler = (pq >= Sim::N) ? 2.0 : 1.0;
@@ -353,7 +355,7 @@ struct IntegratedWorstCaseObjective {
         // TODO: implement boundary element->element map in FEMMesh to simplify
         for (auto e : mesh.elements()) {
             if (!e.isBoundary()) continue;
-            Real jval = Integrand::j(wcStress(e.index()), e.index());
+            Real jval = integrand.j(wcStress(e.index()), e.index());
             for (size_t fi = 0; fi < e.numNeighbors(); ++fi) {
                 auto be = mesh.boundaryElement(e.interface(fi).boundaryEntity().index());
                 if (!be) continue;
@@ -408,7 +410,7 @@ struct IntegratedWorstCaseObjective {
                             wcStress.F[ei].doubleContract(
                                 wcStress.wcMacroStress(ei))));
                 contrib *= e->volume() * wcStress.wcMacroStress(ei)[col] *
-                           Integrand::j_prime(wcStress(ei), ei);
+                           integrand.j_prime(wcStress(ei), ei);
                 c += contrib;
             }
         }
@@ -436,6 +438,7 @@ struct IntegratedWorstCaseObjective {
     }
 
     WorstCaseStress<N> wcStress;
+    Integrand integrand;
 
 private:
     template<class Sim>
@@ -461,11 +464,14 @@ struct WCStressIntegrandTotal {
 
 // int_omega worst_case_stress^p dV
 // i.e. j(s, x) = s^p -> j' = p s^(p - 1).
-template<int p>
 struct WCStressIntegrandLp {
-    static Real j(Real wcStress, size_t /* x_i */) { return pow(wcStress, p); }
+    WCStressIntegrandLp() {
+        p = WCStressOptimization::Config::get().globalObjectivePNorm;
+    }
+    Real j(Real wcStress, size_t /* x_i */) const { return pow(wcStress, p); }
     // Derivative of global objective integrand wrt worst case stress.
-    static Real j_prime(Real wcStress, size_t /* x_i */) { return p * pow(wcStress, p - 1); }
+    Real j_prime(Real wcStress, size_t /* x_i */) const { return p * pow(wcStress, p - 1); }
+    Real p = 2.0;
 };
 
 #endif /* end of include guard: WORSTCASESTRESS_HH */
