@@ -22,7 +22,15 @@
 #include <cmath>
 #include <iostream>
 #include <LinearElasticity.hh>
+#include <PeriodicHomogenization.hh>
 #include <tuple>
+
+#include "WCStressOptimizationConfig.hh"
+
+// Local alias of PeriodicHomogenization namespace.
+namespace {
+    namespace PH = PeriodicHomogenization;
+}
 
 template<size_t N>
 using MinorSymmetricRank4Tensor = ElasticityTensor<Real, N, false>;
@@ -109,7 +117,7 @@ struct WorstCaseStress {
     ElasticityTensor<Real, N> Cbase, Sh;
     // Per-element macro->micro {stress, deviatoric stress} map.
     // See Worst Case Microstructure writeup for details.
-    MinorSymmetricRank4TensorField<N> F;
+    MinorSymmetricRank4TensorField<N> F, G;
     SMF wcMacroStress;
 };
 
@@ -122,6 +130,7 @@ WorstCaseStress<N> worstCaseFrobeniusStress(
     WorstCaseStress<N> result;
     result.Cbase = Cbase;
     result.Sh = Sh;
+    result.G = m2mStrain;
 
     size_t numElems = m2mStrain.size();
 
@@ -165,6 +174,7 @@ WorstCaseStress<N> worstCaseMaxStress(
     WorstCaseStress<N> result;
     result.Cbase = Cbase;
     result.Sh = Sh;
+    result.G = m2mStrain;
 
     size_t numElems = m2mStrain.size();
 
@@ -215,7 +225,35 @@ struct IntegratedWorstCaseObjective {
         assert(m.numElements() == wcStress.size());
         Real result = 0;
         for (auto e : m.elements())
-            result += Integrand::j(wcStress(e.index()), e.index()) * e->volume();
+            result += integrand.j(wcStress(e.index()), e.index()) * e->volume();
+        return result;
+    }
+
+    ScalarField<Real> integrandValues() const {
+        const size_t numElems = wcStress.size();
+        ScalarField<Real> result(numElems);
+        for (size_t i = 0; i < numElems; ++i)
+            result(i) = integrand.j(wcStress(i), i);
+        return result;
+    }
+
+    // Compute the Eulerian derivative of the integrand at each element given
+    // the per-element Eulerian derivative of fluctuation strains, dot_we.
+    ScalarField<Real> integrandEulerianDerivative(
+            const std::vector<SMF> &dot_we) const {
+        size_t numElems = wcStress.size();
+        ScalarField<Real> result(numElems);
+        result.clear();
+        SMF tau;
+        for (size_t kl = 0; kl < dot_we.size(); ++kl) {
+            assert(dot_we[kl].domainSize() == numElems);
+            tau_kl(kl, tau);
+            for (size_t i = 0; i < numElems; ++i) {
+                // Sum is only over the "upper triangle" of integrands
+                Real shearDoubler = (kl >= N) ? 2.0 : 1.0;
+                result[i] += shearDoubler * (tau(i).doubleContract(dot_we[kl](i)));
+            }
+        }
         return result;
     }
 
@@ -224,13 +262,14 @@ struct IntegratedWorstCaseObjective {
     void tau_kl(size_t kl, SMF &result) const {
         wcStress.sensitvityToCellStrain(kl, result);
         for (size_t e = 0; e < wcStress.size(); ++e)
-            result(e) *= Integrand::j_prime(wcStress(e), e);
+            result(e) *= integrand.j_prime(wcStress(e), e);
     }
 
     // Per-boundary-element interpolant to be integrated against normal shape
     // velocity to evaluate the shape derivative. This can be interpreted as
     // the objective's steepest ascent normal velocity field:
-    //      j - strain(lambda^pq) : C : strain(w^pq)
+    //      j - strain(lambda^pq) : C : [strain(w^pq) + e^pq]
+    //              + jDirectShapeDependence
     template<class Sim>
     using StrainEnergyBdryInterpolant = Interpolant<Real, Sim::K - 1, 2 * Sim::Strain::Deg>;
     template<class Sim>
@@ -255,39 +294,45 @@ struct IntegratedWorstCaseObjective {
                 if (!be) continue;
                 auto &r = result.at(be.index());
                 if (be->isPeriodic) { r = 0; continue; }
-                r = Integrand::j(wcStress(e.index()), e.index());
+                r = integrand.j(wcStress(e.index()), e.index());
                 for (size_t pq = 0; pq < flatLen(N); ++pq) {
                     // Sum is only over the "upper triangle" of integrands
                     Real shearDoubler = (pq >= Sim::N) ? 2.0 : 1.0;
 
                     Strain strain_lambda, strain_w;
-                    BdryStrain strain_lambda_bdry, strain_w_bdry;
+                    BdryStrain strain_lambda_bdry, strain_u_bdry;
                     e->strain(e, lambda[pq], strain_lambda);
                     e->strain(e,      w[pq], strain_w);
 
                     restrictInterpolant(e, be, strain_lambda, strain_lambda_bdry);
-                    restrictInterpolant(e, be, strain_w,      strain_w_bdry     );
+                    restrictInterpolant(e, be, strain_w,      strain_u_bdry     );
+                    strain_u_bdry += Sim::SMatrix::CanonicalBasis(pq);
                     r -= Interpolation<Sim::K - 1, 2 * Strain::Deg>::interpolant(
                             [&] (const VectorND<Simplex::numVertices(Sim::K - 1)> &p) {
                                 return ( C.doubleContract(strain_lambda_bdry(p))
-                                          .doubleContract(strain_w_bdry(p)) ) * shearDoubler;
+                                          .doubleContract(strain_u_bdry(p)) ) * shearDoubler;
                             });
                 }
             }
         }
+
+        // Add in term accounting for j's direct shape dependence
+        auto int_dj_domega = jDirectShapeDependence(sim, w);
+        for (auto be : mesh.boundaryElements())
+            result[be.index()] += int_dj_domega[be.index()];
+        
         return result;
     }
 
     // Direct (non-adjoint) evaluation of objective's shape derivative on
     // normal velocity field vn:
     //  int_vol tau^kl : strain(wdot^kl) dV + int_bdry vn * j dA
-    template<class Sim, class NormalShapeVelocity>
+    template<class Sim, class _NormalShapeVelocity>
     Real directDerivative(const Sim &sim,
                           const std::vector<VectorField<Real, N>> &w,
-                          const NormalShapeVelocity &vn) const {
+                          const _NormalShapeVelocity &vn) const {
         std::vector<VectorField<Real, N>> dot_w;
-        PeriodicHomogenization::fluctuationDisplacementShapeDerivatives(
-                sim, w, vn, dot_w);
+        PH::fluctuationDisplacementShapeDerivatives(sim, w, vn, dot_w);
         assert(dot_w.size() == w.size());
 
         const auto &mesh = sim.mesh();
@@ -305,31 +350,12 @@ struct IntegratedWorstCaseObjective {
             }
         }
 
-        // // Validate tau_kl by calculating WCS at the offset fluctuation
-        // // displacements.
-        // auto offset_w = w;
-        // Real delta = 1e-8;
-        // for (size_t kl = 0; kl < dot_w.size(); ++kl) {
-        //     auto step = dot_w[kl];
-        //     step *= delta;
-        //     offset_w[kl] += step;
-        // }
-        // IntegratedWorstCaseObjective offsetObj(worstCaseFrobeniusStress(sim.mesh().element(0)->E(), wcStress.Sh,
-        //         PeriodicHomogenization::macroStrainToMicroStrainTensors(offset_w, sim)));
-        // Real offsetDiff = offsetObj.evaluate(sim.mesh()) - evaluate(sim.mesh());
-        // std::cout << std::endl;
-        // std::cout << "Tau vs offset objective diff:\t" << result << "\t" << offsetDiff / delta << std::endl;
-        // offsetObj.wcStress.wcMacroStress = wcStress.wcMacroStress;
-        // offsetDiff = offsetObj.evaluate(sim.mesh()) - evaluate(sim.mesh());
-        // std::cout << "Offset diff with eigenvector fixed: " << result << "\t" << offsetDiff / delta << std::endl;
-        // std::cout << std::endl;
-
         Real advectionTerm = 0;
         // Assumes j is piecewise constant!
         // TODO: implement boundary element->element map in FEMMesh to simplify
         for (auto e : mesh.elements()) {
             if (!e.isBoundary()) continue;
-            Real jval = Integrand::j(wcStress(e.index()), e.index());
+            Real jval = integrand.j(wcStress(e.index()), e.index());
             for (size_t fi = 0; fi < e.numNeighbors(); ++fi) {
                 auto be = mesh.boundaryElement(e.interface(fi).boundaryEntity().index());
                 if (!be) continue;
@@ -340,10 +366,79 @@ struct IntegratedWorstCaseObjective {
 
         std::cout << dotKLTerm << '\t' << advectionTerm << '\t';
 
-        return dotKLTerm + advectionTerm;
+        Real jDirectTerm = 0;
+        auto int_dj_domega = jDirectShapeDependence(sim, w);
+        using  SDInterp = typename std::decay<decltype(int_dj_domega[0])>::type;
+        using NSVInterp = typename std::decay<decltype(           vn[0])>::type;
+        static_assert(SDInterp::K == NSVInterp::K, "Invalid boundary interpolant simplex dimension");
+
+        for (auto be : mesh.boundaryElements()) {
+            const auto &vnb = vn[be.index()];
+            const auto &sdb = int_dj_domega[be.index()];
+            jDirectTerm += Quadrature<SDInterp::K, SDInterp::Deg + NSVInterp::Deg>::
+                integrate([&] (const VectorND<be.numVertices()> &pt) {
+                    return vnb(pt) * sdb(pt);
+                }, be->volume());
+        }
+
+        return dotKLTerm + advectionTerm + jDirectTerm;
+    }
+
+    // Effect of j's direct dependence on the microstructure's shape.
+    // int_omega dj/domega dx =
+    // 2 * int_omega (j') G^T : C^base : F : sigma^* otimes sigma^* dV :: dS^H[v]
+    // := -D :: dS^H[v]                 (D = -2 * int_omega (j')...)
+    // =   D :: (S^H : dC^H[v] : S^H)
+    // = (S^H : D : S^H) :: dC^H[v]     (S^H is major symmetric)
+    //
+    // TODO: make boundary velocity functional class to wrap these
+    // interpolants (make evaluating/manipulating them easier).
+    template<class Sim>
+    auto jDirectShapeDependence(const Sim &sim,
+                                const std::vector<VectorField<Real, N>> &w) const
+    -> std::vector<StrainEnergyBdryInterpolant<Sim>>
+    {
+        const auto &mesh = sim.mesh();
+        MinorSymmetricRank4Tensor<N> D;
+        for (size_t col = 0; col < flatLen(N); ++col) {
+            auto c = D.DColAsSymMatrix(col);
+            for (auto e : mesh.elements()) {
+                size_t ei = e.index();
+                SymmetricMatrixValue<Real, N> contrib = 
+                    wcStress.G[ei].transpose().doubleContract(
+                        wcStress.Cbase.doubleContract(
+                            wcStress.F[ei].doubleContract(
+                                wcStress.wcMacroStress(ei))));
+                contrib *= e->volume() * wcStress.wcMacroStress(ei)[col] *
+                           integrand.j_prime(wcStress(ei), ei);
+                c += contrib;
+            }
+        }
+        D *= -2.0;
+        auto ShDSh = wcStress.Sh.doubleDoubleContract(D);
+
+        size_t numBE = mesh.numBoundaryElements();
+        std::vector<StrainEnergyBdryInterpolant<Sim>> result(numBE);
+
+        auto gradCh = PH::homogenizedElasticityTensorGradient(w, sim);
+
+        // Compute each nodal value of the interpolant.
+        for (size_t i = 0; i < numBE; ++i) {
+            auto &r = result[i];
+            const auto &gCh = gradCh[i];
+            using GChInterp = typename std::decay<decltype(gCh)>::type;
+            using   RInterp = typename std::decay<decltype(  r)>::type;
+            static_assert(RInterp::size() == GChInterp::size(),
+                         "Interpolant node count mismatch");
+            for (size_t n = 0; n < r.size(); ++n)
+                r[n] = ShDSh.quadrupleContract(gCh[n]);
+        }
+
+        return result;
     }
 
     WorstCaseStress<N> wcStress;
+    Integrand integrand;
 
 private:
     template<class Sim>
@@ -369,11 +464,14 @@ struct WCStressIntegrandTotal {
 
 // int_omega worst_case_stress^p dV
 // i.e. j(s, x) = s^p -> j' = p s^(p - 1).
-template<int p>
 struct WCStressIntegrandLp {
-    static Real j(Real wcStress, size_t /* x_i */) { return pow(wcStress, p); }
+    WCStressIntegrandLp() {
+        p = WCStressOptimization::Config::get().globalObjectivePNorm;
+    }
+    Real j(Real wcStress, size_t /* x_i */) const { return pow(wcStress, p); }
     // Derivative of global objective integrand wrt worst case stress.
-    static Real j_prime(Real wcStress, size_t /* x_i */) { return p * pow(wcStress, p - 1); }
+    Real j_prime(Real wcStress, size_t /* x_i */) const { return p * pow(wcStress, p - 1); }
+    Real p = 2.0;
 };
 
 #endif /* end of include guard: WORSTCASESTRESS_HH */

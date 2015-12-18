@@ -12,7 +12,6 @@
 #ifndef PATTERNOPTIMIZATIONITERATE_HH
 #define PATTERNOPTIMIZATIONITERATE_HH
 
-#include "Inflator.hh"
 #include <EdgeFields.hh>
 #include <MSHFieldWriter.hh>
 
@@ -43,7 +42,8 @@ struct Iterate {
     typedef Interpolant<Real, BEGradTensorInterpolant::K,
                     BEGradTensorInterpolant::Deg>   BEGradInterpolant;
 
-    Iterate(ConstrainedInflator<_N> &inflator, size_t nParams, const double *params,
+    template<class _Inflator>
+    Iterate(_Inflator &inflator, size_t nParams, const double *params,
             const _ETensor &targetS, bool keepFluctuationDisplacements = false)
         : m_targetS(targetS)
     {
@@ -295,7 +295,7 @@ struct Iterate {
 
         os << "moduli:\t";
         C.printOrthotropic(os);
-        os << "anisotropy:\t" << C.anisotropy() << endl;
+        os << "anisotropy:\t" << C.anisotropy() << std::endl;
         os << "JS:\t" << evaluateJS() << std::endl;
         os << "printable:\t" << m_printable << std::endl;
 
@@ -371,7 +371,8 @@ struct Iterate {
     }
 
     // Note, must overwrite inflator's parameter state :(
-    void writePatternDoFs(const std::string &name, ConstrainedInflator<_N> &inflator) {
+    template<class _Inflator>
+    void writePatternDoFs(const std::string &name, _Inflator &inflator) {
         inflator.writePatternDoFs(name, m_params);
     }
 
@@ -392,7 +393,7 @@ protected:
     _ETensor C, S, m_targetS, m_diffS;
     std::vector<BEGradTensorInterpolant> m_gradS;
     std::vector<_ETensor>                m_gradp_S;
-    std::vector<typename ConstrainedInflator<_N>::NormalShapeVelocity> m_vn_p;
+    std::vector<NormalShapeVelocity<_N>> m_vn_p;
     bool m_printable;
 
     // Fluctuation displacements--only kept if requested in constructor (a subclasses
@@ -403,6 +404,44 @@ protected:
     std::vector<Real> m_estimateObjectiveWithDeltaP;
     std::vector<Real> m_params;
 };
+
+// Use previous iterate if evaluating the same point. Otherwise, attempt to
+// inflate the new parameters. Try three times to inflate, and if unsuccessful,
+// estimate the point with linear extrapolation.
+template<class _Iterate, class _Inflator, class _ETensor>
+std::shared_ptr<_Iterate>
+getIterate(std::shared_ptr<_Iterate> oldIterate,
+        _Inflator &inflator, size_t nParams, const double *params,
+        const _ETensor &targetS) {
+    if (!oldIterate || oldIterate->paramsDiffer(nParams, params)) {
+        std::shared_ptr<_Iterate> newIterate;
+        bool success;
+        for (size_t i = 0; i < 3; ++i) {
+            success = true;
+            try {
+                newIterate = std::make_shared<_Iterate>(inflator,
+                                nParams, params, targetS);
+            }
+            catch (std::exception &e) {
+                std::cerr << "INFLATOR FAILED: " << e.what() << std::endl;
+                success = false;
+            }
+            if (success) break;
+        }
+        if (!success) {
+            std::cerr << "3 INFLATION ATTEMPTS FAILED." << std::endl;
+            if (!oldIterate) throw std::runtime_error("Inflation failure on first iterate");
+            newIterate = oldIterate;
+            newIterate->estimatePoint(nParams, params);
+        }
+        return newIterate;
+    }
+    else {
+        // Old iterate is exact, not an approximation
+        oldIterate->disableEstimation();
+        return oldIterate;
+    }
+}
 
 }
 

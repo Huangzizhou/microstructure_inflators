@@ -19,7 +19,7 @@ INCLUDES=-I$(MeshFEM) -I$(CSGFEM) -I$(EIGEN_INC) -isystem $(SUITESPARSE_INC) -is
 INCLUDES+=-I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
 INCLUDES+=-isystem $(TRIANGLE_INC)
 
-INCLUDES+=-isystem $(ADEPT_INC) -isystem $(VCGLIB_INC) \
+INCLUDES+=-isystem $(ADEPT_INC) -isystem $(VCGLIB_INC) -isystem $(DLIB_INC) \
 		  -isystem $(CGAL_INC) -isystem $(GMP_INC) -isystem $(MPFR_INC)
 
 LIBS=$(BOOST_LFLAGS) $(SUITESPARSE_LFLAGS) $(CERES_LFLAGS) $(LIBMATHEVAL_LFLAGS)
@@ -42,10 +42,21 @@ M2MSTRESS_OBJS=MacroMicroStress_cli.o  $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(
 GRADVALID_OBJS=GradientComponentValidation.o ../pattern_optimization/PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
+WCSOPT_OBJS=WCSOptimization_cli.o ../pattern_optimization/PatternOptimizationJob.o \
+			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
+			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
+
+LPHOLE_GRADVALID_OBJS=LpHoleGradientComponentValidation.o ../pattern_optimization/PatternOptimizationJob.o \
+			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
+			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
+
+LPHOLE_INFLATOR_OBJS=LpHoleInflator_cli.o ../pattern_optimization/PatternOptimizationJob.o \
+			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
+			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
 
 OBJS=$(M2MSTRESS_OBJS) $(GRADVALID_OBJS)
 
-TARGETS=MacroMicroStress_cli GradientComponentValidation
+TARGETS=MacroMicroStress_cli GradientComponentValidation LpHoleGradientComponentValidation WCSOptimization_cli LpHoleInflator_cli
 
 all: $(TARGETS)
 
@@ -53,6 +64,15 @@ MacroMicroStress_cli: $(M2MSTRESS_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 GradientComponentValidation: $(GRADVALID_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
+LpHoleGradientComponentValidation: $(LPHOLE_GRADVALID_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
+WCSOptimization_cli: $(WCSOPT_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
+LpHoleInflator_cli: $(LPHOLE_INFLATOR_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 %.o: %.cc Makefile
