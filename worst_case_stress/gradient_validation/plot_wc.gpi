@@ -1,0 +1,24 @@
+# usage: gnuplot -e "nsvType='direct'; deg=1; paramNum=0;" plot.gpi
+set terminal pngcairo size 1024,1024
+set output sprintf("results/%s_nsv/d%i/wcs_plot_%i.png", nsvType, deg, paramNum);
+
+set multiplot layout 3, 1 title sprintf("Worst Case Stress Gradient Component %i Validation (%s normal shape velocity, deg %i)", paramNum, nsvType, deg) noenhanced
+dataSource=sprintf("< ./data.py results/%s_nsv/d%i/p%i.txt", nsvType, deg, paramNum);
+
+set grid
+set xlabel sprintf("param %i", paramNum)
+
+set title "WCS"
+plot dataSource u 1:6 with lp notitle
+
+set title sprintf("dWCS/dp%i", paramNum)
+plot dataSource u 1: 7 with lp title "Direct derivative", \
+     ""         u 1: 8 with lp title "Adjoint method derivative", \
+     ""         u 1: 9 with l  title "Centered difference", \
+     ""         u 1:10 with l  title "Forward difference"
+
+set title sprintf("Direct dWCS/dp%i", paramNum)
+plot dataSource u 1: 9 with l  title "Centered Difference", \
+     ""         u 1:11 with l  title "Fluctuation Change Term", \
+     ""         u 1:12 with l  title "Boundary Advection Term", \
+     ""         u 1: 7 with l  title "Total Direct derivative"
