@@ -1,24 +1,28 @@
-# usage: gnuplot -e "paramName='radius';" lphole_plot_wc.gpi
+# usage: gnuplot -e "run='LpHoleWCStress/d1_p10_a0.00001_r0.25';" lphole_plot_wc.gpi
 set terminal pngcairo size 1024,1024
-set output sprintf("LpHole/wc_plot_%s.png", paramName);
+set output sprintf("%s.wc.png", run);
 
-set multiplot layout 3, 1 title sprintf("Worst Case Stress %s Gradient Component Validation", paramName) noenhanced
-dataSource=sprintf("< ./data.py LpHole/%s.txt", paramName);
+set multiplot layout 2, 1 title sprintf("Worst Case Stress %s Gradient Component Validation", run) noenhanced
+dataSource=sprintf("< ./data.py %s.txt", run);
 
 set grid
-set xlabel sprintf("%s", paramName)
+set xlabel "parameter p value"
+
+set xrange [0.5:4]
 
 set title "WCS"
 plot dataSource u 1:6 with lp notitle
 
-set title sprintf("dWCS/d%s", paramName)
+set autoscale y
+
+set title "dWCS/dp"
 plot dataSource u 1: 7 with lp title "Direct derivative", \
      ""         u 1: 8 with lp title "Adjoint method derivative", \
      ""         u 1: 9 with l  title "Centered difference", \
      ""         u 1:10 with l  title "Forward difference"
 
-set title sprintf("Direct dWCS/d%s", paramName)
-plot dataSource u 1: 9 with l  title "Centered Difference", \
-     ""         u 1:11 with l  title "Fluctuation Change Term", \
-     ""         u 1:12 with l  title "Boundary Advection Term", \
-     ""         u 1: 7 with l  title "Total Direct derivative"
+# set title "Direct dWCS/dp"
+# plot dataSource u 1: 9 with l  title "Centered Difference", \
+#      ""         u 1:11 with l  title "Fluctuation Change Term", \
+#      ""         u 1:12 with l  title "Boundary Advection Term", \
+#      ""         u 1: 7 with l  title "Total Direct derivative"
