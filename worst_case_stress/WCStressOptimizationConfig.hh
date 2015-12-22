@@ -22,6 +22,7 @@ private:
     Config() { }
 public:
     Real globalObjectivePNorm = 1.0;
+    bool useVtxNormalPerturbationGradientVersion = false;
     static Config &get() {
         static Config configSingleton;
         return configSingleton;

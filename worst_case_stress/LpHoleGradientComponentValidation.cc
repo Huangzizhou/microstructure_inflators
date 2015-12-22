@@ -111,6 +111,27 @@ template<size_t _N>
 using ETensor = ElasticityTensor<Real, _N>;
 typedef ScalarField<Real> SField;
 
+template<class _Iterate,class _Inflator>
+void genAndPrintIterate(_Inflator &inflator, const SField &params, const typename _Iterate::ETensor &targetS,
+                        size_t compIdx, size_t i, const std::string &output, const std::string &volumeMeshOut) {
+        _Iterate it(inflator, params.domainSize(), &params[0], targetS);
+        std::cout << i << "\t" << params[compIdx] << "\t"
+                  << it.evaluateJS() << "\t" << it.gradp_JS()[compIdx] << "\t"
+                  << it.evaluateWCS() << "\t";
+        std::cout << it.gradientWCS_direct_component(compIdx) << "\t";
+        std::cout << it.gradientWCS_adjoint()[compIdx]
+                  << std::endl;
+        if (output != "")          it.writeMeshAndFields(       output + "_" + std::to_string(i) + ".msh");
+        if (volumeMeshOut != "")   it.writeVolumeMesh(volumeMeshOut + "_" + std::to_string(i) + ".msh");
+
+        // const auto &mesh = it.simulator().mesh();
+        // MSHBoundaryFieldWriter writer("bdry_data_" + std::to_string(i) + ".msh", mesh);
+        // writer.addField("normals", inflator.analyticNormals(mesh), DomainType::PER_NODE);
+        // auto vn_p = inflator.computeShapeNormalVelocities(mesh);
+        // writer.addField("vn 0", vn_p[0]);
+        // writer.addField("vn 1", vn_p[1]);
+}
+
 template<size_t _FEMDegree>
 void execute(const po::variables_map &args, const PatternOptimization::Job<2> &job)
 {
@@ -120,7 +141,8 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> &j
     inflator.setMaxElementVolume(args["max_area"].as<double>());
     inflator.setNumSubdiv(args["nsubdiv"].as<size_t>());
 
-    WCStressOptimization::Config::get().globalObjectivePNorm = args["pnorm"].as<double>();
+    auto &config = WCStressOptimization::Config::get();
+    config.globalObjectivePNorm = args["pnorm"].as<double>();
 
     auto targetC = job.targetMaterial.getTensor();
     ETensor<_N> targetS = targetC.inverse();
@@ -153,22 +175,13 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> &j
     for (size_t i = 0; i < nSamples; ++i) {
         params[compIdx] = lowerBound + ((nSamples == 1) ? 0.0
                         : (upperBound - lowerBound) * (double(i) / (nSamples - 1)));
-        WCStressOptimization::Iterate<Simulator> it(inflator, params.domainSize(), &params[0], targetS);
-        std::cout << i << "\t" << params[compIdx] << "\t"
-                  << it.evaluateJS() << "\t" << it.gradp_JS()[compIdx] << "\t"
-                  << it.evaluateWCS() << "\t";
-        std::cout << it.gradientWCS_direct_component(compIdx) << "\t";
-        std::cout << it.gradientWCS_adjoint()[compIdx]
-                  << std::endl;
-        if (output != "")          it.writeMeshAndFields(       output + "_" + std::to_string(i) + ".msh");
-        if (volumeMeshOut != "")   it.writeVolumeMesh(volumeMeshOut + "_" + std::to_string(i) + ".msh");
-
-        // const auto &mesh = it.simulator().mesh();
-        // MSHBoundaryFieldWriter writer("bdry_data_" + std::to_string(i) + ".msh", mesh);
-        // writer.addField("normals", inflator.analyticNormals(mesh), DomainType::PER_NODE);
-        // auto vn_p = inflator.computeShapeNormalVelocities(mesh);
-        // writer.addField("vn 0", vn_p[0]);
-        // writer.addField("vn 1", vn_p[1]);
+        if (std::isinf(config.globalObjectivePNorm)) {
+            genAndPrintIterate<WCStressOptimization::Iterate<Simulator,
+                IntegratedWorstCaseObjective<_N, WCStressIntegrandLinf>>>(inflator, params, targetS, compIdx, i, output, volumeMeshOut);
+        }
+        else {
+            genAndPrintIterate<WCStressOptimization::Iterate<Simulator>>(inflator, params, targetS, compIdx, i, output, volumeMeshOut);
+        }
     }
 
     BENCHMARK_REPORT();

@@ -213,11 +213,11 @@ struct IntegratedWorstCaseObjective {
     using SMF = typename WorstCaseStress<N>::SMF;
 
     IntegratedWorstCaseObjective() { }
-    IntegratedWorstCaseObjective(const WorstCaseStress<N>  &wcs) { setPointwiseWCS(wcs); }
-    IntegratedWorstCaseObjective(      WorstCaseStress<N> &&wcs) { setPointwiseWCS(std::move(wcs)); }
+    template<class Mesh> IntegratedWorstCaseObjective(const Mesh &m, const WorstCaseStress<N>  &wcs) { setPointwiseWCS(m, wcs); }
+    template<class Mesh> IntegratedWorstCaseObjective(const Mesh &m,       WorstCaseStress<N> &&wcs) { setPointwiseWCS(m, std::move(wcs)); }
 
-    void setPointwiseWCS(const WorstCaseStress<N>  &wcs) { wcStress = wcs; }
-    void setPointwiseWCS(      WorstCaseStress<N> &&wcs) { wcStress = std::move(wcs); }
+    template<class Mesh> void setPointwiseWCS(const Mesh &m, const WorstCaseStress<N>  &wcs) { wcStress = wcs;            integrand.init(m, wcStress); }
+    template<class Mesh> void setPointwiseWCS(const Mesh &m,       WorstCaseStress<N> &&wcs) { wcStress = std::move(wcs); integrand.init(m, wcStress); }
 
     // Evaluate objective by integrating over m
     template<class Mesh>
@@ -457,6 +457,9 @@ private:
 // int_omega worst_case_stress dV
 // i.e. j(s, x) = s -> j' = 1.
 struct WCStressIntegrandTotal {
+    template<size_t N, class Mesh>
+    void init(const Mesh &/* m */, const WorstCaseStress<N> &/* wcs */) { }
+
     // Derivative of global objective integrand wrt worst case stress.
     static Real j(Real wcStress, size_t /* x_i */) { return wcStress; }
     static Real j_prime(Real /* wcStress */, size_t /* x_i */) { return 1; }
@@ -465,6 +468,9 @@ struct WCStressIntegrandTotal {
 // int_omega worst_case_stress^p dV
 // i.e. j(s, x) = s^p -> j' = p s^(p - 1).
 struct WCStressIntegrandLp {
+    template<size_t N, class Mesh>
+    void init(const Mesh &/* m */, const WorstCaseStress<N> &/* wcs */) { }
+
     WCStressIntegrandLp() {
         p = WCStressOptimization::Config::get().globalObjectivePNorm;
     }
@@ -472,6 +478,48 @@ struct WCStressIntegrandLp {
     // Derivative of global objective integrand wrt worst case stress.
     Real j_prime(Real wcStress, size_t /* x_i */) const { return p * pow(wcStress, p - 1); }
     Real p = 2.0;
+};
+
+// Global max worst-case objective:
+// max_{x in omega} s(x)
+// We do approximate gradient computation by treating this as an integraded
+// objective int_omega j(s, x) where
+// j(s, x) = s * w(x)
+// j'(s, x) = w(x)
+// w(x) = 1.0 / V if worst case stress at s is at the max.
+// V = total volume of all regions at max stress.
+struct WCStressIntegrandLinf {
+    template<size_t N, class Mesh>
+    void init(const Mesh &m, const WorstCaseStress<N> &wcs) {
+        assert(wcs.size() == m.numElements());
+        assert(wcs.size() > 0);
+
+        std::vector<size_t> maxStressElements(1, 0);
+        Real maxStress = wcs(0);
+        for (auto e : m.elements()) {
+            Real val = wcs(e.index());
+            if (maxStress < val) {
+                maxStressElements.assign(1, e.index());
+                maxStress = val;
+            }
+            else if (maxStress == val) {
+                maxStressElements.push_back(e.index());
+            }
+        }
+
+        Real volumeAtMaxStress = 0;
+        for (size_t e : maxStressElements)
+            volumeAtMaxStress += m.element(e)->volume();
+
+        weightFunction.assign(m.numElements(), 0.0);
+        for (size_t e : maxStressElements)
+            weightFunction.at(e) = m.element(e)->volume() / volumeAtMaxStress;
+    }
+
+    Real j(Real s, size_t x_i) const { return s * weightFunction.at(x_i); }
+    Real j_prime(Real /* s */, size_t x_i) const { return weightFunction.at(x_i); }
+
+    std::vector<Real> weightFunction;
 };
 
 #endif /* end of include guard: WORSTCASESTRESS_HH */

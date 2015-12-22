@@ -15,14 +15,14 @@
 #include <dlib/optimization.h>
 
 #include <Inflator.hh>
-#include "WCStressOptimizationIterate.hh"
 #include <MSHFieldWriter.hh>
 
 #include <PatternOptimizationConfig.hh>
+#include <PatternOptimizationIterate.hh>
 
 namespace WCStressOptimization {
 
-template<class _Sim, class _Inflator>
+template<class _Sim, class _Inflator, template<class> class _Iterate>
 class Optimizer
 {
     typedef typename _Sim::VField VField;
@@ -62,6 +62,7 @@ public:
         }
     }
 
+    
     void optimize_gd(SField &params, const _ETensor &targetS,
             size_t niters, double stepSize, const string &outName, Real alpha) {
         size_t nParams = params.domainSize();
@@ -69,7 +70,7 @@ public:
         getParameterBounds(lowerBounds, upperBounds);
         // Gradient Descent Version
         for (size_t i = 0; i < niters; ++i) {
-            Iterate<_Sim> iterate(m_inflator, params.size(), params.data(), targetS);
+            _Iterate<_Sim> iterate(m_inflator, params.size(), params.data(), targetS);
             iterate.writeDescription(std::cout);
             std::cout << std::endl;
 
@@ -115,7 +116,7 @@ public:
             return alpha() * m_iterate->evaluateJS() + (1 - alpha()) * m_iterate->evaluateWCS();
         }
 
-        const Iterate<_Sim> &currentIterate() const {
+        const _Iterate<_Sim> &currentIterate() const {
             assert(m_iterate); return *m_iterate;
         };
 
@@ -124,7 +125,7 @@ public:
         size_t nParams;
     private:
         // Iterate is mutable so that operator() can be const as dlib requires
-        mutable std::shared_ptr<Iterate<_Sim>> m_iterate;
+        mutable std::shared_ptr<_Iterate<_Sim>> m_iterate;
         _Inflator &m_inflator;
         _ETensor m_targetS;
         Real m_alpha;

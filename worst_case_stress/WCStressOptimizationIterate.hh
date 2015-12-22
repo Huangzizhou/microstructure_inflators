@@ -22,12 +22,17 @@
 
 namespace WCStressOptimization {
 
-template<class Sim>
-class Iterate : public PatternOptimization::Iterate<Sim> {
-    using Base = PatternOptimization::Iterate<Sim>;
+// _BypassParameterVelocity: hack to avoid computing the parameter velocity when
+// there are too many parameters. This is only intended to be used by subclasses 
+// that know how to compute objective gradients without explicitly forming the
+// parameter velocity vectors (e.g. BoundaryPerturbationIterate)
+template<class Sim, class Objective = IntegratedWorstCaseObjective<Sim::N, WCStressIntegrandLp>, bool _BypassParameterVelocity = false>
+class Iterate : public PatternOptimization::Iterate<Sim, _BypassParameterVelocity> {
+    using Base = PatternOptimization::Iterate<Sim, _BypassParameterVelocity>;
+public:
     static constexpr size_t N = Sim::N;
     using ETensor = typename Sim::ETensor;
-public:
+
     template<class _Inflator>
     Iterate(_Inflator &inflator, size_t nParams, const double *params,
             const ETensor &targetS)
@@ -35,7 +40,7 @@ public:
     {
         // Worst case stress currently assumes that the base material is
         // constant, so we can read it off a single element.
-        m_objective.setPointwiseWCS(
+        m_objective.setPointwiseWCS(m_sim->mesh(),
             worstCaseFrobeniusStress(m_sim->mesh().element(0)->E(), Base::S,
                 PeriodicHomogenization::macroStrainToMicroStrainTensors(w_ij, *m_sim)));
     }
@@ -133,7 +138,7 @@ public:
         //         offset_w[kl] += step;
         //     }
 
-        //     Objective offsetObj(
+        //     Objective offsetObj(m_sim->mesh(),
         //             worstCaseFrobeniusStress(m_sim->mesh().element(0)->E(), m_objective.wcStress.Sh,
         //                 PeriodicHomogenization::macroStrainToMicroStrainTensors(offset_w, *m_sim)));
         //     ScalarField<Real> offsetDiff = offsetObj.integrandValues() - j;
@@ -199,7 +204,6 @@ public:
     }
 
 protected:
-    using Objective = IntegratedWorstCaseObjective<N, WCStressIntegrandLp>;
     Objective m_objective;
     using Base::m_sim;
     using Base::w_ij;

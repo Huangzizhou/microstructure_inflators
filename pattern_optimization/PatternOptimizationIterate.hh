@@ -25,7 +25,11 @@
 #include "PatternOptimizationConfig.hh"
 
 namespace PatternOptimization {
-template<class _Sim>
+// _BypassParameterVelocity: hack to avoid computing the parameter velocity when
+// there are too many parameters. This is only intended to be used by subclasses 
+// that know how to compute objective gradients without explicitly forming the
+// parameter velocity vectors (e.g. BoundaryPerturbationIterate)
+template<class _Sim, bool _BypassParameterVelocity = false>
 struct Iterate {
     typedef typename _Sim::VField VField;
     typedef ScalarField<Real> SField;
@@ -88,7 +92,8 @@ struct Iterate {
         // Shape velocities must be computed after periodic boundary conditions
         // are applied!
         PeriodicHomogenization::solveCellProblems(w_ij, *m_sim);
-        m_vn_p = inflator.computeShapeNormalVelocities(m_sim->mesh());
+        if (!_BypassParameterVelocity)
+            m_vn_p = inflator.computeShapeNormalVelocities(m_sim->mesh());
 
         C = PeriodicHomogenization::homogenizedElasticityTensorDisplacementForm(w_ij, *m_sim);
         S = C.inverse();
@@ -106,17 +111,19 @@ struct Iterate {
                 GS[n] = -S.doubleDoubleContract(GE[n]);
         }
 
-        // Precompute gradient of the compliance tensor
-        m_gradp_S.resize(nParams); // Fill with zero tensors.
-        for (size_t p = 0; p < nParams; ++p) {
-            for (size_t bei = 0; bei < m_sim->mesh().numBoundaryElements(); ++bei) {
-                auto be = m_sim->mesh().boundaryElement(bei);
-                const auto &vn = m_vn_p[p][bei]; // parameter normal shape velocity interpolant
-                const auto &grad = m_gradS[bei];
-                m_gradp_S[p] += Quadrature<_Sim::K - 1, 1 + BEGradTensorInterpolant::Deg>::
-                    integrate([&] (const VectorND<be.numVertices()> &pt) {
-                        return vn(pt) * grad(pt);
-                    }, be->volume());
+        if (!_BypassParameterVelocity) {
+            // Precompute gradient of the compliance tensor
+            m_gradp_S.resize(nParams); // Fill with zero tensors.
+            for (size_t p = 0; p < nParams; ++p) {
+                for (size_t bei = 0; bei < m_sim->mesh().numBoundaryElements(); ++bei) {
+                    auto be = m_sim->mesh().boundaryElement(bei);
+                    const auto &vn = m_vn_p[p][bei]; // parameter normal shape velocity interpolant
+                    const auto &grad = m_gradS[bei];
+                    m_gradp_S[p] += Quadrature<_Sim::K - 1, 1 + BEGradTensorInterpolant::Deg>::
+                        integrate([&] (const VectorND<be.numVertices()> &pt) {
+                            return vn(pt) * grad(pt);
+                        }, be->volume());
+                }
             }
         }
 
@@ -302,7 +309,7 @@ struct Iterate {
         SField gradP = gradp_JS();
         os << "grad_p(J_S):\t";
         gradP.print(os, "", "", "", "\t");
-        os << std::endl << "||grad_p||:\t" << gradP.norm() << std::endl;
+        os << std::endl << "||grad_p Js||:\t" << gradP.norm() << std::endl;
     }
 
     VField directionField(const SField &v_n) const {
