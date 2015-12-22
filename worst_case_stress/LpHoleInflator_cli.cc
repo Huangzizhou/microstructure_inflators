@@ -41,7 +41,7 @@ namespace po = boost::program_options;
 using namespace std;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: LpHoleInflator_cli [options] radius p" << endl;
+    cout << "Usage: LpHoleInflator_cli [options] radius p out.msh" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
 }
@@ -132,6 +132,7 @@ void execute(const po::variables_map &args)
     params[1] = args["p"].as<Real>();
 
     WCStressOptimization::Iterate<Simulator> it(inflator, params.domainSize(), &params[0], targetS);
+    it.writeDescription(cout);
     it.writeMeshAndFields(args["output"].as<string>());
 
     BENCHMARK_REPORT();
