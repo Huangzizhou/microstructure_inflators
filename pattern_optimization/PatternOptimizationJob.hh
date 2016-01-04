@@ -30,6 +30,7 @@
 #include <string>
 #include <stdexcept>
 #include <fstream>
+#include <boost/optional.hpp>
 
 namespace PatternOptimization  {
 class JobBase {
@@ -42,6 +43,7 @@ public:
     std::vector<Real> trueParams;
     std::vector<std::string> parameterConstraints;
     std::map<size_t, Real> varLowerBounds, varUpperBounds;
+    boost::optional<Real> targetVolume;
 };
 
 template<size_t _N>
@@ -54,8 +56,10 @@ public:
             throw std::runtime_error("Couldn't open output job file " + jobFile);
         os << "{" << std::endl
            << "\t\"dim\": " << _N << "," << std::endl
-           << "\t\"target\": " << targetMaterial << "," << std::endl
-           << "\t\"initial_params\": [";
+           << "\t\"target\": " << targetMaterial << "," << std::endl;
+        if (targetVolume)
+            os << "\t\"target volume\": " << targetVolume << "," << std::endl;
+        os << "\t\"initial_params\": [";
         for (size_t i = 0; i < initialParams.size(); ++i)
             os << (i ? ", " : "") << initialParams[i];
         os << "]," << std::endl;

@@ -4,14 +4,16 @@ set output sprintf("%s.Js.png", run);
 
 set multiplot layout 2, 1 title sprintf("%s Shape Velocity Validation", run) noenhanced
 dataSource=sprintf("< ./data.py %s.txt", run);
+# print "data source: "
+# print dataSource
 
 set grid
-set xlabel "parameter p value"
+set xlabel "parameter value"
 
 set title "J_S"
 plot dataSource u 1:2 with lp notitle
 
-set title "dJ_S/dp"
+set title "dJ_S/dparam"
 plot dataSource u 1:3 with lp title "Shape derivative", \
      dataSource u 1:4 with l  title "Centered difference", \
      dataSource u 1:5 with l  title "Forward difference"

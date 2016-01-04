@@ -2,14 +2,18 @@
 # Parse shape velocity/gradient validation output and print table:
 #   paramValue objective/volume shapeVelocityDObj centeredDiffDObj forwardDiffDObj wcObjective wcDirectDObj wcAdjointDObj wcCenteredDiffObj wcForwardDiffObj wcDirectKLTerm wcDirectAdvectTerm 
 # assumes the parameter values are evenly spaced.
-import sys, re, numpy as np, re, math
+import sys, re, numpy as np, math
 dataPath = sys.argv[1]
 
 # For the LpHoleWCStress, we want to output the Lp norm, not the Lp^p norm.
 # Extract the norm p from the filename
 objectivePostprocessPower = None
-m = re.match("LpHoleWCStress/d[12]_p([0-9][0-9])_a[0-9.]+_r[0-9.]+", dataPath)
-if (m): objectivePostprocessPower = float(m.group(1)) * 0.2
+m = re.match("LpHoleWCStress(/joined)?/d[12]_p([0-9][0-9])_a[0-9.]+_[rp][0-9.]+", dataPath)
+if (m): objectivePostprocessPower = float(m.group(2)) * 0.2
+# p6.0 version...
+m = re.match("LpHoleWCStress(/joined)?/d[12]_p([0-9]\.[0-9])_a[0-9.]+_[rp][0-9.]+", dataPath)
+if (m): objectivePostprocessPower = float(m.group(2)) * 2.0
+sys.stderr.write("objectivePostprocessPower: {}\n".format(objectivePostprocessPower))
 
 
 paramValues, objective, shapeVelocityDObj = [], [], []
@@ -36,7 +40,7 @@ wcCenteredDiffDObj = np.gradient(wcObjective, paramValues[1] - paramValues[0])
 wcForwardDiffDObj = np.diff(wcObjective) / np.diff(paramValues)
 
 if objectivePostprocessPower is not None:
-    objective = np.power(objective, 1.0 / objectivePostprocessPower)
+    wcObjective = np.power(wcObjective, 1.0 / objectivePostprocessPower)
 
 for i in range(len(paramValues)):
     print "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}".format(paramValues[i], objective[i], shapeVelocityDObj[i],

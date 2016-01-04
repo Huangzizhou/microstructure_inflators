@@ -6,22 +6,22 @@ set multiplot layout 2, 1 title sprintf("Worst Case Stress %s Gradient Component
 dataSource=sprintf("< ./data.py %s.txt", run);
 
 set grid
-set xlabel "parameter p value"
+set xlabel "parameter value"
 
-set xrange [0.5:4]
+# set autoscale y
+# set yrange [0:*]
+set logscale y
 
 set title "WCS"
 plot dataSource u 1:6 with lp notitle
 
-set autoscale y
-
-set title "dWCS/dp"
+set title "dWCS/dparam"
 plot dataSource u 1: 7 with lp title "Direct derivative", \
      ""         u 1: 8 with lp title "Adjoint method derivative", \
      ""         u 1: 9 with l  title "Centered difference", \
      ""         u 1:10 with l  title "Forward difference"
 
-# set title "Direct dWCS/dp"
+# set title "Direct dWCS/dparam"
 # plot dataSource u 1: 9 with l  title "Centered Difference", \
 #      ""         u 1:11 with l  title "Fluctuation Change Term", \
 #      ""         u 1:12 with l  title "Boundary Advection Term", \

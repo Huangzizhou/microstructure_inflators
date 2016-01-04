@@ -24,14 +24,22 @@ public:
 
         os << "printable:\t" << this->m_printable << std::endl;
 
-        os << "JS:\t" << this->evaluateJS() << std::endl;
-        os << "WCS:\t" << this->evaluateWCS() << std::endl;
+        os << "JS:\t"     << this->evaluateJS()    << std::endl;
+        os << "WCS:\t"    << this->evaluateWCS()   << std::endl;
+        if (this->m_targetVol)
+            os << "JVol:\t"   << this->evaluateJVol()  << std::endl;
+        os << "Volume:\t" << this->mesh().volume() << std::endl;
 
         auto gradP = gradientWCS_adjoint();
         os << "||grad_p WCS||:\t" << gradP.norm() << std::endl;;
 
         gradP = gradp_JS();
-        os << std::endl << "||grad_p JS||:\t" << gradP.norm() << std::endl;
+        os << "||grad_p JS||:\t" << gradP.norm() << std::endl;
+
+        if (this->m_targetVol) {
+            gradP = gradp_JVol();
+            os << "||grad_p Jvol||:\t" << gradP.norm() << std::endl;
+        }
     }
 
     // This high-dimensional iterate needs special adjoint-method based
@@ -43,6 +51,18 @@ public:
     }
     ScalarField<Real> gradp_JS() const {
         auto sd = this->shapeDerivativeJS();
+        if (Config::get().useVtxNormalPerturbationGradientVersion) return m_inflator.gradientFromShapeDerivativeVertexNormalVersion(sd);
+        else                                                       return m_inflator.gradientFromShapeDerivative(sd);
+    }
+
+    ScalarField<Real> gradp_vol() const {
+        auto sd = this->shapeDerivativeVolume();
+        if (Config::get().useVtxNormalPerturbationGradientVersion) return m_inflator.gradientFromShapeDerivativeVertexNormalVersion(sd);
+        else                                                       return m_inflator.gradientFromShapeDerivative(sd);
+    }
+
+    ScalarField<Real> gradp_JVol() const {
+        auto sd = this->shapeDerivativeJVol();
         if (Config::get().useVtxNormalPerturbationGradientVersion) return m_inflator.gradientFromShapeDerivativeVertexNormalVersion(sd);
         else                                                       return m_inflator.gradientFromShapeDerivative(sd);
     }

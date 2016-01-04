@@ -95,6 +95,8 @@ JobBase *parseJobFile(const string &jobFile) {
         }
     }
 
+    job->targetVolume = pt.get_optional<double>("target volume");
+
     return job;
 }
 

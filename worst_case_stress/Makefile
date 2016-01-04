@@ -1,15 +1,19 @@
 MeshFEM ?= $(MESHFEM_PATH)
 include $(MeshFEM)/platform_defs.mk
 
+ifeq ($(DEBUG), "1")
+	CPPFLAGS+=-O2
+else
+	CPPFLAGS+=-O0 -g
+endif
+
 ################################################################################
 # Configuration section
 ################################################################################
 # **** Configuration: Use the isosurface inflator for 3D ****
 CPPFLAGS+=-DISOSURFACE_INFLATOR -DBENCHMARK
 # CPPFLAGS+= -DBENCHMARK
-CPPFLAGS+=-Wall -pedantic -Wunused-parameter -Wpedantic -std=c++11
-CPPFLAGS+=-O2
-# CPPFLAGS+=-O0 -g
+CPPFLAGS+=-Wall -pedantic -Wunused-parameter -Wpedantic -std=c++14
 # CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
 ################################################################################
 INCLUDES=-I$(MeshFEM) -I$(CSGFEM) -I$(EIGEN_INC) -isystem $(SUITESPARSE_INC) -isystem $(BOOST_INC) \
@@ -45,6 +49,9 @@ GRADVALID_OBJS=GradientComponentValidation.o ../pattern_optimization/PatternOpti
 WCSOPT_OBJS=WCSOptimization_cli.o ../pattern_optimization/PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
+WCS_REMESH_OPT_OBJS=WCSRemeshingOptimization_cli.o ../pattern_optimization/PatternOptimizationJob.o \
+			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
+			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
 
 LPHOLE_GRADVALID_OBJS=LpHoleGradientComponentValidation.o ../pattern_optimization/PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
@@ -56,7 +63,7 @@ LPHOLE_INFLATOR_OBJS=LpHoleInflator_cli.o ../pattern_optimization/PatternOptimiz
 
 OBJS=$(M2MSTRESS_OBJS) $(GRADVALID_OBJS) $(WCSOPT_OBJS) $(LPHOLE_GRADVALID_OBJS) $(LPHOLE_INFLATOR_OBJS)
 
-TARGETS=MacroMicroStress_cli GradientComponentValidation LpHoleGradientComponentValidation WCSOptimization_cli LpHoleInflator_cli
+TARGETS=MacroMicroStress_cli GradientComponentValidation LpHoleGradientComponentValidation WCSOptimization_cli LpHoleInflator_cli WCSRemeshingOptimization_cli
 
 all: $(TARGETS)
 
@@ -70,6 +77,9 @@ LpHoleGradientComponentValidation: $(LPHOLE_GRADVALID_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 WCSOptimization_cli: $(WCSOPT_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
+WCSRemeshingOptimization_cli: $(WCS_REMESH_OPT_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 LpHoleInflator_cli: $(LPHOLE_INFLATOR_OBJS)

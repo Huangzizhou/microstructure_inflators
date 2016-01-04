@@ -186,6 +186,8 @@ public:
             bdryPositions.push_back(bv.volumeVertex().node()->p);
         m_origParams = extractParamsFromBoundaryValues(bdryPositions);
     }
+
+    void setNoPerturb(bool noPerturb) { m_noPerturb = noPerturb; }
         
     // Solve for all coordinate variables using uniform Laplacian, with params
     // and bounding box positions as Dirichlet constraints
@@ -206,6 +208,16 @@ public:
         for (auto e : m_mesh.elements()) {
             for (size_t c = 0; c < N + 1; ++c)
                 m_elements[e.index()][c] = e.vertex(c).index();
+        }
+
+        if (m_noPerturb) {
+            for (Real p : params) {
+                if (p != 0.0)
+                    throw std::runtime_error("Requested no-perturb mode with nonzero parameter vector");
+            }
+            for (auto v : m_mesh.vertices())
+                m_vertices[v.index()] = v.node()->p;
+            return;
         }
 
         for (size_t d = 0; d < N; ++d) {
@@ -406,6 +418,7 @@ public:
     // }
 
     const Mesh &mesh() const { return m_mesh; }
+    const PeriodicCondition<N> &pc() const  { return m_pc; }
 
     size_t numParameters() const { return m_numParams; }
 
@@ -423,10 +436,13 @@ private:
 
     Mesh m_mesh;
 
+    // Avoid perturbing interior vertices when parameter vector is zero.
+    // (Useful for remeshing gradient descent.)
+    bool m_noPerturb = false;
+
     // Note: pc matches every node, not just vertex nodes!
     // But vertex nodes are a prefix of all nodes, so we can ignore this.
     PeriodicCondition<N> m_pc;
-
 };
 
 #endif /* end of include guard: BOUNDARYPERTURBATIONINFLATOR_HH */
