@@ -199,6 +199,8 @@ public:
 
         writer.addField("WC Macro Stress", m_objective.wcStress.wcMacroStress);
         writer.addField("WC Micro Stress", m_objective.wcStress.wcMicroStress());
+
+        writer.addField("Pointwise WCS", m_objective.wcStress.sqrtStressMeasure());
         writer.addField("j", j);
 
     }

@@ -31,7 +31,7 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     // Edge merging and splitting threshold (relative to median edge length).
     Real remeshMergeThreshold = 0.1;
-    Real remeshSplitThreshold = 2.0;
+    Real remeshSplitThreshold = 4.0;
     // 2D feature vertex detection threshold (on the angle difference from
     // M_PI, which corresponds to a perfectly straight boundary).
     Real remeshFeatureAngleThreshold = M_PI / 4;
