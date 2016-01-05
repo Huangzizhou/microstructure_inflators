@@ -20,11 +20,11 @@
 //  Company:  New York University
 //  Created:  12/28/2015 18:11:43
 ////////////////////////////////////////////////////////////////////////////////
+#include <GlobalBenchmark.hh>
 #include <MeshIO.hh>
 #include <LinearElasticity.hh>
 #include <Materials.hh>
 #include <PeriodicHomogenization.hh>
-#include <GlobalBenchmark.hh>
 
 #include <vector>
 #include <queue>
@@ -72,6 +72,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("subdivide,S",  po::value<size_t>()->default_value(0),      "number of subdivisions to run before creating simulator")
         ("max_volume,v", po::value<double>()->default_value(0.01),   "maximum element area for remeshing")
         ("noRemesh",                                                 "disable remeshing")
+        ("preRemeshOutput",                                          "Output the pre-remesh stats/msh file.")
         ("remeshMergeThreshold", po::value<double>(),                "edge merging threshold for remeshing")
         ("remeshSplitThreshold", po::value<double>(),                "edge splitting threshold for remeshing")
         ;
@@ -89,7 +90,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("ignoreShear",                                              "Ignore the shear components in the isotropic tensor fitting")
         ("alpha",        po::value<double>()->default_value(1.0),    "Trade-off between fitting and WCS minimization. 1.0 = tensor fit, 0.0 = WCS minimization.")
         ("pnorm,P",      po::value<double>()->default_value(1.0),    "the pnorm used in the Lp global worst case stress measure")
-        ("JVolWeight,V", po::value<double>(),                        "Weight of the volume constraint objective term.")
+        ("JVolWeight,V", po::value<double>()->default_value(0.0),    "Weight of the volume constraint objective term.")
         ;
 
     po::options_description generalOptions;
@@ -156,6 +157,8 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
 
     auto targetC = job->targetMaterial.getTensor();
     ETensor<_N> targetS = targetC.inverse();
+    Real targetSNormSq = targetS.quadrupleContract(targetS);
+    std::cout << "targetSNormSq:\t" << targetSNormSq << std::endl;
 
     cout << "Target moduli:\t";
     targetC.printOrthotropic(cout);
@@ -180,10 +183,11 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
     if (args.count("remeshMergeThreshold")) poConfig.remeshMergeThreshold = args["remeshMergeThreshold"].as<Real>();
     if (args.count("remeshSplitThreshold")) poConfig.remeshSplitThreshold = args["remeshSplitThreshold"].as<Real>();
 
-    Real  stepSize = args[  "step"].as<double>();
-    string outName = args["output"].as<string>();
-    Real     alpha = args[ "alpha"].as<double>();
-    size_t  niters = args["nIters"].as<size_t>();
+    Real   stepSize = args[      "step"].as<double>();
+    string  outName = args[    "output"].as<string>();
+    Real      alpha = args[     "alpha"].as<double>();
+    size_t   niters = args[    "nIters"].as<size_t>();
+    Real JVolWeight = args["JVolWeight"].as<double>();
     poConfig.fem2DSubdivRounds = args["subdivide"].as<size_t>();
 
     std::vector<MeshIO::IOVertex>  vertices;
@@ -197,19 +201,83 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
     SField params(bpi->numParameters());
     params.clear();
 
+    bool hasVolumeTarget = bool(job->targetVolume);
+    Real targetVolSq = 0;
+    if (hasVolumeTarget) {
+        targetVolSq = *job->targetVolume;
+        targetVolSq *= targetVolSq;
+    }
+
+    auto processIterate = [=](const _Iterate &it) ->SField {
+        cout << "moduli:\t";
+        it.elasticityTensor().printOrthotropic(cout);
+        cout << "anisotropy:\t" << it.elasticityTensor().anisotropy() << endl;
+
+        BENCHMARK_START_TIMER("Evaluate JS/WCS");
+        Real JS = it.evaluateJS(), WCS = it.evaluateWCS();
+        cout << "JS:\t"     << JS  << endl;
+        cout << "WCS:\t"    << WCS << endl;
+        if (hasVolumeTarget)
+            cout << "JVol:\t"   << it.evaluateJVol()  << endl;
+        cout << "Volume:\t" << it.mesh().volume() << endl;
+        BENCHMARK_STOP_TIMER("Evaluate JS/WCS");
+
+        SField   JS_p = it.gradp_JS();
+        SField  WCS_p = it.gradientWCS_adjoint();
+        SField JVol_p(WCS_p.domainSize());
+        JVol_p.clear();
+
+        cout << "||grad_p JS||:\t" << JS_p.norm() << endl;
+        cout << "||grad_p WCS||:\t" << WCS_p.norm() << endl;;
+
+        if (hasVolumeTarget) {
+            JVol_p = it.gradp_JVol();
+            cout << "||grad_p Jvol||:\t" << JVol_p.norm() << endl;
+        }
+
+        cout << "Normalized JS:\t" << it.evaluateJS() / targetSNormSq << endl;
+        if (hasVolumeTarget)
+            cout << "Normalized JVol:\t" << it.evaluateJVol() / targetVolSq << endl;
+
+        // Compute composite objective and gradient
+        Real J = JS * alpha + WCS * (1 - alpha);
+        if (hasVolumeTarget)
+            J += it.evaluateJVol() * JVolWeight;
+
+        SField gradp = JS_p * alpha + WCS_p * (1 - alpha);
+        if (hasVolumeTarget)
+            gradp += JVol_p * JVolWeight;
+
+        // Output composite iterate stats.
+        cout << "J_full:\t" << J << endl;
+        cout << "||grad_p J_full||:\t" << gradp.norm() << endl;
+        return gradp;
+    };
+
     // Custom gradient descent: number of parameters changes at each iteration.
     for (size_t i = 0; i < niters; ++i) {
         bool out = ((outName != "") &&
                     (i % args["outputEvery"].as<size_t>() == 0));
-        // pre-remesh iterate
-        auto it = make_unique<_Iterate>(*bpi, params.size(), params.data(), targetS);
-        if (out) it->writeMeshAndFields(outName + "_" + std::to_string(i) + ".msh");
-        if (job->targetVolume) it->setTargetVolume(*job->targetVolume);
+        SField gradp;
 
-        if (!args.count("noRemesh"))
+        std::unique_ptr<_Iterate> it;
+        if (args.count("preRemeshOutput")) {
+            it = make_unique<_Iterate>(*bpi, params.size(), params.data(), targetS);
+            if (hasVolumeTarget) it->setTargetVolume(*job->targetVolume);
+            if (out) it->writeMeshAndFields(outName + "_" + std::to_string(i) + ".msh");
             std::cout << "Pre-remesh iterate:" << std::endl;
-        it->writeDescription(std::cout);
-        std::cout << std::endl;
+            gradp = processIterate(*it);
+            std::cout << std::endl;
+        }
+        else {
+            // For efficiency, don't homogenize the pre-remesh iterate.
+            // (But we still need to inflate it so the remesher can read the
+            //  perturbed boundary).
+            std::vector<Real> pvector(params.domainSize());
+            for (size_t i = 0; i < pvector.size(); ++i)
+                pvector[i] = params[i];
+            bpi->inflate(pvector);
+        }
 
         if (!args.count("noRemesh")) {
             // post-remesh inflator and iterate
@@ -217,20 +285,16 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
             bpi = make_unique<BPI>(vertices, elements);
             params.resizeDomain(bpi->numParameters());
             params.clear();
-            bpi->setNoPerturb(true); // Use Triangle mesh directly.
+            bpi->setNoPerturb(true); // Use mesh from Triangle directly.
             it = make_unique<_Iterate>(*bpi, params.size(), params.data(), targetS);
             bpi->setNoPerturb(false);
             if (out) it->writeMeshAndFields(outName + "_" + std::to_string(i) + ".remeshed.msh");
-            if (job->targetVolume) it->setTargetVolume(*job->targetVolume);
+            if (hasVolumeTarget) it->setTargetVolume(*job->targetVolume);
 
             std::cout << "Post-remesh iterate:" << std::endl;
-            it->writeDescription(std::cout);
+            gradp = processIterate(*it);
             std::cout << std::endl;
         }
-
-        SField  Js_p = it->gradp_JS();
-        SField WCS_p = it->gradientWCS_adjoint();
-        SField gradp = Js_p * alpha + WCS_p * (1 - alpha);
 
         if (args.count("maxNormStep"))
             stepSize = args["maxNormStep"].as<Real>() / abs(gradp.maxMag());

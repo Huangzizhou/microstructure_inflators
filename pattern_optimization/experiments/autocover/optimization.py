@@ -1,6 +1,6 @@
 from textwrap import dedent
 from LookupTable import LUT
-import paths, os, sys, subprocess
+import paths, os, sys, subprocess, datetime
 
 class PatternOptimization:
     def __init__(self, config):
@@ -73,20 +73,32 @@ class PatternOptimization:
 
     # Submit an array job for jobs numbered firstJobIndex..lastJobIndex
     # Return the array job's id.
-    def submitArrayJob(self, directory, firstJobIndex, lastJobIndex):
+    def submitArrayJob(self, directory, firstJobIndex, lastJobIndex, nprocs, walltime, mem):
         if (lastJobIndex <= firstJobIndex): raise Exception("Invalid job index range")
         cmd = [paths.optimizer(self.dim), directory + '/${PBS_ARRAYID}.job',
             '-p', paths.pattern(self.pattern, self.dim), '-m', self.material] + self.patoptArgs
+        # We need to kill our job a couple minutes before the walltime expires so
+        # that we can recover stdout/stderr. Subtract 2 minutes from the requested walltime.
+        # parse H:M:S from walltime (python's datetime/time classes are annoyingly incomplete)
+        hms = walltime.split(':')
+        e = Exception("Error parsing walltime; must be in the format h:m:s")
+        if (len(hms) != 3): raise e
+        h,m,s = map(int, hms)
+        if (h > 24 | h < 0 | m > 60 | m < 0 | s > 60 | s < 0): raise e
+        fullTime = datetime.timedelta(hours=h, minutes=m, seconds=s)
+        killTime = fullTime - datetime.timedelta(minutes=2)
+
         # TODO: figure out how to redirect stdout/sterr out of existence
+
         pbsScript = """\
         ###-----PBS Directives Start-----###
 
         #PBS -V
         #PBS -S /bin/bash
         #PBS -N {name}
-        #PBS -l nodes=1:ppn=1
-        #PBS -l walltime=2:00:00
-        #PBS -l mem=20GB
+        #PBS -l nodes=1:ppn={nprocs}
+        #PBS -l walltime={walltime}
+        #PBS -l mem={mem}
         #PBS -M fjp234@nyu.edu
         #PBS -m a
         #PBS -t {firstIndex}-{lastIndex}
@@ -95,14 +107,16 @@ class PatternOptimization:
         cd ${{PBS_O_WORKDIR}}
 
         STDOUT_FILE=${{PBS_MEMDISK}}/stdout_${{PBS_JOBID}}.${{PBS_ARRAYID}}.txt
-        timeout -s KILL 85m {command} > $STDOUT_FILE 2>&1
+        timeout -s KILL {killseconds} {command} > $STDOUT_FILE 2>&1
 
         mv $STDOUT_FILE {directory}/stdout_${{PBS_ARRAYID}}.txt
         """
         pbsScript = dedent(pbsScript).format(
                 name="ac_%i_%s" % (self.pattern, directory),
                 firstIndex=firstJobIndex, lastIndex=lastJobIndex,
-                command = " ".join(cmd), directory=directory)
+                command = " ".join(cmd), directory=directory,
+                nprocs=nprocs, walltime=walltime, mem=mem,
+                killseconds=killTime.seconds)
         p = subprocess.Popen(["qsub", "-"], stdin=subprocess.PIPE,
                                            stdout=subprocess.PIPE,
                                            stderr=subprocess.PIPE)

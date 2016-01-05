@@ -277,6 +277,7 @@ struct IntegratedWorstCaseObjective {
                   const std::vector<VectorField<Real, N>> &w) const
     -> std::vector<StrainEnergyBdryInterpolant<Sim>>
     {
+        BENCHMARK_START_TIMER("WCS shape derivative");
         using Strain = typename Sim::Strain;
         using BdryStrain = Interpolant<typename Sim::SMatrix, Sim::K - 1, Strain::Deg>;
 
@@ -320,6 +321,8 @@ struct IntegratedWorstCaseObjective {
         auto int_dj_domega = jDirectShapeDependence(sim, w);
         for (auto be : mesh.boundaryElements())
             result[be.index()] += int_dj_domega[be.index()];
+
+        BENCHMARK_STOP_TIMER("WCS shape derivative");
         
         return result;
     }

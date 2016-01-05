@@ -53,6 +53,8 @@
 #include <vector>
 #include <array>
 
+#include <GlobalBenchmark.hh>
+
 #include "InflatorBase.hh"
 #include <UniformLaplacian.hh>
 #include <FEMMesh.hh>
@@ -321,6 +323,7 @@ public:
     // boundary coordinate parameters
     template<class SDInterp>
     ScalarField<Real> gradientFromShapeDerivative(const std::vector<SDInterp> &sd) const {
+        // BENCHMARK_START_TIMER("gradientFromShapeDerivative");
         assert(sd.size() == m_mesh.numBoundaryElements());
 
         ScalarField<Real> gradp(numParameters());
@@ -348,6 +351,7 @@ public:
                 }
             }
         }
+        // BENCHMARK_STOP_TIMER("gradientFromShapeDerivative");
         return gradp;
     }
 

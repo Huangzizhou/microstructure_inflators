@@ -1,10 +1,14 @@
 MeshFEM ?= $(MESHFEM_PATH)
 include $(MeshFEM)/platform_defs.mk
 
-ifeq ($(DEBUG), "1")
-	CPPFLAGS+=-O2
-else
+ifeq ($(DEBUG), 1)
 	CPPFLAGS+=-O0 -g
+else
+	CPPFLAGS+=-O2
+endif
+
+ifeq ($(DNDEBUG), 1)
+	CPPFLAGS+=-DNDEBUG
 endif
 
 ################################################################################

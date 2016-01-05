@@ -121,16 +121,16 @@ struct Iterate {
         m_printable = inflator.isPrintable(m_params);
 
         // std::cout << "Inflating" << std::endl;
-        BENCHMARK_START_TIMER("Inflate");
+        BENCHMARK_START_TIMER_SECTION("Inflate");
         try {
             inflator.inflate(m_params);
         }
         catch (...) {
             // Hack to correct timer behavior--should probably use RAII
-            BENCHMARK_STOP_TIMER("Inflate");
+            BENCHMARK_STOP_TIMER_SECTION("Inflate");
             throw;
         }
-        BENCHMARK_STOP_TIMER("Inflate");
+        BENCHMARK_STOP_TIMER_SECTION("Inflate");
         // std::cout << "Inflated" << std::endl;
 
         // std::cout << "Checking geometry" << std::endl;
