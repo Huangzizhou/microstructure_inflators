@@ -1,0 +1,34 @@
+dataFile="RST4_p2_out_MNS1e-3_at_target_jvol.txt"
+set terminal pngcairo size 1024,768
+
+plotData = sprintf("< ./analyze_perturb_iterates.py %s", dataFile)
+
+set grid
+set xlabel "Iteration"
+unset key
+
+set output "bp_wcs_convergence.png"
+set multiplot layout 2, 1 title "Boundary Perturbation WCS Convergence"
+set logscale y
+set title "WCS"
+plot plotData using (column("i")):(column("wcs")) w l
+set title "WCS gradient norm"
+plot plotData using (column("i")):(column("grad_wcs_norm")) w l
+unset logscale y
+unset multiplot
+
+set output "bp_JS_convergence.png"
+set multiplot layout 2, 1 title "Boundary Perturbation JS Convergence"
+set title "JS"
+plot plotData using (column("i")):(column("js")) w l
+set title "JS gradient norm"
+plot plotData using (column("i")):(column("grad_js_norm")) w l
+unset multiplot
+
+set output "bp_vol_convergence.png"
+set multiplot layout 2, 1 title "Boundary Perturbation JVol Convergence"
+set title "JVol"
+plot plotData using (column("i")):(column("jvol")) w l
+set title "JVol gradient norm"
+plot plotData using (column("i")):(column("grad_jvol_norm")) w l
+unset multiplot
