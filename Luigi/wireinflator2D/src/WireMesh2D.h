@@ -1252,7 +1252,7 @@ protected:
 
 
 	// MHS on AUG01, 2015:
-	// this a much neater versin using the new metaEMesh class where each case has more symmetry than the privious case
+	// this a much neater version using the new metaEMesh class where each case has more symmetry than the previous case
 	// note that case 3 is equivalent to the Luigi's case (even though the ordering of the parameters might be different, like Luigi's case all the radius ops come first)
 	static std::vector<ParameterOperation> generateParameterOperations(const int inSymmetryMode, EMesh & em)
 	{

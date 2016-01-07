@@ -40,10 +40,10 @@
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/algorithm/string.hpp> // requiured for parsing jacobian
+#include <boost/algorithm/string.hpp> // required for parsing jacobian
 
-
-#include "PatternOptimization.hh"
+// the following are not required anymore
+#include "PatternOptimization.hh" 
 #include "PatternOptimizationJob.hh"
 
 #include <vcg/complex/complex.h>
@@ -52,6 +52,8 @@ namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 using namespace fs;
 using namespace std;
+
+// the following are not required anymore
 using namespace PatternOptimization;
 using namespace PeriodicHomogenization;
 
@@ -81,6 +83,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("output,o",     		po::value<string>(), "final tiled .msh file")
         ("max_volume,v", 		po::value<double>(), "maximum element volume parameter for wire inflator")
         ("avg_thickness,t", 	po::value<bool>()->default_value(true), "true to average the thicknesses when tiling")
+        ("scale,s",			 	po::value<double>()->default_value(1.0), "scales the input mesh by a factor of 's' [used when there is a significant change of scale in the quad mesh]")
         ("sym",          		po::value<int>()->default_value(3), "symmetry mode")
         ;
 	
@@ -134,7 +137,7 @@ void readTable(std::string fileName, vector<vector<Real>> & dataTable)
 		boost::split(numbers, line, boost::is_any_of("\t "),
 					 boost::token_compress_on);
 
-	
+		cout << numbers.size() << endl;	
 		vector<Real> row;
 		for (size_t i = 0; i < numbers.size(); ++i)
 			row.push_back(stod(numbers[i]));
@@ -154,6 +157,7 @@ void readQuadMesh(const string & quadMeshPath, PolyMesh & pmesh)
 	typedef PolyMeshUtils<PolyMesh> PMU;
 	bool ok = false;
 	ok = PMU::importFromOBJ(quadMeshPath, pmesh);
+
 	if (ok)
 		WireEmbedding::preprocessQuadMesh(pmesh);
 
@@ -175,13 +179,67 @@ void readQuadMesh(const string & quadMeshPath, PolyMesh & pmesh)
 	/* } */
 }
 
+// scale the quad mesh:
+void scaleQuadMesh(double scaleFactor, PolyMesh & pmesh)
+{
+	for (auto vert = pmesh.vert.begin(); vert != pmesh.vert.end(); ++vert)
+		vert->P() *= scaleFactor;
+}
+
+typedef typename PolyMesh::CoordType        PCoordType;
+typedef typename PolyMesh::FaceType        	PFaceType;
+
+Real quadArea(PolyMesh & pmesh, PFaceType & f)
+{
+	
+	/* typedef WireMeshEmbedding<EMesh, PolyMesh>				WireEmbedding; */
+	/* typedef typename WireEmbedding::QuadParametrization		QuadParametrization; */
+
+	
+	/* QuadParametrization qpar = getQuadParametrizationHandle(pmesh)[f]; */
+
+	char index0 = 0;
+	char index1 = (index0 + 1) % 4; 
+	char index2 = (index0 + 2) % 4; 
+	char index3 = (index0 + 3) % 4; 
+
+	PCoordType p0 = f.cP(index0);
+	PCoordType p1 = f.cP(index1);
+	PCoordType p2 = f.cP(index2);
+	PCoordType p3 = f.cP(index3);
+
+	PCoordType a = p1 - p0;
+	PCoordType b = p2 - p1;
+	PCoordType c = p3 - p2;
+	PCoordType d = p0 - p3;
+
+	PCoordType m = p3 - p1;
+	PCoordType n = p2 - p0;
+
+	Real a2 = a[0] * a[0] + a[1] * a[1];
+	Real b2 = b[0] * b[0] + b[1] * b[1];
+	Real c2 = c[0] * c[0] + c[1] * c[1];
+	Real d2 = d[0] * d[0] + d[1] * d[1];
+          
+	Real m2 = m[0] * m[0] + m[1] * m[1];
+	Real n2 = n[0] * n[0] + n[1] * n[1];
+
+	Real x = b2 + d2 - a2 - c2;
+
+	return std::sqrt(4.0 * m2 * n2 - x * x ) / 4.0;
+}
+
+
 
 void findQuadIdsForElements(const std::vector<MeshIO::IOVertex>  &verts,
 		                    const std::vector<MeshIO::IOElement> &elems,
-		                    PolyMesh &pmesh, std::vector<size_t> & ids)
+		                    PolyMesh &pmesh, 
+		                    std::vector<size_t> & ids,
+		                    std::vector<Real>   & vols)
 {
 
 	typedef ClipperLib::IntPoint 				IntPoint;
+	
 
 	const int multiplier = (1 << 24);
 
@@ -203,6 +261,7 @@ void findQuadIdsForElements(const std::vector<MeshIO::IOVertex>  &verts,
 	}
 
 	std::vector<ClipperLib::Path> facePaths;
+	std::vector<Real> faceVolumes;
 	for (auto f = pmesh.face.begin(); f != pmesh.face.end(); ++f)
 	{
 		// get the clipping quad
@@ -211,9 +270,11 @@ void findQuadIdsForElements(const std::vector<MeshIO::IOVertex>  &verts,
 		{
 			IntPoint pt = ClipperLib::IntPoint(ClipperLib::cInt(multiplier * f->cP(i)[0]), ClipperLib::cInt(multiplier * f->cP(i)[1]));
 			facePath.push_back(pt);
+
 		}
 
 		facePaths.push_back(facePath);
+		faceVolumes.push_back(quadArea(pmesh, *f));
 	}
 
 	for (size_t i = 0; i < elementCenters.size(); ++i)
@@ -225,10 +286,22 @@ void findQuadIdsForElements(const std::vector<MeshIO::IOVertex>  &verts,
 			{
 				flag = 1;
 				ids.push_back(j);
+				vols.push_back(faceVolumes[j]);
 			}
 			if (flag == 1)
 				break;
 		}
+
+	Real totalVolume = 0;
+	for (size_t i = 0; i < faceVolumes.size(); ++i)
+		totalVolume += faceVolumes[i];
+
+
+	std::cout << std::endl << "----------" << std::endl;
+	std::cout << "the total volume of the quad mesh is " << totalVolume << std::endl;
+	std::cout << std::endl << "----------" << std::endl;
+
+
 }
 
 template<size_t _N>
@@ -238,7 +311,11 @@ void tileQuad (const po::variables_map &args)
 	// read in the quadMesh
     PolyMesh pmesh;
     readQuadMesh(args["quad"].as<string>(), pmesh);
-	
+
+
+    scaleQuadMesh(args["scale"].as<double>(), pmesh);
+
+
 	// tile the quad mesh using the parameterTable ... 
     auto wi = WireInflator2D::construct(args["pattern"].as<string>(), args["sym"].as<int>());
     WireInflator2D::OutMeshType mesh;
@@ -252,6 +329,12 @@ void tileQuad (const po::variables_map &args)
 	readTable(args["inParam"].as<string>(), parameterTable);
 
 	cout << pmesh.face.size() << "\t" << parameterTable.size() << "\t" << parameterTable[0].size() << endl;
+
+
+	if (parameterTable.size() == 1)
+		for(size_t i = 0; i < pmesh.face.size() - 1; ++i)
+			parameterTable.push_back(parameterTable[0]);
+
 	// check to make sure you have correct number of parameters
 	if (parameterTable.size()!= pmesh.face.size()){
 		throw("invalid number of rows in the parameter table!");
@@ -294,14 +377,21 @@ void tileQuad (const po::variables_map &args)
 
 
 	std::vector<size_t> ids; // holds the quad id that each element belongs to
-	findQuadIdsForElements(outVertices, outElements, pmesh, ids);
+	std::vector<Real>   vols;// holds the area of the quad that each elements belongs to
+	findQuadIdsForElements(outVertices, outElements, pmesh, ids, vols);
+
 
 	ScalarField<Real> idsField(ids.size());
-	for (size_t i = 0; i < ids.size(); ++i)
-		idsField[i] = ids[i] * 1.0;
+	ScalarField<Real> volsField(vols.size());
+	for (size_t i = 0; i < ids.size(); ++i){
+		idsField[i]  = ids[i] * 1.0;
+		volsField[i] = vols[i];
+	}
 
-	// adding the id element
+
+	// adding the id and vol elements
     writer.addField("id", idsField, DomainType::PER_ELEMENT);
+    writer.addField("vol", volsField, DomainType::PER_ELEMENT);
 
     // adding the optimization costs 
     if (args["inCost"].as<string>() != ""){
