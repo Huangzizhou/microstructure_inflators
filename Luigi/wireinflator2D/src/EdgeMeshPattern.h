@@ -765,7 +765,7 @@ public:
 					{
 						/* quality += faceParams[fa].cParameter(bv.parameter); */
 						// compute the parameter index in the adjacent face (previously this was assumed to be the same as the parameter index in the current face!)
-						size_t adjFaceParameterIdx = -1;
+						int adjFaceParameterIdx = -1;
 						for (size_t jj = 0; jj < boundaryVtx.size(); ++jj)
 						{
 							BoundaryVertex bv2 = boundaryVtx[jj];

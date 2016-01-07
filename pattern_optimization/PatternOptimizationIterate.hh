@@ -12,21 +12,88 @@
 #ifndef PATTERNOPTIMIZATIONITERATE_HH
 #define PATTERNOPTIMIZATIONITERATE_HH
 
-#include "Inflator.hh"
 #include <EdgeFields.hh>
 #include <MSHFieldWriter.hh>
 
+#include <iostream>
+#include <cstdio>
 #include <cassert>
 #include <memory>
 #include <iostream>
 #include <iomanip>
+#include <memory>
+#include <tuple>
 
 #include <MeshIO.hh>
+#include <TriMesh.hh>
+#include <filters/subdivide.hh>
 
 #include "PatternOptimizationConfig.hh"
 
+#include <boost/optional.hpp>
+
 namespace PatternOptimization {
-template<class _Sim>
+
+
+// For some reason this was left out in C++11 (it's in C++14)...
+template<class T, class... Args>
+std::unique_ptr<T> make_unique_ptr(Args&&... args) {
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Geometry post-processing stage. Allow modification of the inflation geometry
+// before building the simulator (but without changing the inflator's copy of
+// the geometry. This hack enables support, for e.g., 1->4 subdivision in the
+// 2D case with zero overhead when not requested.
+////////////////////////////////////////////////////////////////////////////////
+template<size_t N>
+struct GeometryPostProcessor {
+    template<class _Inflator>
+    static
+    std::tuple<std::unique_ptr<std::vector<MeshIO::IOVertex >>,
+               std::unique_ptr<std::vector<MeshIO::IOElement>>> run(const _Inflator &/* i */) {
+        return std::make_tuple(std::unique_ptr<std::vector<MeshIO::IOVertex >>(),
+                               std::unique_ptr<std::vector<MeshIO::IOElement>>());
+    }
+};
+
+template<>
+struct GeometryPostProcessor<2> {
+    template<class _Inflator>
+    static
+    std::tuple<std::unique_ptr<std::vector<MeshIO::IOVertex >>,
+               std::unique_ptr<std::vector<MeshIO::IOElement>>> run(const _Inflator &i) {
+        const auto &config = Config::get();
+        if (config.fem2DSubdivRounds == 0) {
+            return std::make_tuple(std::unique_ptr<std::vector<MeshIO::IOVertex >>(),
+                                   std::unique_ptr<std::vector<MeshIO::IOElement>>());
+        }
+        else {
+            // NOTE: subdividing here will break the shape derivative/gradient
+            // comptuation (iterate will have a higher resolution boundary
+            // discretization than the inflator, where parameter normal velocities are
+            // defined).
+            // TODO: implement subdivision for the boundary perturbation
+            // inflator in a "reduced boundary perturbation" class instead.
+            auto subv = make_unique_ptr<std::vector<MeshIO::IOVertex >>(i.vertices());
+            auto sube = make_unique_ptr<std::vector<MeshIO::IOElement>>(i.elements());
+            for (size_t i = 0; i < config.fem2DSubdivRounds; ++i) {
+                ::TriMesh<SubdivVertexData<2>, SubdivHalfedgeData> m(*sube, subv->size());
+                for (size_t vi = 0; vi < subv->size(); ++vi)
+                    m.vertex(vi)->p = (*subv)[vi];
+                subdivide(m, *subv, *sube);
+            }
+            return std::make_tuple(std::move(subv), std::move(sube));
+        }
+    }
+};
+
+// _BypassParameterVelocity: hack to avoid computing the parameter velocity when
+// there are too many parameters. This is only intended to be used by subclasses 
+// that know how to compute objective gradients without explicitly forming the
+// parameter velocity vectors (e.g. BoundaryPerturbationIterate)
+template<class _Sim, bool _BypassParameterVelocity = false>
 struct Iterate {
     typedef typename _Sim::VField VField;
     typedef ScalarField<Real> SField;
@@ -38,13 +105,14 @@ struct Iterate {
     typedef PeriodicHomogenization::
             BEHTensorGradInterpolant<_Sim>          BEGradTensorInterpolant;
     // 2 * (deg - 1) boundary element interpolant of a scalar field used to
-    // represent the per-boundary-element value of the shape derivative a
+    // represent the per-boundary-element value of the shape derivative of a
     // scalar function.
     typedef Interpolant<Real, BEGradTensorInterpolant::K,
                     BEGradTensorInterpolant::Deg>   BEGradInterpolant;
 
-    Iterate(ConstrainedInflator<_N> &inflator, size_t nParams, const double *params,
-            const _ETensor &targetS)
+    template<class _Inflator>
+    Iterate(_Inflator &inflator, size_t nParams, const double *params,
+            const _ETensor &targetS, bool keepFluctuationDisplacements = false)
         : m_targetS(targetS)
     {
         m_params.resize(nParams);
@@ -52,22 +120,22 @@ struct Iterate {
             m_params[i] = params[i];
         m_printable = inflator.isPrintable(m_params);
 
-        std::cout << "Inflating" << std::endl;
-        BENCHMARK_START_TIMER("Inflate");
+        // std::cout << "Inflating" << std::endl;
+        BENCHMARK_START_TIMER_SECTION("Inflate");
         try {
             inflator.inflate(m_params);
         }
         catch (...) {
             // Hack to correct timer behavior--should probably use RAII
-            BENCHMARK_STOP_TIMER("Inflate");
+            BENCHMARK_STOP_TIMER_SECTION("Inflate");
             throw;
         }
-        BENCHMARK_STOP_TIMER("Inflate");
-        std::cout << "Inflated" << std::endl;
+        BENCHMARK_STOP_TIMER_SECTION("Inflate");
+        // std::cout << "Inflated" << std::endl;
 
-        std::cout << "Checking geometry" << std::endl;
+        // std::cout << "Checking geometry" << std::endl;
         if ((inflator.elements().size() == 0) || (inflator.vertices().size() == 0)) {
-            std::cerr << std::setprecision(16);
+            std::cerr << std::setprecision(20);
             std::cerr << "Exception while inflating parameters" << std::endl;
             for (size_t i = 0; i < m_params.size(); ++i) std::cerr << m_params[i] << "\t";
             std::cerr << std::endl;
@@ -75,19 +143,45 @@ struct Iterate {
                     + std::to_string(inflator.elements().size()) + ", Vertices: "
                     + std::to_string(inflator.vertices().size()));
         }
-        std::cout << std::endl;
+        // std::cout << std::endl;
 
 
-        std::cout << "Building Simulator" << std::endl;
+        // std::cout << "Building Simulator" << std::endl;
         BENCHMARK_START_TIMER_SECTION("Eval");
-        m_sim = std::make_shared<_Sim>(inflator.elements(),
-                                       inflator.vertices());
-        std::cout << "Done" << std::endl;
-        std::cout << "Homogenizing" << std::endl;
-        m_vn_p = inflator.computeShapeNormalVelocities(m_sim->mesh());
 
-        std::vector<VField> w_ij;
-        PeriodicHomogenization::solveCellProblems(w_ij, *m_sim);
+        {
+            std::unique_ptr<std::vector<MeshIO::IOVertex >> verts;
+            std::unique_ptr<std::vector<MeshIO::IOElement>> elems;
+            std::tie(verts, elems) = GeometryPostProcessor<_Sim::K>::run(inflator);
+            if (elems && verts)
+                m_sim = make_unique_ptr<_Sim>(*elems, *verts);
+            else {
+                assert(!elems && !verts);
+                m_sim = make_unique_ptr<_Sim>(inflator.elements(),
+                                              inflator.vertices());
+            }
+        }
+        // std::cout << "Done" << std::endl;
+        // std::cout << "Homogenizing" << std::endl;
+
+        try {
+            PeriodicHomogenization::solveCellProblems(w_ij, *m_sim);
+        }
+        catch(std::exception &e) {
+            std::cerr << "Cell problem solve failed: " << e.what() << std::endl;
+            MeshIO::save("debug.msh", mesh());
+            std::cerr << "Wrote geometry to 'debug.msh'" << std::endl;
+            std::cerr << "params:";
+            for (size_t i = 0; i < m_params.size(); ++i) std::cerr << "\t" << m_params[i];
+            std::cerr << std::endl;
+            exit(-1);
+        }
+
+        // Shape velocities must be computed after periodic boundary conditions
+        // are applied (i.e. solveCellProblems call)!
+        if (!_BypassParameterVelocity)
+            m_vn_p = inflator.computeShapeNormalVelocities(mesh());
+
         C = PeriodicHomogenization::homogenizedElasticityTensorDisplacementForm(w_ij, *m_sim);
         S = C.inverse();
         std::vector<BEGradTensorInterpolant> gradEh =
@@ -104,23 +198,27 @@ struct Iterate {
                 GS[n] = -S.doubleDoubleContract(GE[n]);
         }
 
-        // Precompute gradient of the compliance tensor
-        m_gradp_S.resize(nParams); // Fill with zero tensors.
-        for (size_t p = 0; p < nParams; ++p) {
-            for (size_t bei = 0; bei < m_sim->mesh().numBoundaryElements(); ++bei) {
-                auto be = m_sim->mesh().boundaryElement(bei);
-                const auto &vn = m_vn_p[p][bei]; // parameter normal shape velocity interpolant
-                const auto &grad = m_gradS[bei];
-                m_gradp_S[p] += Quadrature<_Sim::K - 1, 1 + BEGradTensorInterpolant::Deg>::
-                    integrate([&] (const VectorND<be.numVertices()> &pt) {
-                        return vn(pt) * grad(pt);
-                    }, be->volume());
+        if (!_BypassParameterVelocity) {
+            // Precompute gradient of the compliance tensor
+            m_gradp_S.resize(nParams); // Fill with zero tensors.
+            for (size_t p = 0; p < nParams; ++p) {
+                for (size_t bei = 0; bei < mesh().numBoundaryElements(); ++bei) {
+                    auto be = mesh().boundaryElement(bei);
+                    const auto &vn = m_vn_p[p][bei]; // parameter normal shape velocity interpolant
+                    const auto &grad = m_gradS[bei];
+                    m_gradp_S[p] += Quadrature<_Sim::K - 1, 1 + BEGradTensorInterpolant::Deg>::
+                        integrate([&] (const VectorND<be.numVertices()> &pt) {
+                            return vn(pt) * grad(pt);
+                        }, be->volume());
+                }
             }
         }
 
         m_diffS = S - m_targetS;
 
-        std::cout << "Done" << std::endl;
+        // std::cout << "Done" << std::endl;
+
+        if (!keepFluctuationDisplacements) w_ij.clear();
 
         BENCHMARK_STOP_TIMER_SECTION("Eval");
     }
@@ -274,7 +372,7 @@ struct Iterate {
     // TODO: update to make per-vertex effectiveVelocity (instead of
     // effective normal velocity)
     SField effectiveNormalVelocity(const SField &deltaP) const {
-        SField vn(m_sim->mesh().numBoundaryElements());
+        SField vn(mesh().numBoundaryElements());
         for (size_t bei = 0; bei < vn.size(); ++bei) {
             vn[bei] = 0;
             for (size_t p = 0; p < deltaP.size(); ++p)
@@ -291,22 +389,22 @@ struct Iterate {
 
         os << "moduli:\t";
         C.printOrthotropic(os);
-        os << "anisotropy:\t" << C.anisotropy() << endl;
+        os << "anisotropy:\t" << C.anisotropy() << std::endl;
         os << "JS:\t" << evaluateJS() << std::endl;
         os << "printable:\t" << m_printable << std::endl;
 
         SField gradP = gradp_JS();
         os << "grad_p(J_S):\t";
         gradP.print(os, "", "", "", "\t");
-        os << std::endl << "||grad_p||:\t" << gradP.norm() << std::endl;
+        os << std::endl << "||grad_p Js||:\t" << gradP.norm() << std::endl;
     }
 
     VField directionField(const SField &v_n) const {
-        size_t numBE = m_sim->mesh().numBoundaryElements();
+        size_t numBE = mesh().numBoundaryElements();
         assert(v_n.domainSize() == numBE);
         VField direction(numBE);
         for (size_t be = 0; be < numBE; ++be)
-            direction(be) = v_n[be] * m_sim->mesh().boundaryElement(be)->normal();
+            direction(be) = v_n[be] * mesh().boundaryElement(be)->normal();
         return direction;
     }
 
@@ -318,8 +416,8 @@ struct Iterate {
         auto projectedNormalVelocity = effectiveNormalVelocity(gradp_JS());
 
         if (_N == 2) {
-            MeshIO::save(name + ".msh", m_sim->mesh());
-            EdgeFields ef(m_sim->mesh());
+            MeshIO::save(name + ".msh", mesh());
+            EdgeFields ef(mesh());
             ef.addField("avg_gradFit", avg_vn);
             ef.addField("avg_gradFit_direction", directionField(avg_vn));
 
@@ -330,12 +428,12 @@ struct Iterate {
         if (_N == 3) {
             std::vector<MeshIO::IOVertex>  bdryVertices;
             std::vector<MeshIO::IOElement> bdryElements;
-            const auto &mesh = m_sim->mesh();
-            for (size_t i = 0; i < mesh.numBoundaryVertices(); ++i) {
-                bdryVertices.emplace_back(mesh.boundaryVertex(i).volumeVertex().node()->p);
+            const auto &m = mesh();
+            for (size_t i = 0; i < m.numBoundaryVertices(); ++i) {
+                bdryVertices.emplace_back(m.boundaryVertex(i).volumeVertex().node()->p);
             }
-            for (size_t i = 0; i < mesh.numBoundaryElements(); ++i) {
-                auto be = mesh.boundaryElement(i);
+            for (size_t i = 0; i < m.numBoundaryElements(); ++i) {
+                auto be = m.boundaryElement(i);
                 bdryElements.emplace_back(be.vertex(0).index(),
                                           be.vertex(1).index(),
                                           be.vertex(2).index());
@@ -344,8 +442,8 @@ struct Iterate {
             MSHFieldWriter writer(name + ".msh", bdryVertices, bdryElements);
             for (size_t p = 0; p < m_vn_p.size(); ++p) {
                 const auto &vn = m_vn_p[p];;
-                SField nvel(mesh.numBoundaryElements());
-                for (size_t bei = 0; bei < mesh.numBoundaryElements(); ++bei)
+                SField nvel(m.numBoundaryElements());
+                for (size_t bei = 0; bei < m.numBoundaryElements(); ++bei)
                     nvel[bei] = vn[bei].average();
                 writer.addField("avg_normal_velocity" + std::to_string(p), nvel, DomainType::PER_ELEMENT);
                 writer.addField("avg_normal_velocity_direction" + std::to_string(p), directionField(nvel), DomainType::PER_ELEMENT);
@@ -359,7 +457,7 @@ struct Iterate {
     }
 
     void writeVolumeMesh(const std::string &name) const {
-        MeshIO::save(name, m_sim->mesh());
+        MeshIO::save(name, mesh());
     }
 
     void dumpSimulationMatrix(const std::string &matOut) const {
@@ -367,7 +465,8 @@ struct Iterate {
     }
 
     // Note, must overwrite inflator's parameter state :(
-    void writePatternDoFs(const std::string &name, ConstrainedInflator<_N> &inflator) {
+    template<class _Inflator>
+    void writePatternDoFs(const std::string &name, _Inflator &inflator) {
         inflator.writePatternDoFs(name, m_params);
     }
 
@@ -379,22 +478,104 @@ struct Iterate {
         return false;
     }
 
-    _Sim &simulator() { return *m_sim; }
+    const _Sim &simulator() const { return *m_sim; }
+          _Sim &simulator()       { return *m_sim; }
+
+          typename _Sim::Mesh &mesh()       { return m_sim->mesh(); }
+    const typename _Sim::Mesh &mesh() const { return m_sim->mesh(); }
+
     const _ETensor &elasticityTensor() const { return C; }
     const _ETensor &complianceTensor() const { return S; }
 
-private:
-    std::shared_ptr<_Sim> m_sim;
+    ////////////////////////////////////////////////////////////////////////////
+    // Target volume objective implementation
+    ////////////////////////////////////////////////////////////////////////////
+    void setTargetVolume(Real v) { m_targetVol = v; }
+
+    // Shape derivative of the volume functional:
+    // Vol(omega) = int_omega 1 dV  ==> dVol[v] = int_domega 1 * (v . n) dA
+    typedef Interpolant<Real, BEGradTensorInterpolant::K, 0> BEConstInterpolant;
+    std::vector<BEConstInterpolant> shapeDerivativeVolume() const {
+        std::vector<BEConstInterpolant> grad(m_gradS.size());
+        for (size_t be = 0; be < m_gradS.size(); ++be)
+            grad[be] = 1.0;
+        return grad;
+    }
+
+    // Evaluate (unweighted) volume-fitting objective weight.
+    // ||V - V^*||^2
+    Real evaluateJVol() const {
+        if (!m_targetVol) throw std::runtime_error("Target volume not set.");
+        Real diff = *m_targetVol - mesh().volume();
+        return diff * diff;
+    }
+
+    // Shape derivative of (unweighted) volume-fitting objective.
+    // JVol(omega) = ||Vol - V^*||^2 => dJVol[v] = 2 (Vol - V^*) dVol[v]
+    std::vector<BEConstInterpolant>  shapeDerivativeJVol() const {
+        if (!m_targetVol) throw std::runtime_error("Target volume not set.");
+        std::vector<BEConstInterpolant> grad(m_gradS.size());
+        Real diff = *m_targetVol - mesh().volume();
+        for (size_t be = 0; be < m_gradS.size(); ++be)
+            grad[be] = 2 * diff;
+        return grad;
+    }
+
+protected:
+    std::unique_ptr<_Sim> m_sim;
     _ETensor C, S, m_targetS, m_diffS;
+    boost::optional<Real> m_targetVol;
     std::vector<BEGradTensorInterpolant> m_gradS;
     std::vector<_ETensor>                m_gradp_S;
-    std::vector<typename ConstrainedInflator<_N>::NormalShapeVelocity> m_vn_p;
+    std::vector<NormalShapeVelocity<_N>> m_vn_p;
     bool m_printable;
+
+    // Fluctuation displacements--only kept if requested in constructor (a subclasses
+    // might need them).
+    std::vector<VField> w_ij;
 
     // Requests linear objective/residual estimate for when meshing fails
     std::vector<Real> m_estimateObjectiveWithDeltaP;
     std::vector<Real> m_params;
 };
+
+// Use previous iterate if evaluating the same point. Otherwise, attempt to
+// inflate the new parameters. Try three times to inflate, and if unsuccessful,
+// estimate the point with linear extrapolation.
+template<class _Iterate, class _Inflator, class _ETensor>
+std::shared_ptr<_Iterate>
+getIterate(std::shared_ptr<_Iterate> oldIterate,
+        _Inflator &inflator, size_t nParams, const double *params,
+        const _ETensor &targetS) {
+    if (!oldIterate || oldIterate->paramsDiffer(nParams, params)) {
+        std::shared_ptr<_Iterate> newIterate;
+        bool success;
+        for (size_t i = 0; i < 3; ++i) {
+            success = true;
+            try {
+                newIterate = std::make_shared<_Iterate>(inflator,
+                                nParams, params, targetS);
+            }
+            catch (std::exception &e) {
+                std::cerr << "INFLATOR FAILED: " << e.what() << std::endl;
+                success = false;
+            }
+            if (success) break;
+        }
+        if (!success) {
+            std::cerr << "3 INFLATION ATTEMPTS FAILED." << std::endl;
+            if (!oldIterate) throw std::runtime_error("Inflation failure on first iterate");
+            newIterate = oldIterate;
+            newIterate->estimatePoint(nParams, params);
+        }
+        return newIterate;
+    }
+    else {
+        // Old iterate is exact, not an approximation
+        oldIterate->disableEstimation();
+        return oldIterate;
+    }
+}
 
 }
 

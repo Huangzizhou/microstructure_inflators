@@ -32,44 +32,6 @@
 
 namespace PatternOptimization {
 
-// Use previous iterate if evaluating the same point. Otherwise, attempt to
-// inflate the new parameters. Try three times to inflate, and if unsuccessful,
-// estimate the point with linear extrapolation.
-template<class _Iterate, class _Inflator, class _ETensor>
-std::shared_ptr<_Iterate>
-getIterate(std::shared_ptr<_Iterate> oldIterate,
-        _Inflator &inflator, size_t nParams, const double *params,
-        const _ETensor &targetS) {
-    if (!oldIterate || oldIterate->paramsDiffer(nParams, params)) {
-        std::shared_ptr<_Iterate> newIterate;
-        bool success;
-        for (size_t i = 0; i < 3; ++i) {
-            success = true;
-            try {
-                newIterate = std::make_shared<_Iterate>(inflator,
-                                nParams, params, targetS);
-            }
-            catch (std::exception &e) {
-                std::cerr << "INFLATOR FAILED: " << e.what() << endl;
-                success = false;
-            }
-            if (success) break;
-        }
-        if (!success) {
-            std::cerr << "3 INFLATION ATTEMPTS FAILED." << std::endl;
-            if (!oldIterate) throw std::runtime_error("Inflation failure on first iterate");
-            newIterate = oldIterate;
-            newIterate->estimatePoint(nParams, params);
-        }
-        return newIterate;
-    }
-    else {
-        // Old iterate is exact, not an approximation
-        oldIterate->disableEstimation();
-        return oldIterate;
-    }
-}
-
 template<class _Sim>
 class Optimizer {
     typedef typename _Sim::VField VField;

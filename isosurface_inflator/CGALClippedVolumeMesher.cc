@@ -71,10 +71,13 @@ mesh(const SignedDistanceFunction &sdf,
     boxIntersection1DFeatures(sdf, meshingOptions.marchingSquaresGridSize, polylinesMeshIO);
     // Check for near-intersection of polylines--this should only happen if
     // we failed to stitch up the boundary curves correctly.
-    for (const auto &l1 : polylinesMeshIO) {
-        for (const auto &l2 : polylinesMeshIO) {
-            for (const auto &v1 : l1) {
-                for (const auto &v2 : l2) {
+    // This brute-force O(n^2) could easily be sped up...
+    for (auto it1 = polylinesMeshIO.begin(); it1 != polylinesMeshIO.end(); ++it1) {
+        for (auto it2 = polylinesMeshIO.begin(); it2 != polylinesMeshIO.end(); ++it2) {
+            // Close points on the same curve are fine.
+            if (it1 == it2) continue;
+            for (const auto &v1 : *it1) {
+                for (const auto &v2 : *it2) {
                     if (((v1.point - v2.point).norm() < 1e-8) &&
                             ((v1.point[0] != v2.point[0]) ||
                              (v1.point[1] != v2.point[1]) ||

@@ -57,7 +57,11 @@ else:
 if (subRoundJobOffset >= numJobsInRound): raise Exception("Error: invalid sub-round job offset")
 numToSubmit = min(numJobsInRound - subRoundJobOffset, maxSimultaneousJobs)
 nextOffset = subRoundJobOffset + numToSubmit
-arrayJobId = opt.submitArrayJob(roundDirectory(roundNum), subRoundJobOffset, nextOffset - 1)
+arrayJobId = opt.submitArrayJob(roundDirectory(roundNum),
+        subRoundJobOffset, nextOffset - 1,
+        config.get("nprocs", "1"),
+        config.get("walltime", "2:00:00"),
+        config.get("mem", "20GB"))
 
 # Construct argument to pass the next autocover_hpc.py instance
 nextRoundString = str(roundNum + 1)

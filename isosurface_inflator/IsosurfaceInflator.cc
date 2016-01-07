@@ -187,10 +187,10 @@ public:
         : wmesh(wireMeshPath), pattern(wmesh) { }
 
     virtual void meshPattern(const vector<Real> &params) {
-        std::cout << "Meshing parameters:";
-        for (auto p : params)
-            std::cout << "\t" << p;
-        std::cout << std::endl;
+        // std::cout << "Meshing parameters:";
+        // for (auto p : params)
+        //     std::cout << "\t" << p;
+        // std::cout << std::endl;
 
         // Optional debugging graph output.
         const auto &config = IsosurfaceInflatorConfig::get();

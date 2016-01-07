@@ -21,37 +21,8 @@
 #include <string>
 #include "rref.h"
 #include "ParameterConstraint.hh"
-
-namespace {
-    VectorF ToVectorF(const std::vector<Real> &vec) {
-        VectorF result(vec.size());
-        for (size_t i = 0; i < vec.size(); ++i) result(i) = vec[i];
-        return result;
-    }
-    std::vector<Real> FromVectorF(const VectorF &vec) {
-        std::vector<Real> result(vec.rows());
-        for (int i = 0; i < vec.rows(); ++i) result[i] = vec(i);
-        return result;
-    }
-}
-
-enum class ParameterType { Thickness, Offset };
-
-template<class _Derived>
-class InflatorBase {
-public:
-    void clear() {
-        m_elements.clear();
-        m_vertices.clear();
-    }
-
-    const std::vector<MeshIO::IOElement> &elements() const { return m_elements; }
-    const std::vector<MeshIO::IOVertex>  &vertices() const { return m_vertices; }
-
-protected:
-    std::vector<MeshIO::IOElement> m_elements;
-    std::vector<MeshIO::IOVertex>  m_vertices;
-};
+#include "PatternOptimizationConfig.hh"
+#include "InflatorBase.hh"
 
 template<size_t N>
 class Inflator;
@@ -61,8 +32,7 @@ template<>
 class Inflator<2> : public InflatorBase<Inflator<2>> {
 public:
     typedef InflatorBase<Inflator<2>> Base;
-    // TODO: make this piecewise linear instead of piecewise constant.
-    typedef std::vector<Interpolant<Real, 1, 0>> NormalShapeVelocity;
+    using NSV = NormalShapeVelocity<2>;
 
     Inflator(const std::string &wireMeshPath)
         : m_inflator(WireInflator2D::construct(wireMeshPath))
@@ -83,19 +53,19 @@ public:
 
 
     Inflator(const std::string &wireMeshPath,
-             Real cell_size, Real default_thickness = 0.5 * sqrt(2),
-             bool isotropic_params = false, bool vertex_thickness = false)
+             Real /* cell_size */, Real /* default_thickness = 0.5 * sqrt(2) */,
+             bool /* isotropic_params = false */, bool /* vertex_thickness = false */)
         : m_inflator(WireInflator2D::construct(wireMeshPath)) {
             throw std::runtime_error("2D inflator is not yet configurable");
     }
 
     void setMaxElementVolume(Real maxElementVol) { m_tparams.max_area = maxElementVol; }
     Real getMaxElementVolume() const { return m_tparams.max_area; }
-    void configureSubdivision(const std::string &algorithm, size_t levels) {
+    void configureSubdivision(const std::string &/* algorithm */, size_t /* levels */) {
         throw std::runtime_error("Subdivision not supported in 2D");
     }
 
-    void setReflectiveInflator(bool use) {
+    void setReflectiveInflator(bool /* use */) {
         throw std::runtime_error("Reflective inflator not supported in 2D");
     }
 
@@ -138,36 +108,37 @@ public:
     // Needs access to mesh data structure to extract boundary fields
     // efficiently and dot velocities with normals
     template<class _FEMMesh>
-    std::vector<NormalShapeVelocity>
+    std::vector<NSV>
     computeShapeNormalVelocities(const _FEMMesh &mesh) const {
         size_t numBE = mesh.numBoundaryElements();
         size_t nParams = numParameters();
-        std::vector<NormalShapeVelocity> vn_p(nParams, NormalShapeVelocity(numBE));
-        for (size_t bei = 0; bei < numBE; ++bei) {
-            auto be = mesh.boundaryElement(bei);
+        std::vector<NSV> vn_p(nParams, NSV(numBE));
+        for (auto be : mesh.boundaryElements()) {
             auto edge = make_pair(be.tip(). volumeVertex().index(),
                                   be.tail().volumeVertex().index());
             const auto &field = m_edge_fields.at(edge);
             assert(field.size() == nParams);
-            // TODO: make a linear scalar field--velocity should be reported as
-            // a per-vertex vector field that we dot with each boundary element
-            // normal.
-            for (size_t p = 0; p < nParams; ++p)
-                vn_p[p][bei][0] = field[p];
+            // TODO: make the 2D inflator output a true discontinuous piecwise
+            // linear velocity field instead of its piecewise constant
+            // approximation.
+            for (size_t p = 0; p < nParams; ++p) {
+                vn_p[p][be.index()][0] = field[p];
+                vn_p[p][be.index()][1] = field[p];
+            }
         }
 
         return vn_p;
     }
 
     // 2D is always printable.
-    bool isPrintable(const std::vector<Real> &params) const { return true; }
+    bool isPrintable(const std::vector<Real> &/* params */) const { return true; }
 
-    void setDoFOutputPrefix(const std::string &pathPrefix) {
+    void setDoFOutputPrefix(const std::string &/* pathPrefix */) {
         throw std::runtime_error("Writing pattern DoFs unsupported in 2D");
     }
 
-    void writePatternDoFs(const std::string &path,
-                          const std::vector<Real> &params) {
+    void writePatternDoFs(const std::string &/* path */,
+                          const std::vector<Real> &/* params */) {
         throw std::runtime_error("Writing pattern DoFs unsupported in 2D");
     }
 
@@ -186,21 +157,20 @@ template<>
 class Inflator<3> : public InflatorBase<Inflator<3>> {
 public:
     typedef InflatorBase<Inflator<3>> Base;
-    // Piecewise linear normal shape velocity.
-    typedef std::vector<Interpolant<Real, 2, 1>> NormalShapeVelocity;
+    using NSV = NormalShapeVelocity<3>;
 
     Inflator(const std::string &wireMeshPath,
-             Real cell_size = 5.0, Real default_thickness = 0.5 * sqrt(2),
+             Real /* cell_size */ = 5.0, Real /* default_thickness */ = 0.5 * sqrt(2),
              bool isotropic_params = false, bool vertex_thickness = false)
         : m_inflator(isotropic_params ? "cubic" : "orthotropic", vertex_thickness, wireMeshPath) {
     }
 
-    void setMaxElementVolume(Real maxElementVol) {
+    void setMaxElementVolume(Real /* maxElementVol */) {
         // TODO: IMPLEMENT
         // (configure mesher via m_inflator.meshingOptions())
         throw std::runtime_error("Unimplemented.");
     }
-    void configureSubdivision(const std::string &algorithm, size_t levels) {
+    void configureSubdivision(const std::string &/* algorithm */, size_t levels) {
         if (levels != 0)
             throw std::runtime_error("IsosurfaceInflator doesn't support subdivision");
     }
@@ -220,7 +190,7 @@ public:
             m_elements = m_inflator.elements();
         }
         catch (...) {
-            std::cerr << setprecision(16);
+            std::cerr << setprecision(20);
             std::cerr << "Exception while inflating parameters" << std::endl;
             for (size_t i = 0; i < params.size(); ++i) std::cerr << params[i] << "\t";
             std::cerr << std::endl;
@@ -228,7 +198,7 @@ public:
         }
     }
 
-    void inflate(const std::string &dofFile) {
+    void inflate(const std::string &/* dofFile */) {
         throw std::runtime_error("IsosurfaceInflator doesn't support DoF files.");
     }
 
@@ -239,29 +209,45 @@ public:
         return m_inflator.isPrintable(params);
     }
 
+    // NOTE: assumes periodic boundary conditions have already been applied
+    // (for proper clearing of boundary velocity).
     template<class _FEMMesh>
-    std::vector<NormalShapeVelocity>
+    std::vector<NSV>
     computeShapeNormalVelocities(const _FEMMesh &mesh) const {
         // IsosurfaceInflator computes the velocity of each vertex as a scalar
         // normal velocity vnp, and a vertex normal.
-        // Get the normal velocity over each face by dotting with the face normal
-        // and linearly interpolating.
         std::vector<std::vector<Real>> nsv_p = m_inflator.normalShapeVelocities();
         std::vector<Point3D>               n = m_inflator.vertexNormals();
 
         size_t numBE = mesh.numBoundaryElements();
         size_t nParams = numParameters();
 
-        std::vector<NormalShapeVelocity> vn_p(nParams, NormalShapeVelocity(numBE));
+        std::vector<NSV> vn_p(nParams, NSV(numBE));
         for (size_t p = 0; p < nParams; ++p) {
-            NormalShapeVelocity &vn = vn_p[p];
+            NSV &vn = vn_p[p];
             const auto &nsv = nsv_p.at(p);
             for (auto be : mesh.boundaryElements()) {
                 assert(be.numVertices() == vn[be.index()].size());
+                if (be->isPeriodic) {
+                    // Shape velocity should be exactly 0 on the periodic boundary.
+                    // (If we don't enforce this, the nonzero shape velocity from
+                    // (domega intersect dY) vertices will leak into the
+                    // periodic boundary faces.
+                    vn[be.index()] = 0;
+                    continue;
+                }
                 // Interpolate the boundary element corner's normal velocities.
                 for (size_t bvi = 0; bvi < be.numVertices(); ++bvi) {
                     size_t vi = be.vertex(bvi).volumeVertex().index();
-                    vn[be.index()][bvi] = nsv.at(vi) * n.at(vi).dot(be->normal());
+                    // Note: the direct version empirically seems to be working better...
+                    // It should be used by default.
+                    if (PatternOptimization::Config::get().useSDNormalShapeVelocityDirectly)
+                        vn[be.index()][bvi] = nsv.at(vi);
+                    else {
+                        // Get the normal velocity over each face by dotting with the face normal
+                        // and linearly interpolating.
+                        vn[be.index()][bvi] = nsv.at(vi) * n.at(vi).dot(be->normal());
+                    }
                 }
             }
         }
@@ -272,18 +258,18 @@ public:
     // Configure automatic logging of every set of inflated DoF parameters.
     // If pathPrefix is nonempty, a dof file will be written at
     // pathPrefix_$inflationNumber.dof
-    void setDoFOutputPrefix(const std::string &pathPrefix) {
+    void setDoFOutputPrefix(const std::string &/* pathPrefix */) {
         throw std::runtime_error("IsosurfaceInflator does not support DoF files.");
     }
 
     // Note, overwrites the dofs in m_inflator
-    void loadPatternDoFs(const std::string &path, std::vector<Real> &params) {
+    void loadPatternDoFs(const std::string &/* path */, std::vector<Real> &/* params */) {
         throw std::runtime_error("Writing pattern DoFs unsupported in 2D");
     }
 
     // Write parameters in James' DoF format.
-    void writePatternDoFs(const std::string &path,
-                          const std::vector<Real> &params) {
+    void writePatternDoFs(const std::string &/* path */,
+                          const std::vector<Real> &/* params */) {
         throw std::runtime_error("IsosurfaceInflator does not support DoF files.");
     }
 
@@ -292,13 +278,25 @@ private:
 };
 
 #else // !ISOSURFACE_INFLATOR
+namespace {
+    VectorF ToVectorF(const std::vector<Real> &vec) {
+        VectorF result(vec.size());
+        for (size_t i = 0; i < vec.size(); ++i) result(i) = vec[i];
+        return result;
+    }
+    std::vector<Real> FromVectorF(const VectorF &vec) {
+        std::vector<Real> result(vec.rows());
+        for (int i = 0; i < vec.rows(); ++i) result[i] = vec(i);
+        return result;
+    }
+}
+
 // 3D inflator is James' PeriodicExploration
 template<>
 class Inflator<3> : public InflatorBase<Inflator<3>> {
 public:
     typedef InflatorBase<Inflator<3>> Base;
-    // Piecewise linear normal shape velocity.
-    typedef std::vector<Interpolant<Real, 2, 1>> NormalShapeVelocity;
+    using NSV = NormalShapeVelocity;
 
     Inflator(const std::string &wireMeshPath,
              Real cell_size = 5.0, Real default_thickness = 0.5 * sqrt(2),
@@ -353,15 +351,15 @@ public:
 
     // Needs access to mesh data structure to dot velocities with normals
     template<class _FEMMesh>
-    std::vector<NormalShapeVelocity>
+    std::vector<NSV>
     computeShapeNormalVelocities(const _FEMMesh &mesh) const {
         std::vector<MatrixFr> vertexVelocities = m_inflator.get_shape_velocities();
         size_t numBE = mesh.numBoundaryElements();
         size_t nParams = numParameters();
 
-        std::vector<NormalShapeVelocity> vn_p(nParams, NormalShapeVelocity(numBE));
+        std::vector<NSV> vn_p(nParams, NSV(numBE));
         for (size_t p = 0; p < nParams; ++p) {
-            NormalShapeVelocity &vn = vn_p[p];
+            NSV &vn = vn_p[p];
             const MatrixFr &vVel = vertexVelocities[p];
             for (size_t bei = 0; bei < numBE; ++bei) {
                 auto be = mesh.boundaryElement(bei);
@@ -449,7 +447,7 @@ template <size_t N>
 class ConstrainedInflator : public Inflator<N> {
 public:
     typedef Inflator<N> Base;
-    typedef typename Base::NormalShapeVelocity NormalShapeVelocity;
+    typedef typename Base::NSV NSV;
 
     template<typename... BaseArgs>
     ConstrainedInflator(const std::vector<string> &constraints,
@@ -516,13 +514,13 @@ public:
 
     // Needs access to mesh data structure to dot velocities with normals
     template<class _FEMMesh>
-    std::vector<NormalShapeVelocity>
+    std::vector<NSV>
     computeShapeNormalVelocities(const _FEMMesh &mesh) const {
-        std::vector<NormalShapeVelocity> fullParamVelocity
+        std::vector<NSV> fullParamVelocity
             = Base::computeShapeNormalVelocities(mesh);
 
         size_t nParams = numParameters();
-        std::vector<NormalShapeVelocity> reducedParamVelocity;
+        std::vector<NSV> reducedParamVelocity;
         reducedParamVelocity.reserve(nParams);
         
         // Effectively apply transpose of change of variables matrix.

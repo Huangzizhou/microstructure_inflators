@@ -8,7 +8,7 @@ def reportStats(values):
     print "max:\t",    np.max(values, axis=0)
     print "median:\t", np.median(values, axis=0)
 class LUT:
-    # patternData: (pattern, youngNu, anisotropy, params)
+    # patternData: (pattern, young, nu, anisotropy, params)
     def __init__(self, db=None, patternData=None):
         if ((db == None) == (patternData == None)):
             raise Exception("Must specify either db or patternData")

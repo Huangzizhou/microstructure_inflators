@@ -14,7 +14,7 @@ CPPFLAGS+=-O2
 
 INCLUDES=-I$(LEVMAR_INC) # bring levmar in first since we have a modified copy that might be overriden by the system's
 INCLUDES+=-I$(MeshFEM) -I$(CSGFEM) -I$(EIGEN_INC) -isystem $(SUITESPARSE_INC) -isystem $(BOOST_INC) \
-		 -isystem $(CERES_INC) -isystem $(LIBMATHEVAL_INC) -isystem $(CLIPPER_INC)
+		 -isystem $(CERES_INC) -isystem $(LIBMATHEVAL_INC)
 INCLUDES+=-isystem $(CLIPPER_INC) -isystem $(VCGLIB_INC) -isystem $(DLIB_INC)
 INCLUDES+=-I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
 INCLUDES+=-isystem $(TRIANGLE_INC)
@@ -64,11 +64,12 @@ PREGION_OBJS=ParamRegion_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
 OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_OBJS) $(INFLATOR_OBJS) $(PREGION_OBJS)
 
-TARGETS=PatternOptimization_cli CreateJob RandomJob GradientComponentValidation Inflator_cli Inflator2D_cli
+DEFAULT_TARGETS=PatternOptimization_cli CreateJob RandomJob GradientComponentValidation Inflator_cli Inflator2D_cli
 OPTIONAL_TAGETS=SpacedJob ParamRegion_cli
+ALL_TARGETS=$(DEFAULT_TARGETS) $(OPTIONAL_TAGETS)
 
-default_build: $(TARGETS)
-all: $(TARGETS)
+default_build: $(DEFAULT_TARGETS)
+all: $(ALL_TARGETS)
 
 PatternOptimization_cli: $(PATOPT_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
@@ -108,7 +109,7 @@ depend:
 	makedepend -Y -f Makefile.depend --  -- -I$(MeshFEM) $(SOURCES) &> /dev/null
 
 clean:
-	rm -f $(TARGETS) $(OBJS) *.bak
+	rm -f $(ALL_TARGETS) $(OBJS) *.bak
 
 .PHONY: clean depend
 

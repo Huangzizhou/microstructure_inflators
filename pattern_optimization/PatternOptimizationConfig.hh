@@ -18,9 +18,30 @@ namespace PatternOptimization {
 
 class Config {
 private:
-    Config() : ignoreShear(false) { }
+    Config() { }
 public:
-    bool ignoreShear;
+    bool ignoreShear = false;
+    // For isosurface inflator: whether to use the normal velocity scalar field
+    // directly (true) or to multiply by (vertex normal . face normal).
+    // Note: the direct version empirically seems to be working better...
+    // It should be used by default.
+    bool useSDNormalShapeVelocityDirectly = true;
+    ////////////////////////////////////////////////////////////////////////////
+    // Remeshing configuration (for remeshing inflators)
+    ////////////////////////////////////////////////////////////////////////////
+    // Edge merging and splitting threshold (relative to median edge length).
+    Real remeshMergeThreshold = 0.1;
+    Real remeshSplitThreshold = 4.0;
+    // 2D feature vertex detection threshold (on the angle difference from
+    // M_PI, which corresponds to a perfectly straight boundary).
+    Real remeshFeatureAngleThreshold = M_PI / 4;
+
+    // Number of 1->4 triangle subdivision rounds before building
+    // simulator. The subdivided geometry is used for the simulation mesh only;
+    // everything else, like boundary parameter extraction, processes the
+    // unsubdivided geometry.
+    size_t fem2DSubdivRounds = 0;
+
     static Config &get() {
         static Config configSingleton;
         return configSingleton;

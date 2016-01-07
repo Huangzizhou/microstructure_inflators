@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 #include <cmath>
+#include <map>
 #include <unordered_map>
 #include <cassert>
 
@@ -307,7 +308,7 @@ protected:
 		}
 
 		// symmetrize wrt to x and y and find matching vertices
-		std::unordered_map<int, std::vector<int> > orbits;
+		std::map<int, std::vector<int> > orbits;
 		for (int ax=0; ax<2; ++ax) // do the matching for x and then y axis
 		{
 			for (int i=0; i<int(m_em.vert.size()); ++i)
