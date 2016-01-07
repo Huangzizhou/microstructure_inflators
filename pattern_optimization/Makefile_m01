@@ -15,7 +15,7 @@ LIBS+=$(LEVMAR_LFLAGS)
 SOURCES=PatternOptimization_cli.cc \
 		PatternOptimization_DeformedCell_cli.cc \
 		GetQuadDeformations_cli.cc \
-		TileQuadFromFile_cli.cc ConvertToObj_cli.cc\
+		TileQuadFromFile_cli.cc ConvertToObj_cli.cc ExpandQuad_cli.cc \
 		PatternOptimizationJob.cc RandomJob.cc SpacedJob.cc GradientComponentValidation.cc Inflator_cli.cc ParamRegion_cli.cc
 PATOPT_OBJS=PatternOptimization_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
@@ -28,6 +28,9 @@ GETQUADDEFS_OBJS=GetQuadDeformations_cli.o PatternOptimizationJob.o \
             $(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
 TILEQUAD_OBJS=TileQuadFromFile_cli.o PatternOptimizationJob.o \
             $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
+            $(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
+EXPQUAD_OBJS=ExpandQuad_cli.o \
+            $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o \
             $(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
 CONVERT_OBJS=ConvertToObj_cli.o \
             $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o
@@ -49,13 +52,13 @@ INFLATOR_OBJS=Inflator_cli.o PatternOptimizationJob.o \
 PREGION_OBJS=ParamRegion_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o
-OBJS=$(PATOPT_OBJS) $(DEFPATOPT_OBJS) $(QUADPATOPT_OBJS) $(GIVDEFPATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_OBJS) $(INFLATOR_OBJS) $(PREGION_OBJS) $(GETQUADDEFS_OBJS) $(TILEQUAD_OBJS) $(CONVERT_OBJS)
+OBJS=$(PATOPT_OBJS) $(DEFPATOPT_OBJS) $(QUADPATOPT_OBJS) $(GIVDEFPATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_OBJS) $(INFLATOR_OBJS) $(PREGION_OBJS) $(GETQUADDEFS_OBJS) $(TILEQUAD_OBJS) $(CONVERT_OBJS) $(EXPQUAD_OBJS)
 
 TARGETS=PatternOptimization_cli \
 		PatternOptimization_DeformedCell_cli \
 		GetQuadDeformations_cli \
 		TileQuadFromFile_cli \
-		CreateJob RandomJob SpacedJob GradientComponentValidation Inflator_cli Inflator2D_cli ParamRegion_cli ConvertToObj_cli
+		CreateJob RandomJob SpacedJob GradientComponentValidation Inflator_cli Inflator2D_cli ParamRegion_cli ConvertToObj_cli ExpandQuad_cli
 
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DBENCHMARK
 CPPFLAGS+=-O2 -g
@@ -71,6 +74,9 @@ GetQuadDeformations_cli: $(GETQUADDEFS_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
 
 TileQuadFromFile_cli: $(TILEQUAD_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
+
+ExpandQuad_cli: $(EXPQUAD_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
 
 ConvertToObj_cli: $(CONVERT_OBJS)
