@@ -58,7 +58,7 @@ public:
            << "\t\"dim\": " << _N << "," << std::endl
            << "\t\"target\": " << targetMaterial << "," << std::endl;
         if (targetVolume)
-            os << "\t\"target volume\": " << targetVolume << "," << std::endl;
+            os << "\t\"target volume\": " << *targetVolume << "," << std::endl;
         os << "\t\"initial_params\": [";
         for (size_t i = 0; i < initialParams.size(); ++i)
             os << (i ? ", " : "") << initialParams[i];

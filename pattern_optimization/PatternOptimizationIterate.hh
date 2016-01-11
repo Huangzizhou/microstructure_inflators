@@ -31,15 +31,9 @@
 #include "PatternOptimizationConfig.hh"
 
 #include <boost/optional.hpp>
+#include <Future.hh>
 
 namespace PatternOptimization {
-
-
-// For some reason this was left out in C++11 (it's in C++14)...
-template<class T, class... Args>
-std::unique_ptr<T> make_unique_ptr(Args&&... args) {
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Geometry post-processing stage. Allow modification of the inflation geometry
@@ -76,8 +70,8 @@ struct GeometryPostProcessor<2> {
             // defined).
             // TODO: implement subdivision for the boundary perturbation
             // inflator in a "reduced boundary perturbation" class instead.
-            auto subv = make_unique_ptr<std::vector<MeshIO::IOVertex >>(i.vertices());
-            auto sube = make_unique_ptr<std::vector<MeshIO::IOElement>>(i.elements());
+            auto subv = Future::make_unique<std::vector<MeshIO::IOVertex >>(i.vertices());
+            auto sube = Future::make_unique<std::vector<MeshIO::IOElement>>(i.elements());
             for (size_t i = 0; i < config.fem2DSubdivRounds; ++i) {
                 ::TriMesh<SubdivVertexData<2>, SubdivHalfedgeData> m(*sube, subv->size());
                 for (size_t vi = 0; vi < subv->size(); ++vi)
@@ -154,11 +148,11 @@ struct Iterate {
             std::unique_ptr<std::vector<MeshIO::IOElement>> elems;
             std::tie(verts, elems) = GeometryPostProcessor<_Sim::K>::run(inflator);
             if (elems && verts)
-                m_sim = make_unique_ptr<_Sim>(*elems, *verts);
+                m_sim = Future::make_unique<_Sim>(*elems, *verts);
             else {
                 assert(!elems && !verts);
-                m_sim = make_unique_ptr<_Sim>(inflator.elements(),
-                                              inflator.vertices());
+                m_sim = Future::make_unique<_Sim>(inflator.elements(),
+                                                  inflator.vertices());
             }
         }
         // std::cout << "Done" << std::endl;

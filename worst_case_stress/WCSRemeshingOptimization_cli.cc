@@ -25,6 +25,7 @@
 #include <LinearElasticity.hh>
 #include <Materials.hh>
 #include <PeriodicHomogenization.hh>
+#include <Future.hh>
 
 #include <vector>
 #include <queue>
@@ -196,7 +197,7 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
 
     using _Iterate = WCStressOptimization::BoundaryPerturbationIterate<Simulator>;
     using BPI = BoundaryPerturbationInflator<_N>;
-    auto bpi = make_unique<BPI>(vertices, elements);
+    auto bpi = Future::make_unique<BPI>(vertices, elements);
 
     SField params(bpi->numParameters());
     params.clear();
@@ -262,7 +263,7 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
 
         std::unique_ptr<_Iterate> it;
         if (args.count("preRemeshOutput")) {
-            it = make_unique<_Iterate>(*bpi, params.size(), params.data(), targetS);
+            it = Future::make_unique<_Iterate>(*bpi, params.size(), params.data(), targetS);
             if (hasVolumeTarget) it->setTargetVolume(*job->targetVolume);
             if (out) it->writeMeshAndFields(outName + "_" + std::to_string(i) + ".msh");
             std::cout << "Pre-remesh iterate:" << std::endl;
@@ -282,11 +283,11 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
         if (!args.count("noRemesh")) {
             // post-remesh inflator and iterate
             remeshPerturbedShape(*bpi, args["max_volume"].as<Real>(), vertices, elements);
-            bpi = make_unique<BPI>(vertices, elements);
+            bpi = Future::make_unique<BPI>(vertices, elements);
             params.resizeDomain(bpi->numParameters());
             params.clear();
             bpi->setNoPerturb(true); // Use mesh from Triangle directly.
-            it = make_unique<_Iterate>(*bpi, params.size(), params.data(), targetS);
+            it = Future::make_unique<_Iterate>(*bpi, params.size(), params.data(), targetS);
             bpi->setNoPerturb(false);
             if (out) it->writeMeshAndFields(outName + "_" + std::to_string(i) + ".remeshed.msh");
             if (hasVolumeTarget) it->setTargetVolume(*job->targetVolume);
