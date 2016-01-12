@@ -330,12 +330,15 @@ public:
         gradp.clear();
         using NSVI = typename NSV::value_type;
         NSVI nsv;
+        std::vector<Real> vtxArea(m_mesh.numBoundaryVertices(), 0.0);
         for (auto be : m_mesh.boundaryElements()) {
+            if (m_pc.isPeriodicBE(be.index())) continue; // periodic boundary elements don't count...
             auto normal = be->normal();
             const auto &sd_be = sd.at(be.index());
             for (size_t v = 0; v < be.numVertices(); ++v) {
                 static_assert(be.numVertices() == nsv.size(),
                               "Boundary element and NSV size mismatch");
+                vtxArea.at(be.vertex(v).index()) += be->volume();
                 size_t vvi = be.vertex(v).volumeVertex().index();
                 for (size_t d = 0; d < N; ++d) {
                     size_t var   = m_varForCoordinate[d].at(vvi);
@@ -351,6 +354,19 @@ public:
                 }
             }
         }
+
+        // Normalize by vertex area (to make shape velocity less mesh-dependent).
+        for (auto bv : m_mesh.boundaryVertices()) {
+            size_t vvi = bv.volumeVertex().index();
+            Real area = vtxArea.at(bv.index());
+            for (size_t d = 0; d < N; ++d) {
+                size_t var = m_varForCoordinate[d].at(vvi);
+                size_t p = m_paramForVariable[d].at(var);
+                if (p != NONE)
+                    gradp[p] /= area;
+            }
+        }
+
         // BENCHMARK_STOP_TIMER("gradientFromShapeDerivative");
         return gradp;
     }

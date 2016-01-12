@@ -506,10 +506,13 @@ struct Iterate {
 
     // Shape derivative of (unweighted) volume-fitting objective.
     // JVol(omega) = ||Vol - V^*||^2 => dJVol[v] = 2 (Vol - V^*) dVol[v]
-    std::vector<BEConstInterpolant>  shapeDerivativeJVol() const {
+    std::vector<BEConstInterpolant> shapeDerivativeJVol() const {
+        // TODO: make velocity zero on periodic elements?
+        // Shouldn't be necessary for most inflators, though, since they enforce
+        // zero parameter velocity on the periodic boundary.
         if (!m_targetVol) throw std::runtime_error("Target volume not set.");
         std::vector<BEConstInterpolant> grad(m_gradS.size());
-        Real diff = *m_targetVol - mesh().volume();
+        Real diff = mesh().volume() - *m_targetVol;
         for (size_t be = 0; be < m_gradS.size(); ++be)
             grad[be] = 2 * diff;
         return grad;

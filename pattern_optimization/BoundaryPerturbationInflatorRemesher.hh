@@ -248,15 +248,15 @@ void remeshPerturbedShape(const BoundaryPerturbationInflator<2> &m,
     }
     bdryEdges.swap(prunedBdryEdges);
 
-    {
-        std::vector<MeshIO::IOVertex>  bdryOutVertices;
-        std::vector<MeshIO::IOElement> bdryOutElements;
-        for (const auto &p : bdryPts)
-            bdryOutVertices.emplace_back(p);
-        for (const auto &e : bdryEdges)
-            bdryOutElements.emplace_back(e.first, e.second);
-        MeshIO::save("bdry.msh", bdryOutVertices, bdryOutElements);
-    }
+    // {
+    //     std::vector<MeshIO::IOVertex>  bdryOutVertices;
+    //     std::vector<MeshIO::IOElement> bdryOutElements;
+    //     for (const auto &p : bdryPts)
+    //         bdryOutVertices.emplace_back(p);
+    //     for (const auto &e : bdryEdges)
+    //         bdryOutElements.emplace_back(e.first, e.second);
+    //     MeshIO::save("bdry.msh", bdryOutVertices, bdryOutElements);
+    // }
 
     // Remesh the interior.
     // Q: quiet, Y: do not remesh the boundary

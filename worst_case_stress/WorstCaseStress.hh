@@ -216,18 +216,11 @@ struct IntegratedWorstCaseObjective {
     template<class Mesh> IntegratedWorstCaseObjective(const Mesh &m, const WorstCaseStress<N>  &wcs) { setPointwiseWCS(m, wcs); }
     template<class Mesh> IntegratedWorstCaseObjective(const Mesh &m,       WorstCaseStress<N> &&wcs) { setPointwiseWCS(m, std::move(wcs)); }
 
-    template<class Mesh> void setPointwiseWCS(const Mesh &m, const WorstCaseStress<N>  &wcs) { wcStress = wcs;            integrand.init(m, wcStress); }
-    template<class Mesh> void setPointwiseWCS(const Mesh &m,       WorstCaseStress<N> &&wcs) { wcStress = std::move(wcs); integrand.init(m, wcStress); }
+    template<class Mesh> void setPointwiseWCS(const Mesh &m, const WorstCaseStress<N>  &wcs) { wcStress = wcs;            integrand.init(m, wcStress); m_updateEvalCache(m); }
+    template<class Mesh> void setPointwiseWCS(const Mesh &m,       WorstCaseStress<N> &&wcs) { wcStress = std::move(wcs); integrand.init(m, wcStress); m_updateEvalCache(m); }
 
     // Evaluate objective by integrating over m
-    template<class Mesh>
-    Real evaluate(const Mesh &m) const {
-        assert(m.numElements() == wcStress.size());
-        Real result = 0;
-        for (auto e : m.elements())
-            result += integrand.j(wcStress(e.index()), e.index()) * e->volume();
-        return result;
-    }
+    Real evaluate() const { return m_evalCache; }
 
     ScalarField<Real> integrandValues() const {
         const size_t numElems = wcStress.size();
@@ -455,6 +448,14 @@ private:
             lambda_kl.push_back(sim.solve(sim.perElementStressFieldLoad(tau)));
         }
     }
+
+    Real m_evalCache = 0.0;
+    template<class Mesh> void m_updateEvalCache(const Mesh &m) {
+        assert(m.numElements() == wcStress.size());
+        m_evalCache = 0;
+        for (auto e : m.elements())
+            m_evalCache += integrand.j(wcStress(e.index()), e.index()) * e->volume();
+    }
 };
 
 // int_omega worst_case_stress dV
@@ -524,5 +525,54 @@ struct WCStressIntegrandLinf {
 
     std::vector<Real> weightFunction;
 };
+
+// Take the pth root of a WCS objective function.
+// Based on chain rule, all derivatives are weighted by
+// 1/p f^((p - 1) / p), where f = SubObjective::eval();
+template<class SubObjective>
+struct PthRootObjective : public SubObjective {
+using Base = SubObjective;
+    // Forward all constructor args to SubObjective
+    template<typename... Args>
+    PthRootObjective(Args&&... args)
+        : Base(std::forward<Args>(args)...) {
+        p = WCStressOptimization::Config::get().globalObjectiveRoot;
+    }
+
+    Real evaluate() const {
+        if (p == 1) return Base::evaluate();
+        return pow(Base::evaluate(), 1.0 / p);
+    }
+
+    template<class Sim, size_t N>
+    auto gradient(const Sim &sim,
+                  const std::vector<VectorField<Real, N>> &w) const
+    -> std::vector<typename Base::template StrainEnergyBdryInterpolant<Sim>> {
+        if (p == 1) return Base::gradient(sim, w);
+
+        auto result = Base::gradient(sim, w);
+        Real scale = m_gradientScale();
+        for (auto &beInterp : result)
+            beInterp *= scale;
+        return result;
+    }
+
+    template<class Sim, class _NormalShapeVelocity, size_t N>
+    Real directDerivative(const Sim &sim,
+                          const std::vector<VectorField<Real, N>> &w,
+                          const _NormalShapeVelocity &vn) const {
+        Real pder = Base::directDerivative(sim, w, vn);
+        if (p == 1) return pder;
+        return m_gradientScale() * pder;
+    }
+
+    Real p;
+    SubObjective subobjective;
+private:
+    Real m_gradientScale() const {
+        return (1.0 / p) * pow(Base::evaluate(), 1.0 / p - 1.0);
+    }
+};
+
 
 #endif /* end of include guard: WORSTCASESTRESS_HH */

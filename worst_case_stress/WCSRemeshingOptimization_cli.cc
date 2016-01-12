@@ -88,10 +88,12 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description objectiveOptions;
     objectiveOptions.add_options()
-        ("ignoreShear",                                              "Ignore the shear components in the isotropic tensor fitting")
-        ("alpha",        po::value<double>()->default_value(1.0),    "Trade-off between fitting and WCS minimization. 1.0 = tensor fit, 0.0 = WCS minimization.")
-        ("pnorm,P",      po::value<double>()->default_value(1.0),    "the pnorm used in the Lp global worst case stress measure")
-        ("JVolWeight,V", po::value<double>()->default_value(0.0),    "Weight of the volume constraint objective term.")
+        ("ignoreShear",                                           "Ignore the shear components in the isotropic tensor fitting")
+        ("pnorm,P",      po::value<double>()->default_value(1.0), "pnorm used in the Lp global worst case stress measure")
+        ("usePthRoot,R",                                          "use the true Lp norm for global worst case stress measure (applying pth root)")
+        ("WCSWeight",    po::value<double>()->default_value(1.0), "Weight for the WCS term of the objective")
+        ("JSWeight",     po::value<double>()->default_value(0.0), "Weight for the JS term of the objective")
+        ("JVolWeight,V", po::value<double>()->default_value(0.0), "Weight for the JS term of the objective")
         ;
 
     po::options_description generalOptions;
@@ -176,6 +178,8 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
 
     auto &wcsConfig = WCStressOptimization::Config::get();
     wcsConfig.globalObjectivePNorm = args["pnorm"].as<double>();
+    if (args.count("usePthRoot"))
+        wcsConfig.globalObjectiveRoot = 2.0 * wcsConfig.globalObjectivePNorm;
     wcsConfig.useVtxNormalPerturbationGradientVersion = args.count("vtxNormalPerturbationGradient");
     
     auto &poConfig = PatternOptimization::Config::get();
@@ -186,10 +190,12 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
 
     Real   stepSize = args[      "step"].as<double>();
     string  outName = args[    "output"].as<string>();
-    Real      alpha = args[     "alpha"].as<double>();
     size_t   niters = args[    "nIters"].as<size_t>();
-    Real JVolWeight = args["JVolWeight"].as<double>();
     poConfig.fem2DSubdivRounds = args["subdivide"].as<size_t>();
+
+    Real  wcsWeight = args[ "WCSWeight"].as<double>();
+    Real   jsWeight = args[  "JSWeight"].as<double>();
+    Real jvolWeight = args["JVolWeight"].as<double>();
 
     std::vector<MeshIO::IOVertex>  vertices;
     std::vector<MeshIO::IOElement> elements;
@@ -221,6 +227,7 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
         if (hasVolumeTarget)
             cout << "JVol:\t"   << it.evaluateJVol()  << endl;
         cout << "Volume:\t" << it.mesh().volume() << endl;
+        cout << "Max Ptwise WCS:\t" << sqrt(it.wcsObjective().wcStress.stressMeasure().maxMag()) << endl;
         BENCHMARK_STOP_TIMER("Evaluate JS/WCS");
 
         SField   JS_p = it.gradp_JS();
@@ -228,7 +235,7 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
         SField JVol_p(WCS_p.domainSize());
         JVol_p.clear();
 
-        cout << "||grad_p JS||:\t" << JS_p.norm() << endl;
+        cout << "||grad_p JS||:\t"  <<  JS_p.norm() << endl;
         cout << "||grad_p WCS||:\t" << WCS_p.norm() << endl;;
 
         if (hasVolumeTarget) {
@@ -241,13 +248,13 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
             cout << "Normalized JVol:\t" << it.evaluateJVol() / targetVolSq << endl;
 
         // Compute composite objective and gradient
-        Real J = JS * alpha + WCS * (1 - alpha);
+        Real J = JS * jsWeight + WCS * wcsWeight;
         if (hasVolumeTarget)
-            J += it.evaluateJVol() * JVolWeight;
+            J += it.evaluateJVol() * jvolWeight;
 
-        SField gradp = JS_p * alpha + WCS_p * (1 - alpha);
+        SField gradp = JS_p * jsWeight + WCS_p * wcsWeight;
         if (hasVolumeTarget)
-            gradp += JVol_p * JVolWeight;
+            gradp += JVol_p * jvolWeight;
 
         // Output composite iterate stats.
         cout << "J_full:\t" << J << endl;

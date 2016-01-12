@@ -21,7 +21,11 @@ class Config {
 private:
     Config() { }
 public:
+    // By default, an "Lp norm" objective is really the p^th power of the Lp norm.
+    // To use the true "Lp norm", globalObjectiveRoot must be set to
+    // 2.0 * globalObjectivePNorm (since pointwise WCS is already squared (e.g. Frobenius) norm)
     Real globalObjectivePNorm = 1.0;
+    Real globalObjectiveRoot  = 1.0;
     bool useVtxNormalPerturbationGradientVersion = false;
     static Config &get() {
         static Config configSingleton;

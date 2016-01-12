@@ -4,7 +4,7 @@
 
 namespace WCStressOptimization {
 
-template<class Sim, class Objective = IntegratedWorstCaseObjective<Sim::N, WCStressIntegrandLp>>
+template<class Sim, class Objective = PthRootObjective<IntegratedWorstCaseObjective<Sim::N, WCStressIntegrandLp>>>
 class BoundaryPerturbationIterate : public Iterate<Sim, Objective, true /* _BypassParameterVelocity */> {
     using Base = Iterate<Sim, Objective, true>;
     static constexpr size_t N = Sim::N;

@@ -26,7 +26,7 @@ namespace WCStressOptimization {
 // there are too many parameters. This is only intended to be used by subclasses 
 // that know how to compute objective gradients without explicitly forming the
 // parameter velocity vectors (e.g. BoundaryPerturbationIterate)
-template<class Sim, class Objective = IntegratedWorstCaseObjective<Sim::N, WCStressIntegrandLp>, bool _BypassParameterVelocity = false>
+template<class Sim, class Objective = PthRootObjective<IntegratedWorstCaseObjective<Sim::N, WCStressIntegrandLp>>, bool _BypassParameterVelocity = false>
 class Iterate : public PatternOptimization::Iterate<Sim, _BypassParameterVelocity> {
     using Base = PatternOptimization::Iterate<Sim, _BypassParameterVelocity>;
 public:
@@ -46,7 +46,7 @@ public:
     }
 
     // Evaluate the global worst case stress objective
-    Real evaluateWCS() const { return m_objective.evaluate(m_sim->mesh()); }
+    Real evaluateWCS() const { return m_objective.evaluate(); }
 
     void writeDescription(std::ostream &os) const {
         Base::writeDescription(os);
@@ -204,6 +204,8 @@ public:
         writer.addField("j", j);
 
     }
+
+    const Objective &wcsObjective() const { return m_objective; }
 
 protected:
     Objective m_objective;
