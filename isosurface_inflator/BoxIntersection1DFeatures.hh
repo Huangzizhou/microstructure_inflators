@@ -71,8 +71,8 @@ public:
     // There are two copies of each boundary segment: one for each incident box
     // face. We assign unique "ownership" of boundary segments to box faces to
     // avoid this duplication:
-    // x face: y = min, max segments \
-    // y face: z = min, max segments  +-- m_firstIndex min, max (cyclic)
+    // x face: y = min, max segments \.
+    // y face: z = min, max segments  |-- m_firstIndex = min, max (cyclic)
     // z face: x = min, max segments /
     bool ownsSegment(const MarchingSquaresGrid::MarchingSquaresResult &r, size_t si) const {
         const auto &s = r.segments[si];

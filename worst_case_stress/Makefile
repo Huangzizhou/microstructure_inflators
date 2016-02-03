@@ -15,7 +15,7 @@ endif
 # Configuration section
 ################################################################################
 # **** Configuration: Use the isosurface inflator for 3D ****
-CPPFLAGS+=-DISOSURFACE_INFLATOR -DBENCHMARK
+CPPFLAGS+=-DISOSURFACE_INFLATOR -DBENCHMARK -DTOO_LARGE_FOR_METIS
 # CPPFLAGS+= -DBENCHMARK
 CPPFLAGS+=-Wall -pedantic -Wunused-parameter -Wpedantic -std=c++14
 # CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
@@ -47,6 +47,7 @@ ISOINFLATOR_OBS=../isosurface_inflator/IsosurfaceInflator.o \
 CPPFLAGS+=$(INCLUDES)
 
 M2MSTRESS_OBJS=MacroMicroStress_cli.o  $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o $(MeshFEM)/GlobalBenchmark.o
+WCS_OBJS=WCS_cli.o  $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o $(MeshFEM)/GlobalBenchmark.o
 GRADVALID_OBJS=GradientComponentValidation.o ../pattern_optimization/PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
@@ -65,13 +66,16 @@ LPHOLE_INFLATOR_OBJS=LpHoleInflator_cli.o ../pattern_optimization/PatternOptimiz
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
 
-OBJS=$(M2MSTRESS_OBJS) $(GRADVALID_OBJS) $(WCSOPT_OBJS) $(WCS_REMESH_OPT_OBJS) $(LPHOLE_GRADVALID_OBJS) $(LPHOLE_INFLATOR_OBJS)
+OBJS=$(M2MSTRESS_OBJS) $(WCS_OBJS)$(GRADVALID_OBJS) $(WCSOPT_OBJS) $(WCS_REMESH_OPT_OBJS) $(LPHOLE_GRADVALID_OBJS) $(LPHOLE_INFLATOR_OBJS)
 
-TARGETS=MacroMicroStress_cli GradientComponentValidation LpHoleGradientComponentValidation WCSOptimization_cli LpHoleInflator_cli WCSRemeshingOptimization_cli
+TARGETS=MacroMicroStress_cli WCS_cli GradientComponentValidation LpHoleGradientComponentValidation WCSOptimization_cli LpHoleInflator_cli WCSRemeshingOptimization_cli
 
 all: $(TARGETS)
 
 MacroMicroStress_cli: $(M2MSTRESS_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
+WCS_cli: $(WCS_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 GradientComponentValidation: $(GRADVALID_OBJS)

@@ -52,17 +52,16 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     hidden_opts.add_options()
         ("radius", po::value<Real>(), "Radius parameter")
         ("p",      po::value<Real>(), "Lp hole p parameter")
-        ("output",    po::value<string>(), "output path")
         ;
     po::positional_options_description p;
     p.add("radius", 1);
     p.add("p", 1);
-    p.add("output", 1);
 
     po::options_description visible_opts;
     visible_opts.add_options()("help",        "Produce this help message")
-        ("material,m",      po::value<string>(), "base material")
-        ("degree,d",        po::value<size_t>()->default_value(2),        "FEM Degree")
+        ("output,o",      po::value<string>(), "output path")
+        ("material,m",    po::value<string>(), "base material")
+        ("degree,d",      po::value<size_t>()->default_value(2),        "FEM Degree")
         ("nsubdiv,n",  po::value<size_t>()->default_value(64),            "number of subdivisions of Lp hole boundary")
         ("max_area,a", po::value<double>()->default_value(0.001),         "maximum triangle area for meshing")
         ("pnorm,P",    po::value<double>()->default_value(1.0),           "the pnorm used in the Lp global worst case stress measure")
@@ -83,8 +82,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     }
 
     bool fail = false;
-    if (vm.count("radius") + vm.count("p")  + vm.count("output") != 3) {
-        cout << "Error: must specify radius, p, and output path" << endl;
+    if (vm.count("radius") + vm.count("p")  != 2) {
+        cout << "Error: must specify radius, p" << endl;
         fail = true;
     }
 
@@ -133,7 +132,8 @@ void execute(const po::variables_map &args)
 
     WCStressOptimization::Iterate<Simulator> it(inflator, params.domainSize(), &params[0], targetS);
     it.writeDescription(cout);
-    it.writeMeshAndFields(args["output"].as<string>());
+    if (args.count("output"))
+        it.writeMeshAndFields(args["output"].as<string>());
 
     BENCHMARK_REPORT();
 }

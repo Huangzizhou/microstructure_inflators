@@ -341,7 +341,7 @@ public:
             size_t r = 0;
             for (size_t i = 0; i < flatLen(_N); ++i) {
                 for (size_t j = i; j < flatLen(_N); ++j) {
-                    for (size_t p = 0; p < numParams; ++p)
+                    for (size_t p = 0; p < size_t(numParams); ++p)
                         jacobian[r * numParams + p] = m_iterate->jacobian(i, j, p);
                     ++r;
                 }

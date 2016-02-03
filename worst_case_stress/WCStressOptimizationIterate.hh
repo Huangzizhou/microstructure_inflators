@@ -56,6 +56,7 @@ public:
         gradP.print(os, "", "", "", "\t");
         os << std::endl;
         os << "||grad_p WCS||:\t" << gradP.norm() << std::endl;;
+        os << "Max Ptwise WCS:\t" << sqrt(m_objective.wcStress.stressMeasure().maxMag()) << std::endl;
     }
 
     // Direct differentation version of gradient

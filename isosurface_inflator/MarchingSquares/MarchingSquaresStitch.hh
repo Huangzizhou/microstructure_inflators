@@ -136,7 +136,7 @@ public:
 
     template<typename Domain>
     MarchingSquaresResult extractBoundaryPolygons(
-            const Domain &domain, typename Domain::Real mergeThreshold = 0.10);
+            const Domain &domain, typename Domain::Real /*mergeThreshold*/ = 0.10);
 private:
     template<typename Real>
     size_t m_getLerpPoint(size_t a, size_t b, Real sda, Real sdb,
@@ -150,7 +150,7 @@ private:
 template<typename Domain>
 MarchingSquaresGrid::MarchingSquaresResult
 MarchingSquaresGrid::extractBoundaryPolygons(
-        const Domain &domain, typename Domain::Real mergeThreshold)
+        const Domain &domain, typename Domain::Real /*mergeThreshold*/)
 {
     typedef typename Domain::Real Real;
 

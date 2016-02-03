@@ -11,18 +11,23 @@
 //      they are constrained to move consistently with their periodic pair(s).
 //      WARNING: vertices that start on a corner are constrained to stay there!
 //
-//      Only the positions of the "true" boundary vertices (internal vertex
-//      coordinates and unconstrained coordinates of vertices only appearing in
-//      periodic faces) are specified as parameters. All other position
-//      variables are solved for using a uniform graph Laplacian.
+//      Only the positions of the "true" boundary vertices are specified as
+//      parameters. All other position variables are solved for using a uniform
+//      graph Laplacian. "True" boundary vertices are those with at least one
+//      non-periodic boundary element incident. In other words, they are
+//      the vertices that are still on the boundary after the period cell's
+//      identified faces have been stitched together. Note that the true
+//      boundary vertices lying on P periodic boundaries (0<=P<=N) will only
+//      have N-P parameters due to the periodicity constraints, and these will
+//      be shared by all 2^P identified vertices.
 //      
 //      First, periodicity constraints are enforced by constructing a reduced
 //      set of variables. Then then we construct a set of parameters (one
 //      parameter for each "true" boundary variable) from the variable set. The
 //      i^th coordinate of each vertex is expressed in terms of variable
 //      indices by array m_varForCoordinate[i], and the parameter corresponding
-//      to each variable is given by m_paramForVariable[i] (which is
-//      numeric_limits<size_t>::max() for dependent variables).
+//      to each variable is given by m_paramForVariable[i] (which is NONE for
+//      dependent variables).
 //
 //      Given a set of parameters, vertex coordinates are computed by:
 //          For each coordinate i in 0 to N-1
@@ -97,44 +102,24 @@ public:
         for (auto bv : m_mesh.boundaryVertices()) {
             size_t bvi = bv.index();
             size_t vvi = bv.volumeVertex().index();
-            if (m_pc.isPeriodicVertex(vvi)) {
-                // Link vertex coordinates at the min/max faces to the special
-                // variables holding min/max bbox coordinates
-                const auto &p = m_pc.periodicPairs(vvi);
-                for (size_t d = 0; d < N; ++d) {
-                    if (p[d] != PeriodicCondition<N>::NO_PAIR) {
-                        int minMax = m_pc.bdryVertexOnMinOrMaxPeriodCellFace(bvi, d);
-                        if      (minMax == -1) m_varForCoordinate[d].at(vvi) = d;
-                        else if (minMax ==  1) m_varForCoordinate[d].at(vvi) = N + d;
-                        else                   assert(false);
-                        presentPairs.push_back(p[d]);
-                    }
-                }
 
-                // For the rest of the components, make sure all paired
-                // vertices share the same variables, creating a new var if it
-                // doesn't exist yet
-                for (size_t d = 0; d < N; ++d) {
-                    if (p[d] == PeriodicCondition<N>::NO_PAIR) {
-                        assert(presentPairs.size() < N); // at least one nonpair
-                        assert(presentPairs.size() > 0); // and one pair
-                        const size_t currVar = m_varForCoordinate[d].at(vvi);
-                        const size_t newVar = (currVar != NONE) ? currVar
-                                                                : createVar(d);
-                        m_varForCoordinate[d].at(vvi) = newVar;
-                        for (size_t pp : presentPairs) {
-                            assert(currVar == m_varForCoordinate[d].at(pp));
-                            m_varForCoordinate[d].at(pp) = newVar;
-                        }
+            for (size_t d = 0; d < N; ++d) {
+                // Link vertices at the min/max faces to the special variables
+                // holding min/max bbox coordinates
+                int minMax = m_pc.bdryNodeOnMinOrMaxPeriodCellFace(bvi, d);
+                if      (minMax == -1) m_varForCoordinate[d].at(vvi) = d;
+                else if (minMax ==  1) m_varForCoordinate[d].at(vvi) = N + d;
+                else {
+                    // For the coordinates not clamped to min/max, introduce new
+                    // variables shared by all identified nodes.
+                    const size_t currVar = m_varForCoordinate[d].at(vvi);
+                    const size_t newVar = (currVar != NONE) ? currVar
+                                                            : createVar(d);
+                    for (size_t iv : m_pc.identifiedNodes(vvi)) {
+                        assert(m_pc.bdryNodeOnMinOrMaxPeriodCellFace(m_mesh.vertex(iv).boundaryVertex().index(), d) == 0);
+                        assert(m_varForCoordinate[d].at(iv) == currVar);
+                        m_varForCoordinate[d].at(iv) = newVar;
                     }
-                }
-                presentPairs.clear();
-            }
-            else {
-                // All non-periodic boundary coordinates get distinct variables
-                for (size_t d = 0; d < N; ++d) {
-                    assert(m_pc.bdryVertexOnMinOrMaxPeriodCellFace(bvi, d) == 0);
-                    m_varForCoordinate[d].at(vvi) = createVar(d);
                 }
             }
         }
@@ -168,18 +153,18 @@ public:
         for (auto bv : m_mesh.boundaryVertices()) {
             if (!isTrueBdryVertex.at(bv.index())) continue;
             size_t vvi = bv.volumeVertex().index();
-            size_t numCreated = 0;
+            size_t numAssigned = 0;
             for (size_t d = 0; d < N; ++d) {
                 size_t var = m_varForCoordinate[d].at(vvi);
                 if (var >= 2 * N) {
                     if (m_paramForVariable[d].at(var) == NONE)
                         m_paramForVariable[d].at(var) = createParam();
-                    ++numCreated;
+                    ++numAssigned;
                 }
             }
             // True boundary vertices should have at least one assocated
             // variable (assuming tiled pattern is manifold)
-            assert(numCreated > 0); 
+            assert(numAssigned > 0); 
         }
 
         // Get the original, pre-perturbation parameter values
@@ -321,6 +306,10 @@ public:
     // Takes a boundary interpolant representing the shape derivative of a
     // scalar objective function and computes the gradient with respect the
     // boundary coordinate parameters
+    // WARNING: this is not actually a gradient, but rather a
+    // steepest descent direction with respect to an approximate surface
+    // distance metric.
+    // This means it probably WON'T work with fancier optimization methods.
     template<class SDInterp>
     ScalarField<Real> gradientFromShapeDerivative(const std::vector<SDInterp> &sd) const {
         // BENCHMARK_START_TIMER("gradientFromShapeDerivative");
@@ -330,16 +319,18 @@ public:
         gradp.clear();
         using NSVI = typename NSV::value_type;
         NSVI nsv;
-        std::vector<Real> vtxArea(m_mesh.numBoundaryVertices(), 0.0);
+        // Total area of all boundary elements adjacent to the vertex a
+        // parameter controls (after conceptually stitching together the
+        // identified periodic cell faces).
+        std::vector<Real> paramArea(numParameters(), 0.0);
         for (auto be : m_mesh.boundaryElements()) {
             if (m_pc.isPeriodicBE(be.index())) continue; // periodic boundary elements don't count...
             auto normal = be->normal();
             const auto &sd_be = sd.at(be.index());
             for (size_t v = 0; v < be.numVertices(); ++v) {
-                static_assert(be.numVertices() == nsv.size(),
-                              "Boundary element and NSV size mismatch");
-                vtxArea.at(be.vertex(v).index()) += be->volume();
-                size_t vvi = be.vertex(v).volumeVertex().index();
+                static_assert(be.numVertices() == nsv.size(), "Boundary element and NSV size mismatch");
+                auto bv = be.vertex(v);
+                size_t vvi = bv.volumeVertex().index();
                 for (size_t d = 0; d < N; ++d) {
                     size_t var   = m_varForCoordinate[d].at(vvi);
                     size_t p     = m_paramForVariable[d].at(var);
@@ -350,22 +341,16 @@ public:
                             integrate([&] (const VectorND<be.numVertices()> &pt) {
                                 return nsv(pt) * sd_be(pt);
                             }, be->volume());
+                        paramArea[p] += be->volume();
                     }
                 }
             }
         }
 
-        // Normalize by vertex area (to make shape velocity less mesh-dependent).
-        for (auto bv : m_mesh.boundaryVertices()) {
-            size_t vvi = bv.volumeVertex().index();
-            Real area = vtxArea.at(bv.index());
-            for (size_t d = 0; d < N; ++d) {
-                size_t var = m_varForCoordinate[d].at(vvi);
-                size_t p = m_paramForVariable[d].at(var);
-                if (p != NONE)
-                    gradp[p] /= area;
-            }
-        }
+        // Normalize by parameter area (to make shape velocity less
+        // mesh-dependent)
+        for (size_t p = 0; p < numParameters(); ++p)
+            gradp[p] /= paramArea[p];
 
         // BENCHMARK_STOP_TIMER("gradientFromShapeDerivative");
         return gradp;
@@ -413,29 +398,21 @@ public:
         return ScalarField<Real>(extractParamsFromBoundaryValues(perturbation));
     }
 
-    // // Get the boundary vector field corresponding to "params" (i.e. the
-    // // inverse of extractParamsFromBoundaryValues)
-    // VectorField<Real, N> boundaryVectorField(const std::vector<Real> &params) const {
-    //     VectorField<Real, N> result(m_numParams);
-    //     std::vector<bool> isSet(m_numParams, false);
-    //     assert(values.size() == m_mesh.numBoundaryVertices());
-    //     for (auto bv : m_mesh.boundaryVertices()) {
-    //         for (size_t d = 0; d < N; ++d) {
-    //             Real val = values[bv.index()][d];
-    //             size_t var = m_varForCoordinate[d].at(bv.volumeVertex().index());
-    //             size_t p = m_paramForVariable[d].at(var);
-    //             if (p != NONE) {
-    //                 if (!isSet.at(p)) {
-    //                     result.at(p) = val;
-    //                     isSet.at(p) = true;
-    //                 }
-    //                 if (std::abs(result.at(p) - val) > 1e-6)
-    //                     std::cerr << "WARNING: boundary values violate periodicity constriants";
-    //             }
-    //         }
-    //     }
-    //     return result;
-    // }
+    // Get the boundary vector field corresponding to "params" (i.e. the
+    // inverse of extractParamsFromBoundaryValues)
+    VectorField<Real, N> boundaryVectorField(const ScalarField<Real> &params) const {
+        VectorField<Real, N> result(m_mesh.numBoundaryVertices());
+        result.clear();
+        for (auto bv : m_mesh.boundaryVertices()) {
+            for (size_t d = 0; d < N; ++d) {
+                auto var = m_varForCoordinate[d].at(bv.volumeVertex().index());
+                size_t p = m_paramForVariable[d].at(var);
+                if (p != NONE) result(bv.index())[d] = params[p];
+            }
+        }
+
+        return result;
+    }
 
     const Mesh &mesh() const { return m_mesh; }
     const PeriodicCondition<N> &pc() const  { return m_pc; }
