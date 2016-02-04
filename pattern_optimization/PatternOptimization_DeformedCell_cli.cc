@@ -43,7 +43,7 @@ using namespace PeriodicHomogenization;
 
 
 void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: PatternOptimization_cli [options] job.opt" << endl;
+    cout << "Usage: PatternOptimization_DeformedCell_cli [options] job.opt" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
 }
@@ -73,7 +73,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("subdivide,S",  po::value<size_t>()->default_value(0),                  "number of subdivisions to run for 3D inflator")
         ("sub_algorithm,A", po::value<string>()->default_value("simple"),        "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                                    "maximum element volume parameter for wire inflator")
-        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
+        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt, levenberg_marquardt_reg")
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
         ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
         ("fullCellInflator",                                                     "use the full periodic inflator instead of the reflection-based one")
