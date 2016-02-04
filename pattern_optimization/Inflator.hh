@@ -296,7 +296,7 @@ template<>
 class Inflator<3> : public InflatorBase<Inflator<3>> {
 public:
     typedef InflatorBase<Inflator<3>> Base;
-    using NSV = NormalShapeVelocity;
+    using NSV = NormalShapeVelocity<3>;
 
     Inflator(const std::string &wireMeshPath,
              Real cell_size = 5.0, Real default_thickness = 0.5 * sqrt(2),
