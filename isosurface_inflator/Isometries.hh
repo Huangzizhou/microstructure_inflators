@@ -4,6 +4,7 @@
 /*! @file
 //      Represents an isometry, intended to be used as an element of a symmetry
 //      group. These can also be used to map points.
+//      These isometries are not necessarily orientation-preserving.
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University

@@ -15,6 +15,7 @@
 #include "AutomaticDifferentiation.hh"
 #include "SignedDistance.hh"
 
+// TODO: Make dimension a template parameter
 template<typename _Real, class WMesh>
 class PatternSignedDistance {
 public:

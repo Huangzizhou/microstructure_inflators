@@ -81,15 +81,32 @@ void remeshPerturbedShape(const BoundaryPerturbationInflator<2> &m,
     for (auto be : mesh.boundaryElements())
         bdryEdges.push_back({be.vertex(0).index(), be.vertex(1).index()});
 
+#if 0
+    {
+        std::vector<MeshIO::IOVertex>  bdryOutVertices;
+        std::vector<MeshIO::IOElement> bdryOutElements;
+        for (const auto &p : bdryPts)   bdryOutVertices.emplace_back(p);
+        for (const auto &e : bdryEdges) bdryOutElements.emplace_back(e.first, e.second);
+        MeshIO::save("bdry.msh", bdryOutVertices, bdryOutElements);
+    }
+#endif
+
     // Cleanup operations:
     //      1) Collapsing short edges
     //      2) Splitting  long edges
     // Perform operations in this order; edge collapse can create new long
     // edges but splitting shouldn't create short edges (for sane thresholds)
 
-    // Collapsing removes vertices. "Sharp feature vertices" (with mesh angles
-    // differing significantly from Pi) are preserved. In the absence of sharp
-    // features, merges are performed in the following cases:
+    // Collapsing removes vertices. "Sharp features" are preserved by first
+    // marking as features all vertices with mesh angles differing significantly
+    // from Pi, then ensuring no feature vertex is merged into a non-feature
+    // vertex. However, we never let this criterion prevent a merge: two adjacent
+    // sharp features are merged to avoid robustness issues with jagged
+    // boundaries. Also, we allow feature vertices adjacent to the periodic
+    // boundary to merge into the boundary.
+    //
+    // In the absence of sharp features, merges are performed in
+    // the following cases:
     //      a) Both vertices are on the same periodic boundaries.
     //         The endpoint vertices are collapsed to the edge midpoint.
     //      b) One vertex is on a subset of the other's periodic boundaries
@@ -137,7 +154,9 @@ void remeshPerturbedShape(const BoundaryPerturbationInflator<2> &m,
     }
     std::vector<bool> collapsed(mesh.numBoundaryElements(), false);
 
+    // size_t numAttemptedCollapseIterations = 0, numCompletedCollapseIterations = 0;
     while (!collapseQueue.empty()) {
+        // ++numAttemptedCollapseIterations;
         size_t bei = collapseQueue.front();
         collapseQueue.pop();
         if (collapsed.at(bei)) continue;
@@ -146,16 +165,25 @@ void remeshPerturbedShape(const BoundaryPerturbationInflator<2> &m,
         if (bdryLengths.at(bei) > minLength) continue;
         size_t bvi0, bvi1;
         std::tie(bvi0, bvi1) = bdryEdges.at(bei);
-        collapsed.at(bei) = true;
 
         Point2D p0 = bdryPts.at(bvi0), p1 = bdryPts.at(bvi1);
         // Can we merge 0 into 1, or 1 into 0?
-        bool merge01 = m.pc().bdryVertexPeriodCellFacesPartialOrderLessEq(bvi0, bvi1);
-        bool merge10 = m.pc().bdryVertexPeriodCellFacesPartialOrderLessEq(bvi1, bvi0);
+        bool merge01 = m.pc().bdryNodePeriodCellFacesPartialOrderLessEq(bvi0, bvi1);
+        bool merge10 = m.pc().bdryNodePeriodCellFacesPartialOrderLessEq(bvi1, bvi0);
 
-        // Can't move from feature vertices.
-        merge01 &= !feature.at(bvi0);
-        merge10 &= !feature.at(bvi1);
+        // We prevent merging a feature vertex into a non-feature vertex.
+        // However, we never let the existence of features prevent a merge:
+        // if the periodic boundary membership forces only one direction of
+        // merging, we still take it. In other words, feature vertices near a
+        // periodic boundary can still be merged into the periodic boundary.
+        if (merge01 && merge10) {
+            // Allow features to block merges
+            merge01 = !feature.at(bvi0);
+            merge10 = !feature.at(bvi1);
+            // If both vertices are features (or both are not) allow the merge
+            if (merge01 == merge10)
+                merge01  = merge10 = true;
+        }
 
         // Merge into midpoint, vertex 0, or vertex 1 location
         Point2D collapsePt;
@@ -191,7 +219,15 @@ void remeshPerturbedShape(const BoundaryPerturbationInflator<2> &m,
         bdryLengths.at(beni) = edgeLen(bdryEdges.at(beni));
         if (bdryLengths.at(bepi) < minLength) collapseQueue.push(bepi);
         if (bdryLengths.at(beni) < minLength) collapseQueue.push(beni);
+
+        // Mark edge as collapsed
+        collapsed.at(bei) = true;
+        // ++numCompletedCollapseIterations;
     }
+
+    /// std::cout << "Completed/Attempted Collapse Operations: "
+    ///           << numCompletedCollapseIterations << "/"
+    ///           << numAttemptedCollapseIterations << std::endl;
 
     // Delete collapsed edges
     std::vector<std::pair<size_t, size_t>> prunedBdryEdges;
@@ -248,15 +284,15 @@ void remeshPerturbedShape(const BoundaryPerturbationInflator<2> &m,
     }
     bdryEdges.swap(prunedBdryEdges);
 
-    // {
-    //     std::vector<MeshIO::IOVertex>  bdryOutVertices;
-    //     std::vector<MeshIO::IOElement> bdryOutElements;
-    //     for (const auto &p : bdryPts)
-    //         bdryOutVertices.emplace_back(p);
-    //     for (const auto &e : bdryEdges)
-    //         bdryOutElements.emplace_back(e.first, e.second);
-    //     MeshIO::save("bdry.msh", bdryOutVertices, bdryOutElements);
-    // }
+#if 0
+    {
+        std::vector<MeshIO::IOVertex>  bdryOutVertices;
+        std::vector<MeshIO::IOElement> bdryOutElements;
+        for (const auto &p : bdryPts)   bdryOutVertices.emplace_back(p);
+        for (const auto &e : bdryEdges) bdryOutElements.emplace_back(e.first, e.second);
+        MeshIO::save("cleaned_bdry.msh", bdryOutVertices, bdryOutElements);
+    }
+#endif
 
     // Remesh the interior.
     // Q: quiet, Y: do not remesh the boundary
