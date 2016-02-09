@@ -230,11 +230,15 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickenss,
         // Line mesh doesn't support our post-processing
         disablePostprocess();
     }
+    else if (type == "2D_square") {
+        throw std::runtime_error("2D square symmetry unimplemented."); 
+        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(wireMeshPath);
+        // Line mesh doesn't support our post-processing
+        // disablePostprocess();
+    }
     else if (type == "2D_orthotropic") {
         // throw std::runtime_error("Disabled."); 
         m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(wireMeshPath);
-        // Line mesh doesn't support our post-processing
-        // disablePostprocess();
     }
     else throw runtime_error("Unknown inflator type: " + type);
 }
