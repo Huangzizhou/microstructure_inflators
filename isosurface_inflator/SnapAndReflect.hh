@@ -58,10 +58,12 @@ void snapVerticesToUnitCell(std::vector<Vertex> &vertices,
 // onReflectionPlane arrays allow us to enforce this.
 // onReflectionPlane[d] stores whether vertices lie on reflection plane d.
 // We update these arrays with each reflection to keep them valid.
+// If Dim = 2, only X and Y reflection are performed.
 template<typename Vertex, typename Element>
-void reflectXYZ(const std::vector<Vertex> &vertices,
+void reflectXYZ(size_t Dim, // Dimensions to reflect in (length of [x, y, z] prefix)
+                const std::vector<Vertex> &vertices,
                 const std::vector<Element> &elements,
-                std::vector<std::vector<bool>> onReflectionPlane, // copy changed inside
+                std::vector<std::vector<bool>> onReflectionPlane, // copy; changed inside
                 std::vector<Vertex>  &reflectedVertices,
                 std::vector<Element> &reflectedElements,
                 std::vector<size_t>   &vertexOrigin,
@@ -81,7 +83,7 @@ void reflectXYZ(const std::vector<Vertex> &vertices,
     for (size_t i = 0; i < vertexOrigin.size(); ++i) vertexOrigin[i] = i;
     vertexIsometry.assign(vertices.size(), Isometry());
 
-    for (size_t d = 0; d < 3; ++d) {
+    for (size_t d = 0; d < Dim; ++d) {
         auto refl = Isometry::reflection(static_cast<Symmetry::Axis>(d));
         // We need a mapping from vertex indices of the new reflected geometry
         // we're about to create to global vertex indices.
@@ -112,14 +114,15 @@ void reflectXYZ(const std::vector<Vertex> &vertices,
             auto re = reflectedElements[ei];
             // Reindex corner indices.
             // Note: reflection inverts the elements, so we must also permute
-            // the tet corner indices to get positive orientation.
+            // the corner indices to get positive orientation.
             // This actually matters! The inverted reflected elements cause a
             // cancellation during stiffness matrix assembly resulting in a
             // singular system.
-            reflectedElements.emplace_back(globalVertexIndex.at(re[1]),
-                                           globalVertexIndex.at(re[0]),
-                                           globalVertexIndex.at(re[2]),
-                                           globalVertexIndex.at(re[3]));
+            size_t tmp = re[0];                                                      
+            re[0] = globalVertexIndex.at(re[1]);                                     
+            re[1] = globalVertexIndex.at(tmp);                                       
+            for (size_t d = 2; d < re.size(); ++d) re[d] = globalVertexIndex.at(re[d]);
+            reflectedElements.push_back(re);                                               
         }
     }
 }

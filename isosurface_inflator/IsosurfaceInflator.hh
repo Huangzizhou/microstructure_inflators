@@ -6,6 +6,10 @@
 //      Everything is implemented in terms of opaque class
 //      IsosurfaceInflatorImpl to speed up compilation of the code including us
 //      (compiling anything depending on CGAL is slow!!).
+//
+//      Both 2D and 3D isosurface inflators are implemented (and can be selected
+//      using the constructor's "type" argument, but the result is always
+//      embedded in 3D.
 //      
 //      This inflator remembers the inflated geometry 
 */ 
