@@ -3,12 +3,14 @@ include $(MeshFEM)/platform_defs.mk
 
 INCLUDES=-I$(MeshFEM) -I$(CSGFEM) -isystem $(EIGEN_INC) -isystem $(BOOST_INC) \
 		 -isystem $(ADEPT_INC) -isystem $(VCGLIB_INC) \
-		 -isystem $(CGAL_INC) -isystem $(GMP_INC) -isystem $(MPFR_INC)
+		 -isystem $(CGAL_INC) -isystem $(GMP_INC) -isystem $(MPFR_INC) \
+		 -isystem $(TRIANGLE_INC)
 CPPFLAGS=-O2
 
 LIBS+=-L$(CGAL_LIB) -lCGAL -L$(GMP_LIB) -lgmp -L$(MPFR_LIB) -lmpfr
 LIBS+=-L$(ADEPT_LIB) -ladept
 LIBS+=$(BOOST_LFLAGS)
+LIBS+=$(TRIANGLE_LFLAGS)
 
 # CPPFLAGS=-O2 -DCGAL_MESH_3_VERBOSE
 # CPPFLAGS=-g -O0 # -DCGAL_MESH_3_VERBOSE -DCGAL_MESH_3_PROTECTION_DEBUG -ftemplate-backtrace-limit=0
@@ -16,7 +18,7 @@ LIBS+=$(BOOST_LFLAGS)
 TARGETS=isosurface_cli
 all: $(TARGETS)
 
-isosurface_cli: isosurface_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o IsosurfaceInflator.o VCGSurfaceMesher.o BoxIntersectionMesher.o MeshingOptions.o CGALClippedVolumeMesher.o 
+isosurface_cli: isosurface_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o IsosurfaceInflator.o VCGSurfaceMesher.o BoxIntersectionMesher.o MeshingOptions.o CGALClippedVolumeMesher.o MidplaneMesher.o
 	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
 
 TestWireMesh: tests/TestWireMesh.o

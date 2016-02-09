@@ -23,8 +23,14 @@ load(const std::string &wirePath) {
     for (const auto &v : inVertices) {
         // transform graph to [-1, 1]
         Point p;
-        for (size_t i = 0; i < 3; ++i)
+        for (size_t i = 0; i < 3; ++i) {
+            // Hack to handle 2D case: don't transform in empty dimension
+            if (std::abs(dim[i]) < 1e-6) {
+                assert(i == 2);
+                continue;
+            }
             p[i] = (v[i] - bb.minCorner[i]) * (2.0 / dim[i]) - 1.0;
+        }
         m_fullVertices.push_back(p);
     }
 

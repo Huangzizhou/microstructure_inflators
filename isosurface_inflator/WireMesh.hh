@@ -117,7 +117,7 @@ public:
     // The "points" returned are after the positional parameters have been
     // applied, and the thickness parameters are decoded from "params" into the
     // "thicknesses" vector for convenience: these will correspond to either
-    // entires in "points" or "edges" depending on thicknessType.
+    // entries in "points" or "edges" depending on thicknessType.
     template<typename Real>
     void inflationGraph(const std::vector<Real> &params,
                         std::vector<Point3<Real>> &points,
@@ -183,7 +183,6 @@ private:
     std::vector<AdjacentVertex> m_adjacentVertices;
     // Which base edge originated each adjacent edge (via transormation)
     std::vector<size_t>         m_adjacentEdgeOrigin;
-
 
     // Find the base vertex within symmetry tolerance of p
     // (or throw an exception if none exists).

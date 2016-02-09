@@ -7,5 +7,8 @@
     "edgeSize"                : 0.025,
     "cellRadiusEdgeRatio"     : 2.0,
     "marchingSquaresGridSize" : 256,
-    "marchingCubesGridSize"   : 128
+    "marchingCubesGridSize"   : 128,
+
+    "maxArea"                 : 0.0001,
+    "featureAngleThreshold"   : 0.7853981633974483
 }
