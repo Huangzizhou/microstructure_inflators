@@ -28,7 +28,7 @@
 class IsosurfaceInflator {
 public:
     typedef Eigen::Matrix<Real, 3, 1> Point;
-    enum class ParameterType { Thickness, Position };
+    enum class ParameterType { Thickness, Position, Blending };
 
     IsosurfaceInflator(const std::string &type, bool vertexThickenss,
                        const std::string &wireMeshPath);

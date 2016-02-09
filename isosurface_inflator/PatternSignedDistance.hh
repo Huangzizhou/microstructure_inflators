@@ -15,7 +15,6 @@
 #include "AutomaticDifferentiation.hh"
 #include "SignedDistance.hh"
 
-// TODO: Make dimension a template parameter
 template<typename _Real, class WMesh>
 class PatternSignedDistance {
 public:
@@ -28,11 +27,12 @@ public:
     size_t numParams() const { return m_wireMesh.numParams(); }
     size_t numThicknessParams() const { return m_wireMesh.numThicknessParams(); }
     size_t numPositionParams() const { return m_wireMesh.numPositionParams(); }
+    size_t numBlendingParams() const { return m_wireMesh.numBlendingParams(); }
     void setParameters(const std::vector<Real> &params) {
         std::vector<Real> thicknesses;
         std::vector<Point3<Real>> points;
         std::vector<typename WMesh::Edge> edges;
-        m_wireMesh.inflationGraph(params, points, edges, thicknesses);
+        m_wireMesh.inflationGraph(params, points, edges, thicknesses, m_blendingParams);
 
         // Vector of edge geometry uses same index as edges
         m_edgeGeometry.clear();
@@ -125,7 +125,7 @@ public:
             incidentDists.clear();
             for (size_t ei : m_adjEdges[u])
                 incidentDists.push_back(edgeDists.at(ei));
-            dist = std::min(dist, SD::mix(SD::min(incidentDists), SD::exp_smin(incidentDists),
+            dist = std::min(dist, SD::mix(SD::min(incidentDists), SD::exp_smin(incidentDists, Real2(m_blendingParams.at(u))),
                                  Real2(vertexSmoothness(u))));
         }
 
@@ -188,6 +188,7 @@ private:
     // Since a given edge pair only has (at most) one vertex in common,
     // specifying this per-vertex makes sense.
     std::vector<Real>                m_vertexSmoothness;
+    std::vector<Real>                m_blendingParams;
     // Edges adjacent to a particular vertex.
     std::vector<std::vector<size_t>> m_adjEdges;
 };

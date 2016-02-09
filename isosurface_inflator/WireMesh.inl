@@ -201,8 +201,8 @@ saveInflationGraph(const std::string &path, std::vector<double> params) const {
         params = defaultParameters();
     std::vector<Edge> igraphEdges;
     std::vector<Point> igraphVertices;
-    std::vector<double> thicknesses;
-    inflationGraph(params, igraphVertices, igraphEdges, thicknesses);
+    std::vector<double> thicknesses, blendingParams;
+    inflationGraph(params, igraphVertices, igraphEdges, thicknesses, blendingParams);
 
     _OutputGraph(path, igraphVertices, igraphEdges);
 }
