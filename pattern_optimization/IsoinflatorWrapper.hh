@@ -18,10 +18,9 @@ public:
                 vertex_thickness, wireMeshPath)
     { }
 
-    void setMaxElementVolume(Real /* maxElementVol */) {
-        // TODO: IMPLEMENT
-        // (configure mesher via m_inflator.meshingOptions())
-        throw std::runtime_error("Unimplemented.");
+    void setMaxElementVolume(Real maxElementVol) {
+        if (N == 2) m_inflator.meshingOptions().maxArea = maxElementVol;
+        else        m_inflator.meshingOptions().cellSize = maxElementVol;
     }
     void configureSubdivision(const std::string &/* algorithm */, size_t levels) {
         if (levels != 0)
@@ -31,8 +30,10 @@ public:
     size_t numParameters() const { return m_inflator.numParams(); }
 
     ParameterType parameterType(size_t p) const {
-        return m_inflator.isThicknessParam(p) ? ParameterType::Thickness
-                                              : ParameterType::Offset;
+        if (m_inflator.isThicknessParam(p)) return ParameterType::Thickness;
+        if (m_inflator.isPositionParam(p)) return ParameterType::Offset;
+        if (m_inflator.isBlendingParam(p)) return ParameterType::Blending;
+        throw std::runtime_error("Unknown parameter type for param " + std::to_string(p));
     }
 
     void inflate(const std::vector<Real> &params) {

@@ -28,7 +28,15 @@ namespace WCStressOptimization {
 // (E.g. BoundaryPerturbationIterate must call its own gradp_JS since it
 // overrides the default parameter shape velocity gradient approach).
 template<class _WCSIterate>
-void writeIterateDescription(std::ostream &os, _WCSIterate &it) {
+void writeIterateDescription(std::ostream &os, _WCSIterate &it, bool printParams = false) {
+    if (printParams) {
+        auto params = it.getParams();
+        os << "p:";
+        for (size_t i = 0; i < params.size(); ++i)
+            os << "\t" << params[i];
+        os << std::endl;
+    }
+
     os << "moduli:\t";
     it.elasticityTensor().printOrthotropic(os);
     os << "anisotropy:\t" << it.elasticityTensor().anisotropy() << std::endl;
@@ -165,8 +173,8 @@ template<class _Inflator>
     }
 
     // WARNING: paste this into any subclass that overrides gradient/objective evaluation.
-    void writeDescription(std::ostream &os) const {
-        writeIterateDescription(os, *this);
+    void writeDescription(std::ostream &os, bool printParams = false) const {
+        writeIterateDescription(os, *this, printParams);
     }
 
     void writeMeshAndFields(const std::string &name) const {

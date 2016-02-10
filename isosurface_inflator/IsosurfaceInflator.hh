@@ -53,6 +53,8 @@ public:
     size_t numParams() const;
 
     bool isThicknessParam(size_t p) const;
+    bool isPositionParam(size_t p) const;
+    bool isBlendingParam(size_t p) const;
 
     // For debugging
     void disablePostprocess();

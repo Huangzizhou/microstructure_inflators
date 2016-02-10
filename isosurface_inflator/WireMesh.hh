@@ -108,7 +108,7 @@ public:
         if (p >= numParams()) throw std::runtime_error("Invalid parameter index.");
         return (p >= numPositionParams()) && (p < numPositionParams() + numThicknessParams());
     }
-    bool isBlendingParam(size_t p) {
+    bool isBlendingParam(size_t p) const {
         if (p >= numParams()) throw std::runtime_error("Invalid parameter index.");
         return p >= numPositionParams() + numThicknessParams();
     }

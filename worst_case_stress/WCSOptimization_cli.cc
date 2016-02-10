@@ -40,6 +40,8 @@
 #include <PatternOptimizationConfig.hh>
 
 #include "WCSOptimization.hh"
+#include "WCSObjective.hh"
+
 #include "WCStressOptimizationIterate.hh"
 #include "BoundaryPerturbationIterate.hh"
 
@@ -77,7 +79,6 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description meshingOptions;
     meshingOptions.add_options()
         ("max_volume,v",   po::value<double>(), "Maximum element area for remeshing (overrides meshing options)")
-        ("meshing_opts,M", po::value<string>(), "Meshing options file for inflator")
         ;
 
     po::options_description optimizerOptions;
@@ -155,12 +156,6 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
-    set<string> subdivisionAlgorithms = {"simple", "loop"};
-    if (subdivisionAlgorithms.count(vm["sub_algorithm"].as<string>()) == 0) {
-        cout << "Illegal subdivision algorithm specified" << endl;
-        fail = true;
-    }
-
     if (fail || vm.count("help"))
         usage(fail, visibleOptions);
 
@@ -208,17 +203,23 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *
     PatternOptimization::Config::get().ignoreShear = args.count("ignoreShear");
     if (PatternOptimization::Config::get().ignoreShear) cout << "Ignoring shear components" << endl;
     Optimizer<Simulator, _Inflator, _ITraits<_N>::template Iterate>
-        optimizer(inflator, job->radiusBounds,   job->translationBounds,
+        optimizer(inflator, job->radiusBounds,   job->translationBounds, job->blendingBounds,
                             job->varLowerBounds, job->varUpperBounds);
+
+
+    WCStressOptimization::Objective<_N> fullObjective(targetS,
+                                args[  "JSWeight"].as<double>(),
+                                args[ "WCSWeight"].as<double>(),
+                                args["JVolWeight"].as<double>(),
+                                args["laplacianRegWeight"].as<double>());
+
     string solver = args["solver"].as<string>(),
            output = args["output"].as<string>();
     size_t niters = args["nIters"].as<size_t>();
-    if (solver == "gradient_descent")
-        optimizer.optimize_gd(params, targetS, niters, args["step"].as<double>(), output, args["alpha"].as<double>());
-    else if (solver == "bfgs")
-        optimizer.optimize_bfgs(params, targetS, niters, output, 0, args["alpha"].as<double>());
-    else if (solver == "lbfgs")
-        optimizer.optimize_bfgs(params, targetS, niters, output, 10, args["alpha"].as<double>());
+
+    if (solver == "gradient_descent") optimizer.optimize_gd(  params, fullObjective, niters, args["step"].as<double>(), output);
+    else if (solver == "bfgs")        optimizer.optimize_bfgs(params, fullObjective, niters, output, 0);
+    else if (solver == "lbfgs")       optimizer.optimize_bfgs(params, fullObjective, niters, output, 10);
 
     std::vector<Real> result(params.domainSize());
     for (size_t i = 0; i < result.size(); ++i)

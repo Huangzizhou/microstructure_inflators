@@ -19,6 +19,7 @@
 
 #include <ElasticityTensor.hh>
 
+#include "WCSObjective.hh"
 #include <PatternOptimizationConfig.hh>
 #include <PatternOptimizationIterate.hh>
 
@@ -35,11 +36,12 @@ class Optimizer
 public:
     Optimizer(_Inflator &inflator, const std::vector<Real> &radiusBounds,
               const std::vector<Real> &translationBounds,
+              const std::vector<Real> &blendingBounds,
               const std::map<size_t, Real> &varLowerBounds,
               const std::map<size_t, Real> &varUpperBounds)
         : m_inflator(inflator), m_radiusBounds(radiusBounds),
-          m_transBounds(translationBounds), m_varLowerBounds(varLowerBounds),
-          m_varUpperBounds(varUpperBounds) { }
+          m_transBounds(translationBounds), m_blendingBounds(blendingBounds),
+          m_varLowerBounds(varLowerBounds), m_varUpperBounds(varUpperBounds) { }
 
     template<class _Vector>
     void getParameterBounds(_Vector &lowerBounds, _Vector &upperBounds) {
@@ -59,31 +61,29 @@ public:
                     lowerBounds(p) = m_transBounds.at(0);
                     upperBounds(p) = m_transBounds.at(1);
                     break;
+                case ParameterType::Blending:
+                    lowerBounds(p) = m_blendingBounds.at(0);
+                    upperBounds(p) = m_blendingBounds.at(1);
+                    break;
                 default: assert(false);
             }
         }
     }
-
     
-    void optimize_gd(SField &params, const _ETensor &targetS,
-            size_t niters, double stepSize, const string &outName, Real alpha) {
+    void optimize_gd(SField &params, WCStressOptimization::Objective<_N> &fullObjective,
+            size_t niters, double stepSize, const string &outName) {
         size_t nParams = params.domainSize();
         SField lowerBounds(nParams), upperBounds(nParams);
         getParameterBounds(lowerBounds, upperBounds);
         // Gradient Descent Version
         for (size_t i = 0; i < niters; ++i) {
-            _Iterate<_Sim> iterate(m_inflator, params.size(), params.data(), targetS);
+            _Iterate<_Sim> iterate(m_inflator, params.size(), params.data(), fullObjective);
             iterate.writeDescription(std::cout);
             std::cout << std::endl;
 
-            SField Js_p = iterate.gradp_JS();
-            SField WCS_p = iterate.gradientWCS_adjoint();
+            SField gradp_JFull = iterate.gradp_JFull();
 
-            SField gradp = Js_p * alpha + WCS_p * (1 - alpha);
-
-            params -= gradp * stepSize;
-            // // TODO: remove this hack.
-            // stepSize *= .9;
+            params -= gradp_JFull * stepSize;
 
             // Apply bound constraints
             params.minRelax(upperBounds);
@@ -97,46 +97,41 @@ public:
     // Evaluates the objective by inflating the wire mesh and homogenizing.
     // The iterate stored internally also knows how to evaluate the gradient
     // efficiently, so our GradientEvaluator below just accesses it.
-    //
-    // The alpha parameter controls the trade-off between tensor fitting and
-    // stress minimization:
-    //      alpha * J_S + (1 - alpha) * WCS
     struct DLibObjectiveEvaluator {
         DLibObjectiveEvaluator(_Inflator &inflator,
-                const _ETensor &targetS, Real alpha)
-            : m_iterate(NULL), m_inflator(inflator), m_targetS(targetS), m_alpha(alpha) {
+                WCStressOptimization::Objective<_N> &fullObjective)
+            : m_iterate(NULL), m_inflator(inflator), m_fullObjective(fullObjective) {
             nParams = m_inflator.numParameters();
         };
 
+        // Objective evaluation
         double operator()(const dlib_vector &x) const {
             vector<Real> x_vec(nParams);
             for (size_t p = 0; p < nParams; ++p)
                 x_vec[p] = x(p);
 
             m_iterate = PatternOptimization::getIterate(m_iterate, m_inflator, nParams, &x_vec[0],
-                                                         m_targetS);
-            return alpha() * m_iterate->evaluateJS() + (1 - alpha()) * m_iterate->evaluateWCS();
+                                                        m_fullObjective);
+            return m_iterate->evaluateJFull();
         }
 
         const _Iterate<_Sim> &currentIterate() const {
             assert(m_iterate); return *m_iterate;
         };
 
-        Real alpha() const { return m_alpha; }
-
         size_t nParams;
     private:
         // Iterate is mutable so that operator() can be const as dlib requires
         mutable std::shared_ptr<_Iterate<_Sim>> m_iterate;
         _Inflator &m_inflator;
-        _ETensor m_targetS;
-        Real m_alpha;
+        WCStressOptimization::Objective<_N> &m_fullObjective;
     };
     
     // Extracts gradient from the iterate constructed by DLibObjectiveEvaluator.
     struct DLibGradientEvaluator {
         DLibGradientEvaluator(const DLibObjectiveEvaluator &obj) : m_obj(obj) { }
 
+        // Gradient evaluation
         dlib_vector operator()(const dlib_vector &x) const {
             size_t nParams = m_obj.nParams;
             vector<Real> x_vec(nParams);
@@ -144,8 +139,8 @@ public:
                 x_vec[p] = x(p);
             if (m_obj.currentIterate().paramsDiffer(nParams, &x_vec[0]))
                 throw std::runtime_error("Objective must be evaluated first");
-            SField gradp = m_obj.currentIterate().gradp_JS() * m_obj.alpha();
-            gradp += m_obj.currentIterate().gradientWCS_adjoint() * (1 - m_obj.alpha());
+
+            SField gradp = m_obj.currentIterate().gradp_JFull();
 
             dlib_vector result(nParams);
             for (size_t p = 0; p < nParams; ++p)
@@ -184,9 +179,9 @@ public:
 
     // If max_size = 0, plain bfgs is used
     // otherwise l-bfgs is used.
-    void optimize_bfgs(SField &params, const _ETensor &targetS, size_t niters,
-                       const string &outPath, size_t max_size, Real alpha) {
-        DLibObjectiveEvaluator obj(m_inflator, targetS, alpha);
+    void optimize_bfgs(SField &params, WCStressOptimization::Objective<_N> &fullObjective,
+                       size_t niters, const string &outPath, size_t max_size) {
+        DLibObjectiveEvaluator obj(m_inflator, fullObjective);
         DLibGradientEvaluator grad(obj);
 
         size_t nParams = m_inflator.numParameters();
@@ -214,7 +209,7 @@ public:
 
 private:
     _Inflator &m_inflator;
-    std::vector<Real> m_patternParams, m_radiusBounds, m_transBounds;
+    std::vector<Real> m_patternParams, m_radiusBounds, m_transBounds, m_blendingBounds;
     std::map<size_t, Real> m_varLowerBounds, m_varUpperBounds;
 };
 

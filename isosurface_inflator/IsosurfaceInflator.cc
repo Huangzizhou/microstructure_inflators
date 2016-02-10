@@ -44,6 +44,8 @@ public:
     virtual vector<Real>  defaultParameters() const = 0;
     virtual size_t                numParams() const = 0;
     virtual bool   isThicknessParam(size_t p) const = 0;
+    virtual bool    isPositionParam(size_t p) const = 0;
+    virtual bool    isBlendingParam(size_t p) const = 0;
 
     virtual MeshingOptions &meshingOptions() = 0;
 
@@ -185,6 +187,8 @@ public:
     virtual vector<Real> defaultParameters() const { return wmesh.defaultParameters(); }
     virtual size_t               numParams() const { return wmesh.numParams(); }
     virtual bool  isThicknessParam(size_t p) const { return wmesh.isThicknessParam(p); }
+    virtual bool   isPositionParam(size_t p) const { return wmesh.isPositionParam(p); }
+    virtual bool   isBlendingParam(size_t p) const { return wmesh.isBlendingParam(p); }
 
     virtual MeshingOptions &meshingOptions() { return mesher.meshingOptions; }
 
@@ -198,6 +202,8 @@ void IsosurfaceInflator::inflate(const vector<Real> &params) { m_imp->inflate(pa
 vector<Real> IsosurfaceInflator::defaultParameters()        const { return m_imp->defaultParameters(); }
 size_t       IsosurfaceInflator::numParams()                const { return m_imp->numParams(); }
 bool         IsosurfaceInflator::isThicknessParam(size_t p) const { return m_imp->isThicknessParam(p); }
+bool         IsosurfaceInflator:: isPositionParam(size_t p) const { return m_imp->isPositionParam(p); }
+bool         IsosurfaceInflator:: isBlendingParam(size_t p) const { return m_imp->isBlendingParam(p); }
 
 void IsosurfaceInflator::setGenerateFullPeriodCell(bool onoff) { m_imp->generateFullPeriodCell = onoff; }
 bool IsosurfaceInflator::shouldGenerateFullPeriodCell() const { return m_imp->generateFullPeriodCell; }

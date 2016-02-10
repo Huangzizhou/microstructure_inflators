@@ -562,11 +562,14 @@ protected:
 // Use previous iterate if evaluating the same point. Otherwise, attempt to
 // inflate the new parameters. Try three times to inflate, and if unsuccessful,
 // estimate the point with linear extrapolation.
-template<class _Iterate, class _Inflator, class _ETensor>
+//
+// Because this is a variadic template, it can be used with an iterate class
+// whose constructor has arbitrary trailing arguments.
+template<class _Iterate, class _Inflator, typename... Args>
 std::shared_ptr<_Iterate>
 getIterate(std::shared_ptr<_Iterate> oldIterate,
         _Inflator &inflator, size_t nParams, const double *params,
-        const _ETensor &targetS) {
+        Args&&... args) {
     if (!oldIterate || oldIterate->paramsDiffer(nParams, params)) {
         std::shared_ptr<_Iterate> newIterate;
         bool success;
@@ -574,7 +577,7 @@ getIterate(std::shared_ptr<_Iterate> oldIterate,
             success = true;
             try {
                 newIterate = std::make_shared<_Iterate>(inflator,
-                                nParams, params, targetS);
+                                nParams, params, std::forward<Args>(args)...);
             }
             catch (std::exception &e) {
                 std::cerr << "INFLATOR FAILED: " << e.what() << std::endl;
