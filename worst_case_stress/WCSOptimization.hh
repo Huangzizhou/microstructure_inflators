@@ -17,6 +17,8 @@
 #include <Inflator.hh>
 #include <MSHFieldWriter.hh>
 
+#include <ElasticityTensor.hh>
+
 #include <PatternOptimizationConfig.hh>
 #include <PatternOptimizationIterate.hh>
 

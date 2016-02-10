@@ -9,6 +9,6 @@
     "marchingSquaresGridSize" : 256,
     "marchingCubesGridSize"   : 128,
 
-    "maxArea"                 : 0.0001,
+    "maxArea"                 : 0.001,
     "featureAngleThreshold"   : 0.7853981633974483
 }

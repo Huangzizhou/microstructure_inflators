@@ -15,7 +15,7 @@
 #include <MeshIO.hh>
 #include <Functions.hh> 
 
-enum class ParameterType { Thickness, Offset };
+enum class ParameterType { Thickness, Offset, Blending };
 
 // Normal shape velocities are (discontinuous) piecwise linear scalar fields.
 template<size_t N>

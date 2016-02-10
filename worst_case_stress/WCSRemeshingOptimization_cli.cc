@@ -47,6 +47,7 @@
 
 #include "WCStressOptimizationIterate.hh"
 #include "BoundaryPerturbationIterate.hh"
+#include "WCSObjective.hh"
 
 #include <LpHoleInflator.hh>
 #include <BoundaryPerturbationInflator.hh>
@@ -69,7 +70,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::positional_options_description p;
     p.add("job", 1);
 
-    po::options_description meshingOptions;
+    po::options_description meshingOptions("Meshing Options");
     meshingOptions.add_options()
         ("subdivide,S",  po::value<size_t>()->default_value(0),      "number of subdivisions to run before creating simulator")
         ("max_volume,v", po::value<double>()->default_value(0.01),   "maximum element area for remeshing")
@@ -79,7 +80,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("remeshSplitThreshold", po::value<double>(),                "edge splitting threshold for remeshing")
         ;
 
-    po::options_description optimizerOptions;
+    po::options_description optimizerOptions("Optimizer Options");
     optimizerOptions.add_options()
         ("nIters,n",     po::value<size_t>()->default_value(20),     "number of iterations")
         ("step,s",       po::value<double>()->default_value(0.0001), "gradient step size")
@@ -87,7 +88,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("vtxNormalPerturbationGradient,N",                          "use the vertex-normal-based version of the boundary perturbation gradient")
         ;
 
-    po::options_description objectiveOptions;
+    po::options_description objectiveOptions("Objective Options");
     objectiveOptions.add_options()
         ("ignoreShear",                                                   "Ignore the shear components in the isotropic tensor fitting")
         ("pnorm,P",      po::value<double>()->default_value(1.0),         "pnorm used in the Lp global worst case stress measure")
@@ -95,10 +96,10 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
         ("JSWeight",     po::value<double>()->default_value(0.0),         "Weight for the JS term of the objective")
         ("JVolWeight,V", po::value<double>()->default_value(0.0),         "Weight for the JVol term of the objective")
-        ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
+        ("laplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ;
 
-    po::options_description generalOptions;
+    po::options_description generalOptions("General Options");
     generalOptions.add_options()
         ("help,h",                                               "Produce this help message")
         ("pattern,p",    po::value<string>(),                    "Pattern wire mesh (.obj|wire), or initial mesh for BoundaryPerturbationInflator")
@@ -197,10 +198,6 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
     size_t   niters = args[    "nIters"].as<size_t>();
     poConfig.fem2DSubdivRounds = args["subdivide"].as<size_t>();
 
-    Real  wcsWeight = args[ "WCSWeight"].as<double>();
-    Real   jsWeight = args[  "JSWeight"].as<double>();
-    Real jvolWeight = args["JVolWeight"].as<double>();
-
     std::vector<MeshIO::IOVertex>  vertices;
     std::vector<MeshIO::IOElement> elements;
     MeshIO::load(args["pattern"].as<string>(), vertices, elements);
@@ -209,82 +206,32 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
     using BPI = BoundaryPerturbationInflator<_N>;
     auto bpi = Future::make_unique<BPI>(vertices, elements);
 
+    WCStressOptimization::Objective<_N> fullObjective(targetS,
+                                args[  "JSWeight"].as<double>(),
+                                args[ "WCSWeight"].as<double>(),
+                                args["JVolWeight"].as<double>(),
+                                args["laplacianRegWeight"].as<double>());
+
+    if (job->targetVolume) 
+        fullObjective.setTargetVolume(*job->targetVolume);
+
     SField params(bpi->numParameters());
     params.clear();
 
-    bool hasVolumeTarget = bool(job->targetVolume);
-    Real targetVolSq = 0;
-    if (hasVolumeTarget) {
-        targetVolSq = *job->targetVolume;
-        targetVolSq *= targetVolSq;
-    }
-
-    boost::optional<Real> initialWCS;
-
-    auto processIterate = [=, &initialWCS, &bpi](size_t i, _Iterate &it, const string &outPath) ->SField {
-        if (hasVolumeTarget) it.setTargetVolume(*job->targetVolume);
+    auto processIterate = [=, &bpi](size_t i, _Iterate &it, const string &outPath) ->SField {
         if (outPath != "") it.writeMeshAndFields(outPath);
-
-        cout << "moduli:\t";
-        it.elasticityTensor().printOrthotropic(cout);
-        cout << "anisotropy:\t" << it.elasticityTensor().anisotropy() << endl;
-
-        BENCHMARK_START_TIMER("Evaluate JS/WCS");
-        Real JS = it.evaluateJS(), WCS = it.evaluateWCS();
-        cout << "JS:\t"     << JS  << endl;
-        cout << "WCS:\t"    << WCS << endl;
-        if (hasVolumeTarget)
-            cout << "JVol:\t"   << it.evaluateJVol()  << endl;
-        cout << "Volume:\t" << it.mesh().volume() << endl;
-        cout << "Max Ptwise WCS:\t" << sqrt(it.wcsObjective().wcStress.stressMeasure().maxMag()) << endl;
-        BENCHMARK_STOP_TIMER("Evaluate JS/WCS");
-
-        if (!initialWCS) { initialWCS = WCS; }
-        assert(initialWCS);
-
-        SField   JS_p = it.gradp_JS();
-        SField  WCS_p = it.gradientWCS_adjoint();
-        SField JVol_p(WCS_p.domainSize());
-        JVol_p.clear();
-
-        cout << "||grad_p JS||:\t"  <<  JS_p.norm() << endl;
-        cout << "||grad_p WCS||:\t" << WCS_p.norm() << endl;
-
-        if (hasVolumeTarget) {
-            JVol_p = it.gradp_JVol();
-            cout << "||grad_p Jvol||:\t" << JVol_p.norm() << endl;
-        }
-
-        cout << "Normalized WCS:\t" << WCS / *initialWCS << endl;
-        cout << "Normalized JS:\t" << it.evaluateJS() / targetSNormSq << endl;
-        if (hasVolumeTarget)
-            cout << "Normalized JVol:\t" << it.evaluateJVol() / targetVolSq << endl;
-
-        // Compute composite objective and gradient
-        Real J = JS * (jsWeight / targetSNormSq) + WCS * (wcsWeight / *initialWCS);
-        if (hasVolumeTarget)
-            J += it.evaluateJVol() * (jvolWeight / targetVolSq);
-
-        SField gradp = JS_p * (jsWeight / targetSNormSq) + WCS_p * (wcsWeight / *initialWCS);
-        if (hasVolumeTarget)
-            gradp += JVol_p * (jvolWeight / targetVolSq);
-
-        // Output composite iterate stats.
-        cout << "J_full:\t" << J << endl;
-        cout << "||grad_p J_full||:\t" << gradp.norm() << endl;
-        std::cout << std::endl;
-
+        it.writeDescription(cout);
 
         if (args.count("dumpShapeDerivatives")) {
             auto path = args["dumpShapeDerivatives"].as<string>()
                         + "_" + std::to_string(i) + ".msh";
             MSHBoundaryFieldWriter bdryWriter(path, it.mesh());
-            bdryWriter.addField("dJS",   bpi->boundaryVectorField(JS_p),   DomainType::PER_NODE);
-            bdryWriter.addField("dWCS",  bpi->boundaryVectorField(WCS_p),  DomainType::PER_NODE);
-            bdryWriter.addField("dJVol", bpi->boundaryVectorField(JVol_p), DomainType::PER_NODE);
+            bdryWriter.addField("dJS",   bpi->boundaryVectorField(it.gradp_JS()),            DomainType::PER_NODE);
+            bdryWriter.addField("dWCS",  bpi->boundaryVectorField(it.gradientWCS_adjoint()), DomainType::PER_NODE);
+            bdryWriter.addField("dJVol", bpi->boundaryVectorField(it.gradp_JVol()), DomainType::PER_NODE);
         }
 
-        return gradp;
+        return it.gradp_JFull();
     };
 
     // Custom gradient descent: number of parameters changes at each iteration.
@@ -295,7 +242,7 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
 
         std::unique_ptr<_Iterate> it;
         if (args.count("preRemeshOutput")) {
-            it = Future::make_unique<_Iterate>(*bpi, params.size(), params.data(), targetS);
+            it = Future::make_unique<_Iterate>(*bpi, params.size(), params.data(), fullObjective);
             std::cout << "Pre-remesh iterate:" << std::endl;
             gradp = processIterate(i, *it, out ? (outName + "_" + std::to_string(i) + ".msh") : std::string(""));
         }
@@ -328,7 +275,7 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
             params.resizeDomain(bpi->numParameters());
             params.clear();
             bpi->setNoPerturb(true); // Use mesh from Triangle directly.
-            it = Future::make_unique<_Iterate>(*bpi, params.size(), params.data(), targetS);
+            it = Future::make_unique<_Iterate>(*bpi, params.size(), params.data(), fullObjective);
             bpi->setNoPerturb(false);
 
             std::cout << "Post-remesh iterate:" << std::endl;

@@ -18,7 +18,7 @@ LIBS+=$(TRIANGLE_LFLAGS)
 TARGETS=isosurface_cli
 all: $(TARGETS)
 
-isosurface_cli: isosurface_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o IsosurfaceInflator.o VCGSurfaceMesher.o BoxIntersectionMesher.o MeshingOptions.o CGALClippedVolumeMesher.o MidplaneMesher.o
+isosurface_cli: isosurface_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o IsosurfaceInflator.o  MidplaneMesher.o MeshingOptions.o BoxIntersectionMesher.o # VCGSurfaceMesher.o CGALClippedVolumeMesher.o
 	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
 
 TestWireMesh: tests/TestWireMesh.o

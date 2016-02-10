@@ -518,6 +518,27 @@ struct Iterate {
         return grad;
     }
 
+    // Shape derivative of (unweighted) volume-fitting objective.
+    // JVol(omega) = ||Vol - V^*||^2 => dJVol[v] = 2 (Vol - V^*) dVol[v]
+    SField gradp_JVol() const {
+        if (!m_targetVol) throw std::runtime_error("Target volume not set.");
+
+        SField result(m_vn_p.size());
+        result.clear();
+
+        // First compute gradient of volume: int v_n dV
+        for (size_t p = 0; p < m_vn_p.size(); ++p) {
+            for (auto be : mesh().boundaryElements()) {
+                if (be->isPeriodic) continue;
+                result[p] += m_vn_p[p][be.index()].integrate(be->volume());
+            }
+        }
+
+        Real diff = mesh().volume() - *m_targetVol;
+        result *= (2.0 * diff);
+        return result;
+    }
+
 protected:
     std::unique_ptr<_Sim> m_sim;
     _ETensor C, S, m_targetS, m_diffS;

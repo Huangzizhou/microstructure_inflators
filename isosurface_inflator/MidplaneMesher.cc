@@ -60,7 +60,13 @@ mesh(const SignedDistanceFunction &sdf,
     auto bb = sdf.boundingBox();
     MarchingSquaresGrid msquares(meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[0]),
                                  meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[1]));
+
     MidplaneSlice<SignedDistanceFunction> slice(sdf);
+
+    // {
+    //     msquares.outputSignedDistanceField("sdf.msh", slice);
+    // }
+
     // Get ccw-ordered segments of boundary/interior edges
     auto result = msquares.extractBoundaryPolygons(slice, 0.0);
 
@@ -83,10 +89,12 @@ mesh(const SignedDistanceFunction &sdf,
                 meshingOptions.featureAngleThreshold, false);
     }
 
+#if 0
     {
         IOElementEdgeSoupFromClosedPolygonList<Point2D> esoup(polygons);
         MeshIO::save("cleaned_polygons.msh", esoup);
     }
+#endif
 
     // Determine which polygon is touching the bbox (there must be exactly one):
     // this is the only non-hole polygon.
