@@ -18,6 +18,10 @@ public:
         assert(m_inflator.numParameters() == nParams);
     }
 
+    void writeDescription(std::ostream &os) const {
+        writeIterateDescription(os, *this);
+    }
+
     // This high-dimensional iterate needs special adjoint-method based
     // gradient operations to be tractable.
     ScalarField<Real> gradientWCS_adjoint() const {
@@ -43,8 +47,14 @@ public:
         else                                                       return m_inflator.gradientFromShapeDerivative(sd);
     }
 
+    ScalarField<Real> gradp_JFull() const {
+        if (m_fullObjective.hasTargetVolume()) return m_fullObjective.evalGradient(gradp_JS(), gradientWCS_adjoint(), gradp_JVol());
+        else                                   return m_fullObjective.evalGradient(gradp_JS(), gradientWCS_adjoint());
+    }
+
 protected:
     const BoundaryPerturbationInflator<N> &m_inflator;
+    using Base::m_fullObjective;
 };
 
 }

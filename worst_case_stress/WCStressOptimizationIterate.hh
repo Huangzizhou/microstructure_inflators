@@ -23,6 +23,58 @@
 
 namespace WCStressOptimization {
 
+// Implemented outside a member method so that a subclasses' static overrides
+// of the evaluation/gradient computations will be called.
+// (E.g. BoundaryPerturbationIterate must call its own gradp_JS since it
+// overrides the default parameter shape velocity gradient approach).
+template<class _WCSIterate>
+void writeIterateDescription(std::ostream &os, _WCSIterate &it) {
+    os << "moduli:\t";
+    it.elasticityTensor().printOrthotropic(os);
+    os << "anisotropy:\t" << it.elasticityTensor().anisotropy() << std::endl;
+
+    os << "printable:\t" << it.printable() << std::endl;
+
+    BENCHMARK_START_TIMER("Evaluate JS/WCS");
+    Real JS = it.evaluateJS(), WCS = it.evaluateWCS();
+    os << "JS:\t"     << JS  << std::endl;
+    os << "WCS:\t"    << WCS << std::endl;
+    if (it.fullObjective().hasTargetVolume())
+        os << "JVol:\t"   << it.evaluateJVol()  << std::endl;
+    os << "Volume:\t" << it.mesh().volume() << std::endl;
+    os << "Max Ptwise WCS:\t" << sqrt(it.wcsObjective().wcStress.stressMeasure().maxMag()) << std::endl;
+    BENCHMARK_STOP_TIMER("Evaluate JS/WCS");
+
+    auto   JS_p = it.gradp_JS();
+    auto  WCS_p = it.gradientWCS_adjoint();
+    ScalarField<Real> JVol_p(WCS_p.domainSize());
+    JVol_p.clear();
+
+    os << "||grad_p JS||:\t"  <<  JS_p.norm() << std::endl;
+    os << "||grad_p WCS||:\t" << WCS_p.norm() << std::endl;
+
+    if (it.fullObjective().hasTargetVolume()) {
+        JVol_p = it.gradp_JVol();
+        os << "||grad_p Jvol||:\t" << JVol_p.norm() << std::endl;
+    }
+
+    os << "Normalized WCS:\t" << WCS / it.fullObjective().initialWCS() << std::endl;
+    os << "Normalized JS:\t" << it.evaluateJS() / it.fullObjective().targetSNormSq() << std::endl;
+    if (it.fullObjective().hasTargetVolume())
+        os << "Normalized JVol:\t" << it.evaluateJVol() / it.fullObjective().targetVolSq() << std::endl;
+
+    // Output composite iterate stats.
+    if (it.fullObjective().hasTargetVolume()) {
+        os << "J_full:\t" << it.fullObjective().eval(JS, WCS, it.evaluateJVol()) << std::endl;
+        os << "||grad_p J_full||:\t" << it.fullObjective().evalGradient(JS_p, WCS_p, JVol_p).norm() << std::endl;
+    }
+    else {
+        os << "J_full:\t" << it.fullObjective().eval(JS, WCS) << std::endl;
+        os << "||grad_p J_full||:\t" << it.fullObjective().evalGradient(JS_p, WCS_p).norm() << std::endl;
+    }
+    os << std::endl;
+}
+
 // _BypassParameterVelocity: hack to avoid computing the parameter velocity when
 // there are too many parameters. This is only intended to be used by subclasses 
 // that know how to compute objective gradients without explicitly forming the
@@ -42,11 +94,6 @@ template<class _Inflator>
         : Base(inflator, nParams, params, fullObjective.targetS, true /* Always keep w_ij */ ),
           m_fullObjective(fullObjective)
     {
-        if (!m_fullObjective.hasInitialWCS()) {
-            m_fullObjective.setInitialWCS(evaluateWCS());
-            std::cout << "Initial WCS: " << m_fullObjective.initialWCS() << std::endl;
-        }
-
         if (m_fullObjective.hasTargetVolume())
             this->setTargetVolume(m_fullObjective.targetVolume());
 
@@ -55,63 +102,22 @@ template<class _Inflator>
         m_wcs_objective.setPointwiseWCS(m_sim->mesh(),
             worstCaseFrobeniusStress(m_sim->mesh().element(0)->E(), Base::S,
                 PeriodicHomogenization::macroStrainToMicroStrainTensors(w_ij, *m_sim)));
+
+        if (!m_fullObjective.hasInitialWCS()) {
+            m_fullObjective.setInitialWCS(evaluateWCS());
+            std::cout << "Initial WCS: " << m_fullObjective.initialWCS() << std::endl;
+        }
     }
 
     // Evaluate the global worst case stress objective
     Real evaluateWCS() const { return m_wcs_objective.evaluate(); }
-
-    void writeDescription(std::ostream &os) const {
-        os << "moduli:\t";
-        Base::elasticityTensor().printOrthotropic(os);
-        os << "anisotropy:\t" << Base::elasticityTensor().anisotropy() << std::endl;
-
-        os << "printable:\t" << this->m_printable << std::endl;
-
-        BENCHMARK_START_TIMER("Evaluate JS/WCS");
-        Real JS = Base::evaluateJS(), WCS = evaluateWCS();
-        os << "JS:\t"     << JS  << std::endl;
-        os << "WCS:\t"    << WCS << std::endl;
-        if (m_fullObjective.hasTargetVolume())
-            os << "JVol:\t"   << Base::evaluateJVol()  << std::endl;
-        os << "Volume:\t" << Base::mesh().volume() << std::endl;
-        os << "Max Ptwise WCS:\t" << sqrt(wcsObjective().wcStress.stressMeasure().maxMag()) << std::endl;
-        BENCHMARK_STOP_TIMER("Evaluate JS/WCS");
-
-        SField   JS_p = Base::gradp_JS();
-        SField  WCS_p = gradientWCS_adjoint();
-        SField JVol_p(WCS_p.domainSize());
-        JVol_p.clear();
-
-        os << "||grad_p JS||:\t"  <<  JS_p.norm() << std::endl;
-        os << "||grad_p WCS||:\t" << WCS_p.norm() << std::endl;
-
-        if (m_fullObjective.hasTargetVolume()) {
-            JVol_p = Base::gradp_JVol();
-            os << "||grad_p Jvol||:\t" << JVol_p.norm() << std::endl;
-        }
-
-        os << "Normalized WCS:\t" << WCS / m_fullObjective.initialWCS() << std::endl;
-        os << "Normalized JS:\t" << Base::evaluateJS() / m_fullObjective.targetSNormSq() << std::endl;
-        if (m_fullObjective.hasTargetVolume())
-            os << "Normalized JVol:\t" << Base::evaluateJVol() / m_fullObjective.targetVolSq() << std::endl;
-
-        // Output composite iterate stats.
-        if (m_fullObjective.hasTargetVolume()) {
-            os << "J_full:\t" << m_fullObjective.eval(JS, WCS, Base::evaluateJVol()) << std::endl;
-            os << "||grad_p J_full||:\t" << m_fullObjective.evalGradient(JS_p, WCS_p, JVol_p).norm() << std::endl;
-        }
-        else {
-            os << "J_full:\t" << m_fullObjective.eval(JS, WCS) << std::endl;
-            os << "||grad_p J_full||:\t" << m_fullObjective.evalGradient(JS_p, WCS_p).norm() << std::endl;
-        }
-        os << std::endl;
-    }
 
     Real evaluateJFull() const {
         if (m_fullObjective.hasTargetVolume()) return m_fullObjective.eval(Base::evaluateJS(), evaluateWCS(), Base::evaluateJVol());
         else                                   return m_fullObjective.eval(Base::evaluateJS(), evaluateWCS());
     }
 
+    // WARNING: paste this into any subclass that overrides gradient evaluation.
     SField gradp_JFull() const {
         if (m_fullObjective.hasTargetVolume()) return m_fullObjective.evalGradient(Base::gradp_JS(), gradientWCS_adjoint(), Base::gradp_JVol());
         else                                   return m_fullObjective.evalGradient(Base::gradp_JS(), gradientWCS_adjoint());
@@ -156,6 +162,11 @@ template<class _Inflator>
         }
 
         return result;
+    }
+
+    // WARNING: paste this into any subclass that overrides gradient/objective evaluation.
+    void writeDescription(std::ostream &os) const {
+        writeIterateDescription(os, *this);
     }
 
     void writeMeshAndFields(const std::string &name) const {
@@ -264,6 +275,7 @@ template<class _Inflator>
     }
 
     const WCSObjective &wcsObjective() const { return m_wcs_objective; }
+    const WCStressOptimization::Objective<N> &fullObjective() const { return m_fullObjective; }
 
 protected:
     WCStressOptimization::Objective<N> &m_fullObjective;

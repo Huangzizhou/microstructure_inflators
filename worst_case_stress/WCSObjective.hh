@@ -55,7 +55,7 @@ struct Objective {
     }
 
     // Evaluate full objective gradient from sub-objective gradients
-    SField evalGradient(const SField &JS_p, const SField &WCS_p, const SField &JVol_p = SField()) {
+    SField evalGradient(const SField &JS_p, const SField &WCS_p, const SField &JVol_p = SField()) const {
         if (JVol_p.domainSize() > 0) m_assertTVol();
         else                         m_assertNoTVol();
         SField grad_p = JS_p * normalizedJSWeight() +

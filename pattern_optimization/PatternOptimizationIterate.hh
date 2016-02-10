@@ -539,6 +539,8 @@ struct Iterate {
         return result;
     }
 
+    bool printable() const { return m_printable; }
+
 protected:
     std::unique_ptr<_Sim> m_sim;
     _ETensor C, S, m_targetS, m_diffS;
