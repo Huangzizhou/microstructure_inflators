@@ -6,6 +6,7 @@ INCLUDES=-I$(MeshFEM) -I$(CSGFEM) -isystem $(EIGEN_INC) -isystem $(BOOST_INC) \
 		 -isystem $(CGAL_INC) -isystem $(GMP_INC) -isystem $(MPFR_INC) \
 		 -isystem $(TRIANGLE_INC)
 CPPFLAGS=-O2
+# CPPFLAGS=-O0 -g
 
 LIBS+=-L$(CGAL_LIB) -lCGAL -L$(GMP_LIB) -lgmp -L$(MPFR_LIB) -lmpfr
 LIBS+=-L$(ADEPT_LIB) -ladept

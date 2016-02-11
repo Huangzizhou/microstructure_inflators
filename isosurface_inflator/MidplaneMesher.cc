@@ -120,10 +120,10 @@ mesh(const SignedDistanceFunction &sdf,
     // boundary curve and checking if the point is outside the object.
     std::vector<Point2D> holePts;
     {
-        size_t i;
+        size_t i = 0;
         for (const auto &poly : polygons) {
             if (poly.size() < 3) throw std::runtime_error("Polygon of size " + std::to_string(poly.size()) + " in marching squares output.");
-            if (isHoleBdry[i++]) {
+            if (isHoleBdry.at(i++)) {
                 bool found = false;
                 for (auto p_it = poly.begin(); !found && (p_it != poly.end()); ++p_it) {
                     auto p_next = p_it; ++p_next;
@@ -144,7 +144,7 @@ mesh(const SignedDistanceFunction &sdf,
         }
     }
     if (polygons.size() - holePts.size() != 1) {
-        throw std::runtime_error("Should have exactly one bbox-incident curve; got "
+        throw std::runtime_error("Should have exactly one non-hole curve. Got "
                 + std::to_string(polygons.size() - holePts.size()));
     }
 

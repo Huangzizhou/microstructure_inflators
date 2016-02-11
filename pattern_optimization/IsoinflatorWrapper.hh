@@ -31,8 +31,8 @@ public:
 
     ParameterType parameterType(size_t p) const {
         if (m_inflator.isThicknessParam(p)) return ParameterType::Thickness;
-        if (m_inflator.isPositionParam(p)) return ParameterType::Offset;
-        if (m_inflator.isBlendingParam(p)) return ParameterType::Blending;
+        if (m_inflator. isPositionParam(p)) return ParameterType::Offset;
+        if (m_inflator. isBlendingParam(p)) return ParameterType::Blending;
         throw std::runtime_error("Unknown parameter type for param " + std::to_string(p));
     }
 
