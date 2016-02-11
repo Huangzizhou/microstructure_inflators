@@ -122,7 +122,7 @@ public:
 
         pattern.setParameters(params);
         mesher.mesh(pattern, this->vertices, this->elements);
-        cout << vertices.size() << " vertices, " << elements.size() << " elements" << endl;
+        // cout << vertices.size() << " vertices, " << elements.size() << " elements" << endl;
     }
 
     virtual bool _mesherGeneratesOrthoCell() const {

@@ -63,9 +63,11 @@ mesh(const SignedDistanceFunction &sdf,
 
     MidplaneSlice<SignedDistanceFunction> slice(sdf);
 
-    // {
-    //     msquares.outputSignedDistanceField("sdf.msh", slice);
-    // }
+#if 0
+    {
+        msquares.outputSignedDistanceField("sdf.msh", slice);
+    }
+#endif
 
     // Get ccw-ordered segments of boundary/interior edges
     auto result = msquares.extractBoundaryPolygons(slice, 0.0);
