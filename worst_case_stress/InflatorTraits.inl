@@ -59,7 +59,11 @@ struct InflatorTraitsConstrainedInflator<2> : public InflatorTraits<2> {
     static shared_ptr<type> construct(const po::variables_map &args, const PatternOptimization::Job<2> *job) {
         auto inflator_ptr = make_shared<type>(
                 job->parameterConstraints,
-                args["pattern"].as<string>());
+                args["pattern"].as<string>(),
+                args["cell_size"].as<double>(),
+                0.5 * sqrt(2),
+                args.count("isotropicParameters"),
+                args.count("vertexThickness"));
         if (args.count("max_volume"))
             inflator_ptr->setMaxElementVolume(args["max_volume"].as<double>());
         return inflator_ptr;

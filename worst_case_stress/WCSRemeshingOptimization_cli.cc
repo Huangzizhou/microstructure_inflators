@@ -96,7 +96,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
         ("JSWeight",     po::value<double>()->default_value(0.0),         "Weight for the JS term of the objective")
         ("JVolWeight,V", po::value<double>()->default_value(0.0),         "Weight for the JVol term of the objective")
-        ("laplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
+        ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ;
 
     po::options_description generalOptions("General Options");
@@ -210,7 +210,7 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
                                 args[  "JSWeight"].as<double>(),
                                 args[ "WCSWeight"].as<double>(),
                                 args["JVolWeight"].as<double>(),
-                                args["laplacianRegWeight"].as<double>());
+                                args["LaplacianRegWeight"].as<double>());
 
     if (job->targetVolume) 
         fullObjective.setTargetVolume(*job->targetVolume);

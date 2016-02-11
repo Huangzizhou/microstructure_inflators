@@ -87,7 +87,7 @@ private:
     }
 
     void m_assertNoTVol() const {
-        if (!hasTargetVolume()) throw std::runtime_error("Expected a JVol (target volume is set).");
+        if (hasTargetVolume()) throw std::runtime_error("Expected a JVol (Error: target volume is set).");
     }
 
     void m_assertInitWCS() const {

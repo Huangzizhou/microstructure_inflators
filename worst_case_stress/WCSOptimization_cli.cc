@@ -96,7 +96,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("usePthRoot,R",                                                  "use the true Lp norm for global worst case stress measure (applying pth root)")
         ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
         ("JSWeight",     po::value<double>()->default_value(0.0),         "Weight for the JS term of the objective")
-        ("JVolWeight,V", po::value<double>()->default_value(0.0),         "Weight for the JVol term of the objective")
+        ("JVolWeight",   po::value<double>()->default_value(0.0),         "Weight for the JVol term of the objective")
         ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ;
 
@@ -195,8 +195,12 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
-    WCStressOptimization::Config::get().globalObjectivePNorm = args["pnorm"].as<double>();
-    WCStressOptimization::Config::get().useVtxNormalPerturbationGradientVersion = args.count("vtxNormalPerturbationGradient");
+    // Configure WCS Objective
+    auto &wcsConfig = WCStressOptimization::Config::get();
+    wcsConfig.globalObjectivePNorm = args["pnorm"].as<double>();
+    if (args.count("usePthRoot"))
+        wcsConfig.globalObjectiveRoot = 2.0 * wcsConfig.globalObjectivePNorm;
+    wcsConfig.useVtxNormalPerturbationGradientVersion = args.count("vtxNormalPerturbationGradient");
 
     SField params = _ITraits<_N>::initParams(inflator_ptr, args, job);
 
@@ -206,12 +210,13 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *
         optimizer(inflator, job->radiusBounds,   job->translationBounds, job->blendingBounds,
                             job->varLowerBounds, job->varUpperBounds);
 
-
+    // Create scalarized multi-objective with weights specified by the
+    // arguments.
     WCStressOptimization::Objective<_N> fullObjective(targetS,
                                 args[  "JSWeight"].as<double>(),
                                 args[ "WCSWeight"].as<double>(),
                                 args["JVolWeight"].as<double>(),
-                                args["laplacianRegWeight"].as<double>());
+                                args["LaplacianRegWeight"].as<double>());
 
     string solver = args["solver"].as<string>(),
            output = args["output"].as<string>();
