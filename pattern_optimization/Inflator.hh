@@ -31,7 +31,8 @@ class Inflator;
 #include "IsoinflatorWrapper.hh"
 // Use isosurface inflator as 2D inflator
 template<>
-struct Inflator<2> : public IsoinflatorWrapper<2> {
+class Inflator<2> : public IsoinflatorWrapper<2> {
+public:
     using Base = IsoinflatorWrapper<2>;
     using Base::Base;
 };
@@ -165,7 +166,8 @@ private:
 #include "IsoinflatorWrapper.hh"
 // Use isosurface inflator as 3D inflator
 template<>
-struct Inflator<3> : public IsoinflatorWrapper<3> {
+class Inflator<3> : public IsoinflatorWrapper<3> {
+public:
     using Base = IsoinflatorWrapper<3>;
     using Base::Base;
 };

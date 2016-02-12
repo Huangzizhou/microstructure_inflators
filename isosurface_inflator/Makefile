@@ -16,10 +16,13 @@ LIBS+=$(TRIANGLE_LFLAGS)
 # CPPFLAGS=-O2 -DCGAL_MESH_3_VERBOSE
 # CPPFLAGS=-g -O0 # -DCGAL_MESH_3_VERBOSE -DCGAL_MESH_3_PROTECTION_DEBUG -ftemplate-backtrace-limit=0
 # CPPFLAGS += -DDEBUG_MARCHING_SQUARES
-TARGETS=isosurface_cli
+TARGETS=isosurface_cli SignedDistance_cli
 all: $(TARGETS)
 
 isosurface_cli: isosurface_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o IsosurfaceInflator.o  MidplaneMesher.o MeshingOptions.o BoxIntersectionMesher.o # VCGSurfaceMesher.o CGALClippedVolumeMesher.o
+	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
+
+SignedDistance_cli: SignedDistance_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o
 	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
 
 TestWireMesh: tests/TestWireMesh.o
