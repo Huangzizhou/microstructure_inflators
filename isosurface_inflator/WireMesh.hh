@@ -140,11 +140,11 @@ public:
                         std::vector<Real> &blendingParams) const {
         if (params.size() != numParams())
             throw std::runtime_error("Invalid number of params.");
-        edges.clear(), points.clear(), thicknesses.clear();
+
+        // Copy over the base graph, setting positions using params
+        edges.clear(), points.clear();
         edges.reserve(m_baseEdges.size() + m_adjacentEdges.size());
         points.reserve(m_baseVertices.size() + m_adjacentVertices.size());
-        
-        // Copy over the base graph, setting positions using params
         edges = m_baseEdges;
         size_t pOffset = 0;
         for (size_t i = 0; i < m_baseVertices.size(); ++i) {
@@ -153,17 +153,18 @@ public:
             pOffset += pos.numDoFs();
         }
 
-        size_t adjVertexOffset = m_baseVertices.size();
-
         // Copy over the adjacent graph, transforming adjacent vertices
         // (Note that the params-repositioned vertices are transformed)
+        size_t adjVertexOffset = m_baseVertices.size();
         for (const auto &ae : m_adjacentEdges)
             edges.push_back({ae.first, adjVertexOffset + ae.second});
         for (const auto &av : m_adjacentVertices)
             points.push_back(av.second.apply(points.at(av.first)));
 
-        assert(pOffset == numPositionParams());
+        // Decode per-vertex or per-edge thickness parameters
+        thicknesses.clear();
         // params[numPositionParams()...] are thickness parameters
+        assert(pOffset == numPositionParams());
         if (thicknessType == ThicknessType::Vertex) {
             // Decode into one thickness per inflation graph vertex
             thicknesses.reserve(m_baseVertices.size() + m_adjacentVertices.size());
@@ -181,10 +182,12 @@ public:
                 thicknesses.push_back(params.at(pOffset + m_adjacentEdgeOrigin[i]));
         }
 
+        // Decode per-vertex blending parameters
+        blendingParams.clear();
+        blendingParams.reserve(m_baseVertices.size() + m_adjacentVertices.size());
         // params[numPositionParams() + numThicknessParams()...] are blending
         // parameters
         pOffset = numPositionParams() + numThicknessParams();
-        blendingParams.reserve(m_baseVertices.size() + m_adjacentVertices.size());
         for (size_t i = 0; i < m_baseVertices.size(); ++i)
             blendingParams.push_back(params.at(pOffset + i));
         for (size_t i = 0; i < m_adjacentVertices.size(); ++i)

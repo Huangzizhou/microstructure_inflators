@@ -15,10 +15,7 @@ using namespace std;
 template<class WMesh>
 void execute(const string &wirePath, string paramString, const Point3d &evalPt, const string &igraphPath) {
     WMesh wmesh(wirePath);
-    cout << "Wire mesh has " << wmesh.numParams() << " parameters" << endl;
     PatternSignedDistance<Real, WMesh> psd(wmesh);
-
-    cout << "Wire mesh has " << wmesh.numParams() << " parameters" << endl;
 
     vector<Real> params(wmesh.defaultParameters());
     if (paramString != "") {
@@ -48,8 +45,8 @@ map<string, function<void(const string &, string, const Point3d &, const string 
      {"triply_periodic", execute<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>}};
 
 void usage(int status, const po::options_description &visible_opts) {
-    cerr << "Usage: ./SignedDistance_cli pattern_symmetry wire.obj -p parameters [options]" << endl;
-    cerr << "eg: ./SignedDistance_cli cubic pattern0746.wire -p \"0.25 0.5 0.25 0.25 0.5 0.25 0.25 0.25 0.25\"" << endl;
+    cerr << "Usage: ./SignedDistance_cli pattern_symmetry wire.obj evalPt -p parameters [options]" << endl;
+    cerr << "eg: ./SignedDistance_cli cubic pattern0746.wire \"0.0 0.0 0.0\" -p \"0.25 0.5 0.25 0.25 0.5 0.25 0.25 0.25 0.25\"" << endl;
     cout << visible_opts << endl;
     exit(status);
 }

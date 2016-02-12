@@ -116,6 +116,10 @@ public:
         for (const auto &c : m_edgeGeometry)
             edgeDists.push_back(c.signedDistance(p));
 
+        // for (Real2 ed : edgeDists) {
+        //     std::cout << "Edge distance: " << ed << std::endl;
+        // }
+
         // Create smoothed union geometry around each vertex and then union
         // together
         std::vector<Real2> unionedDist;
