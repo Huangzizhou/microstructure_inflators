@@ -120,7 +120,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description visibleOptions;
     visibleOptions.add(sweepOptions).add(patternOptions).add(meshingOptions).add(optimizerOptions)
-                  .add(objectiveOptions).add(generalOptions);
+                  .add(objectiveOptions).add(generalOptions).add(elasticityOptions);
 
     po::options_description cli_opts;
     cli_opts.add(visibleOptions).add(hidden_opts);
@@ -142,9 +142,13 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
-    if (vm.count("pattern") == 0) {
+    string inflator = vm["inflator"].as<string>();
+    if ((inflator != "lphole") && (vm.count("pattern") == 0)) {
         cout << "Error: must specify pattern mesh" << endl;
         fail = true;
+    }
+    else if (vm.count("pattern")) {
+        std::cerr << "WARNING: pattern argument not expected for LpHoleInflator" << std::endl;
     }
 
     size_t d = vm["degree"].as<size_t>();
@@ -153,11 +157,11 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
-    set<string> subdivisionAlgorithms = {"simple", "loop"};
-    if (subdivisionAlgorithms.count(vm["sub_algorithm"].as<string>()) == 0) {
-        cout << "Illegal subdivision algorithm specified" << endl;
-        fail = true;
-    }
+    // set<string> subdivisionAlgorithms = {"simple", "loop"};
+    // if (subdivisionAlgorithms.count(vm["sub_algorithm"].as<string>()) == 0) {
+    //     cout << "Illegal subdivision algorithm specified" << endl;
+    //     fail = true;
+    // }
 
     if (fail || vm.count("help"))
         usage(fail, visibleOptions);

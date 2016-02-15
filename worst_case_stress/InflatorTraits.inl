@@ -110,8 +110,6 @@ template<>
 struct InflatorTraitsLpHole<2> : public InflatorTraits<2> {
     using type = LpHoleInflator;
     static shared_ptr<type> construct(const po::variables_map &args, const PatternOptimization::Job<2> * /* job */) {
-        if (args.count("pattern"))
-            std::cerr << "WARNING: pattern argument not expected for LpHoleInflator" << std::endl;
         auto inflator_ptr = make_shared<type>();
         inflator_ptr->setNumSubdiv(args["hole_segments"].as<size_t>());
         if (args.count("max_volume"))
