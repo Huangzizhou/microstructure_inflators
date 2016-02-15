@@ -110,8 +110,8 @@ public:
             for (size_t p = 0; p < nParams; ++p)
                 x_vec[p] = x(p);
 
-            m_iterate = PatternOptimization::getIterate(m_iterate, m_inflator, nParams, &x_vec[0],
-                                                        m_fullObjective);
+            m_iterate = PatternOptimization::getIterate(std::move(m_iterate), m_inflator, nParams,
+                                                        &x_vec[0], m_fullObjective);
             return m_iterate->evaluateJFull();
         }
 
@@ -122,7 +122,7 @@ public:
         size_t nParams;
     private:
         // Iterate is mutable so that operator() can be const as dlib requires
-        mutable std::shared_ptr<_Iterate<_Sim>> m_iterate;
+        mutable std::unique_ptr<_Iterate<_Sim>> m_iterate;
         _Inflator &m_inflator;
         WCStressOptimization::Objective<_N> &m_fullObjective;
     };

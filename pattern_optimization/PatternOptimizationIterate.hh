@@ -566,17 +566,17 @@ protected:
 // Because this is a variadic template, it can be used with an iterate class
 // whose constructor has arbitrary trailing arguments.
 template<class _Iterate, class _Inflator, typename... Args>
-std::shared_ptr<_Iterate>
-getIterate(std::shared_ptr<_Iterate> oldIterate,
+std::unique_ptr<_Iterate>
+getIterate(std::unique_ptr<_Iterate> oldIterate,
         _Inflator &inflator, size_t nParams, const double *params,
         Args&&... args) {
     if (!oldIterate || oldIterate->paramsDiffer(nParams, params)) {
-        std::shared_ptr<_Iterate> newIterate;
+        std::unique_ptr<_Iterate> newIterate;
         bool success;
         for (size_t i = 0; i < 3; ++i) {
             success = true;
             try {
-                newIterate = std::make_shared<_Iterate>(inflator,
+                newIterate = Future::make_unique<_Iterate>(inflator,
                                 nParams, params, std::forward<Args>(args)...);
             }
             catch (std::exception &e) {
@@ -588,7 +588,7 @@ getIterate(std::shared_ptr<_Iterate> oldIterate,
         if (!success) {
             std::cerr << "3 INFLATION ATTEMPTS FAILED." << std::endl;
             if (!oldIterate) throw std::runtime_error("Inflation failure on first iterate");
-            newIterate = oldIterate;
+            newIterate = std::move(oldIterate);
             newIterate->estimatePoint(nParams, params);
         }
         return newIterate;

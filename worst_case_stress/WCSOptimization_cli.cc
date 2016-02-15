@@ -78,7 +78,9 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description meshingOptions;
     meshingOptions.add_options()
-        ("max_volume,v",   po::value<double>(), "Maximum element area for remeshing (overrides meshing options)")
+        ("meshingOptions,M", po::value<string>(),                    "Meshing options configuration file")
+        ("max_volume,v",     po::value<double>(),                    "Maximum element area for remeshing (overrides meshing options)")
+        ("hole_segments",    po::value<size_t>()->default_value(64), "Number of segments in hole boundary (LpHoleInflator)")
         ;
 
     po::options_description optimizerOptions;
@@ -93,19 +95,22 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     objectiveOptions.add_options()
         ("ignoreShear",                                                   "Ignore the shear components in the isotropic tensor fitting")
         ("pnorm,P",      po::value<double>()->default_value(1.0),         "pnorm used in the Lp global worst case stress measure")
-        ("usePthRoot,R",                                                  "use the true Lp norm for global worst case stress measure (applying pth root)")
+        ("usePthRoot,R",                                                  "Use the true Lp norm for global worst case stress measure (applying pth root)")
         ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
         ("JSWeight",     po::value<double>()->default_value(0.0),         "Weight for the JS term of the objective")
         ("JVolWeight",   po::value<double>()->default_value(0.0),         "Weight for the JVol term of the objective")
         ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ;
 
+    po::options_description elasticityOptions;
+    elasticityOptions.add_options();
+        ("material,m",   po::value<string>(),                    "Base material")
+        ("degree,d",     po::value<size_t>()->default_value(2),  "FEM Degree")
+
     po::options_description generalOptions;
     generalOptions.add_options()
         ("help,h",                                               "Produce this help message")
-        ("material,m",   po::value<string>(),                    "base material")
-        ("degree,d",     po::value<size_t>()->default_value(2),  "FEM Degree")
-        ("output,o",     po::value<string>()->default_value(""), "output .js mesh + fields at each iteration")
+        ("output,o",     po::value<string>()->default_value(""), "output mesh and fields at each iteration")
         ("dumpShapeDerivatives"  , po::value<string>(),          "Dump shape derivative fields for JVol, JS, and WCS")
         ;
 
