@@ -13,10 +13,10 @@
 #include <MeshIO.hh>
 #include <MSHFieldWriter.hh>
 #include <MSHFieldParser.hh>
-#include "LinearElasticity.hh"
-#include <Materials.hh>
-#include <PeriodicHomogenization.hh>
-#include "GlobalBenchmark.hh"
+/* #include "LinearElasticity.hh" */
+/* #include <Materials.hh> */
+/* #include <PeriodicHomogenization.hh> */
+/* #include "GlobalBenchmark.hh" */
 // I thought these are needed to call static functions from WireMesh2D.h, but they are not!
 //#include "EdgeMeshUtils.h"
 //#include "WireMesh2D.h"
@@ -43,9 +43,6 @@
 #include <boost/algorithm/string.hpp> // required for parsing jacobian
 
 // the following are not required anymore
-#include "PatternOptimization.hh" 
-#include "PatternOptimizationJob.hh"
-
 #include <vcg/complex/complex.h>
 
 namespace po = boost::program_options;
@@ -54,8 +51,8 @@ using namespace fs;
 using namespace std;
 
 // the following are not required anymore
-using namespace PatternOptimization;
-using namespace PeriodicHomogenization;
+/* using namespace PatternOptimization; */
+/* using namespace PeriodicHomogenization; */
 
 void usage(int exitVal, const po::options_description &visible_opts) {
     cout << "Usage: TileQuadFromFile_cli [options] quadMesh.obj" << endl;
@@ -84,7 +81,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("max_volume,v", 		po::value<double>(), "maximum element volume parameter for wire inflator")
         ("avg_thickness,t", 	po::value<bool>()->default_value(true), "true to average the thicknesses when tiling")
         ("scale,s",			 	po::value<double>()->default_value(1.0), "scales the input mesh by a factor of 's' [used when there is a significant change of scale in the quad mesh]")
-        ("sym",          		po::value<int>()->default_value(3), "symmetry mode")
+        ("sym",          		po::value<int>()->default_value(3), "symmetry mode, use -1 to fall back to Luigi's symmetry modes")
         ;
 	
 	po::options_description cli_opts;
@@ -153,30 +150,15 @@ void readTable(std::string fileName, vector<vector<Real>> & dataTable)
 void readQuadMesh(const string & quadMeshPath, PolyMesh & pmesh)
 {
 	typedef WireMeshEmbedding<EMesh, PolyMesh>				WireEmbedding;
-	typedef typename WireEmbedding::QuadParametrization 	QuadParametrization;
 	typedef PolyMeshUtils<PolyMesh> PMU;
 	bool ok = false;
 	ok = PMU::importFromOBJ(quadMeshPath, pmesh);
-
 	if (ok)
 		WireEmbedding::preprocessQuadMesh(pmesh);
 
-	// uncomment the following if you want to ignore Luigi's optimal parametrization
-	/* for(auto fc = pmesh.face.begin(); fc != pmesh.face.end(); ++fc) */
-	/* { */
-	/* 	QuadParametrization & qpar = WireEmbedding::getQuadParametrizationHandle(pmesh)[fc]; */
-	/* 	qpar.index0 = 0; */
-	/* } */
-
-	/* int faceCounter = 0; */
-	/* for(auto fc = pmesh.face.begin(); fc != pmesh.face.end(); ++fc) */
-	/* { */
-	/* 	cout << "points in face " << faceCounter << " are: " << "("  << fc->cP(0)[0] << "," << fc->cP(0)[1] << ") " << */
-	/* 		                                                    "("  << fc->cP(1)[0] << "," << fc->cP(1)[1] << ") " << */
-	/* 		                                                    "("  << fc->cP(2)[0] << "," << fc->cP(2)[1] << ") " << */
-	/* 		                                                    "("  << fc->cP(3)[0] << "," << fc->cP(3)[1] << ")"  << endl; */ 
-	/* 	++faceCounter; */
-	/* } */
+	WireEmbedding::dumpParametrizationSequence(pmesh);
+	WireEmbedding::createLocalParametrization(pmesh); // overwrite Luigi's coherent parametrization
+	WireEmbedding::dumpParametrizationSequence(pmesh);
 }
 
 // scale the quad mesh:
@@ -317,7 +299,12 @@ void tileQuad (const po::variables_map &args)
 
 
 	// tile the quad mesh using the parameterTable ... 
-    auto wi = WireInflator2D::construct(args["pattern"].as<string>(), args["sym"].as<int>());
+	WireInflator2D::Ptr wi;
+	if (args["sym"].as<int>() >= -1 && args["sym"].as<int>() < 8)
+    	wi = WireInflator2D::construct(args["pattern"].as<string>(), args["sym"].as<int>());
+    else 
+		throw("symmetry mode must be in [-1..7]");
+    
     WireInflator2D::OutMeshType mesh;
 
     CellParameters p_params = wi->createParameters();

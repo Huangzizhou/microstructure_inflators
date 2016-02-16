@@ -62,7 +62,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("pattern,p",    po::value<string>(), "Pattern wire mesh (.obj|wire)")
         ("material,m",   po::value<string>(), "base material")
         ("jacobians,j",  po::value<string>(), "a .txt file includeing the jacobinas 'J11 J12 J21 J22'")
-        ("sym",          po::value<int>()->default_value(3), "symmetry mode")
+        ("sym",          po::value<int>()->default_value(3), "symmetry mode, use -1 to fall back to Luigi's symmetry mode")
         ("regularization,r",          po::value<double>()->default_value(0.0), "regularization weight")
         ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
         ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
@@ -254,14 +254,15 @@ void execute(const po::variables_map &args,
 
     shared_ptr<ConstrainedInflator<_N>> inflator_ptr;
     if (_N == 2) {
-        inflator_ptr = make_shared<ConstrainedInflator<_N>>(
-                job->parameterConstraints,
-                args["pattern"].as<string>(),
-                args["sym"].as<int>()); // this  parameter is a symmetryMode (see the corresponding constructor in Inflator.hh for more details)
-        // this uses the original Luigi's symmetry stuff
-        /* inflator_ptr = make_shared<ConstrainedInflator<_N>>( */
-        /*         job->parameterConstraints, */
-        /*         args["pattern"].as<string>()); // */
+
+		if (args["sym"].as<int>() >= -1 && args["sym"].as<int>() < 8)
+			inflator_ptr = make_shared<ConstrainedInflator<_N>>(
+					job->parameterConstraints,
+					args["pattern"].as<string>(),
+					args["sym"].as<int>()); // this  parameter is a symmetryMode (see the corresponding constructor in Inflator.hh for more details)
+		else
+			throw("symmetry mode must be in [-1..7]");
+
     }
     else {
         inflator_ptr = make_shared<ConstrainedInflator<_N>>(

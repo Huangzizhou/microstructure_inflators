@@ -1,25 +1,18 @@
 ////////////////////////////////////////////////////////////////////////////////
-//// PatternOptimization_quadMesh_cli.cc
+////  GetQuadDeformations_cli.cc
 //////////////////////////////////////////////////////////////////////////////////
 ///*! @file
 ////      This reads in a (2D) quad mesh, finds the equivalent parallelograms, and
-////	  runs pattern optimization on them 
+////	  returns the deformation (or stretch) of each parallelogram 
 //*/ 
-////  Author:  Morteza H Siboni (mhs), m.hakimi.siboni.@gmail.com
-////  Company:  New York University
-////  Created:  08/10/2014
+////  Author  : Morteza H Siboni (mhs), m.hakimi.siboni.@gmail.com
+////  Company : New York University
+////  Created : 08/10/2014
 //////////////////////////////////////////////////////////////////////////////////
-#include <MeshIO.hh>
-#include "LinearElasticity.hh"
-/* #include <Materials.hh> */
-/* #include <PeriodicHomogenization.hh> */
-#include "GlobalBenchmark.hh"
 #include "PolyMeshType.h"
 #include "PolyMeshUtils.h"
 #include "WireMeshEmbedding.h"
-
 #include "EdgeMeshType.h"
-/* #include "Inflator.hh" */
 
 #include <vector>
 #include <queue>
@@ -33,18 +26,11 @@
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/algorithm/string.hpp> // requiured for parsing jacobian
-
-
-/* #include "PatternOptimization.hh" */
-/* #include "PatternOptimizationJob.hh" */
 
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 using namespace fs;
 using namespace std;
-/* using namespace PatternOptimization; */
-/* using namespace PeriodicHomogenization; */
 
 void usage(int exitVal, const po::options_description &visible_opts) {
     cout << "Usage: GetQuadDeformations_cli [options] quadMesh.obj" << endl;
@@ -64,9 +50,10 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description visible_opts;
    	visible_opts.add_options()("help",			"Produce this help message")
-        ("output,o",     po::value<string>()->default_value(""),                 "output .txt of deformations F11 F12 F21 F22 per line")
-        ("mode,m",       po::value<string>()->default_value("jacobian"),         "mode = {jacobian, stretch} for outputing the jacobian or right stretch tensor")
-        ("truncate,t",   po::value<size_t>()->default_value(6),                  "truncates components of the deformation to the t decimal place")
+        ("output,o",     po::value<string>(),								"output .txt of deformations F11 F12 F21 F22 per line")
+        ("mode,m",       po::value<string>()->default_value("jacobian"),	"mode = {jacobian, stretch}")
+        ("truncate,t",   po::value<size_t>()->default_value(6),				"truncates components of the deformation to the t decimal place")
+        ("matlabData,d", po::value<string>()->default_value(""), 			"output data file name for matlab visualization")
         ;
 	
 	po::options_description cli_opts;
@@ -101,38 +88,40 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 	return vm;
 }
 
-template<size_t _N> 
-using ETensor = ElasticityTensor<Real, _N>; 
+typedef WireMeshEmbedding<EMesh, PolyMesh>				WireEmbedding;
+typedef typename WireEmbedding::QuadParametrization 	QuadParametrization;
 
-typedef ScalarField<Real> SField;
+
+void dumpQuadCoord2Stream(PolyMesh & pmesh, bool parametrized=true, ostream &os = cout)
+{
+	int firstIdx;
+
+	for(auto fc = pmesh.face.begin(); fc != pmesh.face.end(); ++fc)
+	{
+		QuadParametrization qp = WireEmbedding::getQuadParametrizationHandle(pmesh)[fc];
+
+		parametrized ? firstIdx = qp.index0 : firstIdx = 0;
+
+		for (size_t i = 0; i < 4; ++i)
+		{
+			int updatedIdx = (i + firstIdx) % 4;
+			os << fc->cP(updatedIdx)[0] << "\t" << fc->cP(updatedIdx)[1] << endl;
+		}
+	}
+}
 
 // read the quad mesh:
 void readQuadMesh(const string & quadMeshPath, PolyMesh & pmesh)
 {
-	typedef WireMeshEmbedding<EMesh, PolyMesh>				WireEmbedding;
-	typedef typename WireEmbedding::QuadParametrization 	QuadParametrization;
-	typedef PolyMeshUtils<PolyMesh> PMU;
+	typedef PolyMeshUtils<PolyMesh>		PMU;
 	bool ok = false;
 	ok = PMU::importFromOBJ(quadMeshPath, pmesh);
 	if (ok)
 		WireEmbedding::preprocessQuadMesh(pmesh);
 
-	// uncomment the following if you want to ignore Luigi's optimal parametrization
-	/* for(auto fc = pmesh.face.begin(); fc != pmesh.face.end(); ++fc) */
-	/* { */
-	/* 	QuadParametrization & qpar = WireEmbedding::getQuadParametrizationHandle(pmesh)[fc]; */
-	/* 	qpar.index0 = 0; */
-	/* } */
-
-	int faceCounter = 0;
-	for(auto fc = pmesh.face.begin(); fc != pmesh.face.end(); ++fc)
-	{
-		cout << "points in face " << faceCounter << " are: " << "("  << fc->cP(0)[0] << "," << fc->cP(0)[1] << ") " <<
-			                                                    "("  << fc->cP(1)[0] << "," << fc->cP(1)[1] << ") " <<
-			                                                    "("  << fc->cP(2)[0] << "," << fc->cP(2)[1] << ") " <<
-			                                                    "("  << fc->cP(3)[0] << "," << fc->cP(3)[1] << ")"  << endl; 
-		++faceCounter;
-	}
+	WireEmbedding::dumpParametrizationSequence(pmesh);
+	WireEmbedding::createLocalParametrization(pmesh); // overwrite Luigi's coherent parametrization 
+	WireEmbedding::dumpParametrizationSequence(pmesh);
 }
 
 // get the deformation (F or U) for each quad in the quadMesh 
@@ -140,8 +129,6 @@ void getDeformations(PolyMesh & pmesh,
 		             vector<Eigen::Matrix2d> & deformations, 
 		             const string type = "jacobian")
 {
-	typedef WireMeshEmbedding<EMesh, PolyMesh>				WireEmbedding;
-
 	std::vector<double> angles;
 
 	if (type == "jacobian")
@@ -210,13 +197,43 @@ int main(int argc, const char *argv[])
     PolyMesh pmesh;
     readQuadMesh(args["quad"].as<string>(), pmesh);
 
+    // output quad coordinates for visualization purposes 
+    if (args["matlabData"].as<string>() != "" && args["matlabData"].as<string>() != "stdout"){
+    	ofstream out_original;
+    	ofstream out_parametrized;
+    	
+    	out_original.open(args["matlabData"].as<string>() + "_original.txt");
+    	out_parametrized.open(args["matlabData"].as<string>() + "_parametrized.txt");
+    
+    	dumpQuadCoord2Stream(pmesh , false , out_original);
+    	dumpQuadCoord2Stream(pmesh , true  , out_parametrized);
+
+    	out_original.close();
+    	out_parametrized.close();
+	}
+	else if (args["matlabData"].as<string>() == "stdout"){
+		cout << "coordinates (x,y) for each quad in the original quad mesh:   " << endl;
+		cout << "lines (i-1)*4+j, j=[1..4] corresponds to the ith quad's (x,y)" << endl;
+		cout << "-------------------------------------------------------------" << endl;
+		dumpQuadCoord2Stream(pmesh, false);
+		cout << endl;
+
+		cout << "coordinates (x,y) for each quad in the parametrized quad mesh:" << endl;
+		cout << "lines (i-1)*4+j, j=[1..4] corresponds to the ith quad's (x,y) " << endl;
+		cout << "--------------------------------------------------------------" << endl;
+		dumpQuadCoord2Stream(pmesh, true);
+		cout << endl;
+	}
+	else
+		;
+
+
 	// compute the stretches/jacobians for each quad in the quadMesh
 	vector<Eigen::Matrix2d> defs;
 	getDeformations(pmesh, defs, args["mode"].as<string>());
 
 	// truncate the stretches/jacobians
 	defs = truncate(args["truncate"].as<size_t>(), defs);	
-		
 
 	tableToFile(defs, savePath, args["output"].as<string>());
 
