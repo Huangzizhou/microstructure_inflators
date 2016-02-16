@@ -108,7 +108,8 @@ public:
     using EmbeddingFunction = std::function<MeshIO::IOVertex(const Vector2d &)>;
     template<typename Domain>
     void outputSignedDistanceField(const std::string &path, const Domain &domain,
-                                   const EmbeddingFunction &embedder = canonicalEmbedding) const {
+                                   const EmbeddingFunction &embedder = canonicalEmbedding) {
+        m_bbox = domain.boundingBox();
         std::vector<Real> signedDistance(numVertices());
         for (size_t v = 0; v < numVertices(); ++v)
             signedDistance[v] = domain.signedDistance(vertexPosition(v));
@@ -116,7 +117,7 @@ public:
     }
 
     void outputSignedDistanceField(const std::string &path, std::vector<Real> &sdVec,
-                                   const EmbeddingFunction &embedder = canonicalEmbedding) const {
+                                   const EmbeddingFunction &embedder = canonicalEmbedding) {
         assert(sdVec.size() == numVertices());
         std::vector<MeshIO::IOVertex>  vertices;
         std::vector<MeshIO::IOElement> quads;
@@ -261,7 +262,7 @@ m_getLerpPoint(size_t a, size_t b, Real sda, Real sdb,
                std::vector<Vector2d> &points,
                std::map<Edge, size_t> &edgePointMap)
 {
-    assert(sda * sdb < 0);
+    assert(sda * sdb <= 0); // one of them can be zero!
 
     // Relabel so that sda < sdb. This both implements unordered cell edge
     // lookup in edgePointMap and ensures that we get the *identical* floating

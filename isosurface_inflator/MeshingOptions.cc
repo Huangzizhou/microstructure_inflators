@@ -16,7 +16,8 @@ void MeshingOptions::load(const std::string &jsonPath) {
     set<string> expectedKeys = {
         "domainErrorBound", "facetAngle", "facetSize", "facetDistance",
         "cellSize", "edgeSize", "cellRadiusEdgeRatio",
-        "marchingSquaresGridSize", "marchingCubesGridSize"
+        "marchingSquaresGridSize", "marchingCubesGridSize",
+        "maxArea", "featureAngleThreshold"
     };
     // Validate keys
     for (const auto &v : pt) {
@@ -34,4 +35,8 @@ void MeshingOptions::load(const std::string &jsonPath) {
     cellRadiusEdgeRatio     = pt.get<double>("cellRadiusEdgeRatio");
     marchingSquaresGridSize = pt.get<size_t>("marchingSquaresGridSize");
     marchingCubesGridSize   = pt.get<size_t>("marchingCubesGridSize");
+
+    // 2D Mesher Options
+    maxArea               = pt.get<double>("maxArea");
+    featureAngleThreshold = pt.get<double>("featureAngleThreshold");
 }

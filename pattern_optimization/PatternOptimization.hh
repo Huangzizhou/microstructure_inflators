@@ -90,7 +90,7 @@ public:
         virtual bool Evaluate(double const * const *parameters,
                 double *residuals, double **jacobians) const {
             size_t nParams = parameter_block_sizes()[0];
-            m_iterate = getIterate(m_iterate, m_inflator, nParams,
+            m_iterate = getIterate(std::move(m_iterate), m_inflator, nParams,
                                    parameters[0], m_targetS);
 
             size_t r = 0;
@@ -112,7 +112,7 @@ public:
             return true;
         }
 
-        std::shared_ptr<const Iterate> currentIterate() const { return m_iterate; }
+        const Iterate &currentIterate() const { assert(m_iterate); return *m_iterate; }
 
         virtual ~TensorFitCost() { }
 
@@ -121,7 +121,7 @@ public:
         _ETensor m_targetS;
         // Ceres requires Evaluate to be constant, so this caching pointer must
         // be made mutable.
-        mutable std::shared_ptr<Iterate> m_iterate;
+        mutable std::unique_ptr<Iterate> m_iterate;
 
         friend class IterationCallback;
         friend class IterationCallback2;
@@ -136,7 +136,7 @@ public:
             m_iter(0) {}
         ceres::CallbackReturnType operator()(const ceres::IterationSummary &sum)
         {
-            auto curr = getIterate(m_evaluator.m_iterate,
+            auto curr = getIterate(std::move(m_evaluator.m_iterate),
                             m_evaluator.m_inflator, m_params.size(), &m_params[0],
                             m_evaluator.m_targetS);
             curr->writeDescription(std::cout);
@@ -327,7 +327,7 @@ public:
             : m_inflator(inflator), m_targetS(targetS) { }
 
         void residual(double *params, double *residual, int numParams, int numResiduals) {
-            m_iterate = getIterate(m_iterate, m_inflator, numParams, params, m_targetS);
+            m_iterate = getIterate(std::move(m_iterate), m_inflator, numParams, params, m_targetS);
             size_t r = 0;
             for (size_t i = 0; i < flatLen(_N); ++i)
                 for (size_t j = i; j < flatLen(_N); ++j)
@@ -337,7 +337,7 @@ public:
     
         // Row major Jacobian
         void jacobian(double *params, double *jacobian, int numParams, int numResiduals) {
-            m_iterate = getIterate(m_iterate, m_inflator, numParams, params, m_targetS);
+            m_iterate = getIterate(std::move(m_iterate), m_inflator, numParams, params, m_targetS);
             size_t r = 0;
             for (size_t i = 0; i < flatLen(_N); ++i) {
                 for (size_t j = i; j < flatLen(_N); ++j) {
@@ -356,7 +356,7 @@ public:
 
         ConstrainedInflator<_N> &m_inflator;
         _ETensor m_targetS;
-        std::shared_ptr<Iterate> m_iterate;
+        std::unique_ptr<Iterate> m_iterate;
     };
 
     void optimize_levmar(SField &params, const _ETensor &targetS, size_t niters, const string &outName) {
@@ -413,7 +413,7 @@ public:
     struct DLibObjectiveEvaluator {
         DLibObjectiveEvaluator(ConstrainedInflator<_N> &inflator,
                 const _ETensor &targetS)
-            : m_iterate(NULL), m_inflator(inflator), m_targetS(targetS) {
+            : m_inflator(inflator), m_targetS(targetS) {
             nParams = m_inflator.numParameters();
         };
 
@@ -422,8 +422,8 @@ public:
             for (size_t p = 0; p < nParams; ++p)
                 x_vec[p] = x(p);
 
-            m_iterate = getIterate(m_iterate, m_inflator, nParams, &x_vec[0],
-                                   m_targetS);
+            m_iterate = getIterate(std::move(m_iterate), m_inflator, nParams,
+                                   &x_vec[0], m_targetS);
             return m_iterate->evaluateJS();
         }
 
@@ -434,7 +434,7 @@ public:
         size_t nParams;
     private:
         // Iterate is mutable so that operator() can be const as dlib requires
-        mutable std::shared_ptr<Iterate> m_iterate;
+        mutable std::unique_ptr<Iterate> m_iterate;
         ConstrainedInflator<_N> &m_inflator;
         _ETensor m_targetS;
     };

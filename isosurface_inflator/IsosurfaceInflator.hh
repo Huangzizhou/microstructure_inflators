@@ -6,6 +6,10 @@
 //      Everything is implemented in terms of opaque class
 //      IsosurfaceInflatorImpl to speed up compilation of the code including us
 //      (compiling anything depending on CGAL is slow!!).
+//
+//      Both 2D and 3D isosurface inflators are implemented (and can be selected
+//      using the constructor's "type" argument, but the result is always
+//      embedded in 3D.
 //      
 //      This inflator remembers the inflated geometry 
 */ 
@@ -24,7 +28,7 @@
 class IsosurfaceInflator {
 public:
     typedef Eigen::Matrix<Real, 3, 1> Point;
-    enum class ParameterType { Thickness, Position };
+    enum class ParameterType { Thickness, Position, Blending };
 
     IsosurfaceInflator(const std::string &type, bool vertexThickenss,
                        const std::string &wireMeshPath);
@@ -49,6 +53,8 @@ public:
     size_t numParams() const;
 
     bool isThicknessParam(size_t p) const;
+    bool isPositionParam(size_t p) const;
+    bool isBlendingParam(size_t p) const;
 
     // For debugging
     void disablePostprocess();

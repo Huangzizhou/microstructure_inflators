@@ -38,6 +38,7 @@ public:
     virtual ~JobBase() { }
 
     std::vector<Real> initialParams, radiusBounds, translationBounds;
+    std::vector<Real> blendingBounds = { 10.0, 100.0 };
     // The ground-truth parameters can be stored here--they are written to the
     // job file for reference.
     std::vector<Real> trueParams;
@@ -73,6 +74,7 @@ public:
 
         os << "\t\"radiusBounds\": [" << radiusBounds[0] << ", " << radiusBounds[1] << "]," << std::endl
            << "\t\"translationBounds\": [" << translationBounds[0] << ", " << translationBounds[1] << "]" << std::endl
+           << "\t\"blendingBounds\": [" << blendingBounds[0] << ", " << blendingBounds[1] << "]" << std::endl
            << "}" << std::endl;
     }
 

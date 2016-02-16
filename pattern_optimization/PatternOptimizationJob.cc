@@ -72,6 +72,9 @@ JobBase *parseJobFile(const string &jobFile) {
     parseVector(radiusBounds, job->radiusBounds);
     parseVector(translationBounds, job->translationBounds);
 
+    if (pt.count("blendingBounds"))
+        parseVector(pt.get_child("blendingBounds"), job->blendingBounds);
+
     if (pt.count("paramConstraints") != 0) {
         auto constraints = pt.get_child("paramConstraints");
         for (const auto &val : constraints) {

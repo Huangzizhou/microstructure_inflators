@@ -518,6 +518,29 @@ struct Iterate {
         return grad;
     }
 
+    // Shape derivative of (unweighted) volume-fitting objective.
+    // JVol(omega) = ||Vol - V^*||^2 => dJVol[v] = 2 (Vol - V^*) dVol[v]
+    SField gradp_JVol() const {
+        if (!m_targetVol) throw std::runtime_error("Target volume not set.");
+
+        SField result(m_vn_p.size());
+        result.clear();
+
+        // First compute gradient of volume: int v_n dV
+        for (size_t p = 0; p < m_vn_p.size(); ++p) {
+            for (auto be : mesh().boundaryElements()) {
+                if (be->isPeriodic) continue;
+                result[p] += m_vn_p[p][be.index()].integrate(be->volume());
+            }
+        }
+
+        Real diff = mesh().volume() - *m_targetVol;
+        result *= (2.0 * diff);
+        return result;
+    }
+
+    bool printable() const { return m_printable; }
+
 protected:
     std::unique_ptr<_Sim> m_sim;
     _ETensor C, S, m_targetS, m_diffS;
@@ -539,19 +562,22 @@ protected:
 // Use previous iterate if evaluating the same point. Otherwise, attempt to
 // inflate the new parameters. Try three times to inflate, and if unsuccessful,
 // estimate the point with linear extrapolation.
-template<class _Iterate, class _Inflator, class _ETensor>
-std::shared_ptr<_Iterate>
-getIterate(std::shared_ptr<_Iterate> oldIterate,
+//
+// Because this is a variadic template, it can be used with an iterate class
+// whose constructor has arbitrary trailing arguments.
+template<class _Iterate, class _Inflator, typename... Args>
+std::unique_ptr<_Iterate>
+getIterate(std::unique_ptr<_Iterate> oldIterate,
         _Inflator &inflator, size_t nParams, const double *params,
-        const _ETensor &targetS) {
+        Args&&... args) {
     if (!oldIterate || oldIterate->paramsDiffer(nParams, params)) {
-        std::shared_ptr<_Iterate> newIterate;
+        std::unique_ptr<_Iterate> newIterate;
         bool success;
         for (size_t i = 0; i < 3; ++i) {
             success = true;
             try {
-                newIterate = std::make_shared<_Iterate>(inflator,
-                                nParams, params, targetS);
+                newIterate = Future::make_unique<_Iterate>(inflator,
+                                nParams, params, std::forward<Args>(args)...);
             }
             catch (std::exception &e) {
                 std::cerr << "INFLATOR FAILED: " << e.what() << std::endl;
@@ -562,7 +588,7 @@ getIterate(std::shared_ptr<_Iterate> oldIterate,
         if (!success) {
             std::cerr << "3 INFLATION ATTEMPTS FAILED." << std::endl;
             if (!oldIterate) throw std::runtime_error("Inflation failure on first iterate");
-            newIterate = oldIterate;
+            newIterate = std::move(oldIterate);
             newIterate->estimatePoint(nParams, params);
         }
         return newIterate;

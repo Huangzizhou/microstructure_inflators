@@ -40,6 +40,8 @@
 #include <PatternOptimizationConfig.hh>
 
 #include "WCSOptimization.hh"
+#include "WCSObjective.hh"
+
 #include "WCStressOptimizationIterate.hh"
 #include "BoundaryPerturbationIterate.hh"
 
@@ -65,33 +67,59 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::positional_options_description p;
     p.add("job", 1);
 
-    po::options_description visible_opts;
-    visible_opts.add_options()("help",        "Produce this help message")
-        ("pattern,p",    po::value<string>(), "Pattern wire mesh (.obj|wire), or initial mesh for BoundaryPerturbationInflator")
-        ("material,m",   po::value<string>(), "base material")
-        ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
-        ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
-        ("dofOut",                                                               "output pattern dofs in James' format at each iteration (3D Only)")
-        ("cell_size,c",  po::value<double>()->default_value(5.0),                "Inflation cell size (3D only)")
-        ("isotropicParameters,I",                                                "Use isotropic DoFs (3D only)")
-        ("vertexThickness,V",                                                    "Use vertex thickness instead of edge thickness (3D only)")
-        ("subdivide,S",  po::value<size_t>()->default_value(0),                  "number of subdivisions to run for 3D inflator")
-        ("sub_algorithm,A", po::value<string>()->default_value("simple"),        "subdivision algorithm for 3D inflator (simple or loop)")
-        ("max_volume,v", po::value<double>(),                                    "maximum element volume parameter for wire inflator")
-        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs")
-        ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
+    po::options_description patternOptions;
+    patternOptions.add_options()
+        ("pattern,p",    po::value<string>(),                            "Pattern wire mesh (.obj|wire), or initial mesh for BoundaryPerturbationInflator")
+        ("inflator,i",   po::value<string>()->default_value("original"), "Which inflator to use: original (default), lphole, boundary_perturbation")
+        ("isotropicParameters,I",                                        "Use isotropic DoFs (3D only)")
+        ("vertexThickness,V",                                            "Use vertex thickness instead of edge thickness (3D only)")
+        ("cell_size,c",  po::value<double>()->default_value(5.0),        "Inflation cell size (3D only)")
+        ;
+
+    po::options_description meshingOptions;
+    meshingOptions.add_options()
+        ("meshingOptions,M", po::value<string>(),                    "Meshing options configuration file")
+        ("max_volume,v",     po::value<double>(),                    "Maximum element area for remeshing (overrides meshing options)")
+        ("hole_segments",    po::value<size_t>()->default_value(64), "Number of segments in hole boundary (LpHoleInflator)")
+        ;
+
+    po::options_description optimizerOptions;
+    optimizerOptions.add_options()
         ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
-        ("fullCellInflator",                                                     "use the full periodic inflator instead of the reflection-based one")
-        ("ignoreShear",                                                          "Ignore the shear components in the isotropic tensor fitting")
-        ("alpha",        po::value<double>()->default_value(1.0),                "Trade-off between fitting and WCS minimization. 1.0 = tensor fit, 0.0 = WCS minimization.")
-        ("inflator,i",   po::value<string>()->default_value("original"),         "Which inflator to use: original (default), lphole, boundary_perturbation")
-        ("nsubdiv",      po::value<size_t>()->default_value(64),                 "number of subdivisions of Lp hole boundary (LpHoleInflator only)")
-        ("pnorm,P",      po::value<double>()->default_value(1.0),                "the pnorm used in the Lp global worst case stress measure")
+        ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
+        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs")
         ("vtxNormalPerturbationGradient,N",                                      "use the vertex-normal-based versino of the boundary perturbation gradient")
         ;
 
+    po::options_description objectiveOptions;
+    objectiveOptions.add_options()
+        ("ignoreShear",                                                   "Ignore the shear components in the isotropic tensor fitting")
+        ("pnorm,P",      po::value<double>()->default_value(1.0),         "pnorm used in the Lp global worst case stress measure")
+        ("usePthRoot,R",                                                  "Use the true Lp norm for global worst case stress measure (applying pth root)")
+        ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
+        ("JSWeight",     po::value<double>()->default_value(0.0),         "Weight for the JS term of the objective")
+        ("JVolWeight",   po::value<double>()->default_value(0.0),         "Weight for the JVol term of the objective")
+        ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
+        ;
+
+    po::options_description elasticityOptions;
+    elasticityOptions.add_options();
+        ("material,m",   po::value<string>(),                    "Base material")
+        ("degree,d",     po::value<size_t>()->default_value(2),  "FEM Degree")
+
+    po::options_description generalOptions;
+    generalOptions.add_options()
+        ("help,h",                                               "Produce this help message")
+        ("output,o",     po::value<string>()->default_value(""), "output mesh and fields at each iteration")
+        ("dumpShapeDerivatives"  , po::value<string>(),          "Dump shape derivative fields for JVol, JS, and WCS")
+        ;
+
+    po::options_description visibleOptions;
+    visibleOptions.add(patternOptions).add(meshingOptions).add(optimizerOptions)
+                  .add(objectiveOptions).add(generalOptions);
+
     po::options_description cli_opts;
-    cli_opts.add(visible_opts).add(hidden_opts);
+    cli_opts.add(visibleOptions).add(hidden_opts);
 
     po::variables_map vm;
     try {
@@ -101,7 +129,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     }
     catch (std::exception &e) {
         cout << "Error: " << e.what() << endl << endl;
-        usage(1, visible_opts);
+        usage(1, visibleOptions);
     }
 
     bool fail = false;
@@ -133,14 +161,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
-    set<string> subdivisionAlgorithms = {"simple", "loop"};
-    if (subdivisionAlgorithms.count(vm["sub_algorithm"].as<string>()) == 0) {
-        cout << "Illegal subdivision algorithm specified" << endl;
-        fail = true;
-    }
-
     if (fail || vm.count("help"))
-        usage(fail, visible_opts);
+        usage(fail, visibleOptions);
 
     return vm;
 }
@@ -152,161 +174,7 @@ template<size_t _N>
 using ETensor = ElasticityTensor<Real, _N>;
 typedef ScalarField<Real> SField;
 
-template<size_t N>
-struct InflatorTraits {
-    template<class Sim>
-    using Iterate = WCStressOptimization::Iterate<Sim>;
-
-    template<class type>
-    static SField initParams(shared_ptr<type> iptr,
-                         const po::variables_map &/* args */,
-                         const PatternOptimization::Job<N> *job) {
-        if (job->numParams() != iptr->numParameters()) {
-            for (size_t i = 0; i < iptr->numParameters(); ++i) {
-                cout << "param " << i << " role: " <<
-                    (iptr->parameterType(i) == ParameterType::Offset ? "Offset" : "Thickness")
-                    << endl;
-            }
-            throw runtime_error("Invalid number of parameters.");
-        }
-
-        SField params(job->initialParams);
-        for (const auto &boundEntry : job->varLowerBounds) {
-            if (boundEntry.first > params.domainSize())
-                cerr << "WARNING: bound on nonexistent variable" << endl;
-        }
-
-        for (size_t p = 0; p < params.domainSize(); ++p) {
-            if (job->varLowerBounds.count(p)) {
-                 if ((params[p] < job->varLowerBounds.at(p)) ||
-                     (params[p] > job->varUpperBounds.at(p))) {
-                    throw std::runtime_error("Initial point infeasible");
-                 }
-            }
-        }
-        return params;
-    }
-
-    template<class type>
-    static void finalize(shared_ptr<type> /* iptr */, const std::vector<Real> &result,
-                         const po::variables_map &/* args */,
-                         const PatternOptimization::Job<N> * /* job */) {
-        std::cout << "Final p:";
-        for (size_t i = 0; i < result.size(); ++i)
-            cout << "\t" << result[i];
-        cout << endl;
-    }
-};
-
-template<size_t N>
-struct InflatorTraitsConstrainedInflator;
-
-template<size_t N>
-struct InflatorTraitsLpHole;
-
-template<>
-struct InflatorTraitsConstrainedInflator<2> : public InflatorTraits<2> {
-    using type = ConstrainedInflator<2>;
-    static shared_ptr<type> construct(const po::variables_map &args, const PatternOptimization::Job<2> *job) {
-        auto inflator_ptr = make_shared<type>(
-                job->parameterConstraints,
-                args["pattern"].as<string>());
-        if (args.count("max_volume"))
-            inflator_ptr->setMaxElementVolume(args["max_volume"].as<double>());
-        return inflator_ptr;
-    }
-    static void finalize(shared_ptr<type> iptr, const std::vector<Real> &result,
-                         const po::variables_map &args,
-                         const PatternOptimization::Job<2> * job) {
-        InflatorTraits<2>::finalize(iptr, result, args, job);
-    }
-};
-
-template<>
-struct InflatorTraitsConstrainedInflator<3> : public InflatorTraits<3> {
-    using type = ConstrainedInflator<3>;
-    static shared_ptr<type> construct(const po::variables_map &args, const PatternOptimization::Job<3> *job) {
-        auto inflator_ptr = make_shared<type>(
-                job->parameterConstraints,
-                args["pattern"].as<string>(),
-                args["cell_size"].as<double>(),
-                0.5 * sqrt(2),
-                args.count("isotropicParameters"),
-                args.count("vertexThickness"));
-        inflator_ptr->configureSubdivision(args["sub_algorithm"].as<string>(),
-                                           args["subdivide"].as<size_t>());
-        inflator_ptr->setReflectiveInflator(args.count("fullCellInflator") == 0);
-        if (args.count("dofOut"))
-            inflator_ptr->setDoFOutputPrefix(args["dofOut"].as<string>());
-        if (args.count("max_volume"))
-            inflator_ptr->setMaxElementVolume(args["max_volume"].as<double>());
-
-        return inflator_ptr;
-    }
-
-    static void finalize(shared_ptr<type> iptr, const std::vector<Real> &result,
-                         const po::variables_map &args,
-                         const PatternOptimization::Job<3> * job) {
-        InflatorTraits<3>::finalize(iptr, result, args, job);
-        if (args.count("dofOut"))
-            iptr->writePatternDoFs(args["dofOut"].as<string>() + ".final.dof", result);
-    }
-};
-
-template<>
-struct InflatorTraitsLpHole<2> : public InflatorTraits<2> {
-    using type = LpHoleInflator;
-    static shared_ptr<type> construct(const po::variables_map &args, const PatternOptimization::Job<2> * /* job */) {
-        auto inflator_ptr = make_shared<type>();
-        inflator_ptr->setNumSubdiv(args["nsubdiv"].as<size_t>());
-        if (args.count("max_volume"))
-            inflator_ptr->setMaxElementVolume(args["max_volume"].as<double>());
-        return inflator_ptr;
-    }
-
-    static void finalize(shared_ptr<type> iptr, const std::vector<Real> &result,
-                         const po::variables_map &args,
-                         const PatternOptimization::Job<2> * job) {
-        InflatorTraits<2>::finalize(iptr, result, args, job);
-    }
-};
-
-
-template<size_t N>
-struct InflatorTraitsBoundaryPerturbation : public InflatorTraits<N> {
-    using type = BoundaryPerturbationInflator<N>;
-
-    // Special iterate for BoundaryPerturbationInflator
-    template<class Sim>
-    using Iterate = BoundaryPerturbationIterate<Sim>;
-
-    static shared_ptr<type> construct(const po::variables_map &args, const PatternOptimization::Job<N> * /* job */) {
-        std::vector<MeshIO::IOVertex>  vertices;
-        std::vector<MeshIO::IOElement> elements;
-        MeshIO::load(args["pattern"].as<string>(), vertices, elements);
-
-        auto inflator_ptr = make_shared<type>(vertices, elements);
-        return inflator_ptr;
-    }
-
-    // For boundary pertrubation inflator, ignore the initial params set in job
-    // file unless the sizes match (it's hard to specify all params).
-    static SField initParams(shared_ptr<type> iptr,
-                         const po::variables_map &args,
-                         const PatternOptimization::Job<N> *job) {
-        if (job->numParams() != iptr->numParameters()) {
-            SField params(iptr->numParameters());
-            params.clear();
-            return params;
-        }
-        return InflatorTraits<N>::initParams(iptr, args, job);
-    }
-
-    static void finalize(shared_ptr<type> /* iptr */, const std::vector<Real> &/* result */,
-                         const po::variables_map &/* args */,
-                         const PatternOptimization::Job<N> * /* job */) {
-    }
-};
+#include "InflatorTraits.inl"
 
 template<size_t _N, size_t _FEMDegree, template<size_t> class _ITraits>
 void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *job)
@@ -332,25 +200,36 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
-    WCStressOptimization::Config::get().globalObjectivePNorm = args["pnorm"].as<double>();
-    WCStressOptimization::Config::get().useVtxNormalPerturbationGradientVersion = args.count("vtxNormalPerturbationGradient");
+    // Configure WCS Objective
+    auto &wcsConfig = WCStressOptimization::Config::get();
+    wcsConfig.globalObjectivePNorm = args["pnorm"].as<double>();
+    if (args.count("usePthRoot"))
+        wcsConfig.globalObjectiveRoot = 2.0 * wcsConfig.globalObjectivePNorm;
+    wcsConfig.useVtxNormalPerturbationGradientVersion = args.count("vtxNormalPerturbationGradient");
 
     SField params = _ITraits<_N>::initParams(inflator_ptr, args, job);
 
     PatternOptimization::Config::get().ignoreShear = args.count("ignoreShear");
     if (PatternOptimization::Config::get().ignoreShear) cout << "Ignoring shear components" << endl;
     Optimizer<Simulator, _Inflator, _ITraits<_N>::template Iterate>
-        optimizer(inflator, job->radiusBounds,   job->translationBounds,
+        optimizer(inflator, job->radiusBounds,   job->translationBounds, job->blendingBounds,
                             job->varLowerBounds, job->varUpperBounds);
+
+    // Create scalarized multi-objective with weights specified by the
+    // arguments.
+    WCStressOptimization::Objective<_N> fullObjective(targetS,
+                                args[  "JSWeight"].as<double>(),
+                                args[ "WCSWeight"].as<double>(),
+                                args["JVolWeight"].as<double>(),
+                                args["LaplacianRegWeight"].as<double>());
+
     string solver = args["solver"].as<string>(),
            output = args["output"].as<string>();
     size_t niters = args["nIters"].as<size_t>();
-    if (solver == "gradient_descent")
-        optimizer.optimize_gd(params, targetS, niters, args["step"].as<double>(), output, args["alpha"].as<double>());
-    else if (solver == "bfgs")
-        optimizer.optimize_bfgs(params, targetS, niters, output, 0, args["alpha"].as<double>());
-    else if (solver == "lbfgs")
-        optimizer.optimize_bfgs(params, targetS, niters, output, 10, args["alpha"].as<double>());
+
+    if (solver == "gradient_descent") optimizer.optimize_gd(  params, fullObjective, niters, args["step"].as<double>(), output);
+    else if (solver == "bfgs")        optimizer.optimize_bfgs(params, fullObjective, niters, output, 0);
+    else if (solver == "lbfgs")       optimizer.optimize_bfgs(params, fullObjective, niters, output, 10);
 
     std::vector<Real> result(params.domainSize());
     for (size_t i = 0; i < result.size(); ++i)

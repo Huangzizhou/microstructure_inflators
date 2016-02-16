@@ -70,7 +70,10 @@ public:
         return posParams;
     }
 
-    size_t numParams() const { return numThicknessParams() + numPositionParams(); }
+    // There is a single blending parameter per base vertex.
+    size_t numBlendingParameters() const { return numBaseVertices(); }
+
+    size_t numParams() const { return numThicknessParams() + numPositionParams() + numBlendingParameters(); }
 
     // Determine the position parameters from the original embedded graph
     // positions.
@@ -92,22 +95,31 @@ public:
         return std::vector<double>(numThicknessParams(), 0.05);
     }
 
-    // Position parameters come first, followed by thickness.
+    std::vector<double> defaultBlendingParams() const {
+        return std::vector<double>(numBlendingParameters(), 32.0);
+    }
+
+    // Position parameters come first, followed by thickness and blending
     bool isPositionParam(size_t p) const {
         if (p >= numParams()) throw std::runtime_error("Invalid parameter index.");
         return p < numPositionParams();
     }
     bool isThicknessParam(size_t p) const {
-        return !isPositionParam(p);
+        if (p >= numParams()) throw std::runtime_error("Invalid parameter index.");
+        return (p >= numPositionParams()) && (p < numPositionParams() + numThicknessParams());
+    }
+    bool isBlendingParam(size_t p) const {
+        if (p >= numParams()) throw std::runtime_error("Invalid parameter index.");
+        return p >= numPositionParams() + numThicknessParams();
     }
 
-    // Position parameters come first, followed by thickness.
+    // Position parameters come first, followed by thickness and blending
     std::vector<double> defaultParameters() const {
         std::vector<double> params;
         params.reserve(numParams());
         params = defaultPositionParams();
-        auto dtp = defaultThicknessParams();
-        params.insert(params.end(), dtp.begin(), dtp.end());
+        auto dtp = defaultThicknessParams(); params.insert(params.end(), dtp.begin(), dtp.end());
+        auto dbp =  defaultBlendingParams(); params.insert(params.end(), dbp.begin(), dbp.end());
         return params;
     }
 
@@ -117,19 +129,22 @@ public:
     // The "points" returned are after the positional parameters have been
     // applied, and the thickness parameters are decoded from "params" into the
     // "thicknesses" vector for convenience: these will correspond to either
-    // entires in "points" or "edges" depending on thicknessType.
+    // entries in "points" or "edges" depending on thicknessType.
+    // The blending parameters are also decoded into the per-vertex
+    // "blendingParams" vector.
     template<typename Real>
     void inflationGraph(const std::vector<Real> &params,
                         std::vector<Point3<Real>> &points,
                         std::vector<Edge> &edges,
-                        std::vector<Real> &thicknesses) const {
+                        std::vector<Real> &thicknesses,
+                        std::vector<Real> &blendingParams) const {
         if (params.size() != numParams())
             throw std::runtime_error("Invalid number of params.");
-        edges.clear(), points.clear(), thicknesses.clear();
+
+        // Copy over the base graph, setting positions using params
+        edges.clear(), points.clear();
         edges.reserve(m_baseEdges.size() + m_adjacentEdges.size());
         points.reserve(m_baseVertices.size() + m_adjacentVertices.size());
-        
-        // Copy over the base graph, setting positions using params
         edges = m_baseEdges;
         size_t pOffset = 0;
         for (size_t i = 0; i < m_baseVertices.size(); ++i) {
@@ -138,32 +153,45 @@ public:
             pOffset += pos.numDoFs();
         }
 
-        size_t adjVertexOffset = m_baseVertices.size();
-
         // Copy over the adjacent graph, transforming adjacent vertices
         // (Note that the params-repositioned vertices are transformed)
+        size_t adjVertexOffset = m_baseVertices.size();
         for (const auto &ae : m_adjacentEdges)
             edges.push_back({ae.first, adjVertexOffset + ae.second});
         for (const auto &av : m_adjacentVertices)
             points.push_back(av.second.apply(points.at(av.first)));
 
-        // params[pOffset...] are thickness parameters
+        // Decode per-vertex or per-edge thickness parameters
+        thicknesses.clear();
+        // params[numPositionParams()...] are thickness parameters
+        assert(pOffset == numPositionParams());
         if (thicknessType == ThicknessType::Vertex) {
             // Decode into one thickness per inflation graph vertex
             thicknesses.reserve(m_baseVertices.size() + m_adjacentVertices.size());
             for (size_t i = 0; i < m_baseVertices.size(); ++i)
-                thicknesses.push_back(params[pOffset + i]);
+                thicknesses.push_back(params.at(pOffset + i));
             for (size_t i = 0; i < m_adjacentVertices.size(); ++i)
-                thicknesses.push_back(params[pOffset + m_adjacentVertices[i].first]);
+                thicknesses.push_back(params.at(pOffset + m_adjacentVertices[i].first));
         }
         if (thicknessType == ThicknessType::Edge) {
             // Decode into one thickness per inflation graph edge
             thicknesses.reserve(m_baseEdges.size() + m_adjacentEdges.size());
             for (size_t i = 0; i < m_baseEdges.size(); ++i)
-                thicknesses.push_back(params[pOffset + i]);
+                thicknesses.push_back(params.at(pOffset + i));
             for (size_t i = 0; i < m_adjacentEdges.size(); ++i)
-                thicknesses.push_back(params[pOffset + m_adjacentEdgeOrigin[i]]);
+                thicknesses.push_back(params.at(pOffset + m_adjacentEdgeOrigin[i]));
         }
+
+        // Decode per-vertex blending parameters
+        blendingParams.clear();
+        blendingParams.reserve(m_baseVertices.size() + m_adjacentVertices.size());
+        // params[numPositionParams() + numThicknessParams()...] are blending
+        // parameters
+        pOffset = numPositionParams() + numThicknessParams();
+        for (size_t i = 0; i < m_baseVertices.size(); ++i)
+            blendingParams.push_back(params.at(pOffset + i));
+        for (size_t i = 0; i < m_adjacentVertices.size(); ++i)
+            blendingParams.push_back(params.at(pOffset + m_adjacentVertices[i].first));
     }
 
 private:
@@ -183,7 +211,6 @@ private:
     std::vector<AdjacentVertex> m_adjacentVertices;
     // Which base edge originated each adjacent edge (via transormation)
     std::vector<size_t>         m_adjacentEdgeOrigin;
-
 
     // Find the base vertex within symmetry tolerance of p
     // (or throw an exception if none exists).

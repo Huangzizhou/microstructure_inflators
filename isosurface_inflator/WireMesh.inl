@@ -23,8 +23,15 @@ load(const std::string &wirePath) {
     for (const auto &v : inVertices) {
         // transform graph to [-1, 1]
         Point p;
-        for (size_t i = 0; i < 3; ++i)
+        p.setZero();
+        for (size_t i = 0; i < 3; ++i) {
+            // Hack to handle 2D case: leave "empty dimension" coordinates at zero.
+            if (std::abs(dim[i]) < 1e-6) {
+                assert(i == 2);
+                continue;
+            }
             p[i] = (v[i] - bb.minCorner[i]) * (2.0 / dim[i]) - 1.0;
+        }
         m_fullVertices.push_back(p);
     }
 
@@ -195,8 +202,8 @@ saveInflationGraph(const std::string &path, std::vector<double> params) const {
         params = defaultParameters();
     std::vector<Edge> igraphEdges;
     std::vector<Point> igraphVertices;
-    std::vector<double> thicknesses;
-    inflationGraph(params, igraphVertices, igraphEdges, thicknesses);
+    std::vector<double> thicknesses, blendingParams;
+    inflationGraph(params, igraphVertices, igraphEdges, thicknesses, blendingParams);
 
     _OutputGraph(path, igraphVertices, igraphEdges);
 }

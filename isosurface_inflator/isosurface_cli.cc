@@ -58,7 +58,7 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
 
     bool fail = false;
     if (vm.count("outMSH") == 0) {
-        cout << "Error: must specify all positional operations" << endl;
+        cout << "Error: must specify all positional arguments" << endl;
         fail = true;
     }
 
