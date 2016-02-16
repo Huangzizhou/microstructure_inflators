@@ -78,6 +78,19 @@ public:
 
 		// create a coherent (if possibile) parametrization for the quad mesh
 		createParametrization(pmesh);
+
+	}
+
+	// MHS on Feb 8 2016
+	// for viewing the parametrization sequence
+	static void dumpParametrizationSequence(PolyMesh & pmesh)
+	{
+		cout << "the parametrization sequence is: ";
+		for (auto f = pmesh.face.begin(); f != pmesh.face.end(); ++f){
+			QuadParametrization qpar = getQuadParametrizationHandle(pmesh)[f];
+			cout << (int) qpar.index0;
+		}
+		cout << endl;
 	}
 
 	// assume em is a normalized edge mesh
@@ -152,7 +165,33 @@ public:
 		return ret;
 	}
 
+	// MHS on FEB4, 2016:
+	// this function returns the idxs vertex coordinate in the equivalent parallelogram obtained form the
+	// quad [p1 p2 p3 p4]
+	static PCoordType getEquivalentCoords(const PCoordType p1, // coordinate of the first  vertex in the quad
+										  const PCoordType p2, // coordinate of the second vertex in the quad
+										  const PCoordType p3, // coordinate of the third  vertex in the quad
+										  const PCoordType p4, // coordinate of the fourth vertex in the quad
+										  char idx) // index 0..3
+	{
+		if (idx < 0 || idx > 3)
+			throw("index out of range");
 
+		switch (idx){
+		case 0:
+			return (p1 + p1 + p1) / 4.0 + (p2 - p3 + p4) / 4.0;
+			break;
+		case 1:
+			return (p2 + p2 + p2) / 4.0 + (p3 - p4 + p1) / 4.0;
+			break;
+		case 2:
+			return (p3 + p3 + p3) / 4.0 + (p4 - p1 + p2) / 4.0;
+			break;
+		case 3:
+			return (p4 + p4 + p4) / 4.0 + (p1 - p2 + p3) / 4.0;
+			break;
+		}	
+	}
 
 	// MHS on JUL14, 2015:
 	// This method returns the deformation (F) corresponding to the equivalent parallelogram for each
@@ -184,10 +223,10 @@ public:
 			double cosAngle = direction[0] / sqrt(direction[0] * direction[0] + direction[1] * direction[1]);
 			double angle    = acos(cosAngle);
 
-			PCoordType p1_equivalent = (p1 + p1 + p1) / 4.0 + (p2 - p3 + p4) / 4.0; 
-			PCoordType p2_equivalent = (p2 + p2 + p2) / 4.0 + (p3 - p4 + p1) / 4.0;
-			PCoordType p3_equivalent = (p3 + p3 + p3) / 4.0 + (p4 - p1 + p2) / 4.0;
-			PCoordType p4_equivalent = (p4 + p4 + p4) / 4.0 + (p1 - p2 + p3) / 4.0;
+			PCoordType p1_equivalent = getEquivalentCoords(p1, p2, p3, p4, 0); 
+			PCoordType p2_equivalent = getEquivalentCoords(p1, p2, p3, p4, 1);
+			PCoordType p3_equivalent = getEquivalentCoords(p1, p2, p3, p4, 2);
+			PCoordType p4_equivalent = getEquivalentCoords(p1, p2, p3, p4, 3);
 
 			PCoordType alpha = (p2_equivalent - p1_equivalent); 
 			PCoordType beta  = (p4_equivalent - p1_equivalent); 
@@ -220,6 +259,52 @@ public:
 		{
 			Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> es(defs[i] * defs[i].transpose());
 			stretches.push_back(es.operatorSqrt());
+		}
+	}
+
+	// MHS on Feb 16, 2016:
+	// This is to overwrite Luigi's coherent parametrization
+	static void createLocalParametrization(PolyMesh & pmesh)
+	{
+		vcg::tri::RequireFFAdjacency(pmesh);
+		vcg::tri::RequirePerFaceFlags(pmesh);
+
+		// clear visited flag
+		vcg::tri::UpdateFlags<PolyMesh>::FaceClearV(pmesh);
+
+		QuadParamHandle handle =
+		        vcg::tri::Allocator<PolyMesh>::template GetPerFaceAttribute<QuadParametrization>(pmesh, ThisType::ParametrizationAttributeName());
+
+		// each face is parameterized independently, i.e., index0 is set such that
+		// ||P_eq(index1) - P_eq(index0)|| > ||P_eq(index2) - P_eq(index1)
+		// where P_eq[i] (i=0..3) are the coordinates of the vertexes of the equivalent parallelogram
+		for (size_t i=0; i<pmesh.face.size(); ++i)
+		{
+			PFacePointer fp = &pmesh.face[i];
+			PCoordType p1, p2, p3, p4,
+					   p1_eq, p2_eq, p3_eq;
+
+			p1 = fp->cP(0);
+			p2 = fp->cP(1);
+			p3 = fp->cP(2);
+			p4 = fp->cP(3);
+
+			p1_eq = getEquivalentCoords(p1, p2, p3, p4, 0);
+			p2_eq = getEquivalentCoords(p1, p2, p3, p4, 1);
+			p3_eq = getEquivalentCoords(p1, p2, p3, p4, 2);
+
+			PCoordType dir_1 = p2_eq - p1_eq;
+			PCoordType dir_2 = p3_eq - p2_eq;
+		
+			QuadParametrization & qp = handle[fp];
+
+
+			if (dir_1.Norm() < dir_2.Norm())
+				qp.index0 = 1;
+			else
+				qp.index0 = 0;
+
+			fp->SetV();
 		}
 	}
 

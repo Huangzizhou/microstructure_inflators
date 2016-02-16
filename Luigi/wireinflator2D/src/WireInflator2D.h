@@ -29,7 +29,7 @@ class WireInflator2DImpl;
 // type in the large shearing regime.
 class WireInflator2D {
 public:
-    typedef std::shared_ptr<WireInflator2D> Ptr;
+    typedef std::shared_ptr<WireInflator2D>		 Ptr;
 	typedef OutMesh<2, 3>                        OutMeshType;
 
     template<template<class> class WMesh = WireMesh2D>
@@ -40,9 +40,12 @@ public:
 	// MHS on JUL14, 2015:
 	// A new constructor that takes "const int symmetryMode" 
 	// to pass to WireMesh2DMorteza
-	template<template<class> class WMesh = WireMesh2DMorteza>
+	template<template<class> class WMesh = WireMesh2D>
     static Ptr construct(const std::string &edgeMeshPath, const int symmetryMode) {
-        return std::make_shared<WireInflator2DImpl<WMesh>>(edgeMeshPath, symmetryMode);
+    	if (symmetryMode < 0) // symmetryMode < 0 reverts back to Luigi's symmetry parameters.
+    		return std::make_shared<WireInflator2DImpl<WMesh>>(edgeMeshPath);
+    	else
+        	return std::make_shared<WireInflator2DImpl<WireMesh2DMorteza>>(edgeMeshPath, symmetryMode);
     }
 
 	virtual void generatePattern(const CellParameters & inP,
