@@ -612,7 +612,7 @@ public:
 
 
 	template <class PolyMesh>
-	bool generateFromQuads(PolyMesh & pmesh, bool averageThicknessOnBoundary = false, bool preProcessQuad = true)
+	bool generateFromQuads(PolyMesh & pmesh, bool averageThicknessOnBoundary = false, bool preProcessQuad = false) // to call this function for pmesh which is not already parametrized, call it with all three arguments where the last one is true
 	{
 		typedef WireMeshEmbedding<EMesh, PolyMesh> WireEmbedding;
 
