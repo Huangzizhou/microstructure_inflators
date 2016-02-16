@@ -45,7 +45,7 @@ public:
     // A new constructor that takes in "const int symmetryMode" 
     // as its last parameter to pass to WireMesh2DMorteza 
     Inflator(const std::string &wireMeshPath, const int symmetryMode)
-        : m_inflator(WireInflator2D::construct<WireMesh2DMorteza>(wireMeshPath, symmetryMode))
+        : m_inflator(WireInflator2D::construct(wireMeshPath, symmetryMode))
     {
         m_paramOp = m_inflator->getParameterOperations();
         setMaxElementVolume(0.0001);
