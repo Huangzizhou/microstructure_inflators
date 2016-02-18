@@ -320,6 +320,67 @@ struct IntegratedWorstCaseObjective {
         return result;
     }
 
+    // Compute the pointwise (Eulerian) derivative of j(wcs) due to a normal shape
+    // velocity vn
+    //      tau^kl : strain(wdot^kl[vn]) + 2 * j' * sigma : F^T : C^Base : G : dS^H[vn] : sigma
+    template<class Sim, class _NormalShapeVelocity>
+    Real directJDerivative(const Sim &sim,
+                           const std::vector<VectorField<Real, N>> &w,
+                           const std::vector<VectorField<Real, N>> &dot_w,
+                           const _NormalShapeVelocity &vn) const {
+        const auto &mesh = sim.mesh();
+        ScalarField<Real> result(mesh.numElements());
+        result.clear();
+        // Compute the tau term contribution to each element
+        SMF tau, dot_w_kl_strain;
+        for (size_t kl = 0; kl < dot_w.size(); ++kl) {
+            tau_kl(kl, tau);
+            // Sum is only over the "upper triangle" of integrands
+            Real shearDoubler = (kl >= Sim::N) ? 2.0 : 1.0;
+            dot_w_kl_strain = sim.averageStrainField(dot_w[kl]);
+            for (auto e : mesh.elements()) {
+                result[e.index()] += shearDoubler * e->volume() * (tau(e.index())
+                              .doubleContract(dot_w_kl_strain(e.index())));
+            }
+        }
+
+        // Compute variation of Ch
+        auto sdCh = PH::homogenizedElasticityTensorGradient(w, sim);
+        ElasticityTensor<Real, N> dCh_vn;
+        for (auto be : mesh.boundaryElements()) {
+            const auto &vnb = vn[be.index()];
+            const auto &sdb = sdCh[be.index()];
+            using  SDInterp = typename std::decay<decltype(sdCh[0])>::type;
+            using NSVInterp = typename std::decay<decltype(  vn[0])>::type;
+            static_assert(SDInterp::K == NSVInterp::K, "Invalid boundary interpolant simplex dimension");
+            dCh_vn += Quadrature<SDInterp::K, SDInterp::Deg + NSVInterp::Deg>::
+                integrate([&] (const VectorND<be.numVertices()> &pt) {
+                    return vnb(pt) * sdCh(pt);
+                }, be->volume());
+        }
+
+        // Compute variation of Sh
+        ElasticityTensor<Real, N> dSh_vn = wcStress.Sh.doubleDoubleContract(dCh_vn);
+        dSh_vn *= -1.0;
+
+        // Compute the dSh term contribution to each element
+        for (auto e : mesh.elements()) {
+            // sigma : F^T : C^Base : G : dSh[vn] : sigma
+            // = (F : sigma) : (C^Base : G : dSh[vn] : sigma)
+            //   MicroStress              dMicroStress
+            size_t ei = e.index();
+            auto microStress = wcStress.F[ei].doubleContract(wcStress.wcMacroStress(ei));
+            auto dMicroStress = wcStress.Cbase.doubleContract(
+                            wcStress.G[ei].doubleContract(
+                                dSh_vn.doubleContract(wcStress.wcMacroStress(ei))));
+            Real dShTerm = 2 * integrand.j_prime(wcStress(ei), ei)
+                             *  microStress.doubleContract(dMicroStress);
+            result[e.index()] += dShTerm;
+        }
+
+        return result;
+    }
+
     // Direct (non-adjoint) evaluation of objective's shape derivative on
     // normal velocity field vn:
     //  int_vol tau^kl : strain(wdot^kl) dV + int_bdry vn * j dA
@@ -332,19 +393,6 @@ struct IntegratedWorstCaseObjective {
         assert(dot_w.size() == w.size());
 
         const auto &mesh = sim.mesh();
-
-        Real dotKLTerm = 0;
-        SMF tau, dot_w_kl_strain;
-        for (size_t kl = 0; kl < dot_w.size(); ++kl) {
-            tau_kl(kl, tau);
-            // Sum is only over the "upper triangle" of integrands
-            Real shearDoubler = (kl >= Sim::N) ? 2.0 : 1.0;
-            dot_w_kl_strain = sim.averageStrainField(dot_w[kl]);
-            for (auto e : mesh.elements()) {
-                dotKLTerm += shearDoubler * e->volume() * (tau(e.index())
-                                .doubleContract(dot_w_kl_strain(e.index())));
-            }
-        }
 
         Real advectionTerm = 0;
         // Assumes j is piecewise constant!
@@ -360,7 +408,21 @@ struct IntegratedWorstCaseObjective {
             }
         }
 
-        std::cout << dotKLTerm << '\t' << advectionTerm << '\t';
+#if 0
+        Real dotKLTerm = 0;
+        SMF tau, dot_w_kl_strain;
+        for (size_t kl = 0; kl < dot_w.size(); ++kl) {
+            tau_kl(kl, tau);
+            // Sum is only over the "upper triangle" of integrands
+            Real shearDoubler = (kl >= Sim::N) ? 2.0 : 1.0;
+            dot_w_kl_strain = sim.averageStrainField(dot_w[kl]);
+            for (auto e : mesh.elements()) {
+                dotKLTerm += shearDoubler * e->volume() * (tau(e.index())
+                                .doubleContract(dot_w_kl_strain(e.index())));
+            }
+        }
+
+        // std::cout << dotKLTerm << '\t' << advectionTerm << '\t';
 
         Real jDirectTerm = 0;
         auto int_dj_domega = jDirectShapeDependence(sim, w);
@@ -376,8 +438,9 @@ struct IntegratedWorstCaseObjective {
                     return vnb(pt) * sdb(pt);
                 }, be->volume());
         }
-
-        return dotKLTerm + advectionTerm + jDirectTerm;
+        return advectionTerm + dotKLTerm + jDirectTerm;
+#endif
+        return advectionTerm + directJDerivative(sim, w, dot_w, vn);
     }
 
     // Effect of j's direct dependence on the microstructure's shape.
@@ -481,7 +544,7 @@ struct WCStressIntegrandLp {
     Real j(Real wcStress, size_t /* x_i */) const { return pow(wcStress, p); }
     // Derivative of global objective integrand wrt worst case stress.
     Real j_prime(Real wcStress, size_t /* x_i */) const { return p * pow(wcStress, p - 1); }
-    Real p = 2.0;
+    Real p;
 };
 
 // Global max worst-case objective:
@@ -528,7 +591,7 @@ struct WCStressIntegrandLinf {
 
 // Take the pth root of a WCS objective function.
 // Based on chain rule, all derivatives are weighted by
-// 1/p f^((p - 1) / p), where f = SubObjective::eval();
+// 1/p f^((1 / p) - 1), where f = SubObjective::eval();
 template<class SubObjective>
 struct PthRootObjective : public SubObjective {
 using Base = SubObjective;

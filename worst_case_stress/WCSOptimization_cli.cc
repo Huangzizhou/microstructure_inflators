@@ -103,9 +103,10 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ;
 
     po::options_description elasticityOptions;
-    elasticityOptions.add_options();
+    elasticityOptions.add_options()
         ("material,m",   po::value<string>(),                    "Base material")
         ("degree,d",     po::value<size_t>()->default_value(2),  "FEM Degree")
+        ;
 
     po::options_description generalOptions;
     generalOptions.add_options()
@@ -116,7 +117,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description visibleOptions;
     visibleOptions.add(patternOptions).add(meshingOptions).add(optimizerOptions)
-                  .add(objectiveOptions).add(generalOptions);
+                  .add(objectiveOptions).add(elasticityOptions).add(generalOptions);
 
     po::options_description cli_opts;
     cli_opts.add(visibleOptions).add(hidden_opts);

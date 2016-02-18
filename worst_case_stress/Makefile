@@ -59,17 +59,18 @@ WCS_REMESH_OPT_OBJS=WCSRemeshingOptimization_cli.o ../pattern_optimization/Patte
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
 
-LPHOLE_GRADVALID_OBJS=LpHoleGradientComponentValidation.o ../pattern_optimization/PatternOptimizationJob.o \
-			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
-			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
-
 LPHOLE_INFLATOR_OBJS=LpHoleInflator_cli.o ../pattern_optimization/PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
 
 OBJS=$(M2MSTRESS_OBJS) $(WCS_OBJS)$(GRADVALID_OBJS) $(WCSOPT_OBJS) $(WCS_REMESH_OPT_OBJS) $(LPHOLE_GRADVALID_OBJS) $(LPHOLE_INFLATOR_OBJS)
 
-TARGETS=MacroMicroStress_cli WCS_cli GradientComponentValidation LpHoleGradientComponentValidation WCSOptimization_cli LpHoleInflator_cli WCSRemeshingOptimization_cli
+TARGETS=MacroMicroStress_cli WCS_cli GradientComponentValidation WCSOptimization_cli LpHoleInflator_cli WCSRemeshingOptimization_cli
+
+# DEPENDENCY STUFF
+DEPDIR:=.d
+$(shell mkdir -p $(DEPDIR) >/dev/null)
+DEPFLAGS=-MT $@ -MMD -MP -MF $(DEPDIR)/$*.Td
 
 all: $(TARGETS)
 
@@ -82,9 +83,6 @@ WCS_cli: $(WCS_OBJS)
 GradientComponentValidation: $(GRADVALID_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
-LpHoleGradientComponentValidation: $(LPHOLE_GRADVALID_OBJS)
-	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
-
 WCSOptimization_cli: $(WCSOPT_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
@@ -94,20 +92,23 @@ WCSRemeshingOptimization_cli: $(WCS_REMESH_OPT_OBJS)
 LpHoleInflator_cli: $(LPHOLE_INFLATOR_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
-%.o: %.cc Makefile
-	$(CXX) $(CPPFLAGS) -c $< -o $@
+# Delete built-in rule, forcing ours to run
+%.o: %.cc
+%.o: %.cc $(DEPDIR)/%.d Makefile
+	$(CXX) $(DEPFLAGS) $(CPPFLAGS) -c $< -o $@
+	mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d
 
-%.o: %.c Makefile
-	$(CC) -c $(CFLAGS) $< -o $@
-
-depend:
-	@touch Makefile.depend;
-	makedepend -Y -f Makefile.depend --  -- $(SOURCES) &> /dev/null
+%.o: %.c
+%.o: %.c $(DEPDIR)/%.d Makefile
+	$(CC) $(DEPFLAGS) -c $(CFLAGS) $< -o $@
+	mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d
 
 clean:
 	rm -f $(TARGETS) $(OBJS) *.bak
 
-.PHONY: clean depend
+.PHONY: clean
 
-# Read in the dependency file, if it exists
-sinclude Makefile.depend
+# Read dependencies
+$(DEPDIR)/%.d: ;
+.PRECIOUS: $(DEPDIR)/%.d
+-include $(DEPDIR)/*.d

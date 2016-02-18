@@ -173,8 +173,8 @@ template<class _Inflator>
     }
 
     // WARNING: paste this into any subclass that overrides gradient/objective evaluation.
-    void writeDescription(std::ostream &os, bool printParams = false) const {
-        writeIterateDescription(os, *this, printParams);
+    void writeDescription(std::ostream &os) const {
+        writeIterateDescription(os, *this, true);
     }
 
     void writeMeshAndFields(const std::string &name) const {
