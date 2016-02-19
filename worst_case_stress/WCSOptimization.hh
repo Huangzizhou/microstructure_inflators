@@ -45,13 +45,20 @@ public:
 
     template<class _Vector>
     void getParameterBounds(_Vector &lowerBounds, _Vector &upperBounds) {
-        for (size_t p = 0; p < m_inflator.numParameters(); ++p) {
+        size_t nparam = m_inflator.numParameters();
+        // Unfortunately, we can't resize here because dlib's interface is
+        // different...
+        assert(size_t(lowerBounds.size()) == nparam);
+        assert(size_t(upperBounds.size()) == nparam);
+        for (size_t p = 0; p < nparam; ++p) {
             // Explicitly specified bounds overried default type-based bounds.
             if (m_varLowerBounds.count(p)) {
                 lowerBounds(p) = m_varLowerBounds.at(p);
                 upperBounds(p) = m_varUpperBounds.at(p);
                 continue;
             }
+            // uses operator() to set becuase that's all dlib offers...
+            // Possibly add adapator for std::vector?
             switch (m_inflator.parameterType(p)) {
                 case ParameterType::Thickness:
                     lowerBounds(p) = m_radiusBounds.at(0);
@@ -100,7 +107,7 @@ public:
     struct DLibObjectiveEvaluator {
         DLibObjectiveEvaluator(_Inflator &inflator,
                 WCStressOptimization::Objective<_N> &fullObjective)
-            : m_iterate(NULL), m_inflator(inflator), m_fullObjective(fullObjective) {
+            : m_inflator(inflator), m_fullObjective(fullObjective) {
             nParams = m_inflator.numParameters();
         };
 

@@ -60,6 +60,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description visible_opts;
     visible_opts.add_options()("help",        "Produce this help message")
         ("output,o",      po::value<string>(), "output path")
+        ("computeWCS,c",                       "Don't just inflate; compute WCS and output relevant fields if -o is passed.")
         ("material,m",    po::value<string>(), "base material")
         ("degree,d",      po::value<size_t>()->default_value(2),        "FEM Degree")
         ("nsubdiv,n",  po::value<size_t>()->default_value(64),            "number of subdivisions of Lp hole boundary")
@@ -130,10 +131,19 @@ void execute(const po::variables_map &args)
     params[0] = args["radius"].as<Real>();
     params[1] = args["p"].as<Real>();
 
-    WCStressOptimization::Iterate<Simulator> it(inflator, params.domainSize(), &params[0], targetS);
-    it.writeDescription(cout);
-    if (args.count("output"))
-        it.writeMeshAndFields(args["output"].as<string>());
+    if (args.count("computeWCS")) {
+        WCStressOptimization::Objective<_N> fullObjective(targetS, 1.0, 1.0, 1.0, 0.0);
+        WCStressOptimization::Iterate<Simulator> it(inflator, params.domainSize(), &params[0], fullObjective);
+        it.writeDescription(cout);
+        if (args.count("output"))
+            it.writeMeshAndFields(args["output"].as<string>());
+    }
+    else {
+        if (args.count("output") == 0) throw std::runtime_error("Must specify output if --computeWCS isn't passed");
+        std::vector<Real> pvec; params.getFlattened(pvec);
+        inflator.inflate(pvec);
+        MeshIO::save(args["output"].as<string>(), inflator.vertices(), inflator.elements());
+    }
 
     BENCHMARK_REPORT();
 }

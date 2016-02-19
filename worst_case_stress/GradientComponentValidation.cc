@@ -23,6 +23,9 @@
 #include <PatternOptimizationJob.hh>
 #include <PatternOptimizationConfig.hh>
 
+#include "WCSOptimization.hh"
+#include "WCSObjective.hh"
+
 #include "WCStressOptimizationIterate.hh"
 #include "BoundaryPerturbationIterate.hh"
 
@@ -38,6 +41,7 @@
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/algorithm/string.hpp>
 
 namespace po = boost::program_options;
 using namespace std;
@@ -63,8 +67,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description sweepOptions("Sweep Options");
     sweepOptions.add_options()
-        ("lower_bd,l",    po::value<double>(),                             "sweep lower bound (must be non-positional to support negative values)")
-        ("upper_bd,u",    po::value<double>(),                             "sweep upper bound (must be non-positional to support negative values)")
+        ("range_relative", po::value<double>(), "relative sweep range: current +/- arg * paramBound(compIdx)")
+        ("range",          po::value<string>(), "absolute sweep range (lower:upper)")
         ;
 
     po::options_description patternOptions;
@@ -85,14 +89,6 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         // ("sub_algorithm,A", po::value<string>()->default_value("simple"), "Subdivision algorithm for 3D inflator (simple or loop)")
         ;
 
-    po::options_description optimizerOptions("Optimizer Options");
-    optimizerOptions.add_options()
-        ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
-        ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
-        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs")
-        // ("vtxNormalPerturbationGradient,N",                                      "use the vertex-normal-based versino of the boundary perturbation gradient")
-        ;
-
     po::options_description objectiveOptions("Objective Options");
     objectiveOptions.add_options()
         ("ignoreShear",                                                   "Ignore the shear components in the isotropic tensor fitting")
@@ -101,7 +97,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
         ("JSWeight",     po::value<double>()->default_value(0.0),         "Weight for the JS term of the objective")
         ("JVolWeight",   po::value<double>()->default_value(0.0),         "Weight for the JVol term of the objective")
-        ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
+        ("LaplacianRegWeight", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ;
 
     po::options_description elasticityOptions("Elasticity Options");
@@ -119,7 +115,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ;
 
     po::options_description visibleOptions;
-    visibleOptions.add(sweepOptions).add(patternOptions).add(meshingOptions).add(optimizerOptions)
+    visibleOptions.add(sweepOptions).add(patternOptions).add(meshingOptions)
                   .add(objectiveOptions).add(generalOptions).add(elasticityOptions);
 
     po::options_description cli_opts;
@@ -137,17 +133,19 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     }
 
     bool fail = false;
-    if (vm.count("job") + vm.count("component_idx")  + vm.count("lower_bd") + vm.count("upper_bd") + vm.count("nsamples") != 5) {
-        cout << "Error: must specify input job.opt file, sweep component index, sweep bounds, and sweep samples" << endl;
+    if (!(vm.count("job") && vm.count("component_idx")
+            && (vm.count("range") != vm.count("range_relative"))
+            && vm.count("nsamples"))) {
+        cout << "Error: must specify input job.opt file, sweep component index, range and sweep samples" << endl;
         fail = true;
     }
 
     string inflator = vm["inflator"].as<string>();
     if ((inflator != "lphole") && (vm.count("pattern") == 0)) {
-        cout << "Error: must specify pattern mesh" << endl;
+        cout << "Error: must specify pattern mesh or lphole inflator" << endl;
         fail = true;
     }
-    else if (vm.count("pattern")) {
+    else if ((inflator == "lphole") && vm.count("pattern")) {
         std::cerr << "WARNING: pattern argument not expected for LpHoleInflator" << std::endl;
     }
 
@@ -183,14 +181,14 @@ void genAndReportIterate(_Inflator &inflator, const SField &params, _Objective &
                         size_t compIdx, size_t i, const po::variables_map &args) {
     _Iterate it(inflator, params.domainSize(), &params[0], fullObjective);
 
-    std::cout << i << "\t" << params[compIdx] << "\t"
-              << it.evaluateJS() << "\t" << it.gradp_JS()[compIdx] << "\t"
-              << it.evaluateWCS() << "\t";
-    std::cout << it.gradientWCS_direct_component(compIdx) << "\t";
-    std::cout << it.gradientWCS_adjoint()[compIdx]
-              << std::endl;
+    std::cout << i << "\t" << params[compIdx]
+        << "\t" << it.evaluateJFull() << "\t" << it.gradp_JFull()[compIdx]
+        << "\t" << it.evaluateWCS() << "\t" << it.gradientWCS_adjoint()[compIdx]
+                                    << "\t" << it.gradientWCS_direct_component(compIdx)
+        << "\t" << it.evaluateJS() << "\t" << it.gradp_JS()[compIdx]
+        << std::endl;
 
-    if (args.count("output"))        it.writeMeshAndFields(    args["output"].as<string>() + "_" + std::to_string(i));
+    if (args.count("output"))        it.writeMeshAndFields(    args["output"].as<string>() + "_" + std::to_string(i) + ".msh");
     if (args.count("volumeMeshOut")) it.writeVolumeMesh(args["volumeMeshOut"].as<string>() + "_" + std::to_string(i) + ".msh");
 
     // TODO: write shape-derivative output as per-element-vertex shape velocity
@@ -208,6 +206,13 @@ void genAndReportIterate(_Inflator &inflator, const SField &params, _Objective &
 template<size_t _N, size_t _FEMDegree, template<size_t> class _ITraits>
 void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *job)
 {
+    using _Inflator   = typename _ITraits<_N>::type;
+    using Mesh        = LinearElasticity::Mesh<_N, _FEMDegree, HMG>;
+    using Simulator   = LinearElasticity::Simulator<Mesh>;
+    using LpIterate   = WCStressOptimization::Iterate<Simulator>;
+    using LinfIterate = WCStressOptimization::Iterate<Simulator,
+                            IntegratedWorstCaseObjective<_N, WCStressIntegrandLinf>>;
+
     auto inflator_ptr = _ITraits<_N>::construct(args, job);
     auto &inflator = *inflator_ptr;
 
@@ -222,8 +227,9 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *
     targetC.printOrthotropic(cout);
     cout << endl;
 
-    if (job->numParams() != inflator.numParameters()) {
-        for (size_t i = 0; i < inflator.numParameters(); ++i) {
+    size_t numParams = inflator.numParameters();
+    if (job->numParams() != numParams) {
+        for (size_t i = 0; i < numParams; ++i) {
             auto ptype = inflator.parameterType(i);
             cout << "param " << i << " role: " <<
                 (ptype == ParameterType::Offset ? "Offset" :
@@ -233,19 +239,47 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *
         throw runtime_error("Invalid number of parameters.");
     }
 
-    typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh;
-    typedef LinearElasticity::Simulator<Mesh> Simulator;
-
     // Set up simulators' (base) material
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
+    // Use optimizer to determine parameter bounds...
+    WCStressOptimization::Optimizer<Simulator, _Inflator, _ITraits<_N>::template Iterate>
+        optimizer(inflator, job->radiusBounds,   job->translationBounds, job->blendingBounds,
+                            job->varLowerBounds, job->varUpperBounds);
+    SField plb(numParams), pub(numParams);
+    optimizer.getParameterBounds(plb, pub);
+
     SField params(job->initialParams);
     size_t compIdx = args["component_idx"].as<size_t>();
     assert(compIdx < params.domainSize());
-    double lowerBound = args["lower_bd"].as<double>();
-    double upperBound = args["upper_bd"].as<double>();
     size_t nSamples = args["nsamples"].as<size_t>();
+    Real lowerBound, upperBound;
+    if (args.count("range")) {
+        auto rangeStr = args["range"].as<string>();
+        vector<string> rangeComponents;
+        boost::trim(rangeStr), boost::split(rangeComponents, rangeStr, boost::is_any_of(":"));
+        if (rangeComponents.size() != 2) throw std::runtime_error("Invalid range; expected lower:upper");
+        lowerBound = stod(rangeComponents[0]), upperBound = stod(rangeComponents[1]);
+    }
+    else {
+        Real rr = args["range_relative"].as<double>();
+        Real paramRangeSize = pub[compIdx] - plb[compIdx];
+        lowerBound = params[compIdx] - rr * paramRangeSize;
+        upperBound = params[compIdx] + rr * paramRangeSize;
+    }
+
+    if ((lowerBound < plb[compIdx]) || (upperBound > pub[compIdx])) {
+        std::cerr << "WARNING: Specified sweep range of " << lowerBound << ":" << upperBound
+            << " outside parameter range of " << plb[compIdx] << ":" << pub[compIdx] << std::endl;
+    }
+
+    // Configure global WCS measure
+    auto &wcsConfig = WCStressOptimization::Config::get();
+    wcsConfig.globalObjectivePNorm = args["pnorm"].as<double>();
+    if (args.count("usePthRoot"))
+        wcsConfig.globalObjectiveRoot = 2.0 * wcsConfig.globalObjectivePNorm;
+    wcsConfig.useVtxNormalPerturbationGradientVersion = args.count("vtxNormalPerturbationGradient");
 
     // Create scalarized multi-objective with weights specified by the
     // arguments.
@@ -255,18 +289,11 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *
                                 args["JVolWeight"].as<double>(),
                                 args["LaplacianRegWeight"].as<double>());
 
-    auto &config = WCStressOptimization::Config::get();
-    config.globalObjectivePNorm = args["pnorm"].as<double>();
-
-    using LpIterate = WCStressOptimization::Iterate<Simulator>;
-    using LinfIterate = WCStressOptimization::Iterate<Simulator,
-                            IntegratedWorstCaseObjective<_N, WCStressIntegrandLinf>>;
-
     for (size_t i = 0; i < nSamples; ++i) {
         params[compIdx] = lowerBound + ((nSamples == 1) ? 0.0
                         : (upperBound - lowerBound) * (double(i) / (nSamples - 1)));
-        if (std::isinf(config.globalObjectivePNorm)) genAndReportIterate<LinfIterate>(inflator, params, fullObjective, compIdx, i, args);
-        else                                         genAndReportIterate<  LpIterate>(inflator, params, fullObjective, compIdx, i, args);
+        if (std::isinf(wcsConfig.globalObjectivePNorm)) genAndReportIterate<LinfIterate>(inflator, params, fullObjective, compIdx, i, args);
+        else                                            genAndReportIterate<  LpIterate>(inflator, params, fullObjective, compIdx, i, args);
     }
 
     BENCHMARK_REPORT();

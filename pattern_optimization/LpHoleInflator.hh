@@ -31,10 +31,12 @@ struct LpHoleInflator : InflatorBase<LpHoleInflator> {
 
     // Parameters: (radius, p)
     size_t numParameters() const { return 2; }
-    ParameterType parameterType(size_t /* p */) const {
-        // Sorta...
-        return ParameterType::Thickness;
+    ParameterType parameterType(size_t p) const {
+        if (p == 0) return ParameterType::Thickness;
+        if (p == 1) return ParameterType::Blending; // Sorta...
+        assert(false);
     }
+
     void setNumSubdiv(size_t ns) { m_nsubdiv = ns; }
 
     void inflate(const std::vector<Real> &params) {

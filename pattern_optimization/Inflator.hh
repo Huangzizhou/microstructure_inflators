@@ -45,7 +45,7 @@ public:
     using NSV = NormalShapeVelocity<2>;
 
     Inflator(const std::string &wireMeshPath)
-        : m_inflator(WireInflator2D::construct(wireMeshPath))
+        : m_inflator(WireInflator2D::construct<WireMesh2D>(wireMeshPath))
     {
         m_paramOp = m_inflator->getParameterOperations();
         setMaxElementVolume(0.0001);
@@ -54,18 +54,18 @@ public:
     // MHS JUL14, 2015: 
     // A new constructor that takes in "const int symmetryMode" 
     // as its last parameter to pass to WireMesh2DMorteza 
-    Inflator(const std::string &wireMeshPath, const int symmetryMode)
-        : m_inflator(WireInflator2D::construct(wireMeshPath, symmetryMode))
-    {
+    Inflator(const std::string &wireMeshPath, const int symmetryMode) {
+        // symmetryMode < 0 reverts to Luigi's symmetry parameters (WireMesh2D)
+        if (symmetryMode < 0) m_inflator = WireInflator2D::construct<WireMesh2D       >(wireMeshPath);
+        else                  m_inflator = WireInflator2D::construct<WireMesh2DMorteza>(wireMeshPath, symmetryMode);
         m_paramOp = m_inflator->getParameterOperations();
         setMaxElementVolume(0.0001);
     }
 
-
     Inflator(const std::string &wireMeshPath,
              Real /* cell_size */, Real /* default_thickness = 0.5 * sqrt(2) */,
              bool /* isotropic_params = false */, bool /* vertex_thickness = false */)
-        : m_inflator(WireInflator2D::construct(wireMeshPath)) {
+        : m_inflator(WireInflator2D::construct<WireMesh2D>(wireMeshPath)) {
             throw std::runtime_error("2D inflator is not yet configurable");
     }
 
