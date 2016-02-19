@@ -74,8 +74,6 @@ public:
 
     // Forward declaration so friend-ing can happen
     class IterationCallback;
-    class IterationCallback2;
-    class IterationCallback3;
 
     struct TensorFitCost : public ceres::CostFunction {
         typedef ceres::CostFunction Base;
@@ -124,8 +122,6 @@ public:
         mutable std::unique_ptr<Iterate> m_iterate;
 
         friend class IterationCallback;
-        friend class IterationCallback2;
-        friend class IterationCallback3;
     };
 
     class IterationCallback : public ceres::IterationCallback {
@@ -223,6 +219,52 @@ public:
         SField m_initialParams;
         double m_weight;
     };
+
+	// MHS on Oct 2:
+	// the regularized lm optimizer
+	void optimize_lm_regularized(SField &params,
+    							 SField &initialParams,
+    							 const double regularizationWeight,
+    							 const _ETensor &targetS,
+    							 const string outPath, 
+    							 Real & initialCost,
+    							 Real & finalCost,
+    							 _ETensor & stiffness) {
+        TensorFitCost *fitCost = new TensorFitCost(m_inflator, targetS);
+        ceres::Problem problem;
+        problem.AddResidualBlock(fitCost, NULL, params.data());
+        problem.AddResidualBlock(new Regularization(initialParams, regularizationWeight, params.domainSize()), NULL, params.data());
+
+        size_t nParams = params.domainSize();
+        SField lowerBounds(nParams), upperBounds(nParams);
+        getParameterBounds(lowerBounds, upperBounds);
+        for (size_t p = 0; p < params.domainSize(); ++p) {
+            problem.SetParameterLowerBound(params.data(), p, lowerBounds[p]);
+            problem.SetParameterUpperBound(params.data(), p, upperBounds[p]);
+        }
+
+        ceres::Solver::Options options;
+        options.update_state_every_iteration = true;
+        IterationCallback cb(*fitCost, params, outPath);
+        options.callbacks.push_back(&cb);
+        // options.minimizer_type = ceres::LINE_SEARCH;
+        // options.line_search_direction_type = ceres::BFGS;
+        // options.trust_region_strategy_type = ceres::DOGLEG;
+        // options.dogleg_type = ceres::SUBSPACE_DOGLEG;
+        // options.use_nonmonotonic_steps = true;
+        // options.minimizer_progress_to_stdout = true;
+        // options.initial_trust_region_radius = 1e4; // ceres's default
+        options.max_num_iterations = 100;
+        /* options.function_tolerance = 1.0e-16; */
+    	/* options.gradient_tolerance = 1.0e-32; */
+    	/* options.parameter_tolerance = 1.0e-32; */
+        ceres::Solver::Summary summary;
+        ceres::Solve(options, &problem, &summary);
+        std::cout << summary.BriefReport() << "\n";
+        std::cout << summary.FullReport() << "\n";
+        initialCost = summary.initial_cost;
+        finalCost   = summary.final_cost;
+    }
 
     // MHS on AUG 25, 2015:
     // DOGLEG gets similar patterns (excluding rotations) for deformed cells with
@@ -517,7 +559,6 @@ public:
             params[p] = optParams(p);
     }
 
-#include "PatternOptimizationMorteza.inl"
 
 private:
     ConstrainedInflator<_N> &m_inflator;
