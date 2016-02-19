@@ -23,6 +23,7 @@
 
 #include "PolyMeshType.h"
 #include "PolyMeshUtils.h"
+#include "WireMesh2D.h"
 #include "WireMeshEmbedding.h"
 
 #include "EdgeMeshType.h"
@@ -300,8 +301,11 @@ void tileQuad (const po::variables_map &args)
 
 	// tile the quad mesh using the parameterTable ... 
 	WireInflator2D::Ptr wi;
-	if (args["sym"].as<int>() >= -1 && args["sym"].as<int>() < 8)
-    	wi = WireInflator2D::construct(args["pattern"].as<string>(), args["sym"].as<int>());
+
+	if (args["sym"].as<int>() == -1)
+		wi = WireInflator2D::construct<WireMesh2D       >(args["pattern"].as<string>());
+	else if (args["sym"].as<int>() > -1 && args["sym"].as<int>() < 8)
+    	wi = WireInflator2D::construct<WireMesh2DMorteza>(args["pattern"].as<string>(), args["sym"].as<int>());
     else 
 		throw("symmetry mode must be in [-1..7]");
     
