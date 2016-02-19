@@ -13,6 +13,7 @@
 #include "PolyMeshUtils.h"
 #include "WireMeshEmbedding.h"
 #include "EdgeMeshType.h"
+#include "table.hh"
 
 #include <vector>
 #include <queue>
@@ -23,6 +24,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <algorithm>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -177,6 +179,73 @@ void tableToFile(const vector<Eigen::Matrix2d> & table,
 	out.close();
 }
 
+void tableToFile(const vector<vector<double>> & table,
+				 path savePath,
+				 const std::string fileName)
+{
+
+	ofstream out;
+	out.open(savePath.string() + "/" + fileName);
+
+	for (auto it = table.begin(); it != table.end(); ++it)
+	{
+		vector<double> row = *it;
+		for (size_t i = 0; i < row.size() - 1; ++i)
+			out << showpos << scientific <<  row[i] << "\t";
+		out << showpos << scientific <<  row[row.size() - 1] << "\n";
+	}
+	out.close();
+}
+
+
+void dumpTable(const vector<vector<double>> & table, ostream & os)
+{
+
+	for (auto it = table.begin(); it != table.end(); ++it)
+	{
+		vector<double> row = *it;
+		for (size_t i = 0; i < row.size() - 1; ++i)
+			os << showpos << scientific <<  row[i] << "\t";
+		os << showpos << scientific <<  row[row.size() - 1] << "\n";
+	}
+}
+
+void eigenTable2vecTable(const vector<Eigen::Matrix2d> eigenTable, vector<vector<double>> & vecTable)
+{
+	for (auto it = eigenTable.begin(); it != eigenTable.end(); ++it)
+	{
+		Eigen::Matrix2d mat = *it;
+		vector<double> row;
+		row.push_back(mat(0, 0));
+		row.push_back(mat(0, 1));
+		row.push_back(mat(1, 0));
+		row.push_back(mat(1, 1));
+
+		vecTable.push_back(row);
+	}
+}
+
+void dumpMap(const map<int, int> & inMap, ostream & os)
+{
+	for (auto & p : inMap)
+		os << p.first << "\t" << p.second << endl;
+}
+
+vector<vector<double>> checkMap(map<int, int> inMap, vector<vector<double>> longTable, vector<vector<double>> shortTable)
+{
+	vector<vector<double>> outTable;
+	outTable = longTable;
+	for (auto & p : inMap)
+	{
+		int idInLong  = p.first;
+		int idInShort = p.second;
+
+		for (size_t i = 0; i < outTable[idInLong].size(); ++i)
+			outTable[idInLong][i] = outTable[idInLong][i] - shortTable[idInShort][i]; 
+	}
+	return outTable;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /*! Program entry point
 //  @param[in]  argc    Number of arguments
@@ -236,6 +305,35 @@ int main(int argc, const char *argv[])
 	defs = truncate(args["truncate"].as<size_t>(), defs);	
 
 	tableToFile(defs, savePath, args["output"].as<string>());
+
+	table<double, 2> defTable(defs);
+
+
+	vector<vector<double>> longTable  = defTable.getTable();
+	vector<vector<double>> shortTable = defTable.getUniqueTable();
+	map<int, int> conversionMap       = defTable.getMap();
+
+	cout << "original deformations table" << endl;
+	dumpTable(longTable, cout);
+	cout << "---------------------------" << endl;
+
+	cout << "unique deformations table" << endl;
+	dumpTable(shortTable, cout);
+	cout << "-------------------------" << endl;
+
+
+
+	cout << "the conversion map " << endl;
+	dumpMap(conversionMap, cout);
+	cout << "-------------------" << endl;
+
+	vector<vector<double>> testTable = checkMap(conversionMap, longTable, shortTable); 
+
+	cout << "outputting test table to check the validity of the map" << endl;
+	dumpTable(testTable, cout);
+	cout << "------------------------------------------------------" << endl;
+
+
 
     return 0;
 }
