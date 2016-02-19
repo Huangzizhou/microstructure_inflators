@@ -15,7 +15,8 @@ endif
 # Configuration section
 ################################################################################
 # **** Configuration: Use the isosurface inflator for 3D ****
-CPPFLAGS+=-DISOSURFACE_INFLATOR -DBENCHMARK -DTOO_LARGE_FOR_METIS
+# CPPFLAGS+=-DISOSURFACE_INFLATOR -DBENCHMARK -DTOO_LARGE_FOR_METIS
+CPPFLAGS+=-DBENCHMARK -DTOO_LARGE_FOR_METIS
 # CPPFLAGS+= -DBENCHMARK
 CPPFLAGS+=-Wall -pedantic -Wunused-parameter -Wpedantic -std=c++14
 # CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
@@ -70,7 +71,7 @@ TARGETS=MacroMicroStress_cli WCS_cli GradientComponentValidation WCSOptimization
 # DEPENDENCY STUFF
 DEPDIR:=.d
 $(shell mkdir -p $(DEPDIR) >/dev/null)
-DEPFLAGS=-MT $@ -MMD -MP -MF $(DEPDIR)/$*.Td
+DEPFLAGS=-MT $@ -MMD -MP -MF $(DEPDIR)/$(subst /,__,$*).Td
 
 all: $(TARGETS)
 
@@ -94,14 +95,14 @@ LpHoleInflator_cli: $(LPHOLE_INFLATOR_OBJS)
 
 # Delete built-in rule, forcing ours to run
 %.o: %.cc
-%.o: %.cc $(DEPDIR)/%.d Makefile
+%.o: %.cc Makefile
 	$(CXX) $(DEPFLAGS) $(CPPFLAGS) -c $< -o $@
-	mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d
+	mv -f $(DEPDIR)/$(subst /,__,$*).Td $(DEPDIR)/$(subst /,__,$*).d
 
 %.o: %.c
-%.o: %.c $(DEPDIR)/%.d Makefile
+%.o: %.c Makefile
 	$(CC) $(DEPFLAGS) -c $(CFLAGS) $< -o $@
-	mv -f $(DEPDIR)/$*.Td $(DEPDIR)/$*.d
+	mv -f $(DEPDIR)/$(subst /,__,$*).Td $(DEPDIR)/$(subst /,__,$*).d
 
 clean:
 	rm -f $(TARGETS) $(OBJS) *.bak
@@ -109,6 +110,4 @@ clean:
 .PHONY: clean
 
 # Read dependencies
-$(DEPDIR)/%.d: ;
-.PRECIOUS: $(DEPDIR)/%.d
 -include $(DEPDIR)/*.d

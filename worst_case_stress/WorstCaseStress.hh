@@ -324,10 +324,10 @@ struct IntegratedWorstCaseObjective {
     // velocity vn
     //      tau^kl : strain(wdot^kl[vn]) + 2 * j' * sigma : F^T : C^Base : G : dS^H[vn] : sigma
     template<class Sim, class _NormalShapeVelocity>
-    Real directJDerivative(const Sim &sim,
-                           const std::vector<VectorField<Real, N>> &w,
-                           const std::vector<VectorField<Real, N>> &dot_w,
-                           const _NormalShapeVelocity &vn) const {
+    ScalarField<Real> directJDerivative(const Sim &sim,
+                                        const std::vector<VectorField<Real, N>> &w,
+                                        const std::vector<VectorField<Real, N>> &dot_w,
+                                        const _NormalShapeVelocity &vn) const {
         const auto &mesh = sim.mesh();
         ScalarField<Real> result(mesh.numElements());
         result.clear();
@@ -355,7 +355,7 @@ struct IntegratedWorstCaseObjective {
             static_assert(SDInterp::K == NSVInterp::K, "Invalid boundary interpolant simplex dimension");
             dCh_vn += Quadrature<SDInterp::K, SDInterp::Deg + NSVInterp::Deg>::
                 integrate([&] (const VectorND<be.numVertices()> &pt) {
-                    return vnb(pt) * sdCh(pt);
+                    return vnb(pt) * sdb(pt);
                 }, be->volume());
         }
 
@@ -440,7 +440,12 @@ struct IntegratedWorstCaseObjective {
         }
         return advectionTerm + dotKLTerm + jDirectTerm;
 #endif
-        return advectionTerm + directJDerivative(sim, w, dot_w, vn);
+        ScalarField<Real> dj = directJDerivative(sim, w, dot_w, vn);
+        Real result = advectionTerm;
+        for (auto e : mesh.elements()) {
+            result += dj[e.index()] * e->volume();
+        }
+        return result;
     }
 
     // Effect of j's direct dependence on the microstructure's shape.

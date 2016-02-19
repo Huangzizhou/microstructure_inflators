@@ -32,20 +32,11 @@ public:
     typedef std::shared_ptr<WireInflator2D>		 Ptr;
 	typedef OutMesh<2, 3>                        OutMeshType;
 
-    template<template<class> class WMesh = WireMesh2D>
-    static Ptr construct(const std::string &edgeMeshPath) {
-        return std::make_shared<WireInflator2DImpl<WMesh>>(edgeMeshPath);
-    }
-
-	// MHS on JUL14, 2015:
-	// A new constructor that takes "const int symmetryMode" 
-	// to pass to WireMesh2DMorteza
-	template<template<class> class WMesh = WireMesh2D>
-    static Ptr construct(const std::string &edgeMeshPath, const int symmetryMode) {
-    	if (symmetryMode < 0) // symmetryMode < 0 reverts back to Luigi's symmetry parameters.
-    		return std::make_shared<WireInflator2DImpl<WMesh>>(edgeMeshPath);
-    	else
-        	return std::make_shared<WireInflator2DImpl<WireMesh2DMorteza>>(edgeMeshPath, symmetryMode);
+    // Constructor passes edgeMeshPath and forwards any additional arguments to
+    // WireInflator2DImpl<WMesh>'s constructor.
+    template<template<class> class WMesh, typename... Args>
+    static Ptr construct(const std::string &edgeMeshPath, Args&&... args) {
+        return std::make_shared<WireInflator2DImpl<WMesh>>(edgeMeshPath, std::forward<Args>(args)...);
     }
 
 	virtual void generatePattern(const CellParameters & inP,
@@ -279,33 +270,19 @@ protected:
 
 };
 
-
 template<template<class> class WMesh>
-class WireInflator2DImpl : public WireInflator2D
-{
+class WireInflator2DImpl : public WireInflator2D {
 public:
 	typedef EdgeMeshPattern<TMesh, EMesh, WMesh> PatternGen;
 
-	WireInflator2DImpl(const std::string & edgeMeshPath)
-	    : m_pattern(edgeMeshPath)
-	{
-		;
-	}
+    // Constructor passes edgeMeshPath and forwards any additional arguments to
+    // PatternGen's constructor.
+    template<typename... Args>
+    WireInflator2DImpl(const std::string &edgeMeshPath, Args&&... args)
+        : m_pattern(edgeMeshPath, std::forward<Args>(args)...) { } 
 
-	// MHS JUL14, 2015: 
-	// A new constructor that takes in "const int symmetryMode" 
-	// to pass to WireMesh2DMorteza
-	WireInflator2DImpl(const std::string & edgeMeshPath, const int symmetryMode)
-	    : m_pattern(edgeMeshPath, symmetryMode)
-	{
-		;
-	}
-
-	WireInflator2DImpl( EMesh & edgeMesh)
-	    : m_pattern(edgeMesh)
-	{
-		;
-	}
+	WireInflator2DImpl(EMesh & edgeMesh)
+	    : m_pattern(edgeMesh) { }
 
 	WireInflator2DImpl( const VectorF & vertices, const VectorI & edges)
 	{
@@ -424,8 +401,6 @@ public:
 
 private:
 	PatternGen m_pattern;
-
-
 };
 
 #endif // WIREINFLATOR2D_H
