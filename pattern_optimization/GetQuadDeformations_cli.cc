@@ -52,9 +52,11 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description visible_opts;
    	visible_opts.add_options()("help",			"Produce this help message")
-        ("output,o",     po::value<string>(),								"output .txt of deformations F11 F12 F21 F22 per line")
+        ("allDefs,a", 	      po::value<string>(),								"a .txt: including all deformations F11 F12 F21 F22")
+        ("uniqueDefs,u",      po::value<string>(),								"a .txt: including unique copy of all deformations")
+        ("conversionMap,c",   po::value<string>(), 								"a .txt: including the conversion map from all-defs to unique-defs") 
         ("mode,m",       po::value<string>()->default_value("jacobian"),	"mode = {jacobian, stretch}")
-        ("truncate,t",   po::value<size_t>()->default_value(6),				"truncates components of the deformation to the t decimal place")
+        ("truncate,t",   po::value<size_t>()->default_value(4),				"truncates components of the deformation to the t decimal place")
         ("matlabData,d", po::value<string>()->default_value(""), 			"output data file name for matlab visualization")
         ;
 	
@@ -79,11 +81,20 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 		fail = true;
 	}
 
-	if (vm.count("output") == 0) {
-		cout << "Error: must specify the output.txt file!" << endl;
+	if (vm.count("allDefs") == 0) {
+		cout << "Error: must specify the .txt file to store all deformations!" << endl;
 		fail = true;
 	}
-		
+
+	if (vm.count("uniqueDefs") == 0) {
+		cout << "Error: must specify the .txt file to store unique deformations!" << endl;
+		fail = true;
+	}	
+	
+	if (vm.count("conversionMap") == 0) {
+		cout << "Error: must specify the .txt file to store the conversion map!" << endl;
+		fail = true;
+	}	
 	if (fail || vm.count("help"))
 		usage(fail, visible_opts);
 
@@ -121,9 +132,9 @@ void readQuadMesh(const string & quadMeshPath, PolyMesh & pmesh)
 	if (ok)
 		WireEmbedding::preprocessQuadMesh(pmesh);
 
-	WireEmbedding::dumpParametrizationSequence(pmesh);
+	/* WireEmbedding::dumpParametrizationSequence(pmesh); // this is meant for debugging purposes */ 
 	WireEmbedding::createLocalParametrization(pmesh); // overwrite Luigi's coherent parametrization 
-	WireEmbedding::dumpParametrizationSequence(pmesh);
+	/* WireEmbedding::dumpParametrizationSequence(pmesh); // this is meant for debugging purposes */ 
 }
 
 // get the deformation (F or U) for each quad in the quadMesh 
@@ -160,42 +171,42 @@ vector<Eigen::Matrix2d> truncate(const int decimalPlace, vector<Eigen::Matrix2d>
 }
 
 
-void tableToFile(const vector<Eigen::Matrix2d> & table,
-				 path savePath,
-				 const std::string fileName)
-{
+/* void tableToFile(const vector<Eigen::Matrix2d> & table, */
+/* 				 path savePath, */
+/* 				 const std::string fileName) */
+/* { */
 
-	ofstream out;
-	out.open(savePath.string() + "/" + fileName);
+/* 	ofstream out; */
+/* 	out.open(savePath.string() + "/" + fileName); */
 
-	for (auto it = table.begin(); it != table.end(); ++it)
-	{
-		Eigen::Matrix2d mat = *it;
-		out << showpos << scientific <<  mat(0, 0) << "\t"
-			<< showpos << scientific <<  mat(0, 1) << "\t"
-			<< showpos << scientific <<  mat(1, 0) << "\t"
-			<< showpos << scientific <<  mat(1, 1) << "\n";
-	}
-	out.close();
-}
+/* 	for (auto it = table.begin(); it != table.end(); ++it) */
+/* 	{ */
+/* 		Eigen::Matrix2d mat = *it; */
+/* 		out << showpos << scientific <<  mat(0, 0) << "\t" */
+/* 			<< showpos << scientific <<  mat(0, 1) << "\t" */
+/* 			<< showpos << scientific <<  mat(1, 0) << "\t" */
+/* 			<< showpos << scientific <<  mat(1, 1) << "\n"; */
+/* 	} */
+/* 	out.close(); */
+/* } */
 
-void tableToFile(const vector<vector<double>> & table,
-				 path savePath,
-				 const std::string fileName)
-{
+/* void tableToFile(const vector<vector<double>> & table, */
+/* 				 path savePath, */
+/* 				 const std::string fileName) */
+/* { */
 
-	ofstream out;
-	out.open(savePath.string() + "/" + fileName);
+/* 	ofstream out; */
+/* 	out.open(savePath.string() + "/" + fileName); */
 
-	for (auto it = table.begin(); it != table.end(); ++it)
-	{
-		vector<double> row = *it;
-		for (size_t i = 0; i < row.size() - 1; ++i)
-			out << showpos << scientific <<  row[i] << "\t";
-		out << showpos << scientific <<  row[row.size() - 1] << "\n";
-	}
-	out.close();
-}
+/* 	for (auto it = table.begin(); it != table.end(); ++it) */
+/* 	{ */
+/* 		vector<double> row = *it; */
+/* 		for (size_t i = 0; i < row.size() - 1; ++i) */
+/* 			out << showpos << scientific <<  row[i] << "\t"; */
+/* 		out << showpos << scientific <<  row[row.size() - 1] << "\n"; */
+/* 	} */
+/* 	out.close(); */
+/* } */
 
 
 void dumpTable(const vector<vector<double>> & table, ostream & os)
@@ -259,9 +270,6 @@ int main(int argc, const char *argv[])
 
     auto savePath = current_path();
 
-	std::string outPathStr = args["output"].as<string>();
-    
-
 	// read in the quadMesh
     PolyMesh pmesh;
     readQuadMesh(args["quad"].as<string>(), pmesh);
@@ -304,36 +312,28 @@ int main(int argc, const char *argv[])
 	// truncate the stretches/jacobians
 	defs = truncate(args["truncate"].as<size_t>(), defs);	
 
-	tableToFile(defs, savePath, args["output"].as<string>());
-
 	table<double, 2> defTable(defs);
 
 
-	vector<vector<double>> longTable  = defTable.getTable();
-	vector<vector<double>> shortTable = defTable.getUniqueTable();
+
+	// getting/writing all the quad deformations to file
+	vector<vector<double>> allDefs    = defTable.getTable();
+	ofstream out;
+	out.open(args["allDefs"].as<string>());
+	dumpTable(allDefs, out);
+	out.close();
+
+	// getting/writing unique quad deformations to file
+	vector<vector<double>> uniqueDefs = defTable.getUniqueTable();
+	out.open(args["uniqueDefs"].as<string>());
+	dumpTable(uniqueDefs, out);
+	out.close();
+
+	// getting/writing the conversion map to file
 	map<int, int> conversionMap       = defTable.getMap();
-
-	cout << "original deformations table" << endl;
-	dumpTable(longTable, cout);
-	cout << "---------------------------" << endl;
-
-	cout << "unique deformations table" << endl;
-	dumpTable(shortTable, cout);
-	cout << "-------------------------" << endl;
-
-
-
-	cout << "the conversion map " << endl;
-	dumpMap(conversionMap, cout);
-	cout << "-------------------" << endl;
-
-	vector<vector<double>> testTable = checkMap(conversionMap, longTable, shortTable); 
-
-	cout << "outputting test table to check the validity of the map" << endl;
-	dumpTable(testTable, cout);
-	cout << "------------------------------------------------------" << endl;
-
-
+	out.open(args["conversionMap"].as<string>());
+	dumpMap(conversionMap, out);
+	out.close();
 
     return 0;
 }
