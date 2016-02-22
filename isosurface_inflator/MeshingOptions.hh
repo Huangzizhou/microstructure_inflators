@@ -37,9 +37,25 @@ struct MeshingOptions {
     //      gridSize = ceil(domainLength / sideLen)
     double maxArea = 0.001;
     double featureAngleThreshold = M_PI / 4.0;
+    // Force the marching squares grid resolution declared above, instead of the
+    // one derived from the max area threshold.
+    bool forceMSGridSize = false; 
     // Derived parameters
-    double maxEdgeLenFromMaxArea() const { return sqrt((4.0 / sqrt(3.0)) * maxArea); }
+    // Always determine max edge length from the maxArea param
+    double maxEdgeLenFromMaxArea() const {
+        return sqrt((4.0 / sqrt(3.0)) * maxArea);
+    }
+    // To avoid collapsing short edges when requested, base
+    // the collapse threshold on marchingSquaresGridSize in forceMSGridSize
+    // case.
+    // Domain length only actually needed in the forceMSGridSize case...
+    double minEdgeLenFromMaxArea(double domainLength) const {
+        if (forceMSGridSize) return (domainLength / marchingSquaresGridSize) * sqrt(2.0) / 6.0;
+        else return maxEdgeLenFromMaxArea() / 4.0;
+    }
+
     size_t msGridSizeFromMaxArea(double domainLength) const {
+        if (forceMSGridSize) return marchingSquaresGridSize;
         return ceil((domainLength * sqrt(2.0)) / maxEdgeLenFromMaxArea());
     }
 

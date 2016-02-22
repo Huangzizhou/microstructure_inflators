@@ -185,11 +185,24 @@ void genAndReportIterate(_Inflator &inflator, const SField &params, _Objective &
         << "\t" << it.evaluateJFull() << "\t" << it.gradp_JFull()[compIdx]
         << "\t" << it.evaluateWCS() << "\t" << it.gradientWCS_adjoint()[compIdx]
                                     << "\t" << it.gradientWCS_direct_component(compIdx)
-        << "\t" << it.evaluateJS() << "\t" << it.gradp_JS()[compIdx]
-        << std::endl;
+        << "\t" << it.evaluateJS() << "\t" << it.gradp_JS()[compIdx];
 
-    if (args.count("output"))        it.writeMeshAndFields(    args["output"].as<string>() + "_" + std::to_string(i) + ".msh");
+    {
+        std::vector<typename _Iterate::VField> dot_w;
+        PeriodicHomogenization::fluctuationDisplacementShapeDerivatives(it.simulator(), it.fluctuationDisplacements(), it.parameterNormalVelocities(compIdx), dot_w);
+        SField dj = it.wcsObjective().directIntegrandDerivative(it.simulator(), it.fluctuationDisplacements(), dot_w, it.parameterNormalVelocities(compIdx));
+        Real above1500Int = 0;
+        for (auto e : it.mesh().elements()) {
+            if (dj[e.index()] > 1500.0)
+                above1500Int += dj[e.index()] * e->volume();
+        }
+        std::cout << "\t" << above1500Int;
+    }
+
+    if (args.count("output"))        it.writeMeshAndFields(    args["output"].as<string>() + "_" + std::to_string(i) + ".msh", compIdx);
     if (args.count("volumeMeshOut")) it.writeVolumeMesh(args["volumeMeshOut"].as<string>() + "_" + std::to_string(i) + ".msh");
+
+    std::cout << std::endl;
 
     // TODO: write shape-derivative output as per-element-vertex shape velocity
     // (Should already be supported by MSHFieldWriter)

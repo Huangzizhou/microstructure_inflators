@@ -18,6 +18,10 @@ public:
                 vertex_thickness, wireMeshPath)
     { }
 
+    void loadMeshingOptions(const std::string &moptsPath) {
+        m_inflator.meshingOptions().load(moptsPath);
+    }
+
     void setMaxElementVolume(Real maxElementVol) {
         if (N == 2) m_inflator.meshingOptions().maxArea = maxElementVol;
         else        m_inflator.meshingOptions().cellSize = maxElementVol;

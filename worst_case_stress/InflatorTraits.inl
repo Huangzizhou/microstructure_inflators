@@ -64,6 +64,8 @@ struct InflatorTraitsConstrainedInflator<2> : public InflatorTraits<2> {
                 0.5 * sqrt(2),
                 args.count("isotropicParameters"),
                 args.count("vertexThickness"));
+        if (args.count("meshingOptions"))
+            inflator_ptr->loadMeshingOptions(args["meshingOptions"].as<string>());
         if (args.count("max_volume"))
             inflator_ptr->setMaxElementVolume(args["max_volume"].as<double>());
         return inflator_ptr;
@@ -89,8 +91,8 @@ struct InflatorTraitsConstrainedInflator<3> : public InflatorTraits<3> {
         inflator_ptr->configureSubdivision(args["sub_algorithm"].as<string>(),
                                            args["subdivide"].as<size_t>());
         inflator_ptr->setReflectiveInflator(args.count("fullCellInflator") == 0);
-        if (args.count("dofOut"))
-            inflator_ptr->setDoFOutputPrefix(args["dofOut"].as<string>());
+        if (args.count("meshingOptions"))
+            inflator_ptr->loadMeshingOptions(args["meshingOptions"].as<string>());
         if (args.count("max_volume"))
             inflator_ptr->setMaxElementVolume(args["max_volume"].as<double>());
 
@@ -101,8 +103,6 @@ struct InflatorTraitsConstrainedInflator<3> : public InflatorTraits<3> {
                          const po::variables_map &args,
                          const PatternOptimization::Job<3> * job) {
         InflatorTraits<3>::finalize(iptr, result, args, job);
-        if (args.count("dofOut"))
-            iptr->writePatternDoFs(args["dofOut"].as<string>() + ".final.dof", result);
     }
 };
 
