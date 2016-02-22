@@ -375,6 +375,9 @@ struct Iterate {
         return vn;
     }
 
+    const NormalShapeVelocity<_N> &parameterNormalVelocities(size_t p) const { return m_vn_p[p]; }
+    const std::vector<VField    > &fluctuationDisplacements()          const { return w_ij; }
+
     void writeDescription(std::ostream &os) const {
         os << "p:";
         for (size_t i = 0; i < m_params.size(); ++i)

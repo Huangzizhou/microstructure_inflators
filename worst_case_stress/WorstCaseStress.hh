@@ -320,14 +320,14 @@ struct IntegratedWorstCaseObjective {
         return result;
     }
 
-    // Compute the pointwise (Eulerian) derivative of j(wcs) due to a normal shape
-    // velocity vn
+    // Compute the pointwise (Eulerian) derivative of integrand j(wcs) due to a
+    // normal shape velocity vn:
     //      tau^kl : strain(wdot^kl[vn]) + 2 * j' * sigma : F^T : C^Base : G : dS^H[vn] : sigma
     template<class Sim, class _NormalShapeVelocity>
-    ScalarField<Real> directJDerivative(const Sim &sim,
-                                        const std::vector<VectorField<Real, N>> &w,
-                                        const std::vector<VectorField<Real, N>> &dot_w,
-                                        const _NormalShapeVelocity &vn) const {
+    ScalarField<Real> directIntegrandDerivative(const Sim &sim,
+                                                const std::vector<VectorField<Real, N>> &w,
+                                                const std::vector<VectorField<Real, N>> &dot_w,
+                                                const _NormalShapeVelocity &vn) const {
         const auto &mesh = sim.mesh();
         ScalarField<Real> result(mesh.numElements());
         result.clear();
@@ -339,7 +339,7 @@ struct IntegratedWorstCaseObjective {
             Real shearDoubler = (kl >= Sim::N) ? 2.0 : 1.0;
             dot_w_kl_strain = sim.averageStrainField(dot_w[kl]);
             for (auto e : mesh.elements()) {
-                result[e.index()] += shearDoubler * e->volume() * (tau(e.index())
+                result[e.index()] += shearDoubler * (tau(e.index())
                               .doubleContract(dot_w_kl_strain(e.index())));
             }
         }
@@ -348,11 +348,9 @@ struct IntegratedWorstCaseObjective {
         auto sdCh = PH::homogenizedElasticityTensorGradient(w, sim);
         ElasticityTensor<Real, N> dCh_vn;
         for (auto be : mesh.boundaryElements()) {
-            const auto &vnb = vn[be.index()];
-            const auto &sdb = sdCh[be.index()];
+            const auto &vnb = vn[be.index()]; const auto &sdb = sdCh[be.index()];
             using  SDInterp = typename std::decay<decltype(sdCh[0])>::type;
             using NSVInterp = typename std::decay<decltype(  vn[0])>::type;
-            static_assert(SDInterp::K == NSVInterp::K, "Invalid boundary interpolant simplex dimension");
             dCh_vn += Quadrature<SDInterp::K, SDInterp::Deg + NSVInterp::Deg>::
                 integrate([&] (const VectorND<be.numVertices()> &pt) {
                     return vnb(pt) * sdb(pt);
@@ -360,7 +358,7 @@ struct IntegratedWorstCaseObjective {
         }
 
         // Compute variation of Sh
-        ElasticityTensor<Real, N> dSh_vn = wcStress.Sh.doubleDoubleContract(dCh_vn);
+        auto dSh_vn = wcStress.Sh.doubleDoubleContract(dCh_vn);
         dSh_vn *= -1.0;
 
         // Compute the dSh term contribution to each element
@@ -440,11 +438,10 @@ struct IntegratedWorstCaseObjective {
         }
         return advectionTerm + dotKLTerm + jDirectTerm;
 #endif
-        ScalarField<Real> dj = directJDerivative(sim, w, dot_w, vn);
+        ScalarField<Real> dj = directIntegrandDerivative(sim, w, dot_w, vn);
         Real result = advectionTerm;
-        for (auto e : mesh.elements()) {
+        for (auto e : mesh.elements())
             result += dj[e.index()] * e->volume();
-        }
         return result;
     }
 

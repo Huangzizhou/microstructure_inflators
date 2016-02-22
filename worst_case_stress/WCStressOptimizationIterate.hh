@@ -177,7 +177,9 @@ template<class _Inflator>
         writeIterateDescription(os, *this, true);
     }
 
-    void writeMeshAndFields(const std::string &name) const {
+    // Also output intermediates of derivative computation wrt parameter
+    // "derivativeComponent" if requested.
+    void writeMeshAndFields(const std::string &name, int derivativeComponent = -1) const {
         MSHFieldWriter writer(name, m_sim->mesh());
         // typename Sim::VField outField;
         // for (size_t kl = 0; kl < flatLen(N); ++kl) {
@@ -275,13 +277,29 @@ template<class _Inflator>
         //     
         // }
 
-        writer.addField("WC Macro Stress", m_wcs_objective.wcStress.wcMacroStress);
-        writer.addField("WC Micro Stress", m_wcs_objective.wcStress.wcMicroStress());
+        // writer.addField("WC Macro Stress", m_wcs_objective.wcStress.wcMacroStress);
+        // writer.addField("WC Micro Stress", m_wcs_objective.wcStress.wcMicroStress());
 
         writer.addField("Pointwise WCS", m_wcs_objective.wcStress.sqrtStressMeasure());
         writer.addField("j", j);
-    }
 
+        if (derivativeComponent >= 0) {
+            std::vector<VectorField<Real, N>> dot_w;
+            PeriodicHomogenization::fluctuationDisplacementShapeDerivatives(*m_sim, w_ij, m_vn_p[derivativeComponent], dot_w);
+            typename WCSObjective::SMF tau;
+            for (size_t i = 0; i < dot_w.size(); ++i) {
+                m_wcs_objective.tau_kl(i, tau);
+
+                writer.addField("w_ij " + std::to_string(i), w_ij[i]);
+                writer.addField("dw_ij " + std::to_string(i), dot_w[i]);
+                writer.addField("strain dw_ij " + std::to_string(i), m_sim->averageStrainField(dot_w[i]));
+                writer.addField("tau_kl " + std::to_string(i), tau);
+            }
+            SField dj = m_wcs_objective.directIntegrandDerivative(*m_sim, w_ij, dot_w, m_vn_p[derivativeComponent]);
+            writer.addField("dj", dj);
+        }
+    }
+    
     const WCSObjective &wcsObjective() const { return m_wcs_objective; }
     const WCStressOptimization::Objective<N> &fullObjective() const { return m_fullObjective; }
 

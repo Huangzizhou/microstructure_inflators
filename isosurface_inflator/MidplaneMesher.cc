@@ -78,7 +78,9 @@ mesh(const SignedDistanceFunction &sdf,
         edges.insert(edges.end(), s.second.begin(), s.second.end());
 
     Real maxLen = meshingOptions.maxEdgeLenFromMaxArea();
-    Real minLen = maxLen / 4.0;
+    Real minLen = meshingOptions.minEdgeLenFromMaxArea(std::min(bb.dimensions()[0],
+                                                                bb.dimensions()[1]));
+    // std::cout << "Using maxLen " << maxLen << ", minLen " << minLen << std::endl;
 
     // Organized polygon soup into ccw polygons
     std::list<std::list<Point2D>> polygons;
