@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import os, json, data
 from collections import defaultdict
-degree = 1
 WCDir='/home/fjp234/microstructures/worst_case_stress'
 expDir='{WCDir}/gradient_validation/octacell_iso'.format(WCDir=WCDir)
 resultRoot='/scratch/fjp234/gradient_validation/wcs/octacell_iso_ms_mvol'
