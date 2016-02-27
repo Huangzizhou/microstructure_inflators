@@ -125,5 +125,4 @@ protected:
 		}
 	}
 };
-
 #endif // TABLE_HH

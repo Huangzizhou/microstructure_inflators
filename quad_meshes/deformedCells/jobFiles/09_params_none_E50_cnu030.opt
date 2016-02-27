@@ -1,0 +1,12 @@
+{
+    "dim": 2,
+    "target": {
+        "type": "isotropic",
+        "young": 5.0,
+        "poisson": 0.3
+    },
+    "initial_params": [0.05, 0.05, 0.05, 0.05, 0.05, 
+                       0.0, 0.0, 0.0, 0.0],
+    "radiusBounds": [0.01, 0.12],
+    "translationBounds": [-0.1, 0.1]
+}
