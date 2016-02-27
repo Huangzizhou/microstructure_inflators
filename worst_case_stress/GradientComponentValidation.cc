@@ -104,12 +104,14 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     elasticityOptions.add_options()
         ("material,m",   po::value<string>(),                    "Base material")
         ("degree,d",     po::value<size_t>()->default_value(2),  "FEM Degree")
+        ("fullDegreeFieldOutput,D",                              "Output full-degree nodal fields (don't do piecewise linear subsampling)")
         ;
 
     po::options_description generalOptions;
     generalOptions.add_options()
         ("help,h",                                               "Produce this help message")
         ("output,o",     po::value<string>(),                    "Output mesh and fields at each iteration")
+        ("singleIteration,s", po::value<size_t>(),               "Only run a particular iteration of the sweep (iteration number specified), meant for field output")
         ("volumeMeshOut", po::value<string>(),                   "Output volume mesh at each iteration")
         ("dumpShapeDerivatives"  , po::value<string>(),          "Dump shape derivative fields for JVol, JS, and WCS")
         ;
@@ -199,7 +201,7 @@ void genAndReportIterate(_Inflator &inflator, const SField &params, _Objective &
         std::cout << "\t" << above1500Int;
     }
 
-    if (args.count("output"))        it.writeMeshAndFields(    args["output"].as<string>() + "_" + std::to_string(i) + ".msh", compIdx);
+    if (args.count("output"))        it.writeMeshAndFields(    args["output"].as<string>() + "_" + std::to_string(i) + ".msh", compIdx, args.count("fullDegreeFieldOutput"));
     if (args.count("volumeMeshOut")) it.writeVolumeMesh(args["volumeMeshOut"].as<string>() + "_" + std::to_string(i) + ".msh");
 
     std::cout << std::endl;
@@ -303,10 +305,12 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *
                                 args["LaplacianRegWeight"].as<double>());
 
     for (size_t i = 0; i < nSamples; ++i) {
+        if (args.count("singleIteration")) i = args["singleIteration"].as<size_t>();
         params[compIdx] = lowerBound + ((nSamples == 1) ? 0.0
                         : (upperBound - lowerBound) * (double(i) / (nSamples - 1)));
         if (std::isinf(wcsConfig.globalObjectivePNorm)) genAndReportIterate<LinfIterate>(inflator, params, fullObjective, compIdx, i, args);
         else                                            genAndReportIterate<  LpIterate>(inflator, params, fullObjective, compIdx, i, args);
+        if (args.count("singleIteration")) break;
     }
 
     BENCHMARK_REPORT();

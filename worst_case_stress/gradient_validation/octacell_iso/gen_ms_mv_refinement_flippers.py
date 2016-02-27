@@ -21,6 +21,6 @@ for degree in [1, 2]:
                 f.write(json.dumps(frames, indent=4))
                 f.write(";\n")
 
-                flippers.append(['param{param}:degree {deg}:marching squares grid size {ms}:max_vol {mv:0.0e}'.format(param=param, deg=degree, ms=ms_grid_size, mv=max_vol), flipper])
+                flippers.append(['param{param}:degree {deg}:boundary resolution {ms}:max_vol {mv:0.0e}'.format(param=param, deg=degree, ms=ms_grid_size, mv=max_vol), flipper])
 f = open('directory.js', 'w')
 f.write("flippers = %s;\n" % json.dumps(flippers, indent=4))
