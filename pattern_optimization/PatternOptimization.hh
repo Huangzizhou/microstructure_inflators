@@ -135,8 +135,9 @@ public:
             auto curr = getIterate(std::move(m_evaluator.m_iterate),
                             m_evaluator.m_inflator, m_params.size(), &m_params[0],
                             m_evaluator.m_targetS);
-            curr->writeDescription(std::cout);
-            std::cout << std::endl;
+            /* curr->writeDescription(std::cout); */
+            /* std::cout << std::endl; */
+			/* std::cout << "currently at iteration " << m_iter << std::endl; */
 
             if (m_outPath != "")
                 curr->writeMeshAndFields(m_outPath + "_" + std::to_string(m_iter));
@@ -254,16 +255,33 @@ public:
         // options.use_nonmonotonic_steps = true;
         // options.minimizer_progress_to_stdout = true;
         // options.initial_trust_region_radius = 1e4; // ceres's default
-        options.max_num_iterations = 100;
-        /* options.function_tolerance = 1.0e-16; */
-    	/* options.gradient_tolerance = 1.0e-32; */
-    	/* options.parameter_tolerance = 1.0e-32; */
+        options.max_num_iterations = 400;
+        options.function_tolerance = 1.0e-16;
+    	options.gradient_tolerance = 1.0e-32;
+    	options.parameter_tolerance = 1.0e-32;
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
-        std::cout << summary.BriefReport() << "\n";
-        std::cout << summary.FullReport() << "\n";
+        /* std::cout << summary.BriefReport() << "\n"; */
+        /* std::cout << summary.FullReport() << "\n"; */
         initialCost = summary.initial_cost;
         finalCost   = summary.final_cost;
+
+		std::unique_ptr<Iterate> final_iter;
+
+        final_iter = getIterate(std::move(final_iter), m_inflator, params.size(), &params[0], targetS);
+
+		_ETensor final_C = final_iter->elasticityTensor();
+		stiffness = final_C;
+
+		std::cout << "the anisotopy of final C [computed in the optimizer before applying the transformations] is  " << final_C.anisotropy() << std::endl;
+		std::cout << "testing final_iter to output JS " << final_iter->evaluateJS() << std::endl;
+		std::cout << "testing final_iter to output RT " << final_iter->evaluateRT(initialParams, regularizationWeight) << std::endl;
+
+		std::cout << "this is the target C after the optimizer exits:" << std::endl;
+		std::cout << "-----------------------------------------------" << std::endl;
+		final_C.printOrthotropic(std::cout);
+		std::cout << "-----------------------------------------------" << std::endl;
+
     }
 
     // MHS on AUG 25, 2015:

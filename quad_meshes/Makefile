@@ -1,4 +1,4 @@
-include $(MeshFEM)/platform_defs.mk
+include ubuntu.mk 
 
 INCLUDES=-I$(LEVMAR_INC) # bring levmar in first since we have a modified copy that might be overriden by the system's
 INCLUDES+=-I$(MeshFEM) -I$(CSGFEM) -isystem $(EIGEN_INC) -I$(SUITESPARSE_INC) -I$(CLIPPER_INC) -I$(TRIANGLE_INC)  \
@@ -16,7 +16,9 @@ LIBS+=$(CLIPPER_LFLAGS) -L$(PYMESH_PATH)/lib -lwires $(TRIANGLE_LFLAGS)
 LIBS+=$(LEVMAR_LFLAGS)
 
 
-SOURCES=PatternOptimization_DeformedCell_cli.cc PatternOptimizationJob.cc\
+SOURCES=PatternOptimization_DeformedCell_cli.cc PatternOptimizationJob.cc \
+		SimulateTiledQuad_cli.cc \
+		PostProcessFEM_cli.cc \
 		GetQuadDeformations_cli.cc  \
 		TileQuadFromFile_cli.cc  FindCommonDeformations_cli.cc UnMap_cli.cc \
 		GetQuadCenters_cli.cc ConvertToObj_cli.cc ExpandQuad_cli.cc testEdgeMesh.cc
@@ -35,6 +37,16 @@ TILEQUAD_OBJS=TileQuadFromFile_cli.o \
             $(MeshFEM)/MeshIO.o \
 			$(MeshFEM)/Types.o
 
+SIMQUAD_OBJS=SimulateTiledQuad_cli.o \
+			 $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o \
+			 $(MeshFEM)/BoundaryConditions.o $(MeshFEM)/MSHFieldParser.o \
+			 $(MeshFEM)/Materials.o $(MeshFEM)/GlobalBenchmark.o
+
+PP_OBJS=PostProcessFEM_cli.o \
+		$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o \
+		$(MeshFEM)/BoundaryConditions.o $(MeshFEM)/MSHFieldParser.o \
+		$(MeshFEM)/Materials.o $(MeshFEM)/GlobalBenchmark.o
+
 # optional objects
 testEdgeMesh_OBJS=testEdgeMesh.o \
             $(MeshFEM)/MeshIO.o \
@@ -49,16 +61,19 @@ CONVERT_OBJS=ConvertToObj_cli.o \
 
 GETQUADCTRS_OBJS=GetQuadCenters_cli.o
 
-OBJS=$(DEFPATOPT_OBJS) $(GETQUADDEFS_OBJS) $(TILEQUAD_OBJS) $(MAP_OBJS) $(UNMAP_OBJS) $(CONVERT_OBJS) $(EXPQUAD_OBJS) $(testEdgeMesh_OBJS) $(GETQUADCTRS_OBJS)
+
+OBJS=$(DEFPATOPT_OBJS) $(GETQUADDEFS_OBJS) $(TILEQUAD_OBJS) $(MAP_OBJS) $(UNMAP_OBJS) $(CONVERT_OBJS) $(EXPQUAD_OBJS) $(testEdgeMesh_OBJS) $(GETQUADCTRS_OBJS) $(SIMQUAD_OBJS) $(PP_OBJS)
 
 DEFAULT_TARGETS=PatternOptimization_DeformedCell_cli \
+				SimulateTiledQuad_cli \
+				PostProcessFEM_cli \
 				GetQuadDeformations_cli \
 				TileQuadFromFile_cli \
 				FindCommonDeformations_cli UnMap_cli
 OPTIONAL_TARGETS=GetQuadCenters_cli testEdgeMesh ConvertToObj_cli ExpandQuad_cli
 ALL_TARGETS=$(DEFAULT_TARGETS) $(OPTIONAL_TARGETS)
 
-CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DBENCHMARK
+CPPFLAGS+=-Wall -pedantic -std=c++11 -fopenmp $(INCLUDES) -DBENCHMARK
 CPPFLAGS+=-O2 -g
 # CPPFLAGS+=-O0 -g
 CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
@@ -67,31 +82,37 @@ default_build: $(DEFAULT_TARGETS)
 all: $(ALL_TARGETS)
 
 GetQuadDeformations_cli: $(GETQUADDEFS_OBJS)
-	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ 
 
 TileQuadFromFile_cli: $(TILEQUAD_OBJS)
-	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 FindCommonDeformations_cli: $(MAP_OBJS)
-	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 UnMap_cli: $(UNMAP_OBJS)
-	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ 
 
 PatternOptimization_DeformedCell_cli: $(DEFPATOPT_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
 
+SimulateTiledQuad_cli: $(SIMQUAD_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
+PostProcessFEM_cli: $(PP_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
 GetQuadCenters_cli: $(GETQUADCTRS_OBJS)
-	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ 
 
 testEdgeMesh: $(testEdgeMesh_OBJS)
-	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ 
 
 ExpandQuad_cli: $(EXPQUAD_OBJS)
-	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ 
 
 ConvertToObj_cli: $(CONVERT_OBJS)
-	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ 
 
 %.o: %.cc Makefile
 	$(CXX) $(CPPFLAGS) -c $< -o $@
@@ -101,7 +122,7 @@ ConvertToObj_cli: $(CONVERT_OBJS)
 
 depend:
 	@touch Makefile.depend;
-	makedepend -Y -f Makefile.depend --  -- -I$(MeshFEM) $(SOURCES) &> /dev/null
+	makedepend -Y -f Makefile.depend --  -- -I$(MeshFEM) -I$(PATOPTIM) $(SOURCES) &> /dev/null
 
 clean:
 	rm -f $(TARGETS) $(OBJS) *.bak

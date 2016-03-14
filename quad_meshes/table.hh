@@ -19,6 +19,7 @@
 #include <cmath>
 #include <string>
 #include <algorithm>
+#include <map>
 
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
@@ -36,6 +37,7 @@ public:
 	table(const vector<vector<T>> & inTable)
 		:m_table(inTable), m_table_unique(inTable)
 	{
+		this->absoluteValue();
 		this->unique();
 		this->generateMap();
 	}
@@ -53,6 +55,8 @@ public:
 			m_table.push_back(currentRow);
 			m_table_unique.push_back(currentRow);
 		}
+
+		this->absoluteValue();
 		this->unique();
 		this->generateMap();
 	}
@@ -72,11 +76,6 @@ public:
 	{
 		return m_map;
 	}
-
-protected:
-	vector<vector<T>> m_table;
-	vector<vector<T>> m_table_unique;
-	map<int, int>     m_map;
 
 	static bool vecCompare(vector<T> v1, vector<T> v2)
 	{
@@ -101,10 +100,28 @@ protected:
 	}
 
 
+
+protected:
+	vector<vector<T>> m_table;
+	vector<vector<T>> m_table_unique;
+	map<int, int>     m_map;
+
+	void absoluteValue()
+	{
+		for (size_t i = 0; i < m_table.size(); ++i)
+			for (size_t j = 0; j < m_table[i].size(); ++j)
+				m_table[i][j] = abs(m_table[i][j]);
+		
+		for (size_t i = 0; i < m_table_unique.size(); ++i)
+			for (size_t j = 0; j < m_table_unique[i].size(); ++j)
+				m_table_unique[i][j] = abs(m_table_unique[i][j]);
+	}
+
+
 	void unique()
 	{
 		sort(m_table_unique.begin(), m_table_unique.end(), vecCompare);
-
+		
 		typename vector<vector<T>>::iterator it;
 		it = unique_copy (m_table_unique.begin(), m_table_unique.end(), m_table_unique.begin(), vecEqual);
 

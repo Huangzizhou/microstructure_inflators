@@ -1206,7 +1206,7 @@ protected:
 		this->normalizeMesh();
 
 		this->setParameterOperations();
-		displayParameterOperations(m_operations);
+		/* displayParameterOperations(m_operations); */
 	}
 
 	virtual std::pair<double,double> getRadiusParameterRange(void) const
@@ -1349,11 +1349,6 @@ protected:
 		currentOperations = generateParameterOperations(currentSymmetry, em);
 		targetOperations  = generateParameterOperations(targetSymmetry,  em);
 		
-		/* std::cout << std::endl << "----------" << std::endl << "displaying the current parameter operations:" << std::endl << "----------" << std::endl; */
-		/* displayParameterOperations(currentOperations); */
-		/* std::cout << std::endl << "----------" << std::endl << "displaying the target  parameter operations:" << std::endl << "----------" << std::endl; */
-		/* displayParameterOperations(targetOperations); */	
-
 		int counter;
 		bool direction;
 		conversion.clear();

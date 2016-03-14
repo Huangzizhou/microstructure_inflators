@@ -311,6 +311,12 @@ void execute(const po::variables_map &args,
         inflator.setDoFOutputPrefix(dofOut);
 
 
+	std::cout << "this is the target C inputed to the optimizer :" << std::endl;
+	std::cout << "-----------------------------------------------" << std::endl;
+	targetC.printOrthotropic(std::cout);
+	std::cout << "-----------------------------------------------" << std::endl;
+
+
 	SField params(job->initialParams);
 	SField initialParams(job->initialParams);
 
@@ -374,6 +380,17 @@ void execute(const po::variables_map &args,
 	costs.push_back(std::abs(finalCost - initialCost));
 
 	ETensor<_N> C = transformedOptimizedC.transform(deformation);
+	std::cout << "the anisotopy of final C [computed outside the optimizer after applying the transformations] is  " << C.anisotropy() << std::endl;
+
+	Real Ex, Ey, nuYX, muXY;
+	C.getOrthotropic2D(Ex, Ey, nuYX, muXY);
+
+
+	std::cout << "the orthotropic components  of final C are " << Ex << "\t"
+															   << Ey << "\t" 
+															   << nuYX << "\t" 
+															   << muXY << std::endl;
+
 	C.getUpperRight2D(stiffness);
 
     refMeshVertices = inflator.vertices();
@@ -449,7 +466,6 @@ int main(int argc, const char *argv[])
 
 
 	vector<Eigen::Matrix<Real, 2, 2>> defs;
-	vector<Eigen::Matrix<Real, 2, 2>> sampleDefs;
 	readDeformations<2>(args, defs);
 
 	vector<vector<Real>>	paramsTable;

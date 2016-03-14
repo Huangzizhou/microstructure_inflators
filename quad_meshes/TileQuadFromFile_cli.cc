@@ -135,7 +135,6 @@ void readTable(std::string fileName, vector<vector<Real>> & dataTable)
 		boost::split(numbers, line, boost::is_any_of("\t "),
 					 boost::token_compress_on);
 
-		cout << numbers.size() << endl;	
 		vector<Real> row;
 		for (size_t i = 0; i < numbers.size(); ++i)
 			row.push_back(stod(numbers[i]));
@@ -157,9 +156,9 @@ void readQuadMesh(const string & quadMeshPath, PolyMesh & pmesh)
 	if (ok)
 		WireEmbedding::preprocessQuadMesh(pmesh);
 
-	WireEmbedding::dumpParametrizationSequence(pmesh);
+	/* WireEmbedding::dumpParametrizationSequence(pmesh); */
 	WireEmbedding::createLocalParametrization(pmesh); // overwrite Luigi's coherent parametrization
-	WireEmbedding::dumpParametrizationSequence(pmesh);
+	/* WireEmbedding::dumpParametrizationSequence(pmesh); */
 }
 
 // scale the quad mesh:
@@ -169,17 +168,10 @@ void scaleQuadMesh(double scaleFactor, PolyMesh & pmesh)
 		vert->P() *= scaleFactor;
 }
 
-typedef typename PolyMesh::CoordType        PCoordType;
-typedef typename PolyMesh::FaceType        	PFaceType;
 
-Real quadArea(PolyMesh & pmesh, PFaceType & f)
+Real quadArea(PolyMesh & pmesh, PolyMesh::FaceType & f)
 {
-	
-	/* typedef WireMeshEmbedding<EMesh, PolyMesh>				WireEmbedding; */
-	/* typedef typename WireEmbedding::QuadParametrization		QuadParametrization; */
-
-	
-	/* QuadParametrization qpar = getQuadParametrizationHandle(pmesh)[f]; */
+	typedef PolyMesh::CoordType        PCoordType;
 
 	char index0 = 0;
 	char index1 = (index0 + 1) % 4; 
@@ -288,7 +280,7 @@ void findQuadIdsForElements(const std::vector<MeshIO::IOVertex>  &verts,
 }
 
 template<size_t _N>
-void tileQuad (const po::variables_map &args)
+void tileQuad(const po::variables_map &args)
 {
 	
 	// read in the quadMesh
