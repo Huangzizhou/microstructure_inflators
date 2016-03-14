@@ -5,6 +5,7 @@ root='/scratch/fjp234/gradient_validation/wcs/lphole_ns_mvol'
 os.chdir(root)
 for degree in [1, 2]:
     for max_vol in [1e-3, 3e-4, 1e-4, 3e-5, 1e-5, 3e-6]:
+        if (degree == 2 and max_vol == 3e-6): continue
         for nsubdiv in [128,512,2048,8192,16384]:
             for p_center in [1.2, 1.3, 1.4]:
                 resultDir='d{deg}/ns_{ns}/vol_{vol}/pcenter_{pc}'.format(deg=degree, vol=max_vol, ns=nsubdiv, pc=p_center)
@@ -22,6 +23,6 @@ for degree in [1, 2]:
                     f.write(json.dumps(frames, indent=4))
                     f.write(";\n")
 
-                    flippers.append(['param{param}:p_center {pc}:degree {deg}:bdry segments {ns}:max_vol {mv:0.0e}'.format(param=param, deg=degree, ns=nsubdiv, mv=max_vol, pc=p_center), flipper])
+                    flippers.append(['param{param}:hole p param (higher = smoother) {pc}:degree {deg}:bdry resolution {ns}:max_vol {mv:0.0e}'.format(param=param, deg=degree, ns=nsubdiv, mv=max_vol, pc=p_center), flipper])
 f = open('directory.js', 'w')
 f.write("flippers = %s;\n" % json.dumps(flippers, indent=4))

@@ -179,8 +179,8 @@ template<class _Inflator>
 
     // Also output intermediates of derivative computation wrt parameter
     // "derivativeComponent" if requested.
-    void writeMeshAndFields(const std::string &name, int derivativeComponent = -1) const {
-        MSHFieldWriter writer(name, m_sim->mesh());
+    void writeMeshAndFields(const std::string &name, int derivativeComponent = -1, bool fullDegreeFieldOutput = false) const {
+        MSHFieldWriter writer(name, m_sim->mesh(), /* linearSubsample: */ !fullDegreeFieldOutput);
         // typename Sim::VField outField;
         // for (size_t kl = 0; kl < flatLen(N); ++kl) {
         //     // Subtract off average displacements so that fields are comparable
@@ -287,12 +287,32 @@ template<class _Inflator>
             std::vector<VectorField<Real, N>> dot_w;
             PeriodicHomogenization::fluctuationDisplacementShapeDerivatives(*m_sim, w_ij, m_vn_p[derivativeComponent], dot_w);
             typename WCSObjective::SMF tau;
+
+            // Output full-degree tensor fields. (Wasteful since
+            // strain fields are of degree - 1, but Gmsh/MSHFieldWriter
+            // only supports full-degree ElementNodeData).
+            using UpsampledTensorInterp = SymmetricMatrixInterpolant<typename Sim::SMatrix, Sim::N, Sim::Degree>;
+            using OrigTensorInterp = typename Sim::Strain;
+            auto upsampledField = [&](const std::vector<OrigTensorInterp> &orig) -> std::vector<UpsampledTensorInterp> {
+                std::vector<UpsampledTensorInterp> upsampledField; upsampledField.reserve(orig.size());
+                for (const auto s: orig) upsampledField.emplace_back(s);
+                return upsampledField;
+            };
+
             for (size_t i = 0; i < dot_w.size(); ++i) {
                 m_wcs_objective.tau_kl(i, tau);
 
-                writer.addField("w_ij " + std::to_string(i), w_ij[i]);
-                writer.addField("dw_ij " + std::to_string(i), dot_w[i]);
-                writer.addField("strain dw_ij " + std::to_string(i), m_sim->averageStrainField(dot_w[i]));
+                // writer.addField("w_ij " + std::to_string(i), w_ij[i]);
+                // writer.addField("dw_ij " + std::to_string(i), dot_w[i]);
+
+                if (fullDegreeFieldOutput && (Sim::Degree > 1)) {
+                    writer.addField("strain w_ij "  + std::to_string(i), upsampledField(m_sim->strainField(w_ij[i])));
+                    writer.addField("strain dw_ij " + std::to_string(i), upsampledField(m_sim->strainField(dot_w[i])));
+                }
+                else {
+                    writer.addField("strain w_ij "  + std::to_string(i), m_sim->averageStrainField(w_ij[i]));
+                    writer.addField("strain dw_ij " + std::to_string(i), m_sim->averageStrainField(dot_w[i]));
+                }
                 writer.addField("tau_kl " + std::to_string(i), tau);
             }
             SField dj = m_wcs_objective.directIntegrandDerivative(*m_sim, w_ij, dot_w, m_vn_p[derivativeComponent]);
