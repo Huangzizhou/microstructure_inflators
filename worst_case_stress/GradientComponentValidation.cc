@@ -97,7 +97,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
         ("JSWeight",     po::value<double>()->default_value(0.0),         "Weight for the JS term of the objective")
         ("JVolWeight",   po::value<double>()->default_value(0.0),         "Weight for the JVol term of the objective")
-        ("LaplacianRegWeight", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
+        ("LaplacianRegWeight", po::value<double>()->default_value(0.0),   "Weight for the boundary Laplacian regularization term")
+        ("ProjectOutNormalStress",                                        "Project out the normal stress component of the fluctuation displacement shape derivative cell problem load.")
         ;
 
     po::options_description elasticityOptions("Elasticity Options");
@@ -189,17 +190,17 @@ void genAndReportIterate(_Inflator &inflator, const SField &params, _Objective &
                                     << "\t" << it.gradientWCS_direct_component(compIdx)
         << "\t" << it.evaluateJS() << "\t" << it.gradp_JS()[compIdx];
 
-    {
-        std::vector<typename _Iterate::VField> dot_w;
-        PeriodicHomogenization::fluctuationDisplacementShapeDerivatives(it.simulator(), it.fluctuationDisplacements(), it.parameterNormalVelocities(compIdx), dot_w);
-        SField dj = it.wcsObjective().directIntegrandDerivative(it.simulator(), it.fluctuationDisplacements(), dot_w, it.parameterNormalVelocities(compIdx));
-        Real above1500Int = 0;
-        for (auto e : it.mesh().elements()) {
-            if (dj[e.index()] > 1500.0)
-                above1500Int += dj[e.index()] * e->volume();
-        }
-        std::cout << "\t" << above1500Int;
-    }
+    // {
+    //     std::vector<typename _Iterate::VField> dot_w;
+    //     PeriodicHomogenization::fluctuationDisplacementShapeDerivatives(it.simulator(), it.fluctuationDisplacements(), it.parameterNormalVelocities(compIdx), dot_w);
+    //     SField dj = it.wcsObjective().directIntegrandDerivative(it.simulator(), it.fluctuationDisplacements(), dot_w, it.parameterNormalVelocities(compIdx));
+    //     Real above1500Int = 0;
+    //     for (auto e : it.mesh().elements()) {
+    //         if (dj[e.index()] > 1500.0)
+    //             above1500Int += dj[e.index()] * e->volume();
+    //     }
+    //     std::cout << "\t" << above1500Int;
+    // }
 
     if (args.count("output"))        it.writeMeshAndFields(    args["output"].as<string>() + "_" + std::to_string(i) + ".msh", compIdx, args.count("fullDegreeFieldOutput"));
     if (args.count("volumeMeshOut")) it.writeVolumeMesh(args["volumeMeshOut"].as<string>() + "_" + std::to_string(i) + ".msh");
@@ -295,6 +296,8 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *
     if (args.count("usePthRoot"))
         wcsConfig.globalObjectiveRoot = 2.0 * wcsConfig.globalObjectivePNorm;
     wcsConfig.useVtxNormalPerturbationGradientVersion = args.count("vtxNormalPerturbationGradient");
+
+    wcsConfig.projectOutNormalStress = args.count("ProjectOutNormalStress");
 
     // Create scalarized multi-objective with weights specified by the
     // arguments.

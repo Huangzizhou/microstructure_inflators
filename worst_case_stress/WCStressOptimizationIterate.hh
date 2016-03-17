@@ -21,6 +21,8 @@
 #include "WorstCaseStress.hh"
 #include "WCSObjective.hh"
 
+#include "WCStressOptimizationConfig.hh"
+
 namespace WCStressOptimization {
 
 // Implemented outside a member method so that a subclasses' static overrides
@@ -285,7 +287,8 @@ template<class _Inflator>
 
         if (derivativeComponent >= 0) {
             std::vector<VectorField<Real, N>> dot_w;
-            PeriodicHomogenization::fluctuationDisplacementShapeDerivatives(*m_sim, w_ij, m_vn_p[derivativeComponent], dot_w);
+            PeriodicHomogenization::fluctuationDisplacementShapeDerivatives(*m_sim, w_ij, m_vn_p[derivativeComponent], dot_w,
+                WCStressOptimization::Config::get().projectOutNormalStress);
             typename WCSObjective::SMF tau;
 
             // Output full-degree tensor fields. (Wasteful since

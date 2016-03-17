@@ -387,7 +387,8 @@ struct IntegratedWorstCaseObjective {
                           const std::vector<VectorField<Real, N>> &w,
                           const _NormalShapeVelocity &vn) const {
         std::vector<VectorField<Real, N>> dot_w;
-        PH::fluctuationDisplacementShapeDerivatives(sim, w, vn, dot_w);
+        PH::fluctuationDisplacementShapeDerivatives(sim, w, vn, dot_w,
+                WCStressOptimization::Config::get().projectOutNormalStress);
         assert(dot_w.size() == w.size());
 
         const auto &mesh = sim.mesh();

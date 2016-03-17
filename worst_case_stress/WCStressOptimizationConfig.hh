@@ -31,6 +31,10 @@ public:
         static Config configSingleton;
         return configSingleton;
     }
+
+    // Whether to project out the normal stress component in the fluctuation
+    // displacement shape derivative cell problem load.
+    bool projectOutNormalStress = false;
 };
 
 }

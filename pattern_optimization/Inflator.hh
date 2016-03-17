@@ -14,7 +14,6 @@
 // namespace
 #include <Functions.hh> 
 #include <WireInflator2D.h>
-#include <Wires/Interfaces/PeriodicExploration.h>
 #include <stdexcept>
 #include <iostream>
 #include <iomanip>
@@ -172,6 +171,9 @@ public:
     using Base::Base;
 };
 #else // !ISOSURFACE_INFLATOR
+
+#include <Wires/Interfaces/PeriodicExploration.h>
+
 namespace {
     VectorF ToVectorF(const std::vector<Real> &vec) {
         VectorF result(vec.size());

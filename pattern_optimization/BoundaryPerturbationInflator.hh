@@ -48,6 +48,11 @@
 //      There are 2 * N special variables, indexed 0..2N - 1 that hold the
 //      periodic face coordinates:
 //      0: min x, 1: min y[, 2: min z], N: max x, N + 1: max y[, N + 2: max z]
+//
+//  Alternate versions:
+//    - Leave internal vertices unperturbed.
+//    - Solve for internal vertex perturbation using Laplacian w/ dirichlet
+//      boundary conditions.
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University

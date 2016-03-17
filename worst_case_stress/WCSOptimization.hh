@@ -14,7 +14,6 @@
 
 #include <dlib/optimization.h>
 
-#include <Inflator.hh>
 #include <MSHFieldWriter.hh>
 
 #include <ElasticityTensor.hh>
@@ -22,6 +21,10 @@
 #include "WCSObjective.hh"
 #include <PatternOptimizationConfig.hh>
 #include <PatternOptimizationIterate.hh>
+
+#include <iostream>
+#include <vector>
+#include <string>
 
 namespace WCStressOptimization {
 
@@ -78,7 +81,7 @@ public:
     }
     
     void optimize_gd(SField &params, WCStressOptimization::Objective<_N> &fullObjective,
-            size_t niters, double stepSize, const string &outName) {
+            size_t niters, double stepSize, const std::string &outName) {
         size_t nParams = params.domainSize();
         SField lowerBounds(nParams), upperBounds(nParams);
         getParameterBounds(lowerBounds, upperBounds);
@@ -113,7 +116,7 @@ public:
 
         // Objective evaluation
         double operator()(const dlib_vector &x) const {
-            vector<Real> x_vec(nParams);
+            std::vector<Real> x_vec(nParams);
             for (size_t p = 0; p < nParams; ++p)
                 x_vec[p] = x(p);
 
@@ -141,7 +144,7 @@ public:
         // Gradient evaluation
         dlib_vector operator()(const dlib_vector &x) const {
             size_t nParams = m_obj.nParams;
-            vector<Real> x_vec(nParams);
+            std::vector<Real> x_vec(nParams);
             for (size_t p = 0; p < nParams; ++p)
                 x_vec[p] = x(p);
             if (m_obj.currentIterate().paramsDiffer(nParams, &x_vec[0]))
@@ -171,7 +174,7 @@ public:
         bool should_continue_search(const T& x, const double funct_value,
             const T& funct_derivative) {
             m_obj.currentIterate().writeDescription(std::cout);
-            cout << endl;
+            std::cout << std::endl;
             if (m_outPath != "")
                 m_obj.currentIterate().writeMeshAndFields(m_outPath + "_" + std::to_string(m_iter));
             ++m_iter;
@@ -187,7 +190,7 @@ public:
     // If max_size = 0, plain bfgs is used
     // otherwise l-bfgs is used.
     void optimize_bfgs(SField &params, WCStressOptimization::Objective<_N> &fullObjective,
-                       size_t niters, const string &outPath, size_t max_size) {
+                       size_t niters, const std::string &outPath, size_t max_size) {
         DLibObjectiveEvaluator obj(m_inflator, fullObjective);
         DLibGradientEvaluator grad(obj);
 
