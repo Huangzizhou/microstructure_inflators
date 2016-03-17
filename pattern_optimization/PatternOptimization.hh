@@ -14,11 +14,6 @@
 #ifndef PATTERNOPTIMIZATION_HH
 #define PATTERNOPTIMIZATION_HH
 
-#include <ceres/ceres.h>
-#include <glog/logging.h>
-#include <dlib/optimization.h>
-#include <levmar.h>
-
 #include <cassert>
 #include <memory>
 #include <map>
@@ -29,6 +24,12 @@
 #include <MSHFieldWriter.hh>
 
 #include "PatternOptimizationConfig.hh"
+
+// DLIB seems to interact badly with Boost if included early on; include it last.
+#include <ceres/ceres.h>
+#include <glog/logging.h>
+#include <levmar.h>
+#include <dlib/optimization.h>
 
 namespace PatternOptimization {
 

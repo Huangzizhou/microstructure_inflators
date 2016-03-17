@@ -22,12 +22,12 @@
 #include <PeriodicHomogenization.hh>
 #include <GlobalBenchmark.hh>
 
+#include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
+
 #include "../pattern_optimization/BoundaryPerturbationInflator.hh"
 #include "WCSOptimization.hh"
 #include "WCStressOptimizationConfig.hh"
-
-#include <boost/program_options.hpp>
-#include <boost/filesystem.hpp>
 
 namespace po = boost::program_options;
 using namespace std;
