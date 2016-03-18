@@ -7,7 +7,8 @@
 //
 //      Boundary vertices are offset in the normal direction to create a
 //      perturbed mesh, and post- and pre-perturbation quantities are
-//      subtracted to compute finite difference (material) derivatives.
+//      subtracted to compute forward/centered difference (material)
+//      derivatives.
 //
 //      The BoundaryPerturbationInflator is used to ease the creation of a
 //      perturbed mesh.
@@ -21,11 +22,13 @@
 #include <Materials.hh>
 #include <PeriodicHomogenization.hh>
 #include <GlobalBenchmark.hh>
+#include <iomanip>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
 #include "../pattern_optimization/BoundaryPerturbationInflator.hh"
+#include "WorstCaseStress.hh"
 #include "WCSOptimization.hh"
 #include "WCStressOptimizationConfig.hh"
 
@@ -143,15 +146,18 @@ void execute(const po::variables_map &args,
         Real f = args["perturbationFrequency"].as<Real>();
         for (auto bv : mesh.boundaryVertices()) {
             auto pt = bv.node().volumeNode()->p;
-            Real a = A * sin(M_PI * f * pt[0]) * sin(M_PI * f * pt[1]);
+            Real a = A * cos(M_PI * f * pt[0]) * cos(M_PI * f * pt[1]);
             perturbation[bv.index()] = a * normals(bv.index());
         }
         perturbParams = bpi.extractParamsFromBoundaryValues(perturbation);
     }
 
-    // Perturbed mesh and simulator
+    // Perturbed meshes and simulators
     bpi.inflate(perturbParams);
     Simulator perturbed_sim(bpi.elements(), bpi.vertices());
+    for (Real &p : perturbParams) p *= -1.0;
+    bpi.inflate(perturbParams);
+    Simulator neg_perturbed_sim(bpi.elements(), bpi.vertices());
 
     // Determine change in each vertex's position.
     VField delta_p(sim.mesh().numVertices());
@@ -179,23 +185,21 @@ void execute(const po::variables_map &args,
                                 args["JVolWeight"].as<double>(),
                                 args["LaplacianRegWeight"].as<double>());
 
-    std::vector<VField> w, delta_w;
+    std::vector<VField> w;
     PeriodicHomogenization::solveCellProblems(w, sim);
-    
-    using SMatrix = typename Simulator::SMatrix;
+    auto delta_w = PeriodicHomogenization::deltaFluctuationDisplacements(sim, w, delta_p);
 
-    delta_w.reserve(w.size());
-    for (size_t ij = 0; ij < w.size(); ++ij) {
-        auto rhs = sim.deltaConstantStrainLoad(-SMatrix::CanonicalBasis(ij), delta_p);
-        rhs     -= sim.applyDeltaStiffnessMatrix(w[ij], delta_p);
-        delta_w.push_back(sim.solve(rhs));
-    }
-
-    std::vector<VField> perturbed_w;
+    std::vector<VField> perturbed_w, neg_perturbed_w;
     PeriodicHomogenization::solveCellProblems(perturbed_w, perturbed_sim);
-    std::vector<VField> delta_w_finited_diff = perturbed_w;
-    for (size_t ij = 0; ij < w.size(); ++ij)
-        delta_w_finited_diff[ij] -= w[ij];
+    PeriodicHomogenization::solveCellProblems(neg_perturbed_w, neg_perturbed_sim);
+
+    std::vector<VField> delta_w_forward_diff = perturbed_w;
+    std::vector<VField> delta_w_centered_diff = perturbed_w;
+    for (size_t ij = 0; ij < w.size(); ++ij) {
+        delta_w_forward_diff[ij] -= w[ij];
+        delta_w_centered_diff[ij] -= neg_perturbed_w[ij];
+        delta_w_centered_diff[ij] *= 0.5;
+    }
 
     string output = args["output"].as<string>();
     bool linearSubsampleFields = args.count("fullDegreeFieldOutput") == 0;
@@ -204,18 +208,22 @@ void execute(const po::variables_map &args,
     for (size_t ij = 0; ij < w.size(); ++ij) {
         writer.addField("w " + std::to_string(ij), w[ij]);
         writer.addField("delta w " + std::to_string(ij), delta_w[ij]);
-        writer.addField("finite difference delta w " + std::to_string(ij), delta_w_finited_diff[ij]);
+        writer.addField("forward difference delta w "  + std::to_string(ij), delta_w_forward_diff[ij]);
+        writer.addField("centered difference delta w " + std::to_string(ij), delta_w_centered_diff[ij]);
     }
 
     for (size_t ij = 0; ij < w.size(); ++ij) {
         auto origStrain = sim.averageStrainField(w[ij]);
-        auto finiteDiffStrain = perturbed_sim.averageStrainField(perturbed_w[ij]);
-        for (size_t i = 0; i < finiteDiffStrain.domainSize(); ++i)
-            finiteDiffStrain(i) -= origStrain(i);
+        auto forwardDiffStrain   = perturbed_sim.averageStrainField(perturbed_w[ij]);
+        auto centeredDiffStrain  = forwardDiffStrain;
+        forwardDiffStrain  -= origStrain;
+        centeredDiffStrain -= neg_perturbed_sim.averageStrainField(neg_perturbed_w[ij]);
+        centeredDiffStrain *= 0.5;
 
-        writer.addField("strain w " + std::to_string(ij), origStrain);
+        writer.addField("strain w "       + std::to_string(ij), origStrain);
         writer.addField("delta strain w " + std::to_string(ij), sim.deltaAverageStrainField(w[ij], delta_w[ij], delta_p));
-        writer.addField("finite difference delta strain w " + std::to_string(ij), finiteDiffStrain);
+        writer.addField("forward difference delta strain w "  + std::to_string(ij),  forwardDiffStrain);
+        writer.addField("centered difference delta strain w " + std::to_string(ij), centeredDiffStrain);
     }
 
     MSHFieldWriter perturbed_writer(output + ".perturbed.msh", perturbed_sim.mesh(), linearSubsampleFields);
@@ -224,6 +232,61 @@ void execute(const po::variables_map &args,
         perturbed_writer.addField("strain w " + std::to_string(ij), perturbed_sim.averageStrainField(perturbed_w[ij]));
     }
 
+    MSHFieldWriter neg_perturbed_writer(output + ".neg_perturbed.msh", neg_perturbed_sim.mesh(), linearSubsampleFields);
+    for (size_t ij = 0; ij < w.size(); ++ij) {
+        neg_perturbed_writer.addField("w "+ std::to_string(ij), neg_perturbed_w[ij]);
+        neg_perturbed_writer.addField("strain w " + std::to_string(ij), perturbed_sim.averageStrainField(neg_perturbed_w[ij]));
+    }
+
+    // Validate homogenized elasticity tensor shape derivative
+    auto deltaCh = PeriodicHomogenization::deltaHomogenizedElasticityTensor(sim, w, delta_p);
+    auto Ch = PeriodicHomogenization::homogenizedElasticityTensorDisplacementForm(w, sim);
+    auto perturbed_Ch = PeriodicHomogenization::homogenizedElasticityTensorDisplacementForm(perturbed_w, perturbed_sim);
+
+    auto fdDeltaCh = perturbed_Ch - Ch;
+    cout << "deltaCh: " << endl << deltaCh << endl;
+    cout << "fdDeltaCh: " << endl << fdDeltaCh << endl;
+    cout << "Relative error: " << sqrt((deltaCh - fdDeltaCh).frobeniusNormSq() / fdDeltaCh.frobeniusNormSq()) << endl;
+    cout << endl;
+
+    auto neg_perturbed_Ch = PeriodicHomogenization::homogenizedElasticityTensorDisplacementForm(neg_perturbed_w, neg_perturbed_sim);
+    auto cdDeltaCh = perturbed_Ch - neg_perturbed_Ch;
+    cdDeltaCh *= 0.5;
+    cout << "cdDeltaCh: " << endl << cdDeltaCh << endl;
+    cout << "Relative error: " << sqrt((deltaCh - cdDeltaCh).frobeniusNormSq() / cdDeltaCh.frobeniusNormSq()) << endl;
+    cout << endl;
+
+    auto buildWCSObjective = [&](const Simulator &sim_, const ETensor &Ch_, vector<VField> w_) {
+        PthRootObjective<IntegratedWorstCaseObjective<_N, WCStressIntegrandLp>> objective;
+        objective.setPointwiseWCS(sim_.mesh(),
+            worstCaseFrobeniusStress(mat.getTensor(), Ch_.inverse(),
+                PeriodicHomogenization::macroStrainToMicroStrainTensors(w_, sim_)));
+        return objective;
+    };
+
+    auto origWCSObjective          = buildWCSObjective(sim, Ch, w);
+    auto perturbedWCSObjective     = buildWCSObjective(perturbed_sim, perturbed_Ch, perturbed_w);
+    auto neg_perturbedWCSObjective = buildWCSObjective(neg_perturbed_sim, neg_perturbed_Ch, neg_perturbed_w);
+
+    cout << "WCS:\t" << origWCSObjective.evaluate() << endl;
+    cout << "Perturbed WCS:\t" << perturbedWCSObjective.evaluate() << endl;
+    cout << "Neg Perturbed WCS:\t" << neg_perturbedWCSObjective.evaluate() << endl;
+
+    cout << "Forward  difference WCS:\t" << perturbedWCSObjective.evaluate() - origWCSObjective.evaluate() << endl;
+    cout << "Centered difference WCS:\t" << 0.5 * (perturbedWCSObjective.evaluate() - neg_perturbedWCSObjective.evaluate()) << endl;
+    cout << "Discrete shape derivative WCS:\t"    << origWCSObjective.deltaJ(sim, w, delta_p) << endl;
+
+    // Compute shape derivative using continuous version
+    using NSVI = Interpolant<Real, _N - 1, 1>;
+    std::vector<NSVI> delta_p_nsv; delta_p_nsv.reserve(sim.mesh().numBoundaryElements());
+    NSVI nsv;
+    for (auto be : sim.mesh().boundaryElements()) {
+        // Compute boundary element's linear normal velocity under delta_p
+        for (size_t i = 0; i < be.numVertices(); ++i)
+            nsv[i] = be->normal().dot(delta_p(be.vertex(i).volumeVertex().index()));
+        delta_p_nsv.push_back(nsv);
+    }
+    cout << "Continuous shape derivative WCS:\t" << origWCSObjective.directDerivative(sim, w, delta_p_nsv) << endl;
 }
 
 int main(int argc, const char *argv[])
@@ -246,6 +309,8 @@ int main(int argc, const char *argv[])
     int deg = args["degree"].as<size_t>();
     auto exec = (dim == 3) ? ((deg == 2) ? execute<3, 2> : execute<3, 1>)
                            : ((deg == 2) ? execute<2, 2> : execute<2, 1>);
+
+    cout << setprecision(19) << endl;
 
     exec(args, inVertices, inElements);
 

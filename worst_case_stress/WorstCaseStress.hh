@@ -114,6 +114,38 @@ struct WorstCaseStress {
         return F.size();
     }
 
+    ////////////////////////////////////////////////////////////////////////////
+    // Discrete shape derivatives (Lagrangian). Useful for forward-mode diff.
+    ////////////////////////////////////////////////////////////////////////////
+    template<class Sim>
+    ScalarField<Real> deltaStressMeasure(const Sim &sim,
+                const std::vector<typename Sim::VField> &w,
+                const typename Sim::VField &delta_p) const {
+        size_t numElements = size();
+        assert(numElements == sim.mesh().numElements());
+
+        auto deltaSh = PH::deltaHomogenizedComplianceTensor(sim, w, delta_p);
+        auto delta_w = PH::deltaFluctuationDisplacements(   sim, w, delta_p);
+        auto deltaG  = PH::deltaMacroStrainToMicroStrainTensors(sim, w, delta_w, delta_p);
+
+        MinorSymmetricRank4TensorField<N> deltaF; deltaF.reserve(deltaG.size());
+        for (size_t e = 0; e < numElements; ++e) {
+            deltaF.push_back(Cbase.doubleContract(deltaG[e].doubleContract(Sh)));
+            deltaF.back() += Cbase.doubleContract(G[e].doubleContract(deltaSh));
+        }
+
+        ScalarField<Real> delta_s(numElements);
+        for (size_t e = 0; e < numElements; ++e) {
+            delta_s[e] = 2 * F[e].doubleContract(wcMacroStress(e)).doubleContract(
+                    deltaF[e].doubleContract(wcMacroStress(e)));
+        }
+
+        return delta_s;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Public data members
+    ////////////////////////////////////////////////////////////////////////////
     ElasticityTensor<Real, N> Cbase, Sh;
     // Per-element macro->micro {stress, deviatoric stress} map.
     // See Worst Case Microstructure writeup for details.
@@ -499,6 +531,34 @@ struct IntegratedWorstCaseObjective {
         return result;
     }
 
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Discrete shape derivative of the integrated worst-case stress objective
+    // under mesh vertex perturbation delta_p (forward mode).
+    // J is an integral of a piecewise-constant per-element field, so it's easy
+    // to differentiate:
+    //      J = int_omega j(s) dV = sum_e j(s)_e vol(e)
+    //     dJ = sum_e [j(s)_e dvol(e) + j'(s)_e ds_e vol(e)]
+    ////////////////////////////////////////////////////////////////////////////
+    template<class Sim>
+    Real deltaJ(const Sim &sim,
+                const std::vector<typename Sim::VField> &w,
+                const typename Sim::VField &delta_p) const {
+        ScalarField<Real> delta_s = wcStress.deltaStressMeasure(sim, w, delta_p);
+        Real result = 0;
+        std::vector<VectorND<N>> cornerPerturbations;
+        for (auto e : sim.mesh().elements()) {
+            size_t ei = e.index();
+            sim.extractElementCornerValues(e, delta_p, cornerPerturbations);
+            result += integrand.j(wcStress(ei), ei) * e->relativeDeltaVolume(cornerPerturbations) * e->volume();
+            result += integrand.j_prime(wcStress(ei), ei) * delta_s[ei] * e->volume();
+        }
+        return result;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Public data members
+    ////////////////////////////////////////////////////////////////////////////
     WorstCaseStress<N> wcStress;
     Integrand integrand;
 
@@ -632,8 +692,20 @@ using Base = SubObjective;
         return m_gradientScale() * pder;
     }
 
+    ////////////////////////////////////////////////////////////////////////////
+    // Discrete shape derivative under mesh vertex perturbation delta_p
+    // (forward mode).
+    ////////////////////////////////////////////////////////////////////////////
+    template<class Sim>
+    Real deltaJ(const Sim &sim,
+                const std::vector<typename Sim::VField> &w,
+                const typename Sim::VField &delta_p) const {
+        Real pder = Base::deltaJ(sim, w, delta_p);
+        if (p == 1) return pder;
+        return m_gradientScale() * pder;
+    }
+
     Real p;
-    SubObjective subobjective;
 private:
     Real m_gradientScale() const {
         return (1.0 / p) * pow(Base::evaluate(), 1.0 / p - 1.0);

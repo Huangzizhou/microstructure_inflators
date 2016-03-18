@@ -13,6 +13,7 @@
 #include <Materials.hh>
 #include <PeriodicHomogenization.hh>
 #include <MSHFieldWriter.hh>
+#include <iomanip>
 
 #include "WorstCaseStress.hh"
 
@@ -136,6 +137,8 @@ int main(int argc, const char *argv[])
     int deg = args["degree"].as<int>();
     auto exec = (dim == 3) ? ((deg == 2) ? execute<3, 2> : execute<3, 1>)
                            : ((deg == 2) ? execute<2, 2> : execute<2, 1>);
+
+    cout << setprecision(19);
 
     exec(args, inVertices, inElements);
 
