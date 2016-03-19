@@ -23,6 +23,7 @@
 #include <PeriodicHomogenization.hh>
 #include <GlobalBenchmark.hh>
 #include <iomanip>
+#include <Laplacian.hh>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -276,7 +277,7 @@ void execute(const po::variables_map &args,
     cout << "Centered difference WCS:\t" << 0.5 * (perturbedWCSObjective.evaluate() - neg_perturbedWCSObjective.evaluate()) << endl;
     cout << "Discrete shape derivative WCS:\t"    << origWCSObjective.deltaJ(sim, w, delta_p) << endl;
 
-    // Compute shape derivative using continuous version
+    // Compute shape derivative using continuous formulation
     using NSVI = Interpolant<Real, _N - 1, 1>;
     std::vector<NSVI> delta_p_nsv; delta_p_nsv.reserve(sim.mesh().numBoundaryElements());
     NSVI nsv;
@@ -287,6 +288,45 @@ void execute(const po::variables_map &args,
         delta_p_nsv.push_back(nsv);
     }
     cout << "Continuous shape derivative WCS:\t" << origWCSObjective.directDerivative(sim, w, delta_p_nsv) << endl;
+
+    // Compute shape derivative ignoring the motion of internal vertices
+    VField delta_p_bdryonly(sim.mesh().numVertices());
+    delta_p_bdryonly.clear();
+    for (auto bv : sim.mesh().boundaryVertices()) {
+        size_t vi = bv.volumeVertex().index();
+        delta_p_bdryonly(vi) = delta_p(vi);
+    }
+
+    cout << "Boundary-perturbation-only discrete shape derivative WCS:\t" << origWCSObjective.deltaJ(sim, w, delta_p_bdryonly) << endl;
+
+    // Compute shape derivative assuming smooth motion of internal vertices
+    // (Solve for interior vertices using deg 1 Laplace equation)
+    const auto &mesh = sim.mesh();
+    VField laplacian_delta_p(delta_p.domainSize());
+    auto L = Laplacian::construct<1>(mesh);
+    std::vector<size_t> bdryVertices;
+    std::vector<Real> bdry_delta_p;
+    bdryVertices.reserve(mesh.numBoundaryVertices());
+    bdry_delta_p.reserve(mesh.numBoundaryVertices());
+    for (auto bv : mesh.boundaryVertices())
+        bdryVertices.push_back(bv.volumeVertex().index());
+    for (size_t c = 0; c < _N; ++c) {
+        // TODO: avoid refactorization of SPSDSystem when fixed var *values*
+        // are changed. (keep track of variables contributing to RHS)
+        SPSDSystem<Real> Lsys(L);
+        bdry_delta_p.clear();
+        for (auto bv : mesh.boundaryVertices())
+            bdry_delta_p.push_back(delta_p(bv.volumeVertex().index())[c]);
+        Lsys.fixVariables(bdryVertices, bdry_delta_p);
+        std::vector<Real> x;
+        Lsys.solve(std::vector<Real>(mesh.numVertices()), x);
+        for (size_t vi = 0; vi < mesh.numVertices(); ++vi)
+            laplacian_delta_p(vi)[c] = x.at(vi);
+    }
+    writer.addField("delta_p", delta_p);
+    writer.addField("laplacian_delta_p", laplacian_delta_p);
+
+    cout << "Laplacian delta p discrete shape derivative WCS:\t" << origWCSObjective.deltaJ(sim, w, laplacian_delta_p) << endl;
 }
 
 int main(int argc, const char *argv[])
