@@ -113,6 +113,33 @@ public:
         return vn_p;
     }
 
+    // Get a per-boundary-vertex perturbation vector field induced by changing
+    // each parameter.
+    // This can be used with the discrete shape derivative.
+    template<class _FEMMesh>
+    std::vector<VectorField<Real, N>>
+    shapeVelocities(const _FEMMesh &mesh) const {
+        size_t numBV = mesh.numBoundaryVertices();
+        std::vector<VectorField<Real, N>> v(numParameters());
+
+        // IsosurfaceInflator computes the velocity of each vertex as a scalar
+        // normal velocity vnp, and a vertex normal.
+        std::vector<std::vector<Real>> nsv = m_inflator.normalShapeVelocities();
+        std::vector<Point3D>             n = m_inflator.vertexNormals();
+
+        for (size_t p = 0; p < v.size(); ++p) {
+            VectorField<Real, N> &v_p = v.at(p);
+            const auto &nsv_p = nsv.at(p);
+            v_p.resizeDomain(numBV);
+            for (auto bv : mesh.boundaryVertices()) {
+                size_t vi = bv.volumeVertex().index();
+                v_p(bv.index())  = truncateFrom3D<PointND<N>>(n.at(vi));
+                v_p(bv.index()) *= nsv_p.at(vi);
+            }
+        }
+        return v;
+    }
+
     // Configure automatic logging of every set of inflated DoF parameters.
     // If pathPrefix is nonempty, a dof file will be written at
     // pathPrefix_$inflationNumber.dof

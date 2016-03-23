@@ -10,14 +10,15 @@ def extractDataTable(dataPath):
     for line in file(dataPath):
         if (re.match("[0-9]+\t[0-9]", line)):
             fields = line.strip().split()
-            d['paramValues'].append(fields[1])
-            d['JFull'      ].append(fields[2])
-            d['DJFull'     ].append(fields[3])
-            d['WCS'        ].append(fields[4])
-            d['DWCS'       ].append(fields[5])
-            d['DWCSDirect' ].append(fields[6])
-            d['JS'         ].append(fields[7])
-            d['DJS'        ].append(fields[8])
+            d['paramValues' ].append(fields[1])
+            d['JFull'       ].append(fields[2])
+            d['DJFull'      ].append(fields[3])
+            d['WCS'         ].append(fields[4])
+            d['DWCS'        ].append(fields[5])
+            d['DWCSDirect'  ].append(fields[6])
+            d['DWCSDiscrete'].append(fields[7])
+            d['JS'          ].append(fields[8])
+            d['DJS'         ].append(fields[9])
 
     d['paramValues'] = np.array(map(float, d['paramValues']))
     d['JFull'      ] = np.array(map(float, d['JFull']))
@@ -46,10 +47,10 @@ if __name__ == "__main__":
     d = extractDataTable(dataPath)
     print "\t".join(['PARAM',
                      'JFull', 'SD_JFull', 'CD_JFull', 'FD_JFull',
-                     'WCS',   'SD_WCS',   'CD_WCS',   'FD_WCS'  , 'SD_WCS_DIRECT',
+                     'WCS',   'SD_WCS',   'CD_WCS',   'FD_WCS'  , 'SD_WCS_DIRECT', 'SD_WCS_DISCRETE',
                      'JS',    'SD_JS',    'CD_JS',    'FD_JS']);
     for i in range(len(d['paramValues'])):
         print "\t".join(map(str, [d['paramValues'][i],
             d['JFull'][i], d['DJFull'][i], d['centeredDiffJFull'][i], "N/A" if i == 0 else d['forwardDiffJFull'][i - 1],
-            d['WCS'  ][i], d['DWCS'  ][i], d['centeredDiffWCS'  ][i], "N/A" if i == 0 else d['forwardDiffWCS'  ][i - 1], d['DWCSDirect'][i],
+            d['WCS'  ][i], d['DWCS'  ][i], d['centeredDiffWCS'  ][i], "N/A" if i == 0 else d['forwardDiffWCS'  ][i - 1], d['DWCSDirect'][i], d['DWCSDiscrete'][i],
             d['JS'   ][i], d['DJS'   ][i], d['centeredDiffJS'   ][i], "N/A" if i == 0 else d['forwardDiffJS'   ][i - 1]]))

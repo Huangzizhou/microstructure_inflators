@@ -11,14 +11,9 @@ dataSource=sprintf("< ./data.py %s/P%i_param%i.txt", resultDir, P, paramNum);
 set grid
 set xlabel sprintf("param %i", paramNum)
 
-set title quantity
-if (exists("rangeDir")) {
-    eval(sprintf('rangeCmd = "\`cat %s/pc%s_P%i_param%i.%s.range\`";', rangeDir, pCenter, P, paramNum, quantity));
-    eval(rangeCmd);
-}
-
-plot dataSource u "PARAM":quantity with lp notitle
-
+################################################################################
+# Plot derivative above
+################################################################################
 set title sprintf("d%s/dp%i", quantity, paramNum)
 if (exists("rangeDir")) {
     eval(sprintf('rangeCmd = "\`cat %s/pc%s_P%i_param%i.D%s.range\`";', rangeDir, pCenter, P, paramNum, quantity));
@@ -28,6 +23,7 @@ if (exists("rangeDir")) {
 if (i == 2) {
     plot dataSource u "PARAM":sprintf("SD_%s", quantity) with lp title "Shape derivative (Adjoint)", \
          ''         u "PARAM":sprintf("SD_%s_DIRECT", quantity) with lp title "Shape derivative (Direct)", \
+         ''         u "PARAM":sprintf("SD_%s_DISCRETE", quantity) with lp title "Shape derivative (Discrete)", \
          ''         u "PARAM":sprintf("CD_%s", quantity) with l  title "Centered difference", \
          ''         u "PARAM":sprintf("FD_%s", quantity) with l  title "Forward difference"
 } else {
@@ -35,6 +31,17 @@ if (i == 2) {
          ''         u "PARAM":sprintf("CD_%s", quantity) with l  title "Centered difference", \
          ''         u "PARAM":sprintf("FD_%s", quantity) with l  title "Forward difference"
 }
+
+################################################################################
+# Plot quantity below
+################################################################################
+set title quantity
+if (exists("rangeDir")) {
+    eval(sprintf('rangeCmd = "\`cat %s/pc%s_P%i_param%i.%s.range\`";', rangeDir, pCenter, P, paramNum, quantity));
+    eval(rangeCmd);
+}
+
+plot dataSource u "PARAM":quantity with lp notitle
 
 unset multiplot
 

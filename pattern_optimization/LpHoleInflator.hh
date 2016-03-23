@@ -156,6 +156,37 @@ struct LpHoleInflator : InflatorBase<LpHoleInflator> {
         return result;
     }
 
+    // Get a per-boundary-vertex perturbation vector field induced by changing
+    // each parameter.
+    // This can be used with the discrete shape derivative.
+    template<class _FEMMesh>
+    std::vector<VectorField<Real, 2>>
+    shapeVelocities(const _FEMMesh &mesh) const {
+        size_t numBV = mesh.numBoundaryVertices();
+
+        std::vector<NSV> nsv   = computeShapeNormalVelocities(mesh);
+        VectorField<Real, 2> n = analyticNormals(mesh);
+
+        // TODO: it'd be faster to just recompute shape velocity at each vertex...
+        std::vector<VectorField<Real, 2>> svel(numParameters());
+        for (size_t p = 0; p < svel.size(); ++p) {
+            VectorField<Real, 2> &svel_p = svel.at(p);
+            const auto &nsv_p = nsv.at(p);
+            assert(nsv_p.size() == mesh.numBoundaryElements());
+            svel_p.resizeDomain(numBV);
+            for (auto be : mesh.boundaryElements()) {
+                const auto &nsv_be = nsv_p.at(be.index());
+                for (size_t v = 0; v < 2; ++v) {
+                    size_t bvi = be.vertex(v).index();
+                    svel_p(bvi)  = n(bvi);
+                    svel_p(bvi) *= nsv_be[v];
+                }
+            }
+        }
+
+        return svel;
+    }
+
     // Isosurface normal:
     // phi(x, p) = 0 = r^p - x^p - y^p
     // grad phi / |grad phi|

@@ -18,10 +18,13 @@
 #include <MSHFieldWriter.hh>
 
 #include "../pattern_optimization/PatternOptimizationIterate.hh"
+#include "../pattern_optimization/ShapeVelocityInterpolator.hh"
 #include "WorstCaseStress.hh"
 #include "WCSObjective.hh"
 
 #include "WCStressOptimizationConfig.hh"
+
+#include <Laplacian.hh>
 
 namespace WCStressOptimization {
 
@@ -117,6 +120,10 @@ template<class _Inflator>
             m_fullObjective.setInitialWCS(evaluateWCS());
             std::cout << "Initial WCS: " << m_fullObjective.initialWCS() << std::endl;
         }
+
+        // Get the shape velocity vector fields needed for the discrete shape derivative.
+        if (!_BypassParameterVelocity)
+            m_bdry_svels = inflator.shapeVelocities(m_sim->mesh());
     }
 
     // Evaluate the global worst case stress objective
@@ -172,6 +179,23 @@ template<class _Inflator>
         }
 
         return result;
+    }
+
+    Real gradientWCS_discrete_forward(size_t p) const {
+        assert(!_BypassParameterVelocity);
+        // Interpolate boundary shape velocity into the interior vertices to
+        // improve gradient accuracy. (TODO: Make this an option).
+
+        // MSHBoundaryFieldWriter bdryWriter("bdry_svel_debug.msh", m_sim->mesh());
+        // bdryWriter.addField("bdry_svel", m_bdry_svels.at(p));
+
+        ShapeVelocityInterpolator interpolator(*m_sim);
+        auto svel = interpolator.interpolate(*m_sim, m_bdry_svels.at(p));
+
+        // MSHFieldWriter writer("svel_debug.msh", m_sim->mesh());
+        // writer.addField("svel", svel);
+
+        return m_wcs_objective.deltaJ(*m_sim, w_ij, svel);
     }
 
     // WARNING: paste this into any subclass that overrides gradient/objective evaluation.
@@ -329,6 +353,9 @@ template<class _Inflator>
 protected:
     WCStressOptimization::Objective<N> &m_fullObjective;
     WCSObjective m_wcs_objective;
+    // Full, vector-valued shape velocity boundary vector fields (if param
+    // velocity isn't bypassed)
+    std::vector<VectorField<Real, N>> m_bdry_svels;
     using Base::m_sim;
     using Base::w_ij;
     using Base::m_vn_p;

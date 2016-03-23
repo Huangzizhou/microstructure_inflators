@@ -308,6 +308,11 @@ public:
         throw std::runtime_error("Normal shape velocity unsupported for BoundaryPerturbationInflator");
     }
 
+    template<class Mesh2>
+    std::vector<VectorField<Real, N> > shapeVelocities(const Mesh2 &/* mesh */) const {
+        throw std::runtime_error("Shape velocity unsupported for BoundaryPerturbationInflator");
+    }
+
     // Takes a boundary interpolant representing the shape derivative of a
     // scalar objective function and computes the gradient with respect the
     // boundary coordinate parameters

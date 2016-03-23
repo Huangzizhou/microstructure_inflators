@@ -29,6 +29,7 @@
 #include <boost/filesystem.hpp>
 
 #include "../pattern_optimization/BoundaryPerturbationInflator.hh"
+#include "../pattern_optimization/ShapeVelocityInterpolator.hh"
 #include "WorstCaseStress.hh"
 #include "WCSOptimization.hh"
 #include "WCStressOptimizationConfig.hh"
@@ -327,6 +328,13 @@ void execute(const po::variables_map &args,
     writer.addField("laplacian_delta_p", laplacian_delta_p);
 
     cout << "Laplacian delta p discrete shape derivative WCS:\t" << origWCSObjective.deltaJ(sim, w, laplacian_delta_p) << endl;
+
+    VField bdry_svel(mesh.numBoundaryVertices());
+    for (auto bv : mesh.boundaryVertices())
+        bdry_svel(bv.index()) = delta_p(bv.volumeVertex().index());
+
+    ShapeVelocityInterpolator interpolator(sim);
+    cout << "Periodic laplacian delta p discrete shape derivative WCS:\t" << origWCSObjective.deltaJ(sim, w, interpolator.interpolate(sim, bdry_svel)) << endl;
 }
 
 int main(int argc, const char *argv[])
