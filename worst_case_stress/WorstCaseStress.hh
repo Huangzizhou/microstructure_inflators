@@ -294,7 +294,7 @@ struct IntegratedWorstCaseObjective {
     // velocity to evaluate the shape derivative. This can be interpreted as
     // the objective's steepest ascent normal velocity field:
     //      j - strain(lambda^pq) : C : [strain(w^pq) + e^pq]
-    //              + jDirectShapeDependence
+    //              + jShapeDependenceViaCh
     template<class Sim>
     using StrainEnergyBdryInterpolant = Interpolant<Real, Sim::K - 1, 2 * Sim::Strain::Deg>;
     template<class Sim>
@@ -342,10 +342,10 @@ struct IntegratedWorstCaseObjective {
             }
         }
 
-        // Add in term accounting for j's direct shape dependence
-        auto int_dj_domega = jDirectShapeDependence(sim, w);
+        // Add in term accounting for j's shape dependence via C^H
+        auto gamma_dCh = jShapeDependenceViaCh(sim, w);
         for (auto be : mesh.boundaryElements())
-            result[be.index()] += int_dj_domega[be.index()];
+            result[be.index()] += gamma_dCh[be.index()];
 
         BENCHMARK_STOP_TIMER("WCS shape derivative");
         
@@ -404,7 +404,7 @@ struct IntegratedWorstCaseObjective {
                             wcStress.G[ei].doubleContract(
                                 dSh_vn.doubleContract(wcStress.wcMacroStress(ei))));
             Real dShTerm = 2 * integrand.j_prime(wcStress(ei), ei)
-                             *  microStress.doubleContract(dMicroStress);
+                             * microStress.doubleContract(dMicroStress);
             result[e.index()] += dShTerm;
         }
 
@@ -456,7 +456,7 @@ struct IntegratedWorstCaseObjective {
         // std::cout << dotKLTerm << '\t' << advectionTerm << '\t';
 
         Real jDirectTerm = 0;
-        auto int_dj_domega = jDirectShapeDependence(sim, w);
+        auto int_dj_domega = jShapeDependenceViaCh(sim, w);
         using  SDInterp = typename std::decay<decltype(int_dj_domega[0])>::type;
         using NSVInterp = typename std::decay<decltype(           vn[0])>::type;
         static_assert(SDInterp::K == NSVInterp::K, "Invalid boundary interpolant simplex dimension");
@@ -478,40 +478,17 @@ struct IntegratedWorstCaseObjective {
         return result;
     }
 
-    // Effect of j's direct dependence on the microstructure's shape.
-    // int_omega dj/domega dx =
-    // 2 * int_omega (j') G^T : C^base : F : sigma^* otimes sigma^* dV :: dS^H[v]
-    // := -D :: dS^H[v]                 (D = -2 * int_omega (j')...)
-    // =   D :: (S^H : dC^H[v] : S^H)
-    // = (S^H : D : S^H) :: dC^H[v]     (S^H is major symmetric)
-    //
-    // TODO: make boundary velocity functional class to wrap these
-    // interpolants (make evaluating/manipulating them easier).
+    // Partial ``shape derivative'' of objective J, considering only the effect
+    // of the changing homogenized elaticity tensor. In term of the writeup,
+    // this is:
+    //      gamma : dC^H[v]
     template<class Sim>
-    auto jDirectShapeDependence(const Sim &sim,
-                                const std::vector<VectorField<Real, N>> &w) const
+    auto jShapeDependenceViaCh(const Sim &sim,
+                               const std::vector<VectorField<Real, N>> &w) const
     -> std::vector<StrainEnergyBdryInterpolant<Sim>>
     {
-        const auto &mesh = sim.mesh();
-        MinorSymmetricRank4Tensor<N> D;
-        for (size_t col = 0; col < flatLen(N); ++col) {
-            auto c = D.DColAsSymMatrix(col);
-            for (auto e : mesh.elements()) {
-                size_t ei = e.index();
-                SymmetricMatrixValue<Real, N> contrib = 
-                    wcStress.G[ei].transpose().doubleContract(
-                        wcStress.Cbase.doubleContract(
-                            wcStress.F[ei].doubleContract(
-                                wcStress.wcMacroStress(ei))));
-                contrib *= e->volume() * wcStress.wcMacroStress(ei)[col] *
-                           integrand.j_prime(wcStress(ei), ei);
-                c += contrib;
-            }
-        }
-        D *= -2.0;
-        auto ShDSh = wcStress.Sh.doubleDoubleContract(D);
-
-        size_t numBE = mesh.numBoundaryElements();
+        auto gamma = dJ_dCH(sim);
+        size_t numBE = sim.mesh().numBoundaryElements();
         std::vector<StrainEnergyBdryInterpolant<Sim>> result(numBE);
 
         auto gradCh = PH::homogenizedElasticityTensorGradient(w, sim);
@@ -525,12 +502,39 @@ struct IntegratedWorstCaseObjective {
             static_assert(RInterp::size() == GChInterp::size(),
                          "Interpolant node count mismatch");
             for (size_t n = 0; n < r.size(); ++n)
-                r[n] = ShDSh.quadrupleContract(gCh[n]);
+                r[n] = gamma.quadrupleContract(gCh[n]);
         }
 
         return result;
     }
 
+    // Compute objective's partial derivative with respect to the homogenized
+    // *elasticity* tensor C^H. This is rank-4 tensor "gamma" from the writeup:
+    // dJ/dC^H =
+    // 2 * int_omega (j') (G^T : C^base : F : sigma^*) otimes sigma^* dV :: dS^H[v]
+    // := -D :: dS^H[v]                 (D = -2 * int_omega (j')...)
+    // =   D :: (S^H : dC^H[v] : S^H)
+    // = (S^H : D : S^H) :: dC^H[v]     (S^H is major symmetric)
+    template<class Sim>
+    MinorSymmetricRank4Tensor<N> dJ_dCH(const Sim &sim) const {
+        MinorSymmetricRank4Tensor<N> D;
+        for (size_t col = 0; col < flatLen(N); ++col) {
+            auto c = D.DColAsSymMatrix(col);
+            for (auto e : sim.mesh().elements()) {
+                size_t ei = e.index();
+                SymmetricMatrixValue<Real, N> contrib = 
+                    wcStress.G[ei].transpose().doubleContract(
+                        wcStress.Cbase.doubleContract(
+                            wcStress.F[ei].doubleContract(
+                                wcStress.wcMacroStress(ei))));
+                contrib *= e->volume() * wcStress.wcMacroStress(ei)[col] *
+                           integrand.j_prime(wcStress(ei), ei);
+                c += contrib;
+            }
+        }
+        D *= -2.0;
+        return wcStress.Sh.doubleDoubleContract(D);
+    }
 
     ////////////////////////////////////////////////////////////////////////////
     // Discrete shape derivative of the integrated worst-case stress objective
@@ -544,16 +548,31 @@ struct IntegratedWorstCaseObjective {
     Real deltaJ(const Sim &sim,
                 const std::vector<typename Sim::VField> &w,
                 const typename Sim::VField &delta_p) const {
-        ScalarField<Real> delta_s = wcStress.deltaStressMeasure(sim, w, delta_p);
-        Real result = 0;
+        // Homogenized elasticity tensor change term: gamma :: dCh[v]
+        auto deltaCh = PH::deltaHomogenizedElasticityTensor(sim, w, delta_p);
+        Real dJ = dJ_dCH(sim).quadrupleContract(deltaCh);
+
+        // int tau_kl : delta strain(w^kl) dV
+        auto delta_w = PH::deltaFluctuationDisplacements(sim, w, delta_p);
+        SMF tau;
+        for (size_t kl = 0; kl < delta_w.size(); ++kl) {
+            // Sum is only over the "upper triangle" of integrands
+            Real shearDoubler = (kl >= N) ? 2.0 : 1.0;
+            tau_kl(kl, tau);
+            auto delta_we = sim.deltaAverageStrainField(w[kl], delta_w[kl], delta_p);
+            for (auto e : sim.mesh().elements())
+                dJ += tau(e.index()).doubleContract(delta_we(e.index())) * e->volume() * shearDoubler;
+        }
+
+        // Volume dilation term: int j div v dV
         std::vector<VectorND<N>> cornerPerturbations;
         for (auto e : sim.mesh().elements()) {
             size_t ei = e.index();
             sim.extractElementCornerValues(e, delta_p, cornerPerturbations);
-            result += integrand.j(wcStress(ei), ei) * e->relativeDeltaVolume(cornerPerturbations) * e->volume();
-            result += integrand.j_prime(wcStress(ei), ei) * delta_s[ei] * e->volume();
+            dJ += integrand.j(wcStress(ei), ei) * e->relativeDeltaVolume(cornerPerturbations) * e->volume();
         }
-        return result;
+
+        return dJ;
     }
 
     ////////////////////////////////////////////////////////////////////////////
