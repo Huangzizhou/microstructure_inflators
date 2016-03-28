@@ -11,7 +11,7 @@
 //      WARNING: Cbase is assumed constant throughout the structure (i.e. single
 //      base material). Variable materials can be added, but it will require
 //      more data storage (or complicate the code).
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  12/03/2015 21:28:18
@@ -315,8 +315,8 @@ struct IntegratedWorstCaseObjective {
         for (auto e : mesh.elements()) {
             if (!e.isBoundary()) continue;
             const auto C = e->E();
-            for (size_t fi = 0; fi < e.numNeighbors(); ++fi) {
-                auto be = mesh.boundaryElement(e.interface(fi).boundaryEntity().index());
+            for (auto f : e.interfaces()) {
+                auto be = mesh.boundaryElement(f.boundaryEntity().index());
                 if (!be) continue;
                 auto &r = result.at(be.index());
                 if (be->isPeriodic) { r = 0; continue; }
@@ -348,7 +348,7 @@ struct IntegratedWorstCaseObjective {
             result[be.index()] += gamma_dCh[be.index()];
 
         BENCHMARK_STOP_TIMER("WCS shape derivative");
-        
+
         return result;
     }
 
@@ -431,8 +431,8 @@ struct IntegratedWorstCaseObjective {
         for (auto e : mesh.elements()) {
             if (!e.isBoundary()) continue;
             Real jval = integrand.j(wcStress(e.index()), e.index());
-            for (size_t fi = 0; fi < e.numNeighbors(); ++fi) {
-                auto be = mesh.boundaryElement(e.interface(fi).boundaryEntity().index());
+            for (auto f : e.interfaces()) {
+                auto be = mesh.boundaryElement(f.boundaryEntity().index());
                 if (!be) continue;
                 if (be->isPeriodic) continue;
                 advectionTerm += vn[be.index()].integrate(be->volume()) * jval;
@@ -522,7 +522,7 @@ struct IntegratedWorstCaseObjective {
             auto c = D.DColAsSymMatrix(col);
             for (auto e : sim.mesh().elements()) {
                 size_t ei = e.index();
-                SymmetricMatrixValue<Real, N> contrib = 
+                SymmetricMatrixValue<Real, N> contrib =
                     wcStress.G[ei].transpose().doubleContract(
                         wcStress.Cbase.doubleContract(
                             wcStress.F[ei].doubleContract(
@@ -551,26 +551,215 @@ struct IntegratedWorstCaseObjective {
         // Homogenized elasticity tensor change term: gamma :: dCh[v]
         auto deltaCh = PH::deltaHomogenizedElasticityTensor(sim, w, delta_p);
         Real dJ = dJ_dCH(sim).quadrupleContract(deltaCh);
+        const auto &mesh = sim.mesh();
 
         // int tau_kl : delta strain(w^kl) dV
         auto delta_w = PH::deltaFluctuationDisplacements(sim, w, delta_p);
-        SMF tau;
-        for (size_t kl = 0; kl < delta_w.size(); ++kl) {
-            // Sum is only over the "upper triangle" of integrands
-            Real shearDoubler = (kl >= N) ? 2.0 : 1.0;
-            tau_kl(kl, tau);
-            auto delta_we = sim.deltaAverageStrainField(w[kl], delta_w[kl], delta_p);
-            for (auto e : sim.mesh().elements())
-                dJ += tau(e.index()).doubleContract(delta_we(e.index())) * e->volume() * shearDoubler;
+        {
+            SMF tau;
+            for (size_t kl = 0; kl < delta_w.size(); ++kl) {
+                // Sum is only over the "upper triangle" of integrands
+                Real shearDoubler = (kl >= N) ? 2.0 : 1.0;
+                tau_kl(kl, tau);
+                auto delta_we = sim.deltaAverageStrainField(w[kl], delta_w[kl], delta_p);
+                for (auto e : mesh.elements())
+                    dJ += tau(e.index()).doubleContract(delta_we(e.index())) * e->volume() * shearDoubler;
+            }
         }
 
         // Volume dilation term: int j div v dV
         std::vector<VectorND<N>> cornerPerturbations;
-        for (auto e : sim.mesh().elements()) {
+        for (auto e : mesh.elements()) {
             size_t ei = e.index();
             sim.extractElementCornerValues(e, delta_p, cornerPerturbations);
             dJ += integrand.j(wcStress(ei), ei) * e->relativeDeltaVolume(cornerPerturbations) * e->volume();
         }
+
+        // "Forward adjoint" version
+        Real faGammaTerm = dJ_dCH(sim).quadrupleContract(deltaCh);
+        std::vector<typename Sim::VField> lambda;
+        m_solveAdjointCellProblems(sim, lambda);
+
+        // Cache tau_pq
+        std::vector<SMF> tau(flatLen(N));
+        for (size_t pq = 0; pq < flatLen(N); ++pq)
+            tau_kl(pq, tau[pq]);
+
+        Real faVolumeDilationTerm = 0, faDeltaStrainTerms = 0;
+        using Strain = typename Sim::Strain;
+        for (auto e : mesh.elements()) {
+            sim.extractElementCornerValues(e, delta_p, cornerPerturbations);
+            Real deltaVol = e->relativeDeltaVolume(cornerPerturbations) * e->volume();
+
+            // Volume dilation term: int j div v dV
+            faVolumeDilationTerm += integrand.j(wcStress(e.index()), e.index()) * deltaVol;
+
+            const auto C = e->E();
+            for (size_t pq = 0; pq < flatLen(N); ++pq) {
+                // Sum is only over the "upper triangle" of integrands
+                Real shearDoubler = (pq >= Sim::N) ? 2.0 : 1.0;
+                Strain strain_lambda, strain_u;
+                e->strain(e, lambda[pq], strain_lambda);
+                e->strain(e,      w[pq], strain_u);
+                strain_u += Sim::SMatrix::CanonicalBasis(pq);
+
+                // Adjoint dilation: -int strain(lambda^pq) : C : [strain(w^pq) + e^pq] div v dV
+                faVolumeDilationTerm -= Quadrature<Sim::K, 2 * Strain::Deg>::integrate(
+                        [&] (const VectorND<e.numVertices()> &p) {
+                            return strain_lambda(p).doubleContract(C.doubleContract(strain_u(p)));
+                        }, deltaVol) * shearDoubler;
+
+                // Delta strain terms: change in strain due to changing basis
+                // functions (with coefficients held fixed):
+                //    -int dstrain(lambda^pq) : C : [strain(w^pq) + e^pq] dV
+                //    -int  strain(lambda^pq) : C : dstrain(w^pq) dV
+                Strain dstrain_lambda, dstrain_w;
+                e->deltaStrain(cornerPerturbations, e, lambda[pq], dstrain_lambda);
+                e->deltaStrain(cornerPerturbations, e,      w[pq], dstrain_w);
+
+                faDeltaStrainTerms -= Quadrature<Sim::K, 2 * Strain::Deg>::integrate(
+                        [&] (const VectorND<e.numVertices()> &p) {
+                            return dstrain_lambda(p).doubleContract(C.doubleContract( strain_u(p)))
+                                  + strain_lambda(p).doubleContract(C.doubleContract(dstrain_w(p)));
+                        }, e->volume()) * shearDoubler;
+                faDeltaStrainTerms += tau[pq](e.index()).doubleContract(dstrain_w.average()) * e->volume() * shearDoubler;
+            }
+        }
+
+        std::cout << std::endl;
+        std::cout << faVolumeDilationTerm + faGammaTerm + faDeltaStrainTerms << std::endl;
+        std::cout << dJ << std::endl;
+
+        // Full adjoint version (inner product against steepest descent velocity field)
+        // (vertices on periodic boundary get "half" contributions)
+        // Dilation term
+        size_t nv = mesh.numVertices();
+        VectorField<Real, N> volumeDilationGradient(nv), gammaTermGradient(nv), deltaStrainTermGradient(nv);
+        volumeDilationGradient.clear();
+        for (auto e : mesh.elements()) {
+            Real dilationIntegrand = integrand.j(wcStress(e.index()), e.index());
+            const auto C = e->E();
+            for (size_t pq = 0; pq < flatLen(N); ++pq) {
+                // Sum is only over the "upper triangle" of integrands
+                Real shearDoubler = (pq >= Sim::N) ? 2.0 : 1.0;
+                Strain strain_lambda, strain_u;
+                e->strain(e, lambda[pq], strain_lambda);
+                e->strain(e,      w[pq], strain_u);
+
+                strain_u += Sim::SMatrix::CanonicalBasis(pq);
+                dilationIntegrand -= Quadrature<Sim::K, 2 * Strain::Deg>::integrate(
+                        [&] (const VectorND<e.numVertices()> &p) {
+                    return strain_lambda(p).doubleContract(C.doubleContract(strain_u(p)));
+                }) * shearDoubler;
+            }
+            for (auto v : e.vertices()) {
+                volumeDilationGradient(v.index()) += dilationIntegrand * e->volume()
+                    * e->gradBarycentric().col(v.localIndex());
+            }
+        }
+
+        gammaTermGradient.clear();
+        auto sdCh = PH::homogenizedElasticityTensorGradient(w, sim);
+        auto gamma = dJ_dCH(sim);
+        using ETensorSD = PH::BEHTensorGradInterpolant<Sim>;
+        using GTermSD   = Interpolant<Real, ETensorSD::K, ETensorSD::Deg>;
+        GTermSD gammaTermIntegrand;
+        for (auto be : mesh.boundaryElements()) {
+            if (be->isPeriodic) continue;
+            const ETensorSD &dCh_e = sdCh.at(be.index());
+            for (size_t i = 0; i < gammaTermIntegrand.size(); ++i)
+                gammaTermIntegrand[i] = gamma.quadrupleContract(dCh_e[i]);
+            // Integrate against each boundary vertex's linear shape function
+            for (auto bv : be.vertices()) {
+                Interpolant<Real, GTermSD::K, 1> bary_bv;
+                bary_bv = 0.0;
+                bary_bv[bv.localIndex()] = 1.0;
+                gammaTermGradient(bv.volumeVertex().index()) += be->normal() *
+                    Quadrature<GTermSD::K, GTermSD::Deg + 1>::integrate(
+                            [&](const VectorND<be.numVertices()> &p) { return
+                                bary_bv(p) * gammaTermIntegrand(p);
+                            }, be->volume());
+            }
+        }
+
+        deltaStrainTermGradient.clear();
+        for (auto e : mesh.elements()) {
+            const auto C = e->E();
+            for (size_t pq = 0; pq < flatLen(N); ++pq) {
+                // Sum is only over the "upper triangle" of integrands
+                Real shearDoubler = (pq >= Sim::N) ? 2.0 : 1.0;
+                Strain strain_lambda, strain_u;
+                e->strain(e, lambda[pq], strain_lambda);
+                e->strain(e,      w[pq], strain_u);
+                strain_u += Sim::SMatrix::CanonicalBasis(pq);
+
+#if 0
+                for (auto n : e.nodes()) {
+                    auto gradPhi_n = e->gradPhi(n.localIndex());
+                    for (auto v_m : e.vertices()) {
+                        auto gradLam_m = e->gradBarycentric().col(v_m.localIndex());
+                        using Q = Quadrature<N, 2 * Strain::Deg>;
+                        deltaStrainTermGradient(v_m.index()) -= (shearDoubler * e->volume()) * (
+                            w[pq](n.index()) * (
+                                tau[pq](e.index()).contract(gradLam_m)
+                                                  .dot(gradPhi_n.average())
+                              - Q::integrate([&](const VectorND<e.numVertices()> &pt) { return
+                                        C.doubleContract(strain_lambda(pt)).contract(gradPhi_n(pt))
+                                         .dot(gradLam_m);
+                                    })
+                           )
+                          - lambda[pq](n.index()) *
+                                Q::integrate([&](const VectorND<e.numVertices()> &pt) { return
+                                        C.doubleContract(strain_u(pt)).contract(gradPhi_n(pt))
+                                         .dot(gradLam_m);
+                                    })
+                        );
+                    }
+                }
+#endif
+                for (auto n : e.nodes()) {
+                    auto gradPhi_n = e->gradPhi(n.localIndex());
+                    for (auto v_m : e.vertices()) {
+                        Interpolant<Real, N, Strain::Deg> mu_grad_lam_m;
+                        mu_grad_lam_m = 0;
+                        auto gradLam_m = e->gradBarycentric().col(v_m.localIndex());
+                        for (size_t i = 0; i < mu_grad_lam_m.size(); ++i) {
+                            for (size_t c = 0; c < N; ++c) {
+                                mu_grad_lam_m[i] +=
+                                    w[pq](n.index())[c] * (
+                                        tau[pq](e.index()).contract(gradLam_m)[c]
+                                      - C.doubleContract(strain_lambda[i]).contract(gradLam_m)[c])
+                                  - lambda[pq](n.index())[c] *
+                                        C.doubleContract(strain_u[i]).contract(gradLam_m)[c];
+                            }
+                        }
+                        using Q = Quadrature<N, 2 * Strain::Deg>;
+                        deltaStrainTermGradient(v_m.index()) -=
+                            Q::integrate([&](const VectorND<e.numVertices()> &pt) { return
+                                    (mu_grad_lam_m(pt) * gradPhi_n(pt)).eval();
+                                }, e->volume() * shearDoubler);
+                    }
+                }
+            }
+        }
+
+        Real adjointDilationTerm = 0, adjointGammaTerm = 0, adjointDeltaStrainTerm = 0;
+
+        for (size_t vi = 0; vi < nv; ++vi) {
+            adjointDilationTerm    += volumeDilationGradient(vi).dot(delta_p(vi));
+            adjointGammaTerm       += gammaTermGradient(vi).dot(delta_p(vi));
+            adjointDeltaStrainTerm += deltaStrainTermGradient(vi).dot(delta_p(vi));
+        }
+
+        std::cout << std::endl;
+        std::cout << faVolumeDilationTerm << std::endl;
+        std::cout << adjointDilationTerm << std::endl;
+        std::cout << std::endl;
+        std::cout << faGammaTerm << std::endl;
+        std::cout << adjointGammaTerm << std::endl;
+        std::cout << std::endl;
+        std::cout << faDeltaStrainTerms << std::endl;
+        std::cout << adjointDeltaStrainTerm << std::endl;
 
         return dJ;
     }

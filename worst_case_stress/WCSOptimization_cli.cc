@@ -88,7 +88,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
         ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs")
-        ("vtxNormalPerturbationGradient,N",                                      "use the vertex-normal-based versino of the boundary perturbation gradient")
+        ("vtxNormalPerturbationGradient,N",                                      "use the vertex-normal-based version of the boundary perturbation gradient")
         ;
 
     po::options_description objectiveOptions;
