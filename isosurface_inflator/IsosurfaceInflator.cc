@@ -280,17 +280,16 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
         bool isCellFace = false;
         for (size_t d = 0; d < N; ++d) {
             bool onMin = true, onMax = true;
-            for (size_t bvi = 0; bvi < bs.numVertices(); ++bvi) {
-                onMin &= onMinFace[d].at(bs.vertex(bvi).volumeVertex().index());
-                onMax &= onMinFace[d].at(bs.vertex(bvi).volumeVertex().index());
+            for (auto bv : bs.vertices()) {
+                onMin &= onMinFace[d].at(bv.volumeVertex().index());
+                onMax &= onMaxFace[d].at(bv.volumeVertex().index());
             }
             isCellFace |= (onMin | onMax);
         }
         if (isCellFace) continue;
 
-        internalCellFaceVertex.at(bs.vertex(0).index()) = false;
-        internalCellFaceVertex.at(bs.vertex(1).index()) = false;
-        internalCellFaceVertex.at(bs.vertex(2).index()) = false;
+        for (auto bv : bs.vertices())
+            internalCellFaceVertex.at(bv.index()) = false;
     }
 
     // Compute parameter shape velocities on all (true) boundary vertices
@@ -310,8 +309,11 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     vector<vector<Real>> vnp = inflator.signedDistanceParamPartials(evaluationPoints);
     vector<Point>    sdGradX = inflator.signedDistanceGradient(evaluationPoints);
     vector<Real> sdGradNorms(evaluationPoints.size());
-    for (size_t i = 0; i < evaluationPoints.size(); ++i)
+    for (size_t i = 0; i < evaluationPoints.size(); ++i) {
         sdGradNorms[i] = sdGradX[i].norm();
+        // We evaluate on the boundary--there should be a well-defined normal
+        assert(std::abs(sdGradNorms[i]) > 1e-8);
+    }
 
     for (auto &vn : vnp) {
         for (size_t i = 0; i < vn.size(); ++i)
