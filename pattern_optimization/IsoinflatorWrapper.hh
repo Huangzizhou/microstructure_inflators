@@ -130,11 +130,13 @@ public:
         for (size_t p = 0; p < v.size(); ++p) {
             VectorField<Real, N> &v_p = v.at(p);
             const auto &nsv_p = nsv.at(p);
-            v_p.resizeDomain(numBV);
+            v_p.resizeDomain(numBV); // clears
             for (auto bv : mesh.boundaryVertices()) {
                 size_t vi = bv.volumeVertex().index();
                 v_p(bv.index())  = truncateFrom3D<PointND<N>>(n.at(vi));
                 v_p(bv.index()) *= nsv_p.at(vi);
+                assert(!std::isnan(v_p(bv.index())[0]));
+                assert(!std::isnan(v_p(bv.index())[1]));
             }
         }
         return v;

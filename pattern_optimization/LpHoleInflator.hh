@@ -173,14 +173,11 @@ struct LpHoleInflator : InflatorBase<LpHoleInflator> {
             VectorField<Real, 2> &svel_p = svel.at(p);
             const auto &nsv_p = nsv.at(p);
             assert(nsv_p.size() == mesh.numBoundaryElements());
-            svel_p.resizeDomain(numBV);
+            svel_p.resizeDomain(numBV); // clears
             for (auto be : mesh.boundaryElements()) {
                 const auto &nsv_be = nsv_p.at(be.index());
-                for (size_t v = 0; v < 2; ++v) {
-                    size_t bvi = be.vertex(v).index();
-                    svel_p(bvi)  = n(bvi);
-                    svel_p(bvi) *= nsv_be[v];
-                }
+                for (auto bv : be.vertices())
+                    svel_p(bv.index()) = nsv_be[bv.localIndex()] * n(bv.index());
             }
         }
 

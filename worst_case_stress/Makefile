@@ -66,7 +66,7 @@ LPHOLE_INFLATOR_OBJS=LpHoleInflator_cli.o ../pattern_optimization/PatternOptimiz
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
 
-OBJS=$(M2MSTRESS_OBJS) $(WCS_OBJS)$(GRADVALID_OBJS) $(WCSOPT_OBJS) $(WCS_REMESH_OPT_OBJS) $(LPHOLE_GRADVALID_OBJS) $(LPHOLE_INFLATOR_OBJS) $(DISCRETE_DERIVATIVE_OBJS)
+OBJS=$(M2MSTRESS_OBJS) $(WCS_OBJS) $(GRADVALID_OBJS) $(WCSOPT_OBJS) $(WCS_REMESH_OPT_OBJS) $(LPHOLE_GRADVALID_OBJS) $(LPHOLE_INFLATOR_OBJS) $(DISCRETE_DERIVATIVE_OBJS)
 
 TARGETS=DiscreteShapeDerivativeValidation_cli MacroMicroStress_cli WCS_cli GradientComponentValidation WCSOptimization_cli LpHoleInflator_cli WCSRemeshingOptimization_cli
 

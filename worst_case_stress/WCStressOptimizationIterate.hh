@@ -25,6 +25,7 @@
 #include "WCStressOptimizationConfig.hh"
 
 #include <Laplacian.hh>
+#include <MassMatrix.hh>
 
 namespace WCStressOptimization {
 
@@ -196,6 +197,208 @@ template<class _Inflator>
         // writer.addField("svel", svel);
 
         return m_wcs_objective.deltaJ(*m_sim, w_ij, svel);
+    }
+
+    Real gradientWCS_discrete_adjoint(size_t p) const {
+        assert(!_BypassParameterVelocity);
+
+        auto delta_j    = m_wcs_objective.adjointDeltaJ(*m_sim, w_ij);
+        ShapeVelocityInterpolator interpolator(*m_sim);
+        auto delta_j_vb = interpolator.adjoint(*m_sim, delta_j);
+
+        // MSHBoundaryFieldWriter bdryWriter("bdry_adjoint_debug.msh", m_sim->mesh());
+        // bdryWriter.addField("delta_j_vb", delta_j_vb, DomainType::PER_NODE);
+
+        const auto &bsvel = m_bdry_svels.at(p);
+        size_t numBV = m_sim->mesh().numBoundaryVertices();
+        assert(delta_j_vb.domainSize() == numBV);
+        assert(     bsvel.domainSize() == numBV);
+        Real dJ = 0;
+        for (size_t bvi = 0; bvi < numBV; ++bvi)
+            dJ += delta_j_vb(bvi).dot(bsvel(bvi));
+
+        return dJ;
+    }
+
+    // Compute from the objective's differential one-form a mesh-independent
+    // steepest-descent volume velocity field ("steepest" with respect to the
+    // period cell geometry's L^2 norm).
+    // This amounts to computing a periodic velocity field, g, whose integrated
+    // inner product over the mesh against velocity v gives the change in
+    // objective (i.e. a "Riesz representative" for dJ):
+    //      int_omega g(x) . v(x) dx := dJ[v] = - sum_i delta_j[i] . v[i]
+    // where v(x) := v[k] * phi^k(x),   (periodic)
+    //       g(x) := g[k] * phi^k(x),   (periodic)
+    // and phi_k is a scalar vertex shape function.
+    //
+    // Correctly handling the periodicity requires care:
+    // Notice the sum over i in the one-form evaluation is over **all**
+    // vertices, so it's effectively summing all partial contributions in
+    // delta_j[i] for periodically identified vertices.
+    //
+    // Introducing "selection" matrix S that distributes the reduced periodic DoF
+    // values to the corresponding vertices (v = S v_dof):
+    //   dJ[v] = sum_i delta_j[i] . (S v_dof)[i] = sum_i (S^T delta_j)[i] . v_dof[i]
+    // (here, S^T sums the partial contributions each identified vertex into a
+    //  per-dof total).
+    // Likewise, we can write v(x) = (S v_dof)[k] phi^k(x),
+    //                        g(x) = (S g_dof)[k] phi^k(x) ==>
+    //      int_omega g(x) . v(x) dx := -dJ[v] = -sum_i delta_j[i] . v[i]
+    //    = g_dof[k] (int_omega S_sk phi^s(x) phi^t(x) S_tl) . v_dof[l]
+    //   := g_dof[k] . v_dof[l] [M_dof]_kl
+    // with reduced mass matrix M_dof = S^T M S.
+    // Finally, for this inner product to equal -dJ[v] for all v, we see:
+    //      sum_i (M_dof g_dof)[i] . v_dof[i] = -sum_i (S^T delta_j)[i] . v_dof[i]
+    //  ==> g_dof = -M_dof^{-1} S^T delta_j
+    // and we can recover the velocity field coefficients g = S g_dof
+    typename Sim::VField steepestDescentVolumeVelocity() const {
+        auto delta_j = m_wcs_objective.adjointDeltaJ(*m_sim, w_ij);
+        // Determine S, the map from reduced periodic DoFs to vertices
+        // Unfortunately, sim's periodic boundary conditions are on nodes, not
+        // just vertices, so we have to reindex to get contiguous variables
+        const auto &mesh = m_sim->mesh();
+        size_t nv = mesh.numVertices();
+        constexpr size_t NO_VAR = std::numeric_limits<size_t>::max();
+        std::vector<size_t> dofForSimNodalDoF(m_sim->numDoFs(), NO_VAR);
+        std::vector<size_t> dofForVertex;
+        dofForVertex.reserve(nv);
+        size_t numDoFs = 0;
+        for (auto v : mesh.vertices()) {
+            size_t &dof = dofForSimNodalDoF.at(m_sim->DoF(v.node().index()));
+            if (dof == NO_VAR) dof = numDoFs++;
+            dofForVertex.push_back(dof);
+        }
+
+        auto M = MassMatrix::construct<1>(mesh());
+        // ==> S M S^T
+        M.reindexVariables(numDoFs, dofForVertex);
+        SPSDSystem<Real> M_dof(M);
+
+        typename Sim::VField g(nv);
+        for (size_t c = 0; c < N; ++c) {
+            // Apply -S^T
+            std::vector<Real> neg_S_t_delta_j(numDoFs, 0.0);
+            for (auto v : mesh.vertices())
+                neg_S_t_delta_j[dofForVertex[v.index()]] -= delta_j(v.index())[c];
+
+            auto g_dof = M_dof.solve(neg_S_t_delta_j);
+
+            // Apply S 
+            for (auto v : mesh.vertices())
+                g(v.index())[c] = g_dof.at(dofForVertex.at(v.index()));
+        }
+        
+        return g;
+    }
+
+    // Compute from the objective's differential one-form a mesh-independent
+    // steepest-descent boundary velocity field ("steepest" with respect to the
+    // boundary geometry's L^2 norm):
+    //      min dJ[g]                   (dJ[g] = sum_i delta_j_bdry[i] . g[i])
+    //       g         ==> delta_j_bdry + 2 l M g = 0
+    //   g^T M g = h^2    
+    //      ==> g \propto -M^-1 delta_j_bdry
+    // Here M is the boundary mass matrix (g^T M g = int_bdry g(x) . g(x) dA(x),
+    // where g(x) is the interpolated scalar field corresponding to vector g).
+    // This g can also be interpreted as the "Riesz representative" for dJ.
+    // Periodicity details:
+    //    We seek a periodic g, and the boundary integral defining M is over
+    //    the "true" boundary (i.e. the boundary remaining after stitching
+    //    together identified vertices). We simplify the problem by reducing to
+    //    "periodic dof" variables.
+    //    Introducing matrix S that selects the dof value for each vertex:
+    //          g = S g_dof
+    //    (Note that S^T sums values over all identified vertices and places
+    //     them on the corresponding periodic dof.)
+    //
+    //    delta_j_bdry is non-periodic; it contains partial contributions on
+    //    each vertex (so it correctly evaluates the one-form when dotted with
+    //    a *periodic* discrete boundary nodal vector field). Thus the summed
+    //    quantity S^T delta_j_bdry gives the one-form acting on periodic
+    //    boundary node displacements.
+    //    
+    //    Letting M_dof = S^T M S, we arrive at the equation:
+    //         g_dof \propto -  M_dof^-1 S^T delta_j_bdry
+    //    ==>  g     \propto -S M_dof^-1 S^T delta_j_bdry
+    // We let the caller decide on a normalization by simply computing:
+    // @return      -S M_dof^-1 S^T delta_j_bdry
+    typename Sim::VField steepestDescentBoundaryVelocity() const {
+        ShapeVelocityInterpolator interpolator(*m_sim);
+        auto delta_j      = m_wcs_objective.adjointDeltaJ(*m_sim, w_ij);
+        auto delta_j_bdry = interpolator.adjoint(*m_sim, delta_j);
+        
+        // Extract boundary vertex periodicity from m_sim.
+        // Unfortunately, sim's periodic boundary conditions are on volume
+        // nodes, not boundary vertices, so we have to reindex to get
+        // contiguous variables
+        const auto mesh = m_sim->mesh();
+        size_t nbv = mesh.numBoundaryVertices();
+        std::vector<size_t> dofForBdryVertex; dofForBdryVertex.reserve(nbv);
+
+        constexpr size_t NO_VAR = std::numeric_limits<size_t>::max();
+        std::vector<size_t> dofForSimNodalDoF(m_sim->numDoFs(), NO_VAR);
+        size_t numDoFs = 0;
+        for (auto bv : mesh.boundaryVertices()) {
+            size_t simDoF = m_sim->DoF(bv.volumeVertex().node().index());
+            size_t &dof = dofForSimNodalDoF.at(simDoF);
+            if (dof == NO_VAR)
+                dof = numDoFs++;
+            dofForBdryVertex.push_back(dof);
+        }
+
+        // Determine which variables correspond to true boundary vertices
+        // (if any non-periodic boundary element touches them), and extract an
+        // array for testing periodic boundary element membership.
+        std::vector<bool> isTrueBoundaryVertex(mesh.numBoundaryVertices(), false),
+                          isPeriodicBE(mesh.numBoundaryElements(), false);
+        for (auto be : mesh.boundaryElements()) {
+            isPeriodicBE[be.index()] = be->isPeriodic;
+            if (be->isPeriodic) continue;
+            for (size_t i = 0; i < be.numVertices(); ++i)
+                isTrueBoundaryVertex.at(be.vertex(i).index()) = true;
+        }
+
+        // Determine dofs corresponding to false boundary vertices (to be constrained)
+        std::vector<bool> dofVisited(numDoFs, false); // Add each dof only once
+        std::vector<size_t> falseBoundaryDoFs;
+        for (auto bv : mesh.boundaryVertices()) {
+            if (isTrueBoundaryVertex.at(bv.index())) continue;
+
+            size_t dof = dofForBdryVertex.at(bv.index());
+            if (dofVisited.at(dof)) continue;
+            falseBoundaryDoFs.push_back(dof);
+            dofVisited[dof] = true;
+        }
+
+        // Build M_dof, ignoring contributions from periodic boundary elements
+        auto M = MassMatrix::construct<1>(mesh.boundary(), false, isPeriodicBE);
+        // ==> S M S^T
+        M.reindexVariables(dofForBdryVertex);
+        SPSDSystem<Real> M_dof(M);
+
+        // Enforce zero velocity on false boundary vertices
+        // (Since we skipped periodic bdry elements' contributions, the system
+        //  would be singular otherwise).
+        M_dof.fixVariables(falseBoundaryDoFs,
+                           std::vector<Real>(falseBoundaryDoFs.size(), 0.0));
+
+        typename Sim::VField g(nbv);
+        for (size_t c = 0; c < N; ++c) {
+            // Apply -S^T
+            std::vector<Real> neg_S_t_delta_j_bdry(numDoFs, 0.0);
+            for (auto bv : mesh.boundaryVertices()) {
+                neg_S_t_delta_j_bdry.at(dofForBdryVertex.at(bv.index()))
+                    -= delta_j_bdry(bv.index())[c];
+            }
+            
+            auto g_dof = M_dof.solve(neg_S_t_delta_j_bdry);
+
+            // Apply S
+            for (auto bv : mesh.boundaryVertices())
+                g(bv.index())[c] = g_dof.at(dofForBdryVertex.at(bv.index()));
+        }
+
+        return g;
     }
 
     // WARNING: paste this into any subclass that overrides gradient/objective evaluation.

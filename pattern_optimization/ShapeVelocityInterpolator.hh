@@ -113,6 +113,65 @@ public:
         return result;
     }
 
+    // Find the discrete boundary velocity one-form, dvb, that satisfies
+    //    dvb[vb] := dv[interpolate(vb)]
+    // given the volume velocity one-form dv, for all periodic boundary
+    // velocity fields vb.
+    // In other words, applies [-L_bi L_ii^{-1} I] (the transpose of the matrix
+    // applied for interpolation) to discrete volume velocity one-form dv.
+    // Periodicity details:
+    //    dv is non-periodic; it contains partial contributions on each
+    //    identified periodic vertex (i.e. it gives the correct answer when
+    //    dotted with a *periodic* nodal vector field).
+    //    We introduce the following matrices mapping between vertex/dof field types:
+    //       S^T: Sum identified vertices onto DoFs,                 S: copy DoFs to identified vertices
+    //         B: Extract boundary DoFs from all DoFs,             B^T: distribute boundary DoFs to full DoF vector (zeros on internal DoFs)
+    //         C: Extract internal DoFs from all DoFs,             C^T: distribute internal DoFs to full DoF vector (zeros on boundary DoFs)
+    //         A: Average identified bdry vertices onto bdry DoFs, A^T: fractional distribution of bdry DoFs to identified bdry vertices
+    //    dvb[vb] := dv[interpolate(vb)] = dv[S [-L_bi L_ii^-1 I]^T A vb]
+    //             = lambda . vb
+    //    ==> dvb = lambda = A^T [-L_bi L_ii^-1 I] S^T dv = A^T B  S^T dv - A^T L_bi L_ii^{-1} C S^T dv
+    //                                                    = A^T B (S^T dv - L C^T    L_ii^{-1} C S^T dv)
+    // WARNING, matrix A doesn't really "average" values from identified vertices:
+    // For now, we just extract value from a single one of the identified vertices.
+    // This is valid because we only operate on periodic fields, but it means
+    // the resulting dvb will put zeros on all but one vertex in each identified vertex set.
+    template<class Sim>
+    typename Sim::VField adjoint(const Sim &sim,
+                                 const typename Sim::VField &dv) const {
+        assert(dv.domainSize() == sim.mesh().numVertices());
+
+        SPSDSystem<Real> Lsys(L);
+
+        // Fix boundary vars to zero
+        // Now Lsys.solve() actually applies C^T L_ii^{-1} C
+        Lsys.fixVariables(m_bdryVars, std::vector<Real>(m_bdryVars.size()));
+
+        std::vector<Real> S_t_dv, C_t_Lii_inv_C_S_t_dv;
+        typename Sim::VField dvb(sim.mesh().numBoundaryVertices());
+        dvb.clear();
+        for (size_t c = 0; c < Sim::N; ++c) {
+            // Sum identified values onto the DoFs
+            S_t_dv.assign(L.m, 0.0);
+            for (size_t i = 0; i < m_varForVertex.size(); ++i)
+                S_t_dv.at(m_varForVertex[i]) += dv(i)[c];
+
+            Lsys.solve(S_t_dv, C_t_Lii_inv_C_S_t_dv); 
+            auto dofValues = L.apply(C_t_Lii_inv_C_S_t_dv);
+            // dofValues = S^T dv - L C^T    L_ii^{-1} C S^T dv
+            for (size_t i = 0; i < dofValues.size(); ++i)
+                dofValues[i] = S_t_dv[i] - dofValues[i];
+
+            // Apply A^T B: extract boundary DoFs and then fractionally
+            // distribute to bdry vertices (places full DoF value on a
+            // single (true bdry) vtx per dof for now).
+            for (size_t i = 0; i < m_bdryVars.size(); ++i)
+                dvb(m_bdryVtxForBdryVar[i])[c] = dofValues.at(m_bdryVars[i]);
+        }
+
+        return dvb;
+    }
+
 private:
     // Periodic Laplacian
     TripletMatrix<> L;
