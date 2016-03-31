@@ -217,6 +217,44 @@ template<class _Inflator>
         for (size_t bvi = 0; bvi < numBV; ++bvi)
             dJ += delta_j_vb(bvi).dot(bsvel(bvi));
 
+#if 0
+        // Debug steepest descent directions g_vol and g_bdry,
+        // by ensuring <g_vol, v_vol> = <g_bdry, v_bdry> = dJ_bdry[v_bdry].
+        Real vol_representative_dJ = 0;
+        auto svel = interpolator.interpolate(*m_sim, m_bdry_svels.at(p));
+        auto grad = steepestDescentVolumeVelocity();
+        for (auto e : m_sim->mesh().elements()) {
+            Interpolant<VectorND<N>, N, 1> v_p, g;
+            for (auto v : e.vertices()) {
+                v_p[v.localIndex()] = svel(v.index());
+                g  [v.localIndex()] = grad(v.index());
+            }
+
+            vol_representative_dJ += Quadrature<N, 2>::integrate([&](const VectorND<e.numVertices()> &pt) {
+                    return v_p(pt).dot(g(pt));
+                }, e->volume());
+        }
+
+        Real bdry_representative_dJ = 0;
+        auto bdry_grad = steepestDescentBoundaryVelocity();
+        for (auto be : m_sim->mesh().boundaryElements()) {
+            Interpolant<VectorND<N>, N - 1, 1> v_p, g;
+            for (auto bv : be.vertices()) {
+                v_p[bv.localIndex()] = bsvel(bv.index());
+                g  [bv.localIndex()] = bdry_grad(bv.index());
+            }
+            bdry_representative_dJ += Quadrature<N - 1, 2>::integrate([&](const VectorND<be.numVertices()> &pt) {
+                    return v_p(pt).dot(g(pt));
+                }, be->volume());
+        }
+
+        std::cout << std::endl;
+        std::cout << "correct dJ: " << dJ << std::endl;
+        std::cout << "Riesz representative dJ (vol): "  <<  vol_representative_dJ << std::endl;
+        std::cout << "Riesz representative dJ (bdry): " << bdry_representative_dJ << std::endl;
+        std::cout << std::endl;
+#endif
+
         return dJ;
     }
 
@@ -279,7 +317,7 @@ template<class _Inflator>
             // Apply -S^T
             std::vector<Real> neg_S_t_delta_j(numDoFs, 0.0);
             for (auto v : mesh.vertices())
-                neg_S_t_delta_j[dofForVertex[v.index()]] -= delta_j(v.index())[c];
+                neg_S_t_delta_j.at(dofForVertex[v.index()]) -= delta_j(v.index())[c];
 
             auto g_dof = M_dof.solve(neg_S_t_delta_j);
 
