@@ -269,7 +269,7 @@ template<class _Inflator>
             dofForVertex.push_back(dof);
         }
 
-        auto M = MassMatrix::construct<1>(mesh());
+        auto M = MassMatrix::construct<1>(mesh);
         // ==> S M S^T
         M.reindexVariables(numDoFs, dofForVertex);
         SPSDSystem<Real> M_dof(M);
@@ -373,7 +373,7 @@ template<class _Inflator>
         // Build M_dof, ignoring contributions from periodic boundary elements
         auto M = MassMatrix::construct<1>(mesh.boundary(), false, isPeriodicBE);
         // ==> S M S^T
-        M.reindexVariables(dofForBdryVertex);
+        M.reindexVariables(numDoFs, dofForBdryVertex);
         SPSDSystem<Real> M_dof(M);
 
         // Enforce zero velocity on false boundary vertices
@@ -421,98 +421,22 @@ template<class _Inflator>
         // }
         ScalarField<Real> j = m_wcs_objective.integrandValues();
 
-        // for (size_t p = 0; p < Base::m_params.size(); ++p) {
-        //     auto prefix = "p" + std::to_string(p) + " ";
-        //     std::vector<VectorField<Real, N>> dot_w;
-        //     PeriodicHomogenization::fluctuationDisplacementShapeDerivatives(
-        //             *m_sim, w_ij, m_vn_p[p], dot_w);
-        //     std::vector<typename WCSObjective::SMF> wedot(flatLen(N));
-        //     for (size_t kl = 0; kl < flatLen(N); ++kl) {
-        //         outField = dot_w[kl];
-        //         outField -= outField.mean();
-        //         writer.addField(prefix + "wdot " + std::to_string(kl), outField);
-
-        //         wedot[kl] = m_sim->averageStrainField(dot_w[kl]);
-        //         writer.addField(prefix + "wedot " + std::to_string(kl), wedot[kl]);
-        //     }
-        //     writer.addField(prefix + "jdot", m_wcs_objective.integrandEulerianDerivative(wedot));
-
-        //     // Validate tau_kl by calculating objective integrand at the offset
-        //     // fluctuation displacements.
-        //     auto offset_w = w_ij;
-        //     Real delta = 1e-6; // see how size of this affects result...
-        //     for (size_t kl = 0; kl < dot_w.size(); ++kl) {
-        //         auto step = dot_w[kl];
-        //         step *= delta;
-        //         offset_w[kl] += step;
-        //     }
-
-        //     WCSObjective offsetObj(m_sim->mesh(),
-        //             worstCaseFrobeniusStress(m_sim->mesh().element(0)->E(), m_wcs_objective.wcStress.Sh,
-        //                 PeriodicHomogenization::macroStrainToMicroStrainTensors(offset_w, *m_sim)));
-        //     ScalarField<Real> offsetDiff = offsetObj.integrandValues() - j;
-        //     offsetDiff *= 1.0 / delta;
-        //     writer.addField(prefix + "fd jdot", offsetDiff);
-
-        //     // Same thing but with new compliance tensor
-        //     // Why does offsetC differ from old compliance tensor????
-        //     // Answer: it's because we're using the stress-like/displacement version
-        //     // instead of the energy-like version. Though these versions are
-        //     // equivalent for the true fluctuation displacements, they have
-        //     // different behaviors for other displacements, and different
-        //     // derivative behavior.
-        //     // auto origChEnForm = PeriodicHomogenization::homogenizedElasticityTensor(w_ij, *m_sim);
-        //     auto offsetCh = PeriodicHomogenization::homogenizedElasticityTensorDisplacementForm(offset_w, *m_sim);
-        //     // auto offsetChEnForm = PeriodicHomogenization::homogenizedElasticityTensor(offset_w, *m_sim);
-
-        //     // auto tmp = origChEnForm - m_wcs_objective.wcStress.Sh.inverse();
-        //     // std::cout << "en form err:\t" << tmp.quadrupleContract(tmp) << std::endl;
-        //     // tmp = offsetCh - m_wcs_objective.wcStress.Sh.inverse();
-        //     // std::cout << "diff:\t" << tmp.quadrupleContract(tmp) << std::endl;
-        //     // tmp = offsetChEnForm - m_wcs_objective.wcStress.Sh.inverse();
-        //     // std::cout << "en form diff:\t" << tmp.quadrupleContract(tmp) << std::endl;
-
-        //     offsetObj.setPointwiseWCS(
-        //             worstCaseFrobeniusStress(m_sim->mesh().element(0)->E(), offsetCh.inverse(),
-        //                 PeriodicHomogenization::macroStrainToMicroStrainTensors(offset_w, *m_sim)));
-        //     offsetDiff = offsetObj.integrandValues() - j;
-        //     offsetDiff *= 1.0 / delta;
-        //     writer.addField(prefix + "corrected fd jdot", offsetDiff);
-
-        //     auto gradEh =
-        //         PeriodicHomogenization::homogenizedElasticityTensorGradient(w_ij, *m_sim);
-        //     ETensor dC;
-        //     for (auto be : m_sim->mesh().boundaryElements()) {
-        //         const auto &vn = m_vn_p[p][be.index()];
-        //         const auto &grad = gradEh[be.index()];
-
-        //         using NSVInterp = typename std::decay<decltype(vn)>::type;
-        //         using  SDInterp = typename std::decay<decltype(grad)>::type;
-        //         static_assert(SDInterp::K == NSVInterp::K,
-        //                 "Invalid boundary interpolant simplex dimension");
-
-        //         dC += Quadrature<SDInterp::K, SDInterp::Deg + NSVInterp::Deg>::
-        //             integrate([&] (const VectorND<be.numVertices()> &pt) {
-        //                 return vn(pt) * grad(pt);
-        //             }, be->volume());
-        //     }
-        //     offsetCh = m_wcs_objective.wcStress.Sh.inverse() + dC * delta;
-        //     offsetObj.setPointwiseWCS(
-        //             worstCaseFrobeniusStress(m_sim->mesh().element(0)->E(), offsetCh.inverse(),
-        //                 PeriodicHomogenization::macroStrainToMicroStrainTensors(offset_w, *m_sim)));
-        //     offsetDiff = offsetObj.integrandValues() - j;
-        //     offsetDiff *= 1.0 / delta;
-        //     writer.addField(prefix + "gradC corrected fd jdot", offsetDiff);
-        //     
-        // }
-
-        // writer.addField("WC Macro Stress", m_wcs_objective.wcStress.wcMacroStress);
-        // writer.addField("WC Micro Stress", m_wcs_objective.wcStress.wcMicroStress());
-
         writer.addField("Pointwise WCS", m_wcs_objective.wcStress.sqrtStressMeasure());
         writer.addField("j", j);
 
+        writer.addField("Steepest Descent VVel", steepestDescentVolumeVelocity(), DomainType::PER_NODE);
+        auto bdryVel = steepestDescentBoundaryVelocity();
+        VectorField<Real, N> xferBdryVel(m_sim->mesh().numVertices());
+        xferBdryVel.clear();
+        for (auto v : m_sim->mesh().vertices()) {
+            auto bv = v.boundaryVertex();
+            if (!bv) continue;
+            xferBdryVel(v.index()) = bdryVel(bv.index());
+        }
+        writer.addField("Steepest Descent BVel", xferBdryVel, DomainType::PER_NODE);
+
         if (derivativeComponent >= 0) {
+#if 0
             std::vector<VectorField<Real, N>> dot_w;
             PeriodicHomogenization::fluctuationDisplacementShapeDerivatives(*m_sim, w_ij, m_vn_p[derivativeComponent], dot_w,
                 WCStressOptimization::Config::get().projectOutNormalStress);
@@ -547,6 +471,7 @@ template<class _Inflator>
             }
             SField dj = m_wcs_objective.directIntegrandDerivative(*m_sim, w_ij, dot_w, m_vn_p[derivativeComponent]);
             writer.addField("dj", dj);
+#endif
         }
     }
     
