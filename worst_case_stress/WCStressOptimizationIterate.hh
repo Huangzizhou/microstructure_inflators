@@ -183,6 +183,7 @@ template<class _Inflator>
     }
 
     Real gradientWCS_discrete_forward(size_t p) const {
+        BENCHMARK_START_TIMER("Discrete Forward Grad WCS");
         assert(!_BypassParameterVelocity);
         // Interpolate boundary shape velocity into the interior vertices to
         // improve gradient accuracy. (TODO: Make this an option).
@@ -196,15 +197,25 @@ template<class _Inflator>
         // MSHFieldWriter writer("svel_debug.msh", m_sim->mesh());
         // writer.addField("svel", svel);
 
-        return m_wcs_objective.deltaJ(*m_sim, w_ij, svel);
+        Real dJ = m_wcs_objective.deltaJ(*m_sim, w_ij, svel);
+
+        BENCHMARK_STOP_TIMER("Discrete Forward Grad WCS");
+
+        return dJ;
     }
 
     Real gradientWCS_discrete_adjoint(size_t p) const {
+        BENCHMARK_START_TIMER_SECTION("Discrete Adjoint Grad WCS");
         assert(!_BypassParameterVelocity);
 
+        BENCHMARK_START_TIMER_SECTION("Adjoint delta J");
         auto delta_j    = m_wcs_objective.adjointDeltaJ(*m_sim, w_ij);
+        BENCHMARK_STOP_TIMER_SECTION("Adjoint delta J");
+
+        BENCHMARK_START_TIMER_SECTION("Adjoint Interpolation");
         ShapeVelocityInterpolator interpolator(*m_sim);
         auto delta_j_vb = interpolator.adjoint(*m_sim, delta_j);
+        BENCHMARK_STOP_TIMER_SECTION("Adjoint Interpolation");
 
         // MSHBoundaryFieldWriter bdryWriter("bdry_adjoint_debug.msh", m_sim->mesh());
         // bdryWriter.addField("delta_j_vb", delta_j_vb, DomainType::PER_NODE);
@@ -216,6 +227,8 @@ template<class _Inflator>
         Real dJ = 0;
         for (size_t bvi = 0; bvi < numBV; ++bvi)
             dJ += delta_j_vb(bvi).dot(bsvel(bvi));
+
+        BENCHMARK_STOP_TIMER_SECTION("Discrete Adjoint Grad WCS");
 
 #if 0
         // Debug steepest descent directions g_vol and g_bdry,

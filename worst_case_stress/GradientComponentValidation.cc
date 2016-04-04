@@ -188,7 +188,6 @@ void genAndReportIterate(_Inflator &inflator, const SField &params, _Objective &
         << "\t" << it.evaluateJFull() << "\t" << it.gradp_JFull()[compIdx]
         << "\t" << it.evaluateWCS() << "\t" << it.gradientWCS_adjoint()[compIdx]
                                     << "\t" << it.gradientWCS_direct_component(compIdx)
-                                    << "\t" << it.gradientWCS_discrete_forward(compIdx)
                                     << "\t" << it.gradientWCS_discrete_adjoint(compIdx)
         << "\t" << it.evaluateJS() << "\t" << it.gradp_JS()[compIdx];
 

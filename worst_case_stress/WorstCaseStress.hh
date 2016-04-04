@@ -601,13 +601,18 @@ struct IntegratedWorstCaseObjective {
         typename Sim::VField delta_j(nv);
         delta_j.clear();
 
+        BENCHMARK_START_TIMER_SECTION("Adjoint Cell Problem");
+        BENCHMARK_START_TIMER("Compute Tau_kl");
         // Cache tau_pq and adjoint solutions
         std::vector<SMF> tau(flatLen(N));
         for (size_t pq = 0; pq < flatLen(N); ++pq)
             tau_kl(pq, tau[pq]);
+        BENCHMARK_STOP_TIMER("Compute Tau_kl");
         std::vector<VectorField<Real, N>> lambda;
-        m_solveAdjointCellProblems(sim, lambda);
+        m_solveAdjointCellProblems(sim, tau, lambda);
+        BENCHMARK_STOP_TIMER_SECTION("Adjoint Cell Problem");
 
+        BENCHMARK_START_TIMER_SECTION("Dilation and Delta strain");
         for (auto e : mesh.elements()) {
             // j contribution to dilation integrand
             Real dilationIntegrand = integrand.j(wcStress(e.index()), e.index());
@@ -619,31 +624,37 @@ struct IntegratedWorstCaseObjective {
                 Strain strain_lambda, strain_u;
                 e->strain(e, lambda[pq], strain_lambda);
                 e->strain(e,      w[pq], strain_u);
+                strain_u += Sim::SMatrix::CanonicalBasis(pq);
+
+                using Stress = typename Sim::Stress;
+                Stress stress_lambda, stress_u;
+                for (size_t i = 0; i < Stress::numNodalValues; ++i) {
+                    stress_lambda[i] = C.doubleContract(strain_lambda[i]);
+                    stress_u     [i] = C.doubleContract(strain_u     [i]);
+                }
 
                 // pq^th contribution to dilation integrand.
-                strain_u += Sim::SMatrix::CanonicalBasis(pq);
                 dilationIntegrand -= Quadrature<Sim::K, 2 * Strain::Deg>::integrate(
                         [&] (const VectorND<e.numVertices()> &p) {
-                    return strain_lambda(p).doubleContract(C.doubleContract(strain_u(p)));
+                    return strain_lambda(p).doubleContract(stress_u(p));
                 }) * shearDoubler;
 
                 // Delta strain term
                 for (auto n : e.nodes()) {
                     auto gradPhi_n = e->gradPhi(n.localIndex());
+
+                    Interpolant<VectorND<N>, N, Stress::Deg> glam_functional;
+                    glam_functional = tau[pq](e.index()).contract(w[pq](n.index()));
+                    for (size_t i = 0; i < glam_functional.size(); ++i) {
+                        glam_functional[i] -= stress_lambda[i].contract(w[pq](n.index()))
+                                            + stress_u[i].contract(lambda[pq](n.index()));
+                    }
+
                     for (auto v_m : e.vertices()) {
-                        Interpolant<Real, N, Strain::Deg> mu_grad_lam_m;
-                        mu_grad_lam_m = 0;
                         auto gradLam_m = e->gradBarycentric().col(v_m.localIndex());
-                        for (size_t i = 0; i < mu_grad_lam_m.size(); ++i) {
-                            for (size_t c = 0; c < N; ++c) {
-                                mu_grad_lam_m[i] +=
-                                    w[pq](n.index())[c] * (
-                                        tau[pq](e.index()).contract(gradLam_m)[c]
-                                      - C.doubleContract(strain_lambda[i]).contract(gradLam_m)[c])
-                                  - lambda[pq](n.index())[c] *
-                                        C.doubleContract(strain_u[i]).contract(gradLam_m)[c];
-                            }
-                        }
+                        Interpolant<Real, N, Strain::Deg> mu_grad_lam_m;
+                        for (size_t i = 0; i < mu_grad_lam_m.size(); ++i)
+                            mu_grad_lam_m[i] = gradLam_m.dot(glam_functional[i]);
                         delta_j(v_m.index()) -= Quadrature<N, 2 * Strain::Deg>::
                             integrate([&](const VectorND<e.numVertices()> &pt) { return
                                     (mu_grad_lam_m(pt) * gradPhi_n(pt)).eval();
@@ -656,8 +667,10 @@ struct IntegratedWorstCaseObjective {
                     * e->gradBarycentric().col(v.localIndex());
             }
         }
+        BENCHMARK_STOP_TIMER_SECTION("Dilation and Delta strain");
 
         // Gamma term
+        BENCHMARK_START_TIMER_SECTION("Gamma Term");
         auto sdCh = PH::homogenizedElasticityTensorGradient(w, sim);
         auto gamma = dJ_dCH(sim);
         using ETensorSD = PH::BEHTensorGradInterpolant<Sim>;
@@ -680,6 +693,8 @@ struct IntegratedWorstCaseObjective {
                             }, be->volume());
             }
         }
+        BENCHMARK_STOP_TIMER_SECTION("Gamma Term");
+
         return delta_j;
     }
 
@@ -700,6 +715,18 @@ private:
             tau_kl(kl, tau);
             lambda_kl.push_back(sim.solve(sim.perElementStressFieldLoad(tau)));
         }
+    }
+
+    // Same as above, but with pre-computed tau_kl
+    template<class Sim>
+    void m_solveAdjointCellProblems(const Sim &sim,
+                    const std::vector<SMF> &tau,
+                    std::vector<VectorField<Real, N>> &lambda_kl) const {
+        size_t numCellProblems = flatLen(N);
+        lambda_kl.clear(); lambda_kl.reserve(numCellProblems);
+        assert(tau.size() == numCellProblems);
+        for (size_t kl = 0; kl < numCellProblems; ++kl)
+            lambda_kl.push_back(sim.solve(sim.perElementStressFieldLoad(tau[kl])));
     }
 
     Real m_evalCache = 0.0;
