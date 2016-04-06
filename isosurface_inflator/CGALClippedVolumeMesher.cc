@@ -68,7 +68,8 @@ mesh(const SignedDistanceFunction &sdf,
 
     ClippedSignedDistanceFunction cgal_sdfunc(sdf);
     std::list<std::vector<MeshIO::IOVertex>> polylinesMeshIO;
-    boxIntersection1DFeatures(sdf, meshingOptions.marchingSquaresGridSize, polylinesMeshIO);
+    boxIntersection1DFeatures(sdf, meshingOptions.marchingSquaresGridSize,
+                              meshingOptions.marchingSquaresCoarsening, polylinesMeshIO);
     // Check for near-intersection of polylines--this should only happen if
     // we failed to stitch up the boundary curves correctly.
     // This brute-force O(n^2) could easily be sped up...

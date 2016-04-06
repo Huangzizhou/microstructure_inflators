@@ -24,6 +24,11 @@ struct MeshingOptions {
     // VCG Marching cubes options
     size_t marchingCubesGridSize = 128;
 
+    // Coarsening levels used in adaptive marching squares:
+    // Initially sample at a grid 2^marchingSquaresCoarsening times coarser,
+    // and only refine where the contour is found.
+    size_t marchingSquaresCoarsening = 0;
+
     // For MidplaneMesher, there is a single parameter: maxArea
     // The marchingSquaresGridSize and boundary max edge length are
     // automatically determined from this parameter:

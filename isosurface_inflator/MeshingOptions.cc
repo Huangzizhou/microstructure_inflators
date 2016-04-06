@@ -17,7 +17,8 @@ void MeshingOptions::load(const std::string &jsonPath) {
         "domainErrorBound", "facetAngle", "facetSize", "facetDistance",
         "cellSize", "edgeSize", "cellRadiusEdgeRatio",
         "marchingSquaresGridSize", "marchingCubesGridSize",
-        "maxArea", "featureAngleThreshold", "forceMSGridSize"
+        "maxArea", "featureAngleThreshold", "forceMSGridSize",
+        "marchingSquaresCoarsening"
     };
     // Validate keys
     for (const auto &v : pt) {
@@ -43,4 +44,6 @@ void MeshingOptions::load(const std::string &jsonPath) {
     // Optional flags
     if (pt.count("forceMSGridSize"))
         forceMSGridSize = pt.get<bool>("forceMSGridSize");
+    if (pt.count("marchingSquaresCoarsening"))
+        marchingSquaresCoarsening = pt.get<size_t>("marchingSquaresCoarsening");
 }

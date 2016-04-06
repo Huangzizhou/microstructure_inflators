@@ -72,8 +72,9 @@ TARGETS=DiscreteShapeDerivativeValidation_cli MacroMicroStress_cli WCS_cli Gradi
 
 # DEPENDENCY STUFF
 DEPDIR:=.d
+COMMA:=,
 $(shell mkdir -p $(DEPDIR) >/dev/null)
-DEPFLAGS=-MT $@ -MMD -MP -MF $(DEPDIR)/$(subst /,__,$*).Td
+DEPFLAGS=-MT $@ -MMD -MP -MF $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).Td
 
 all: $(TARGETS)
 
@@ -102,12 +103,12 @@ LpHoleInflator_cli: $(LPHOLE_INFLATOR_OBJS)
 %.o: %.cc
 %.o: %.cc Makefile
 	$(CXX) $(DEPFLAGS) $(CPPFLAGS) -c $< -o $@
-	mv -f $(DEPDIR)/$(subst /,__,$*).Td $(DEPDIR)/$(subst /,__,$*).d
+	mv -f $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).Td $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).d
 
 %.o: %.c
 %.o: %.c Makefile
 	$(CC) $(DEPFLAGS) -c $(CFLAGS) $< -o $@
-	mv -f $(DEPDIR)/$(subst /,__,$*).Td $(DEPDIR)/$(subst /,__,$*).d
+	mv -f $(DEPDIR)/$$(subst .,$(COMMA),$(subst /,__,$*)).Td $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).d
 
 clean:
 	rm -f $(TARGETS) $(OBJS) *.bak

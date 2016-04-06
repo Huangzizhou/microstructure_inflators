@@ -23,6 +23,8 @@
 
 #include "IsosurfaceInflatorConfig.hh"
 
+#include <GlobalBenchmark.hh>
+
 using namespace std;
 
 template<class WMesh, template<class> class Mesher>
@@ -115,6 +117,7 @@ public:
         //     std::cout << "\t" << p;
         // std::cout << std::endl;
 
+        BENCHMARK_START_TIMER("meshPattern");
         // Optional debugging graph output.
         const auto &config = IsosurfaceInflatorConfig::get();
         if (config.dumpInflationGraph()) { wmesh.saveInflationGraph(config.inflationGraphPath, params); }
@@ -122,6 +125,7 @@ public:
 
         pattern.setParameters(params);
         mesher.mesh(pattern, this->vertices, this->elements);
+        BENCHMARK_STOP_TIMER("meshPattern");
         // cout << vertices.size() << " vertices, " << elements.size() << " elements" << endl;
     }
 
@@ -264,6 +268,9 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                  const IsosurfaceInflator::Impl &inflator,
                  bool needsReflecting)
 {
+    BENCHMARK_START_TIMER_SECTION("postProcess");
+
+    BENCHMARK_START_TIMER("SnapAndDetermineEvaluationPts");
     vector<vector<bool>> onMinFace, onMaxFace;
     // WARNING: for non-reflecting inflators, this should snap to bbmin and bbmax!!!
     // TODO: change to pass the meshing cell
@@ -303,6 +310,9 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
         evaluationPoints.push_back(vertices.at(bv.volumeVertex().index()));
     }
 
+    BENCHMARK_STOP_TIMER("SnapAndDetermineEvaluationPts");
+
+    BENCHMARK_START_TIMER("SignedDistanceGradientsAndPartials");
     // sd(x, p) = 0
     // grad_x(sd) . dx/dp + d(sd)/dp = 0,   grad_x(sd) = n |grad_x(sd)|
     // ==>  v . n = -[ d(sd)/dp ] / |grad_x(sd)|
@@ -319,7 +329,9 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
         for (size_t i = 0; i < vn.size(); ++i)
             vn[i] *= -1.0 / sdGradNorms[i];
     }
-    
+    BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");
+
+    BENCHMARK_START_TIMER("Reflecting");
     // If the mesher only generates the orthotropic base cell, the mesh must
     // be reflected to get the full period cell (if requested).
     if (needsReflecting) {
@@ -368,7 +380,9 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                 normalShapeVelocities[p][vi] = vnp[p][evalIdx];
         }
     }
+    BENCHMARK_STOP_TIMER("Reflecting");
 
     // static int _run_num = 0;
     // MeshIO::save("debug_" + std::to_string(_run_num++) + ".msh", vertices, elements);
+    BENCHMARK_STOP_TIMER_SECTION("postProcess");
 }

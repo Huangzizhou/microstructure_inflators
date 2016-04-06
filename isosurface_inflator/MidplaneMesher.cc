@@ -59,7 +59,8 @@ mesh(const SignedDistanceFunction &sdf,
 {
     auto bb = sdf.boundingBox();
     MarchingSquaresGrid msquares(meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[0]),
-                                 meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[1]));
+                                 meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[1]),
+                                 meshingOptions.marchingSquaresCoarsening);
 
     MidplaneSlice<SignedDistanceFunction> slice(sdf);
 

@@ -18,6 +18,7 @@ mesh(const SignedDistanceFunction &sdf,
     vector<vector<pair<size_t, size_t>>> polygons;
     vertices.clear();
     boxIntersection1DFeatures(sdf, meshingOptions.marchingSquaresGridSize,
+                              meshingOptions.marchingSquaresCoarsening,
                               vertices, polygons);
     elements.clear(), elements.reserve(polygons.size());
     for (const auto &p : polygons)

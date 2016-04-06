@@ -65,16 +65,20 @@
 #include <vector>
 #include <map>
 #include "Grid.hh"
+#include "AdaptiveEvaluator.hh"
 #include <algorithm>
 #include <cassert>
 #include <functional>
 
 #include <string>
 #include <MSHFieldWriter.hh>
+#include <GlobalBenchmark.hh>
 
 class MarchingSquaresGrid : public Grid2D {
 public:
-    MarchingSquaresGrid(size_t Nx, size_t Ny) : Grid2D(Nx, Ny, BBox<Vector2D>()) { }
+    MarchingSquaresGrid(size_t Nx, size_t Ny, size_t clevels = 0) : Grid2D(Nx, Ny, BBox<Vector2D>()) {
+        setCoarsening(clevels);
+    }
 
     typedef std::pair<size_t, size_t> Edge;
     enum class SegmentType { Interior, Border };
@@ -135,10 +139,20 @@ public:
         writer.addField("signed distance", sd);
     }
 
+    // Configure the number of coarsening levels used in adaptive sampling.
+    // Initially the signed distance will be sampled at a grid 2^levels times
+    // coarser than this grid. Then the grid is refined adaptively in regions
+    // where the contour is detected.
+    void setCoarsening(size_t levels) { m_coarseningLevels = levels; }
+
     template<typename Domain>
     MarchingSquaresResult extractBoundaryPolygons(
             const Domain &domain, typename Domain::Real /*mergeThreshold*/ = 0.10);
 private:
+    // Use adapative evaluation: initially sample at a grid
+    // 2^m_coarseningLevels times coarser than this grid, then refine around
+    // the detected contour.
+    size_t m_coarseningLevels;
     template<typename Real>
     size_t m_getLerpPoint(size_t a, size_t b, Real sda, Real sdb,
                           std::vector<Vector2d> &points,
@@ -158,12 +172,15 @@ MarchingSquaresGrid::extractBoundaryPolygons(
     std::vector<Vector2d> points;
     std::vector<Edge> edges;
 
+    BENCHMARK_START_TIMER("Eval signed distance");
     m_bbox = domain.boundingBox();
+    AdaptiveEvaluator sdEval(domain, *this, m_coarseningLevels);
+    BENCHMARK_STOP_TIMER("Eval signed distance");
+
+#if DEBUG_MARCHING_SQUARES
     std::vector<Real> signedDistance(numVertices());
     for (size_t v = 0; v < numVertices(); ++v)
         signedDistance[v] = domain.signedDistance(vertexPosition(v));
-
-#if DEBUG_MARCHING_SQUARES
     static size_t _meshRun = 0;
     outputSignedDistanceField("sd_" + std::to_string(_meshRun++) + ".msh", signedDistance);
 #endif // DEBUG_MARCHING_SQUARES
@@ -174,6 +191,7 @@ MarchingSquaresGrid::extractBoundaryPolygons(
     std::vector<size_t> edgeVertices;
     std::map<Edge, size_t> edgePointMap;
     for (size_t ci = 0; ci < numCells(); ++ci) {
+        if (!sdEval.cellOverlapsContour(ci)) continue; // Ignore cells away from contour
         edgeVertices.clear();
         cellVertices(ci, corners);
         // Offset in edgeVertices of the cell's first falling-edge vertex.
@@ -181,7 +199,7 @@ MarchingSquaresGrid::extractBoundaryPolygons(
         for (size_t cv = 0; cv < 4; ++cv) {
             size_t a = corners[ cv      % 4],
                    b = corners[(cv + 1) % 4];
-            Real sda = signedDistance[a], sdb = signedDistance[b];
+            Real sda = sdEval.signedDistance(a), sdb = sdEval.signedDistance(b);
             bool aInside = sda <= 0, bInside = sdb <= 0;
             if (aInside != bInside) {
                 // Detect the cell's first falling edge.

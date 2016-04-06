@@ -24,6 +24,7 @@
 #include <LinearElasticity.hh>
 #include <PeriodicHomogenization.hh>
 #include <tuple>
+#include <GlobalBenchmark.hh>
 
 #include "WCStressOptimizationConfig.hh"
 

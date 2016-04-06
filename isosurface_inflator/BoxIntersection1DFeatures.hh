@@ -137,10 +137,11 @@ private:
 // de-duplication, but haven't thought it through...
 // Each segment is a list of edges indexing into points.
 template<typename VolumeSDF, typename _Point>
-void boxIntersection1DFeatures(const VolumeSDF &sdf, size_t gridSize,
+void boxIntersection1DFeatures(const VolumeSDF &sdf,
+        size_t gridSize, size_t gridCoarsening,
         std::vector<_Point> &points,
         std::vector<std::vector<std::pair<size_t, size_t>>> &segmentEdges) {
-    MarchingSquaresGrid msquares(gridSize, gridSize);
+    MarchingSquaresGrid msquares(gridSize, gridSize, gridCoarsening);
     for (int f = -3; f <= 3; ++f) {
         if (f == 0) continue;
         BoundaryFaceSlice<VolumeSDF> faceSlice(sdf, f);
@@ -174,12 +175,12 @@ void boxIntersection1DFeatures(const VolumeSDF &sdf, size_t gridSize,
 // in a CGAL-like polylines format (though the points themselves may not be
 // CGAL points).
 template<typename VolumeSDF, typename _Point>
-void boxIntersection1DFeatures(const VolumeSDF &sdf, size_t gridSize,
+void boxIntersection1DFeatures(const VolumeSDF &sdf, size_t gridSize, size_t gridCoarsening,
         std::list<std::vector<_Point>> &polylines)
 {
     std::vector<_Point> points;
     std::vector<std::vector<std::pair<size_t, size_t>>> segmentEdges;
-    boxIntersection1DFeatures(sdf, gridSize, points, segmentEdges);
+    boxIntersection1DFeatures(sdf, gridSize, gridCoarsening, points, segmentEdges);
     polylines.clear();
 
     // Organize ccw-ordered edge segments into polyline vectors.
