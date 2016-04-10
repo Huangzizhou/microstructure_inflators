@@ -1,0 +1,28 @@
+set term pngcairo size 640,480
+
+set grid;
+set xlabel 'Smoothness Parameter (Lower = Smoother)';
+unset key;
+
+set output 'plot_wcs.png';
+set ylabel 'Peak Worst-Case Microscopic';
+set title 'Test Pattern Worst-Case (Frobenius) Stresses';
+plot 'data.txt' u 1:2 w lp ps 2;
+
+set output 'plot_pull_y.png';
+set ylabel 'Peak Stress';
+set title 'Test Pattern Peak Max Stresses, Y Stretch Experiment'
+plot 'data.txt' u 1:3 w lp ps 2;
+
+set output 'plot_pull_xy.png';
+set ylabel 'Peak Stress';
+set title 'Test Pattern Peak Max Stresses, XY Stretch Experiment'
+plot 'data.txt' u 1:4 w lp ps 2;
+
+set output 'plot_rel.png';
+set ylabel 'Relative Stress Measure';
+set key
+set title 'Test Pattern Peak Stress Measurements, Relative to Strongest'
+plot 'data.txt' u 1:(($2 / 57.49845001447717152)) w lp ps 2 title 'Worst-Case (Frobenius)', \
+     ''         u 1:(($4 /   5.4253946410511515)) w lp ps 2 title 'Pull XY (Max Stress)', \
+     ''         u 1:(($3 /   3.8261488472346974)) w lp ps 2 title 'Pull Y (Max Stress)'
