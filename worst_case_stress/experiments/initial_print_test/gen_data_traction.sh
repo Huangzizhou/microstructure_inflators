@@ -1,6 +1,7 @@
 #!/usr/bin/env zsh
 mkdir -p sim_pull_y_traction sim_pull_xy_traction 
 for mesh in fine_meshes/*.msh; do
+    i=${$(basename $mesh .msh)##smooth_}
     wcs=$(../../WCS_cli $mesh -m $MICRO_DIR/materials/B9Creator.material -d2 | cut -f2)
     echo -ne "$i\t$wcs\t"
     for tmesh in fine_tilings/$(basename $mesh .msh)_{1,2,4,8}*.msh; do
