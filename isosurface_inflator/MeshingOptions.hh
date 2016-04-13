@@ -45,14 +45,16 @@ struct MeshingOptions {
     // Force the marching squares grid resolution declared above, instead of the
     // one derived from the max area threshold.
     bool forceMSGridSize = false; 
+    // Use an adaptive edge length based on curvature (anticipating high
+    // stresses in concave regions).
+    bool curvatureAdaptive = false;
     // Derived parameters
     // Always determine max edge length from the maxArea param
     double maxEdgeLenFromMaxArea() const {
         return sqrt((4.0 / sqrt(3.0)) * maxArea);
     }
-    // To avoid collapsing short edges when requested, base
-    // the collapse threshold on marchingSquaresGridSize in forceMSGridSize
-    // case.
+    // To avoid collapsing short edges when requested, base the collapse
+    // threshold on marchingSquaresGridSize in forceMSGridSize case.
     // Domain length only actually needed in the forceMSGridSize case...
     double minEdgeLenFromMaxArea(double domainLength) const {
         if (forceMSGridSize) return (domainLength / marchingSquaresGridSize) * sqrt(2.0) / 6.0;

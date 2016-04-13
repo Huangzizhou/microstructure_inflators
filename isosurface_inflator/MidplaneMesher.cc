@@ -46,11 +46,8 @@ private:
 //      (Requires finding holes: can guess centroid and validate with SDF.
 //       Another alternative: Don't mark holes, then remove afterward using
 //       SDF, but this prevents Triangle from running certain operations.)
-//
-//   4) Post-process:
-//          Snap + reflect to full period cell.
-//          Optional: Run triangle *again* with boundary fixed to improve
-//          meshing around symmetry plane.
+//  Potential future improvement: mesh full cell by reflecting and remeshing the
+//  interior.
 template<class SignedDistanceFunction>
 void MidplaneMesher<SignedDistanceFunction>::
 mesh(const SignedDistanceFunction &sdf,
@@ -87,12 +84,113 @@ mesh(const SignedDistanceFunction &sdf,
     std::list<std::list<Point2D>> polygons;
     extract_polygons<2>(result.points, edges, polygons);
 
-    // Non-periodic polygon cleanup since we're meshing a quarter-cell.
-    // Shouldn't matter anyway because the periodic should only have long edges.
-    for (auto &poly : polygons) {
-        curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
-                meshingOptions.featureAngleThreshold, false);
+    // Non-periodic polygon cleanup (we assume we're meshing a quarter-cell).
+    // TODO: periodic cleanup if we're actually meshing the full period cell.
+    std::vector<Real> variableMinLen;
+    bool periodic = false;
+    if (meshingOptions.curvatureAdaptive)
+    {
+        std::vector<MeshIO::IOVertex> vertices;
+        std::vector<MeshIO::IOElement> elements;
+        std::vector<Real> signedCurvatures;
+        // Choose curvature sign so that it reflects concave/convex geometry
+        // (object normal is a 90 clockwise rotation of curve tangent)
+        for (const auto &poly : polygons) {
+            size_t offset = vertices.size();
+            vertices.reserve(offset + poly.size());
+            for (const auto &p : poly) {
+                vertices.emplace_back(p);
+                elements.emplace_back(vertices.size() - 1, vertices.size());
+            }
+            elements.back()[1] = offset;
+            signedCurvatures.reserve(vertices.size());
+
+            // Use a finite difference to determine if the normal points
+            // left or right from a curve tangent. But make sure we test a true
+            // boundary segment (instead of a cell boundary segment)
+            auto segmentP0 = poly.begin();
+            for (; segmentP0 != poly.end(); ++segmentP0) {
+                if (!PeriodicBoundaryMatcher::FaceMembership<2>(*segmentP0, slice.boundingBox()).onAnyFace())
+                    break;
+            }
+            assert(segmentP0 != poly.end());
+            auto segmentP1 = segmentP0; ++segmentP1;
+            assert(segmentP1 != poly.end());
+            Point2D midpoint = 0.5 * (*segmentP0 + *segmentP1);
+            Vector2D tangent = *segmentP1 - *segmentP0;
+            tangent *= 1.0 / tangent.norm();
+            Vector2D right(tangent[1], -tangent[0]);
+            Real eps = 1e-3;
+            // Positive if "right" is an outward normal
+            Real diff = slice.signedDistance(midpoint + eps * right) -
+                        slice.signedDistance(midpoint - eps * right);
+            Real sign = diff > 0;
+
+            // With this sign convention, convex geometry
+            // (tangent turning ccw towards interior) has positive curvature and
+            // concave geometry (tangent turning cw towards exterior) has
+            // negative sign.
+            for (Real k : signedCurvature(poly))
+                signedCurvatures.push_back(sign * k);
+        }
+        assert(signedCurvatures.size() == vertices.size());
+        ScalarField<Real> kappa(vertices.size());
+        for (size_t i = 0; i < vertices.size(); ++i)
+            kappa[i] = signedCurvatures[i];
+
+        // MSHFieldWriter writer("curvatures.msh", vertices, elements);
+        // writer.addField("signed curvature", kappa, DomainType::PER_NODE);
+        // {
+        //     std::ofstream curvatureOut("curvature.txt");
+        //     for (size_t i = 0; i < signedCurvatures.size(); ++i)
+        //         curvatureOut << signedCurvatures[i] << std::endl;
+        // }
+
+        // Chose adaptive edge length based on curvature: highly negative
+        // curvature uses the fine marching squares-based edge length while the
+        // zero and higher curvature uses maxLen / 4
+        ScalarField<Real> lengths(vertices.size()); // Actually per edge
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            auto pt1 = truncateFrom3D<Point2D>(vertices[i]),
+                 pt2 = truncateFrom3D<Point2D>(vertices[(i + 1) % vertices.size()]);
+            int numAverage = 0;
+            Real k = 0;
+            if (!PeriodicBoundaryMatcher::FaceMembership<2>(pt1, slice.boundingBox()).onAnyFace()) {
+                ++numAverage; k += kappa[i];
+            }
+            if (!PeriodicBoundaryMatcher::FaceMembership<2>(pt2, slice.boundingBox()).onAnyFace()) {
+                ++numAverage; k += kappa[(i + 1) % vertices.size()];
+            }
+            if (numAverage != 0) k /= numAverage;
+
+            // Want to interpolate from upper at k >= c to lower at k = d
+            // using function a * 2^(k * b)
+            Real upper = maxLen / 4.0;
+            Real lower = minLen;
+            Real c = -1.0, d = -4;
+            // upper = a * 2^(cb)
+            // lower = a * 2^(db)
+            // upper / lower = 2^((c - d) b) ==> b = log2(u / l) / (c - d)
+            // a = upper / 2^(c * b)
+            Real b = log(upper / lower) / (log(2) * (c - d));
+            Real a = upper / pow(2, c * b);
+            lengths[i] = a * pow(2, b * k);
+            lengths[i] = std::min(lengths[i], upper);
+            lengths[i] = std::max(lengths[i], lower);
+        }
+        // writer.addField("min_lengths", lengths, DomainType::PER_ELEMENT);
+        variableMinLen.reserve(lengths.domainSize());
+        for (size_t i = 0; i < lengths.domainSize(); ++i)
+            variableMinLen.push_back(lengths[i]);
     }
+
+    BENCHMARK_START_TIMER("Curve Cleanup");
+    for (auto &poly : polygons) {
+        // std::vector<Real> kappa = signedCurvature(poly);
+        curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
+                meshingOptions.featureAngleThreshold, periodic, variableMinLen);
+    }
+    BENCHMARK_STOP_TIMER("Curve Cleanup");
 
 #if 0
     {

@@ -6,8 +6,14 @@
 //      regions away from the contour. Eventually this should be
 //      replaced/supplemented with an truly adaptive mesher.
 //
-//      We ensure that, assuming the coarsened grid can already resolve all
-//      features, an identical fine mesh is produced.
+//      The approach ensures that, assuming all contour components are "seen"
+//      by the coarsened grid, an identical fine contour is extracted to the
+//      one given by evaluating every grid point.
+//
+//      The approach is to first evaluate on a coarse grid, then recursively
+//      refine the cells that detect a contour. Finally, a BFS is run on the
+//      fine grid along the contour, starting from each fine contour cell
+//      found by recursive refinement.
 */
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
@@ -75,21 +81,16 @@ struct CellChunk {
 struct AdaptiveEvaluator {
     template<class Domain>
     AdaptiveEvaluator(const Domain &d, const Grid2D &fullGrid, size_t coarseningLevels) {
-        // Also, no cells have been visited/determined to overlap contour
+        // Initially, no cells have been visited/determined to overlap contour
         m_tmp_cellVisited.assign(fullGrid.numCells(), false);
         m_cellOverlapsContour.assign(fullGrid.numCells(), false);
 
-        // Cell at (cy, cx) has vertices
-        // (cy, cx), (cy, cx + 1), (cy + 1, cx + 1), (cy + 1, cx)
-        // Chunks referred to as (offsetRow, offsetCol, chunkSize)
-        // Access (offset, size)
-        size_t chunkSize = 1 << coarseningLevels;
-
-        // Initially no vertices are evaluated
+        // No vertices are evaluated yet.
         m_vtxSD.resize(fullGrid.numVertices());
         m_vtxSDEvaluated.assign(fullGrid.numVertices(), false);
 
         // Evaluate and adaptively refine all coarse chunks
+        size_t chunkSize = 1 << coarseningLevels;
         const size_t nrows = fullGrid.rows(), ncols = fullGrid.cols();
         for (size_t offsetRow = 0; offsetRow < nrows; offsetRow += chunkSize) {
             size_t rsize = std::min(chunkSize, nrows - offsetRow);
