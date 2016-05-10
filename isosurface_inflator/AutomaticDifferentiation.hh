@@ -18,4 +18,9 @@
 // Adept's sqrt overload is not visible to Eigen, so we must use
 // sqrt(x.squaredNorm()) (or include Adept before Eigen).
 
+// Wrapper to get the underlying value of an adept double (or do nothing for
+// primitive types)
+template<typename T> double stripAdept(T val) { return val; }
+inline double stripAdept(adept::adouble val) { return val.value(); }
+
 #endif /* end of include guard: AUTOMATICDIFFERENTIATION_HH */

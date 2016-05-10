@@ -21,6 +21,7 @@ inline bool isEq(Real a, Real b, Real tol = 0) {
     return std::abs(a - b) < tol;
 }
 
+// TODO: choose tolerance that works with both 2D and 3D inflator?
 template<typename Vertex, typename TOL = std::ratio<2, long(1e4)>>
 void snapVerticesToUnitCell(std::vector<Vertex> &vertices,
                             std::vector<std::vector<bool>> &onMinFace,

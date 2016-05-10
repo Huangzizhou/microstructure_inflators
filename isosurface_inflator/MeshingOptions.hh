@@ -66,7 +66,20 @@ struct MeshingOptions {
         return ceil((domainLength * sqrt(2.0)) / maxEdgeLenFromMaxArea());
     }
 
+    // Allow user to override the maximum boundary edge length (resolution) to
+    // allow even coarser interior tesselation while still resolving the
+    // boundary. (Without this, the maximum boundary edge length would be tied
+    // to the interior tesselation resolution).
+    double maxBdryEdgeLen() const {
+        if (m_forceMaxBdryEdgeLen) return m_forcedMaxBdryEdgeLen;
+        else return maxEdgeLenFromMaxArea();
+    }
+
     void load(const std::string &jsonPath);
+
+private:
+    bool    m_forceMaxBdryEdgeLen = false;
+    double m_forcedMaxBdryEdgeLen = 1.0;
 };
 
 #endif /* end of include guard: MESHINGOPTIONS_HH */

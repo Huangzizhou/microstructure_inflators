@@ -417,7 +417,7 @@ bool MarchingSquaresGrid::m_closeBoundary(std::vector<Vector2d> &points,
             sortedVertices.push_back({type, vidx});
         }
     }
-    
+
     // We want to start traversal at the first source vertex.
     // We are guaranteed at least one source and sink in the MS result.
     auto it = std::find_if(sortedVertices.begin(), sortedVertices.end(),

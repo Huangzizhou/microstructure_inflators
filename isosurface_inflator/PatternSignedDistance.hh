@@ -4,6 +4,13 @@
 /*! @file
 //      Computes the signed distance to a pattern represented by the inflation
 //      of a WireMesh.
+//
+//      Blending parameters control the smooth minimum operation's parameter, k,
+//      in a nonlinear way:
+//          k = Log[2]/s
+//      This function is chosen such that the maximum normal shape velocity is
+//      unit to match the shape velocity magnitude of the thickness and
+//      positional parameters.
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
@@ -86,15 +93,48 @@ public:
                     Point3<Real> l1 = points[v1] - points[u];
                     Point3<Real> l2 = points[v2] - points[u];
                     l1 /= sqrt(l1.squaredNorm()), l2 /= sqrt(l2.squaredNorm());
-                    // get angle between edges (in [0, Pi])
-                    Real edgeAngle = acos(l1.dot(l2));
+                    // get unsigned angle between edges (in [0, Pi])
+                    // Real edgeAngle = acos(l1.dot(l2));
+                    // std::cout << "ea: " << edgeAngle << std::endl;
+                    Real cosTheta = l1.dot(l2);
+                    Real sinTheta = sqrt(l1.cross(l2).squaredNorm());
+                    // Adept doesn't support atan2...
+                    // Subtlety: prevent singularity (nan) in derivative
+                    // computation. Inverse trig functions acos and asin aren't
+                    // differentiable at +/- 1.0.
+                    // We want to use asin when the angle is [0, pi/4), 
+                    // acos when the angle is in [pi/4, 3pi/4) and pi + asin
+                    // when the angle is in [3pi/4, pi].
+                    //
+                    // Finally, sinTheta itself is nondifferentiable near 0, so
+                    // we explicitly assign 0 to it to avoid nans in automatic
+                    // differentiation (will get zero derivative effect)
+                    // When sinTheta = 0, we interpret the angle as always
+                    // increasing
+                    if (sinTheta < 1e-5) sinTheta = 0.0;
+
+                    // First, determine if we're in the left or right quadrant
+                    Real edgeAngle;
+                    if (cosTheta >= 0.0) {
+                        // Right quadrant
+                        // Now determine if angle >= pi/4 or < pi/4
+                        if (sinTheta >= cosTheta) { edgeAngle = acos(cosTheta); }
+                        else                      { edgeAngle = asin(sinTheta); }
+                    }
+                    else {
+                        // Left quadrant
+                        // Now determine if angle < 3 pi/4 or >= 3 pi/4
+                        if (sinTheta > -cosTheta) { edgeAngle = acos(cosTheta); }
+                        else                      { edgeAngle = M_PI + asin(sinTheta); }
+                    }
+
                     edgeAngle -= angleDeficit1;
                     edgeAngle -= uIsP1OfE2 ? m_edgeGeometry.at(e2).angleAtP1() : m_edgeGeometry.at(e2).angleAtP2();
                     theta = std::min(theta, edgeAngle);
                 }
             }
             Real sinSqTheta = sin(theta);
-            // cout << "Vertex " << u << " theta: " << theta << endl;
+            // std::cout << "Vertex " << u << " theta: " << theta << std::endl;
             sinSqTheta *= sinSqTheta;
             if (theta >= M_PI)           m_vertexSmoothness.push_back(0.0);
             else if (theta > M_PI / 2.0) m_vertexSmoothness.push_back(sinSqTheta);
@@ -102,8 +142,8 @@ public:
         }
 
         // for (size_t u = 0; u < points.size(); ++u) {
-        //     cout << "vertex " << u << " (valence " << m_adjEdges[u].size()
-        //          << ") smoothness: " << m_vertexSmoothness[u] << endl;
+        //     std::cout << "vertex " << u << " (valence " << m_adjEdges[u].size()
+        //          << ") smoothness: " << m_vertexSmoothness[u] << std::endl;
         // }
     }
 
@@ -129,9 +169,24 @@ public:
             incidentDists.clear();
             for (size_t ei : m_adjEdges[u])
                 incidentDists.push_back(edgeDists.at(ei));
-            dist = std::min(dist, SD::mix(SD::min(incidentDists), SD::exp_smin(incidentDists, Real2(m_blendingParams.at(u))),
-                                 Real2(vertexSmoothness(u))));
+            // Vertex smoothness is in [0, 1],
+            //      1.0: full smoothness (m_blendingParams(u))
+            //      0.0: "no" smoothness (1/256.0)
+            Real2 smoothness = m_blendingParams.at(u) * (1/256.0 + (1.0 - 1/256.0) * vertexSmoothness(u));
+            // Transition to precise union for extremely low smoothing
+            if (smoothness > 1/256.0)
+                dist = std::min(dist, SD::exp_smin_reparam(incidentDists, smoothness));
+            else
+                dist = std::min(dist, SD::min(incidentDists));
+
+            // THIS SD::mix-BASED VERSION WAS CAUSING PROBLEMS WITH AUTODIFF
+            // Is vertexSmoothness not differentiable?
+            // dist = std::min(dist, SD::mix(SD::min(incidentDists), SD::exp_smin(incidentDists, Real2(m_blendingParams.at(u))),
+            //                      Real2(vertexSmoothness(u))));
         }
+
+        assert(!std::isnan(stripAdept(dist)));
+        assert(!std::isinf(stripAdept(dist)));
 
         return dist;
     }

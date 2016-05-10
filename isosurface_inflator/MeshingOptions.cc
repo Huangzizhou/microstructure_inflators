@@ -18,7 +18,8 @@ void MeshingOptions::load(const std::string &jsonPath) {
         "cellSize", "edgeSize", "cellRadiusEdgeRatio",
         "marchingSquaresGridSize", "marchingCubesGridSize",
         "maxArea", "featureAngleThreshold", "forceMSGridSize",
-        "marchingSquaresCoarsening", "curvatureAdaptive"
+        "marchingSquaresCoarsening", "curvatureAdaptive",
+        "forceMaxBdryEdgeLen"
     };
     // Validate keys
     for (const auto &v : pt) {
@@ -48,4 +49,9 @@ void MeshingOptions::load(const std::string &jsonPath) {
         marchingSquaresCoarsening = pt.get<size_t>("marchingSquaresCoarsening");
     if (pt.count("curvatureAdaptive"))
         curvatureAdaptive = pt.get<bool>("curvatureAdaptive");
+    if (pt.count("forceMaxBdryEdgeLen")) {
+        m_forceMaxBdryEdgeLen = true;
+        m_forcedMaxBdryEdgeLen = pt.get<double>("forceMaxBdryEdgeLen");
+    }
+
 }

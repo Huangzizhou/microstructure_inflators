@@ -6,6 +6,7 @@
 #include <type_traits>
 
 #include <MeshIO.hh>
+#include <MSHFieldWriter.hh>
 #include <SimplicialMesh.hh>
 #include "AutomaticDifferentiation.hh"
 #include "WireMesh.hh"
@@ -58,8 +59,12 @@ public:
         meshPattern(params);
         // Terminate after initial meshing, for debugging.
         if (m_noPostprocess) return;
-        
+
         bool needsReflecting = generateFullPeriodCell && _mesherGeneratesOrthoCell();
+
+        // std::cout << "Meshed params:";
+        // for (Real p : params) std::cout << "\t" << p;
+        // std::cout << std::endl;
 
         // Determine if meshed domain is 2D or 3D and postprocess accordingly
         BBox<Point> bbox(vertices);
@@ -179,8 +184,16 @@ public:
             adouble sd = patternAutodiff.signedDistance(evalPoints[e].template cast<adouble>().eval());
             sd.set_gradient(1.0);
             stack.reverse();
-            for (size_t p = 0; p < nParams; ++p)
+            for (size_t p = 0; p < nParams; ++p) {
                 partials[p][e] = params[p].get_gradient();
+                if (std::isnan(partials[p][e])) {
+                    std::cerr << "nan sd partial " << p << " at evaluation point "
+                              << evalPoints[e] << std::endl;
+                    std::cout << "sd at pt:\t" << pattern.signedDistance(evalPoints[e]) << std::endl;
+                    std::cout << "autodiff sd at pt:\t" << sd << std::endl;
+                    throw std::runtime_error("nan sd");
+                }
+            }
         }
 
         return partials;
@@ -274,7 +287,7 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     vector<vector<bool>> onMinFace, onMaxFace;
     // WARNING: for non-reflecting inflators, this should snap to bbmin and bbmax!!!
     // TODO: change to pass the meshing cell
-    snapVerticesToUnitCell<>(vertices, onMinFace, onMaxFace);
+    snapVerticesToUnitCell<MeshIO::IOVertex, std::ratio<1, long(1e10)>>(vertices, onMinFace, onMaxFace);
 
     SimplicialMesh<N> symBaseCellMesh(elements, vertices.size());
     // Mark internal cell-face vertices: vertices on the meshing cell
@@ -322,12 +335,27 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     for (size_t i = 0; i < evaluationPoints.size(); ++i) {
         sdGradNorms[i] = sdGradX[i].norm();
         // We evaluate on the boundary--there should be a well-defined normal
-        assert(std::abs(sdGradNorms[i]) > 1e-8);
+        if (std::abs(sdGradNorms[i]) < 1e-8) throw std::runtime_error("Normal undefined.");
     }
 
     for (auto &vn : vnp) {
-        for (size_t i = 0; i < vn.size(); ++i)
+        for (size_t i = 0; i < vn.size(); ++i) {
             vn[i] *= -1.0 / sdGradNorms[i];
+            if (std::isnan(vn[i])) {
+                ScalarField<Real> fail(vertices.size());
+                fail.clear();
+                for (const auto bv : symBaseCellMesh.boundaryVertices()) {
+                    size_t e = evalPointIndex.at(bv.index());
+                    if (e < evaluationPoints.size()) {
+                        if (std::isnan(vn.at(e))) fail[bv.volumeVertex().index()] = 1.0;
+                    }
+                }
+
+                MSHFieldWriter debug("debug.msh", vertices, elements);
+                debug.addField("fail", fail);
+                // assert(false);
+            }
+        }
     }
     BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");
 

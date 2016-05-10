@@ -49,6 +49,27 @@ Real exp_smin(const std::vector<Real> &values, Real k = 32)
     return -log(res) / k;
 }
 
+// exponential smooth min of two values (s = 1/32);
+// reparametrized version: shape velocities are better behaved if we 
+// parametrize by k = 1/s
+template<typename Real>
+Real exp_smin_reparam(Real a, Real b, Real s = 1.0/32)
+{
+    Real res = exp(-a / s) + exp(-b / s);
+    return -log(res) * s;
+}
+
+// exponential smooth min one or more values (s = 1/32);
+template<typename Real>
+Real exp_smin_reparam(const std::vector<Real> &values, Real s = 1.0/32)
+{
+    Real res = 0;
+    for (Real v : values) {
+        res += exp(-v / s);
+    }
+    return -log(res) * s;
+}
+
 // Minimum max(a, b) - min(a, b) such that
 // min(a, b) - exp_smin(a, b) < tol
 // (Note: exp_smin always under-estimates, so this is a bound on the absolute
@@ -194,7 +215,7 @@ public:
         m_axisLength = sqrt(m_axisUnit.squaredNorm());
         m_axisUnit /= m_axisLength;
 
-        m_sinTheta = -(r2 - r1) / m_axisLength;
+        m_sinTheta = (r1 - r2) / m_axisLength;
         m_theta = asin(m_sinTheta);
         m_cosTheta = sqrt(1 - m_sinTheta * m_sinTheta);
 
@@ -211,19 +232,25 @@ public:
         // SFINAE vodoo to optimize this if it's an issue.
 
         Vector3<Real2> v(p - m_c1.template cast<Real2>());
+        Real2 v_normSq = v.squaredNorm();
         Real2 v_parallelComponent = v.dot(m_axisUnit.template cast<Real2>());
-        Vector3<Real2> v_perp = v - v_parallelComponent * m_axisUnit.template cast<Real2>();
-        Real2 v_perpComponent = sqrt(v_perp.squaredNorm());
+        // Max is to avoid numerical issues... (should be fine since we never
+        // need to auto-diff where v_perpComponent = 0, i.e. deep inside
+        // object).
+        Real2 v_perpComponent = sqrt(std::max(Real2(v_normSq - v_parallelComponent * v_parallelComponent), Real2(0.0)));
+
         // Rotate so that conical frustum surface is horizontal
         Real2 x = m_cosTheta * v_parallelComponent - m_sinTheta * v_perpComponent;
 
         // Closest surface is sphere 1
-        if (x < 0) return sqrt(v.squaredNorm()) - m_r1;
+        if (x < 0) return sqrt(v_normSq) - m_r1;
 
         // Closest surface is the conical frustum part (the closest edge of
         // which is horizontal in rotated (x, y) coordinates).
-        Real2 y = m_sinTheta * v_parallelComponent + m_cosTheta * v_perpComponent;
-        if (x < m_edgeLength) return y - m_r1;
+        if (x < m_edgeLength) {
+            Real2 y = m_sinTheta * v_parallelComponent + m_cosTheta * v_perpComponent;
+            return y - m_r1;
+        }
 
         // Closest surface is sphere 2 
         return sqrt((p - m_c2.template cast<Real2>()).squaredNorm()) - m_r2;

@@ -11,6 +11,9 @@
 #include <PeriodicBoundaryMatcher.hh>
 #include <stdexcept>
 
+#define     DEBUG_OUT 0
+#define SDF_DEBUG_OUT 0
+
 using namespace std;
 
 template<class VolumeSDF>
@@ -61,7 +64,7 @@ mesh(const SignedDistanceFunction &sdf,
 
     MidplaneSlice<SignedDistanceFunction> slice(sdf);
 
-#if 0
+#if SDF_DEBUG_OUT
     {
         msquares.outputSignedDistanceField("sdf.msh", slice);
     }
@@ -75,10 +78,10 @@ mesh(const SignedDistanceFunction &sdf,
     for (const auto &s : result.segments)
         edges.insert(edges.end(), s.second.begin(), s.second.end());
 
-    Real maxLen = meshingOptions.maxEdgeLenFromMaxArea();
-    Real minLen = meshingOptions.minEdgeLenFromMaxArea(std::min(bb.dimensions()[0],
-                                                                bb.dimensions()[1]));
-    // std::cout << "Using maxLen " << maxLen << ", minLen " << minLen << std::endl;
+    Real maxLen = meshingOptions.maxBdryEdgeLen();
+    Real domainLength = std::min(bb.dimensions()[0], bb.dimensions()[1]);
+    Real minLen = meshingOptions.minEdgeLenFromMaxArea(domainLength);
+    // std::cout << "Using maxLen " << maxLen << ", minLen " << minLen << "old maxLen: " << meshingOptions.maxEdgeLenFromMaxArea() << std::endl;
 
     // Organized polygon soup into ccw polygons
     std::list<std::list<Point2D>> polygons;
@@ -184,6 +187,18 @@ mesh(const SignedDistanceFunction &sdf,
             variableMinLen.push_back(lengths[i]);
     }
 
+#if DEBUG_OUT
+    std::cout << polygons.size() << " polygons. Sizes:" << std::endl;
+    for (auto &poly : polygons) {
+        std::cout << "\t" << poly.size() << std::endl;
+    }
+
+    {
+        IOElementEdgeSoupFromClosedPolygonList<Point2D> esoup(polygons);
+        MeshIO::save("ms_polygons.msh", esoup);
+    }
+#endif
+
     BENCHMARK_START_TIMER("Curve Cleanup");
     for (auto &poly : polygons) {
         // std::vector<Real> kappa = signedCurvature(poly);
@@ -192,7 +207,7 @@ mesh(const SignedDistanceFunction &sdf,
     }
     BENCHMARK_STOP_TIMER("Curve Cleanup");
 
-#if 0
+#if DEBUG_OUT
     {
         IOElementEdgeSoupFromClosedPolygonList<Point2D> esoup(polygons);
         MeshIO::save("cleaned_polygons.msh", esoup);
@@ -253,6 +268,11 @@ mesh(const SignedDistanceFunction &sdf,
 
     triangulatePSLC(polygons, holePts, vertices, triangles,
                     meshingOptions.maxArea, "Q");
+
+#if DEBUG_OUT
+    MeshIO::save("triangulated_polygon.msh", vertices, triangles);
+#endif
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
