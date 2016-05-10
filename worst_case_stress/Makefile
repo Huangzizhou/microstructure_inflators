@@ -40,11 +40,11 @@ ISOINFLATOR_LIBS+=-L$(ADEPT_LIB) -ladept
 LIBS+=$(ISOINFLATOR_LIBS)
 
 ISOINFLATOR_OBS=../isosurface_inflator/IsosurfaceInflator.o \
-				../isosurface_inflator/CGALClippedVolumeMesher.o \
-				../isosurface_inflator/VCGSurfaceMesher.o \
 				../isosurface_inflator/MeshingOptions.o  \
 				../isosurface_inflator/BoxIntersectionMesher.o \
-				../isosurface_inflator/MidplaneMesher.o
+				../isosurface_inflator/MidplaneMesher.o \
+				# ../isosurface_inflator/VCGSurfaceMesher.o \
+				# ../isosurface_inflator/CGALClippedVolumeMesher.o \
 
 CPPFLAGS+=$(INCLUDES)
 

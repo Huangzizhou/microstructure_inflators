@@ -165,6 +165,7 @@ struct Iterate {
             std::cerr << "Cell problem solve failed: " << e.what() << std::endl;
             MeshIO::save("debug.msh", mesh());
             std::cerr << "Wrote geometry to 'debug.msh'" << std::endl;
+            std::cerr << std::setprecision(19) << std::endl;
             std::cerr << "params:";
             for (size_t i = 0; i < m_params.size(); ++i) std::cerr << "\t" << m_params[i];
             std::cerr << std::endl;

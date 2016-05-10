@@ -137,7 +137,11 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     if (_N == 2) {
         inflator_ptr = make_shared<ConstrainedInflator<_N>>(
                 job->parameterConstraints,
-                args["pattern"].as<string>());
+                args["pattern"].as<string>(),
+                args["cell_size"].as<double>(),
+                0.5 * sqrt(2),
+                args.count("isotropicParameters"),
+                args.count("vertexThickness"));
     }
     else {
         inflator_ptr = make_shared<ConstrainedInflator<_N>>(
@@ -202,7 +206,7 @@ void execute(const po::variables_map &args, const Job<_N> *job)
 
     PatternOptimization::Config::get().ignoreShear = args.count("ignoreShear");
     if (PatternOptimization::Config::get().ignoreShear) cout << "Ignoring shear components" << endl;
-    Optimizer<Simulator> optimizer(inflator, job->radiusBounds, job->translationBounds,
+    Optimizer<Simulator> optimizer(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
                                    job->varLowerBounds, job->varUpperBounds);
     string solver = args["solver"].as<string>(),
            output = args["output"].as<string>();

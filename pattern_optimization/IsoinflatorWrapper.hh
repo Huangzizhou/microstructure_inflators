@@ -2,6 +2,7 @@
 #define ISOINFLATORWRAPPER_HH
 
 #include "../isosurface_inflator/IsosurfaceInflator.hh"
+#include "../isosurface_inflator/IsosurfaceInflatorConfig.hh"
 
 template<size_t N>
 class IsoinflatorWrapper : public InflatorBase<IsoinflatorWrapper<N>> {
@@ -16,7 +17,9 @@ public:
                 (N == 2) ? "2D_orthotropic" :
                 (isotropic_params ? "cubic" : "orthotropic"),
                 vertex_thickness, wireMeshPath)
-    { }
+    {
+        // IsosurfaceInflatorConfig::get().inflationGraphPath = "inflgraph.wire";
+    }
 
     void loadMeshingOptions(const std::string &moptsPath) {
         m_inflator.meshingOptions().load(moptsPath);
@@ -133,10 +136,13 @@ public:
             v_p.resizeDomain(numBV); // clears
             for (auto bv : mesh.boundaryVertices()) {
                 size_t vi = bv.volumeVertex().index();
+                // assert(!std::isnan(n.at(vi)[0]));
+                // assert(!std::isnan(n.at(vi)[1]));
+                // assert(!std::isnan(nsv_p.at(vi)));
                 v_p(bv.index())  = truncateFrom3D<PointND<N>>(n.at(vi));
                 v_p(bv.index()) *= nsv_p.at(vi);
-                assert(!std::isnan(v_p(bv.index())[0]));
-                assert(!std::isnan(v_p(bv.index())[1]));
+                // assert(!std::isnan(v_p(bv.index())[0]));
+                // assert(!std::isnan(v_p(bv.index())[1]));
             }
         }
         return v;

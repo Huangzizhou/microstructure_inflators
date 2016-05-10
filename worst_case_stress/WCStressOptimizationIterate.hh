@@ -137,8 +137,10 @@ template<class _Inflator>
 
     // WARNING: paste this into any subclass that overrides gradient evaluation.
     SField gradp_JFull() const {
-        if (m_fullObjective.hasTargetVolume()) return m_fullObjective.evalGradient(Base::gradp_JS(), gradientWCS_adjoint(), Base::gradp_JVol());
-        else                                   return m_fullObjective.evalGradient(Base::gradp_JS(), gradientWCS_adjoint());
+        if (m_fullObjective.hasTargetVolume()) return m_fullObjective.evalGradient(Base::gradp_JS(), gradientWCS_discrete_adjoint(), Base::gradp_JVol());
+        else                                   return m_fullObjective.evalGradient(Base::gradp_JS(), gradientWCS_discrete_adjoint());
+        // if (m_fullObjective.hasTargetVolume()) return m_fullObjective.evalGradient(Base::gradp_JS(), gradientWCS_adjoint(), Base::gradp_JVol());
+        // else                                   return m_fullObjective.evalGradient(Base::gradp_JS(), gradientWCS_adjoint());
     }
 
     // Direct differentation version of gradient
@@ -202,6 +204,35 @@ template<class _Inflator>
         BENCHMARK_STOP_TIMER("Discrete Forward Grad WCS");
 
         return dJ;
+    }
+
+    ScalarField<Real> gradientWCS_discrete_adjoint() const {
+        BENCHMARK_START_TIMER_SECTION("Discrete Adjoint Grad WCS");
+        assert(!_BypassParameterVelocity);
+
+        BENCHMARK_START_TIMER_SECTION("Adjoint delta J");
+        auto delta_j    = m_wcs_objective.adjointDeltaJ(*m_sim, w_ij);
+        BENCHMARK_STOP_TIMER_SECTION("Adjoint delta J");
+
+        BENCHMARK_START_TIMER_SECTION("Adjoint Interpolation");
+        ShapeVelocityInterpolator interpolator(*m_sim);
+        auto delta_j_vb = interpolator.adjoint(*m_sim, delta_j);
+        BENCHMARK_STOP_TIMER_SECTION("Adjoint Interpolation");
+
+        ScalarField<Real> dJ_p(m_bdry_svels.size());
+        dJ_p.clear();
+        for (size_t p = 0; p < m_bdry_svels.size(); ++p) {
+            const auto &bsvel = m_bdry_svels.at(p);
+            size_t numBV = m_sim->mesh().numBoundaryVertices();
+            assert(delta_j_vb.domainSize() == numBV);
+            assert(     bsvel.domainSize() == numBV);
+            for (size_t bvi = 0; bvi < numBV; ++bvi)
+                dJ_p[p] += delta_j_vb(bvi).dot(bsvel(bvi));
+        }
+
+        BENCHMARK_STOP_TIMER_SECTION("Discrete Adjoint Grad WCS");
+
+        return dJ_p;
     }
 
     Real gradientWCS_discrete_adjoint(size_t p) const {
@@ -473,7 +504,19 @@ template<class _Inflator>
         ScalarField<Real> j = m_wcs_objective.integrandValues();
 
         writer.addField("Pointwise WCS", m_wcs_objective.wcStress.sqrtStressMeasure());
-        writer.addField("j", j);
+        // writer.addField("j", j);
+        SField eigPrincipal(m_wcs_objective.wcStress.eigPrincipal),
+               eigSecondary(m_wcs_objective.wcStress.eigSecondary),
+               eigMult(m_wcs_objective.wcStress.size());
+        SField dist(eigPrincipal.domainSize());
+        for (size_t i = 0; i < eigMult.domainSize(); ++i) {
+            eigMult[i] = Real(m_wcs_objective.wcStress.eigAlgebraicMult.at(i));
+            dist[i] = (eigPrincipal[i] - eigSecondary[i]) / eigPrincipal[i];
+        }
+        writer.addField("Principal eigenvalue", eigPrincipal, DomainType::PER_ELEMENT);
+        writer.addField("Secondary eigenvalue", eigSecondary, DomainType::PER_ELEMENT);
+        writer.addField("Eigenvalue multiplicity", eigMult, DomainType::PER_ELEMENT);
+        writer.addField("Eigenvalue relative distance", dist, DomainType::PER_ELEMENT);
 
         writer.addField("Steepest Descent VVel", steepestDescentVolumeVelocity(), DomainType::PER_NODE);
         auto bdryVel = steepestDescentBoundaryVelocity();

@@ -107,7 +107,24 @@ void execute(const po::variables_map &args,
     auto wcs = worstCaseFrobeniusStress(mat.getTensor(), Sh, m2m);
     // WCSObjective wcsObjective(mesh, wcs);
     auto wcsValues = wcs.sqrtStressMeasure();
-    cout << "Max WCS Stress:\t" << wcsValues.maxMag() << endl;
+
+    Real maxMag = 0;
+    size_t argmaxMag = 0;
+    for (size_t i = 0; i < wcsValues.domainSize(); ++i) {
+        Real val = std::abs(wcsValues[i]);
+        if (val > maxMag) {
+            maxMag = val;
+            argmaxMag = i;
+        }
+    }
+
+    typename Sim::SMatrix peakMacroStress = wcs.wcMacroStress(argmaxMag);
+
+    cout << "Max WCS Stress:\t" << maxMag << endl;
+    cout << "Corresponding Macro Stress:" << endl;
+    cout << peakMacroStress  << endl;
+    cout << "Corresponding Macro strain:" << endl;
+    cout << Sh.doubleContract(peakMacroStress) << endl;
 
     if (args.count("fieldOutput")) {
         MSHFieldWriter writer(args["fieldOutput"].as<string>(), sim.mesh());

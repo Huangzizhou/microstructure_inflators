@@ -44,10 +44,12 @@ public:
     typedef ::PatternOptimization::Iterate<_Sim> Iterate;
     Optimizer(ConstrainedInflator<_N> &inflator, const std::vector<Real> &radiusBounds,
               const std::vector<Real> &translationBounds,
+              const std::vector<Real> &blendingBounds,
               const std::map<size_t, Real> &varLowerBounds,
               const std::map<size_t, Real> &varUpperBounds)
         : m_inflator(inflator), m_radiusBounds(radiusBounds),
-          m_transBounds(translationBounds), m_varLowerBounds(varLowerBounds),
+          m_transBounds(translationBounds), m_blendBounds(blendingBounds),
+          m_varLowerBounds(varLowerBounds),
           m_varUpperBounds(varUpperBounds) { }
 
     template<class _Vector>
@@ -67,6 +69,10 @@ public:
                 case ParameterType::Offset:
                     lowerBounds(p) = m_transBounds.at(0);
                     upperBounds(p) = m_transBounds.at(1);
+                    break;
+                case ParameterType::Blending:
+                    lowerBounds(p) = m_blendBounds.at(0);
+                    upperBounds(p) = m_blendBounds.at(1);
                     break;
                 default: assert(false);
             }
@@ -581,7 +587,7 @@ public:
 
 private:
     ConstrainedInflator<_N> &m_inflator;
-    std::vector<Real> m_patternParams, m_radiusBounds, m_transBounds;
+    std::vector<Real> m_patternParams, m_radiusBounds, m_transBounds, m_blendBounds;
     std::map<size_t, Real> m_varLowerBounds, m_varUpperBounds;
 
 }; // class Optimizer

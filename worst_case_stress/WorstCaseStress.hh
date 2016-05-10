@@ -152,6 +152,8 @@ struct WorstCaseStress {
     // See Worst Case Microstructure writeup for details.
     MinorSymmetricRank4TensorField<N> F, G;
     SMF wcMacroStress;
+    std::vector<int>  eigAlgebraicMult;
+    std::vector<Real> eigPrincipal, eigSecondary;
 };
 
 template<size_t N>
@@ -174,12 +176,16 @@ WorstCaseStress<N> worstCaseFrobeniusStress(
 
     // worst-case macro stress
     result.wcMacroStress.resizeDomain(numElems);
+    result.eigAlgebraicMult.resize(numElems);
+    result.eigPrincipal.resize(numElems);
+    result.eigSecondary.resize(numElems);
     for (size_t i = 0; i < numElems; ++i) {
         // Actually major symmetric, but conversion is not yet supported
         MinorSymmetricRank4Tensor<N> T = result.F[i].transpose().doubleContract(result.F[i]);
         SymmetricMatrixValue<Real, N> sigma;
-        Real lambda;
-        std::tie(sigma, lambda) = T.maxEigenstrain();
+        std::tie(sigma, result.eigPrincipal[i],
+                 result.eigAlgebraicMult[i],
+                 result.eigSecondary[i]) = T.maxEigenstrainMultiplicity();
         result.wcMacroStress(i) = sigma;
     }
     return result;

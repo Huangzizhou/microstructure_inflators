@@ -29,6 +29,19 @@ public:
         if (Config::get().useVtxNormalPerturbationGradientVersion) return m_inflator.gradientFromShapeDerivativeVertexNormalVersion(sd);
         else                                                       return m_inflator.gradientFromShapeDerivative(sd);
     }
+
+    ScalarField<Real> gradientWCS_discrete_adjoint() const {
+        typename Sim::VField sdb = this->steepestDescentBoundaryVelocity();
+        sdb *= -1.0;
+        assert(sdb.domainSize() == this->mesh().numBoundaryVertices());
+        // extractParamsFromBoundaryValues needs a std::vector<VectorND>
+        std::vector<VectorND<N>> bdryField;
+        bdryField.reserve(sdb.domainSize());
+        for (size_t i = 0; i < sdb.domainSize(); ++i) 
+            bdryField.emplace_back(sdb(i));
+        return m_inflator.extractParamsFromBoundaryValues(bdryField);
+    }
+
     ScalarField<Real> gradp_JS() const {
         auto sd = this->shapeDerivativeJS();
         if (Config::get().useVtxNormalPerturbationGradientVersion) return m_inflator.gradientFromShapeDerivativeVertexNormalVersion(sd);
@@ -48,8 +61,10 @@ public:
     }
 
     ScalarField<Real> gradp_JFull() const {
-        if (m_fullObjective.hasTargetVolume()) return m_fullObjective.evalGradient(gradp_JS(), gradientWCS_adjoint(), gradp_JVol());
-        else                                   return m_fullObjective.evalGradient(gradp_JS(), gradientWCS_adjoint());
+        if (m_fullObjective.hasTargetVolume()) return m_fullObjective.evalGradient(gradp_JS(), gradientWCS_discrete_adjoint(), gradp_JVol());
+        else                                   return m_fullObjective.evalGradient(gradp_JS(), gradientWCS_discrete_adjoint());
+        // if (m_fullObjective.hasTargetVolume()) return m_fullObjective.evalGradient(gradp_JS(), gradientWCS_adjoint(), gradp_JVol());
+        // else                                   return m_fullObjective.evalGradient(gradp_JS(), gradientWCS_adjoint());
     }
 
 protected:
