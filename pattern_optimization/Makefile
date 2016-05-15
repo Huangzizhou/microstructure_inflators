@@ -1,14 +1,22 @@
 MeshFEM ?= $(MESHFEM_PATH)
 include $(MeshFEM)/platform_defs.mk
 
+ifeq ($(DEBUG), 1)
+	CPPFLAGS+=-O0 -g
+else
+	CPPFLAGS+=-O2
+endif
+
+ifeq ($(DNDEBUG), 1)
+	CPPFLAGS+=-DNDEBUG
+endif
+
 ################################################################################
 # Configuration section
 ################################################################################
 # **** Configuration: Use the isosurface inflator for 3D ****
 CPPFLAGS+=-DISOSURFACE_INFLATOR -DBENCHMARK
 CPPFLAGS+=-Wall -pedantic -std=c++11
-CPPFLAGS+=-O2
-# CPPFLAGS+=-O0 -g
 # CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
 ################################################################################
 
@@ -44,7 +52,8 @@ SOURCES=PatternOptimization_cli.cc PatternOptimizationJob.cc RandomJob.cc Spaced
 		Inflator_cli.cc ParamRegion_cli.cc
 PATOPT_OBJS=PatternOptimization_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
-			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
+			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS) \
+			optimizers/ceres.o optimizers/dlib.o optimizers/gradient_descent.o
 CREATJOB_OBJS=CreateJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/MSHFieldParser.o $(MeshFEM)/GlobalBenchmark.o
@@ -65,9 +74,15 @@ PREGION_OBJS=ParamRegion_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
 OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_OBJS) $(INFLATOR_OBJS) $(PREGION_OBJS)
 
-DEFAULT_TARGETS=PatternOptimization_cli CreateJob RandomJob GradientComponentValidation Inflator_cli Inflator2D_cli
+DEFAULT_TARGETS=PatternOptimization_cli CreateJob GradientComponentValidation Inflator_cli Inflator2D_cli
 OPTIONAL_TAGETS=SpacedJob ParamRegion_cli
 ALL_TARGETS=$(DEFAULT_TARGETS) $(OPTIONAL_TAGETS)
+
+# DEPENDENCY STUFF
+DEPDIR:=.d
+COMMA:=,
+$(shell mkdir -p $(DEPDIR) >/dev/null)
+DEPFLAGS=-MT $@ -MMD -MP -MF $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).Td
 
 default_build: $(DEFAULT_TARGETS)
 all: $(ALL_TARGETS)
@@ -99,20 +114,21 @@ Inflator2D_cli.o: Inflator_cli.cc Makefile
 ParamRegion_cli: $(PREGION_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
+# Delete built-in rule, forcing ours to run
+%.o: %.cc
 %.o: %.cc Makefile
-	$(CXX) $(CPPFLAGS) -c $< -o $@
+	$(CXX) $(DEPFLAGS) $(CPPFLAGS) -c $< -o $@
+	mv -f $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).Td $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).d
 
+%.o: %.c
 %.o: %.c Makefile
-	$(CC) -c $(CFLAGS) $< -o $@
-
-depend:
-	@touch Makefile.depend;
-	makedepend -Y -f Makefile.depend --  -- -I$(MeshFEM) $(SOURCES) &> /dev/null
+	$(CC) $(DEPFLAGS) -c $(CFLAGS) $< -o $@
+	mv -f $(DEPDIR)/$$(subst .,$(COMMA),$(subst /,__,$*)).Td $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).d
 
 clean:
 	rm -f $(ALL_TARGETS) $(OBJS) *.bak
 
-.PHONY: clean depend
+.PHONY: clean
 
-# Read in the dependency file, if it exists
-sinclude Makefile.depend
+# Read dependencies
+-include $(DEPDIR)/*.d

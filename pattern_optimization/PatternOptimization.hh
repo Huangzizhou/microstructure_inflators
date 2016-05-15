@@ -33,6 +33,10 @@
 
 namespace PatternOptimization {
 
+}
+
+namespace PatternOptimization {
+
 template<class _Sim>
 class Optimizer {
     typedef typename _Sim::VField VField;
@@ -79,72 +83,87 @@ public:
         }
     }
 
-    // Forward declaration so friend-ing can happen
-    class IterationCallback;
+    // Enables creation and sharing of a iterates amongst several objects (e.g.
+    // CeresCostWrapper(s) and IterationCallback)
+    template<class _ItFactory>
+    struct SharedIterateManager {
+        SharedIterateManager(ConstrainedInflator<N> &inflator, const _ETensor &targetS)
+            : m_inflator(inflator), m_targetS(targetS) { }
 
-    struct TensorFitCost : public ceres::CostFunction {
+        Iterate &get(size_t nParams, double *params) {
+            m_currIterate = _ItFactory::getIterate(std::move(m_currIterate),
+                    m_inflator, nParams, parameters[0], m_targetS);
+            return *m_currIterate;
+        }
+
+              Iterate &get()       { assert(m_currIterate); return *m_currIterate; }
+        const Iterate &get() const { assert(m_currIterate); return *m_currIterate; }
+
+        size_t numParameters() const { return m_inflator.numParameters(); }
+        
+    private:
+        _ETensor m_targetS;
+        ConstrainedInflator<_N> &m_inflator;
+        std::unique_ptr<Iterate> m_currIterate;
+    };
+
+    // Wraps (nonlinear) least squares-supporting objective terms
+    // (those with residuals and jacobians)
+    template<class _ItManager>
+    struct CeresCostWrapper : public ceres::CostFunction {
         typedef ceres::CostFunction Base;
-        TensorFitCost(ConstrainedInflator<_N> &inflator, const _ETensor &targetS)
-            : m_inflator(inflator), m_targetS(targetS) {
-            Base::set_num_residuals((_N == 2) ? 6 : 21);
+        CeresCostWrapper(const std::string &quantity, _ItManager &itManager)
+            : m_quantity(quantity), m_itManager(itManager)
+        {
+            const size_t nParams = m_itManager.numParameters();
+            Base::set_num_residuals(Iterate::objectiveTermInfo(quantity, nParams).numResiduals());
             // We put all the pattern parameters in a single parameter block.
-            Base::mutable_parameter_block_sizes()->assign(1,
-                    m_inflator.numParameters());
+            Base::mutable_parameter_block_sizes()->assign(1, nParams);
         }
 
         virtual bool Evaluate(double const * const *parameters,
                 double *residuals, double **jacobians) const {
-            size_t nParams = parameter_block_sizes()[0];
-            m_iterate = getIterate(std::move(m_iterate), m_inflator, nParams,
-                                   parameters[0], m_targetS);
+            const size_t nParams = parameter_block_sizes()[0];
+            auto &it = m_itManager.get(nParams, parameters[0]);
 
-            size_t r = 0;
-            for (size_t i = 0; i < flatLen(_N); ++i)
-                for (size_t j = i; j < flatLen(_N); ++j)
-                    residuals[r++] = m_iterate->residual(i, j);
+            const ObjectiveTerm &term = it.objectiveTerm(m_quantity);
+            const size_t nResiduals = term.numResiduals();
+
+            Real sqrt_weight = sqrt(term.normalizedWeight());
+            for (size_t r = 0; r < nResiduals; ++r)
+                residuals[r] = sqrt_weight * term.residual(r);
 
             if (jacobians == NULL) return true;
 
-            r = 0;
-            for (size_t i = 0; i < flatLen(_N); ++i) {
-                for (size_t j = i; j < flatLen(_N); ++j) {
-                    for (size_t p = 0; p < nParams; ++p)
-                        jacobians[0][r * nParams + p] = m_iterate->jacobian(i, j, p);
-                    ++r;
-                }
+            for (size_t r = 0; r < nResiduals; ++r) {
+                for (size_t p = 0; p < nParams; ++p)
+                    jacobians[0][r * nParams + p] = sqrt_weight * term.jacobian(r, p);
             }
 
             return true;
         }
 
-        const Iterate &currentIterate() const { assert(m_iterate); return *m_iterate; }
+        const Iterate &currentIterate() const { return m_itManager.get(); }
 
-        virtual ~TensorFitCost() { }
+        virtual ~CeresCostWrapper() { }
 
     private:
-        ConstrainedInflator<_N> &m_inflator;
-        _ETensor m_targetS;
-        // Ceres requires Evaluate to be constant, so this caching pointer must
-        // be made mutable.
-        mutable std::unique_ptr<Iterate> m_iterate;
-
-        friend class IterationCallback;
+        const std::string m_quantity;
+        mutable _ItManager &m_itManager;
     };
 
+    template<class _ItManager>
     class IterationCallback : public ceres::IterationCallback {
     public:
-        IterationCallback(TensorFitCost &evalulator, SField &params,
-                const std::string &outPath)
-            : m_evaluator(evalulator), m_params(params), m_outPath(outPath),
+        IterationCallback(_ItManager &itManager, SField &params,
+                          const std::string &outPath)
+            : m_itManager(itManager), m_params(params), m_outPath(outPath),
             m_iter(0) {}
         ceres::CallbackReturnType operator()(const ceres::IterationSummary &sum)
         {
-            auto curr = getIterate(std::move(m_evaluator.m_iterate),
-                            m_evaluator.m_inflator, m_params.size(), &m_params[0],
-                            m_evaluator.m_targetS);
-            /* curr->writeDescription(std::cout); */
-            /* std::cout << std::endl; */
-			/* std::cout << "currently at iteration " << m_iter << std::endl; */
+            Iterate &curr = m_itManager.get(m_params.size(), &m_params[0]);
+            curr->writeDescription(std::cout);
+            std::cout << std::endl;
 
             if (m_outPath != "")
                 curr->writeMeshAndFields(m_outPath + "_" + std::to_string(m_iter));
@@ -155,18 +174,19 @@ public:
 
         virtual ~IterationCallback() { }
     private:
-        TensorFitCost &m_evaluator;
+        _ItManager &m_itManager;
         SField &m_params;
         std::string m_outPath;
         size_t m_iter;
     };
 
-
     void optimize_lm(SField &params, const _ETensor &targetS,
                   const string &outPath) {
-        TensorFitCost *fitCost = new TensorFitCost(m_inflator, targetS);
+        using IM = SharedIterateManager<IterateFactory<>>;
+        IM imanager(m_inflator, targetS);
+        CeresCostWrapper<IM> *js = new CeresCostWrapper<IM>("JS", imanager);
         ceres::Problem problem;
-        problem.AddResidualBlock(fitCost, NULL, params.data());
+        problem.AddResidualBlock(js, NULL, params.data());
 
         size_t nParams = params.domainSize();
         SField lowerBounds(nParams), upperBounds(nParams);
@@ -178,7 +198,7 @@ public:
 
         ceres::Solver::Options options;
         options.update_state_every_iteration = true;
-        IterationCallback cb(*fitCost, params, outPath);
+        IterationCallback<IM> cb(imanager, params, outPath);
         options.callbacks.push_back(&cb);
         // options.minimizer_type = ceres::LINE_SEARCH;
         // options.line_search_direction_type = ceres::BFGS;
@@ -192,44 +212,7 @@ public:
         std::cout << summary.BriefReport() << "\n";
     }
 
-
-    // MHS on AUG 31, 2015:
-	// adding the following  regularization to the cost function
-	// alpha * (p - p0).(p - p0) / 2
-    struct Regularization : public ceres::CostFunction {
-        typedef ceres::CostFunction Base;
-        Regularization(const SField & initialParams, const double regularizationWeight, size_t numParams)
-            : m_initialParams(initialParams), m_weight(regularizationWeight) {
-            Base::set_num_residuals(numParams);
-            // There is only a single block of pattern parameters
-            Base::mutable_parameter_block_sizes()->assign(1, numParams);
-        }
-
-        virtual bool Evaluate(double const * const *parameters,
-                double *residuals, double **jacobians) const {
-
-            size_t nParams = parameter_block_sizes()[0];
-
-			for (size_t i = 0; i < nParams; ++i)
-				residuals[i] = std::sqrt(m_weight) * (parameters[0][i] - m_initialParams[i]);
-
-            if (jacobians == NULL) return true;
-            for (size_t i = 0; i < nParams; ++i)
-            	for (size_t j = 0; j < nParams; ++j)
-                	jacobians[0][i * nParams + j] = (i == j) ? std::sqrt(m_weight) : 0.0;
-
-            return true;
-        }
-
-        virtual ~Regularization() { }
-
-    private:
-        SField m_initialParams;
-        double m_weight;
-    };
-
-	// MHS on Oct 2:
-	// the regularized lm optimizer
+    // Proximity-regularized optimization
 	void optimize_lm_regularized(SField &params,
     							 SField &initialParams,
     							 const double regularizationWeight,
@@ -238,9 +221,12 @@ public:
     							 Real & initialCost,
     							 Real & finalCost,
     							 _ETensor & stiffness) {
-        TensorFitCost *fitCost = new TensorFitCost(m_inflator, targetS);
+        using IM = SharedIterateManager<IterateFactory<IFConfigProximityRegularization>>;
+        IM imanager(m_inflator, targetS);
+        CeresCostWrapper<IM> *js  = new CeresCostWrapper<IM>("JS", imanager);
+        CeresCostWrapper<IM> *reg = new CeresCostWrapper<IM>("ProximityRegularization", imanager);
         ceres::Problem problem;
-        problem.AddResidualBlock(fitCost, NULL, params.data());
+        problem.AddResidualBlock(js, NULL, params.data());
         problem.AddResidualBlock(new Regularization(initialParams, regularizationWeight, params.domainSize()), NULL, params.data());
 
         size_t nParams = params.domainSize();
@@ -253,7 +239,7 @@ public:
 
         ceres::Solver::Options options;
         options.update_state_every_iteration = true;
-        IterationCallback cb(*fitCost, params, outPath);
+        IterationCallback<IM> cb(imanager, params, outPath);
         options.callbacks.push_back(&cb);
         // options.minimizer_type = ceres::LINE_SEARCH;
         // options.line_search_direction_type = ceres::BFGS;
@@ -274,15 +260,14 @@ public:
         finalCost   = summary.final_cost;
 
 		std::unique_ptr<Iterate> final_iter;
+        Iterate &final_iter = imanager.get(params.size(), &params[0]);
 
-        final_iter = getIterate(std::move(final_iter), m_inflator, params.size(), &params[0], targetS);
-
-		_ETensor final_C = final_iter->elasticityTensor();
+		_ETensor final_C = final_iter.elasticityTensor();
 		stiffness = final_C;
 
 		std::cout << "the anisotopy of final C [computed in the optimizer before applying the transformations] is  " << final_C.anisotropy() << std::endl;
-		std::cout << "testing final_iter to output JS " << final_iter->evaluateJS() << std::endl;
-		std::cout << "testing final_iter to output RT " << final_iter->evaluateRT(initialParams, regularizationWeight) << std::endl;
+		std::cout << "testing final_iter to output JS " << final_iter.objectiveTerm("JS").evaluate() << std::endl;
+		std::cout << "testing final_iter to output RT " << final_iter.objectiveTerm("ProximityRegularization").evaluate() << std::endl;
 
 		std::cout << "this is the target C after the optimizer exits:" << std::endl;
 		std::cout << "-----------------------------------------------" << std::endl;
@@ -297,9 +282,11 @@ public:
     // TODO: more tests are needed to see if this is better than lm or not!
     void optimize_dogleg(SField &params, const _ETensor &targetS,
                   const string &outPath) {
-        TensorFitCost *fitCost = new TensorFitCost(m_inflator, targetS);
+        using IM = SharedIterateManager<IterateFactory<>>;
+        IM imanager(m_inflator, targetS);
+        CeresCostWrapper<IM> *js  = new CeresCostWrapper<IM>("JS", imanager);
         ceres::Problem problem;
-        problem.AddResidualBlock(fitCost, NULL, params.data());
+        problem.AddResidualBlock(js, NULL, params.data());
 
         size_t nParams = params.domainSize();
         SField lowerBounds(nParams), upperBounds(nParams);
@@ -311,7 +298,7 @@ public:
 
         ceres::Solver::Options options;
         options.update_state_every_iteration = true;
-        IterationCallback cb(*fitCost, params, outPath);
+        IterationCallback<IM> cb(imanager, params, outPath);
         options.callbacks.push_back(&cb);
         // options.minimizer_type = ceres::LINE_SEARCH;
         // options.line_search_direction_type = ceres::BFGS;
@@ -366,9 +353,11 @@ public:
 
     void optimize_lm_bound_penalty(SField &params, const _ETensor &targetS,
                   const string &outPath) {
-        TensorFitCost *fitCost = new TensorFitCost(m_inflator, targetS);
+        using IM = SharedIterateManager<IterateFactory<>>;
+        IM imanager(m_inflator, targetS);
+        CeresCostWrapper<IM> *js  = new CeresCostWrapper<IM>("JS", imanager);
         ceres::Problem problem;
-        problem.AddResidualBlock(fitCost, NULL, params.data());
+        problem.AddResidualBlock(js, NULL, params.data());
 
         size_t nParams = params.domainSize();
         SField lowerBounds(nParams), upperBounds(nParams);
@@ -381,7 +370,7 @@ public:
 
         ceres::Solver::Options options;
         options.update_state_every_iteration = true;
-        IterationCallback cb(*fitCost, params, outPath);
+        IterationCallback<IM> cb(imanager, params, outPath);
         options.callbacks.push_back(&cb);
 
         ceres::Solver::Summary summary;
@@ -389,31 +378,43 @@ public:
         std::cout << summary.BriefReport() << "\n";
     }
 
+    template<class _ItManager>
     struct LevmarEvaluator {
-        LevmarEvaluator(ConstrainedInflator<_N> &inflator, const _ETensor &targetS)
-            : m_inflator(inflator), m_targetS(targetS) { }
+        LevmarEvaluator(_ItManager &imanager) : m_imanager(imanager) { }
 
         void residual(double *params, double *residual, int numParams, int numResiduals) {
-            m_iterate = getIterate(std::move(m_iterate), m_inflator, numParams, params, m_targetS);
-            size_t r = 0;
-            for (size_t i = 0; i < flatLen(_N); ++i)
-                for (size_t j = i; j < flatLen(_N); ++j)
-                    residual[r++] = m_iterate->residual(i, j);
-            assert(r == (size_t) numResiduals);
+            auto &it = m_imanager.get(numParams, params);
+            size_t offset = 0;
+            for (const auto &term : it.objectiveTerms()) {
+                auto &nllsTerm = dynamic_cast<NLLSObjectiveTerm&>(*term.second);
+                const size_t nr = Iterate::objectiveTermInfo(term.first, numParams).numResiduals();
+                Real sqrt_weight = sqrt(term.normalizedWeight());
+
+                for (size_t r = 0; r < nr; ++r)
+                    residuals[offset + r] = sqrt_weight * nllsTerm.residual(r);
+                offset += nr;
+            }
+
+            assert(offset == (size_t) numResiduals);
         }
     
         // Row major Jacobian
         void jacobian(double *params, double *jacobian, int numParams, int numResiduals) {
-            m_iterate = getIterate(std::move(m_iterate), m_inflator, numParams, params, m_targetS);
-            size_t r = 0;
-            for (size_t i = 0; i < flatLen(_N); ++i) {
-                for (size_t j = i; j < flatLen(_N); ++j) {
+            auto &it = m_imanager.get(numParams, params);
+            size_t offset = 0;
+            for (const auto &term : it.objectiveTerms()) {
+                auto &nllsTerm = dynamic_cast<NLLSObjectiveTerm&>(*term.second);
+                const size_t nr = Iterate::objectiveTermInfo(term.first, numParams).numResiduals();
+                Real sqrt_weight = sqrt(term.normalizedWeight());
+
+                for (size_t r = 0; r < nr; ++r) {
                     for (size_t p = 0; p < size_t(numParams); ++p)
-                        jacobian[r * numParams + p] = m_iterate->jacobian(i, j, p);
-                    ++r;
+                        jacobian[(offset + r) * numParams + p] = sqrt_weight * nllsTerm.jacobian(r, p);
                 }
+                offset += nr;
             }
-            assert(r == (size_t) numResiduals);
+
+            assert(offset == (size_t) numResiduals);
         }
 
         // Residual and Jacobian evaluation callbacks for levmar
@@ -421,24 +422,25 @@ public:
         static void residual(double *params, double *residual, int numParams, int numResiduals, void *instance) { static_cast<LevmarEvaluator *>(instance)->residual(params, residual, numParams, numResiduals); }
         static void jacobian(double *params, double *jacobian, int numParams, int numResiduals, void *instance) { static_cast<LevmarEvaluator *>(instance)->jacobian(params, jacobian, numParams, numResiduals); }
 
-        ConstrainedInflator<_N> &m_inflator;
-        _ETensor m_targetS;
-        std::unique_ptr<Iterate> m_iterate;
+    private:
+        _ItManager &m_imanager;
     };
 
     void optimize_levmar(SField &params, const _ETensor &targetS, size_t niters, const string &outName) {
-        size_t numResiduals = (_N == 2) ? 6 : 21;
+        size_t numResiduals = ObjectiveTermInfo::get<_N>(nParams).numResiduals();
         size_t numParams = params.domainSize();
         SField lowerBounds(numParams), upperBounds(numParams);
         getParameterBounds(lowerBounds, upperBounds);
 
-        LevmarEvaluator eval(m_inflator, targetS);
+        using IM = SharedIterateManager<IterateFactory<>>;
+        IM imanager(m_inflator, targetS);
+        LevmarEvaluator<IM> eval(imanager);
 
         double opts[LM_OPTS_SZ], info[LM_INFO_SZ];
         opts[0]=LM_INIT_MU; opts[1]=1E-15; opts[2]=1E-15; opts[3]=1E-20;
         opts[4]= LM_DIFF_DELTA; // relevant only if the Jacobian is approximated using finite differences; specifies forward differencing 
         // TODO: add iteration completed callback.
-        dlevmar_bc_der(LevmarEvaluator::residual, LevmarEvaluator::jacobian,
+        dlevmar_bc_der(LevmarEvaluator<IM>::residual, LevmarEvaluator<IM>::jacobian,
                        params.data(),
                        NULL, // Since our "measurements" are actually residuals, target x is 0
                        numParams, numResiduals,
@@ -454,11 +456,16 @@ public:
         size_t nParams = params.domainSize();
         SField lowerBounds(nParams), upperBounds(nParams);
         getParameterBounds(lowerBounds, upperBounds);
-        // Gradient Descent Version
+        
+        using IM = SharedIterateManager<IterateFactory<>>;
+        IM imanager(m_inflator, targetS);
+
+        // Gradient descent version
+        // TODO: switch to steepestDescentParam when implemented
         for (size_t i = 0; i < niters; ++i) {
-            Iterate iterate(m_inflator, params.size(), params.data(), targetS);
-            SField gradP = iterate.gradp_JS();
-            iterate.writeDescription(std::cout);
+            auto &it = imanager.get(params.size(), params.data());
+            SField gradp = it.gradp(m_inflator.shapeVelocities());
+            it.writeDescription(std::cout);
             std::cout << std::endl;
 
             params -= gradP * alpha;
@@ -477,11 +484,10 @@ public:
     // Evaluates the objective by inflating the wire mesh and homogenizing.
     // The iterate stored internally also knows how to evaluate the gradient
     // efficiently, so our GradientEvaluator below just accesses it.
+    template<class _ItManager>
     struct DLibObjectiveEvaluator {
-        DLibObjectiveEvaluator(ConstrainedInflator<_N> &inflator,
-                const _ETensor &targetS)
-            : m_inflator(inflator), m_targetS(targetS) {
-            nParams = m_inflator.numParameters();
+        DLibObjectiveEvaluator(_ItManager &imanager) : m_imanager(imanager) {
+            nParams = m_imanager.numParameters();
         };
 
         double operator()(const dlib_vector &x) const {
@@ -489,26 +495,22 @@ public:
             for (size_t p = 0; p < nParams; ++p)
                 x_vec[p] = x(p);
 
-            m_iterate = getIterate(std::move(m_iterate), m_inflator, nParams,
-                                   &x_vec[0], m_targetS);
-            return m_iterate->evaluateJS();
+            auto &it = m_imanager.get(nParams, &x_vec[0]);
+            return it.evaluate();
         }
 
-        const Iterate &currentIterate() const {
-            assert(m_iterate); return *m_iterate;
-        };
+        const Iterate &currentIterate() const { return m_imanager.get(); }
 
         size_t nParams;
     private:
-        // Iterate is mutable so that operator() can be const as dlib requires
-        mutable std::unique_ptr<Iterate> m_iterate;
-        ConstrainedInflator<_N> &m_inflator;
-        _ETensor m_targetS;
+        // Iterate manager is mutable so that operator() can be const as dlib requires
+        mutable _ItManager m_imanager;
     };
     
     // Extracts gradient from the iterate constructed by DLibObjectiveEvaluator.
+    template<class _ItManager>
     struct DLibGradientEvaluator {
-        DLibGradientEvaluator(const DLibObjectiveEvaluator &obj) : m_obj(obj) { }
+        DLibGradientEvaluator(const DLibObjectiveEvaluator<_ItManager> &obj) : m_obj(obj) { }
 
         dlib_vector operator()(const dlib_vector &x) const {
             size_t nParams = m_obj.nParams;
@@ -517,7 +519,7 @@ public:
                 x_vec[p] = x(p);
             if (m_obj.currentIterate().paramsDiffer(nParams, &x_vec[0]))
                 throw std::runtime_error("Objective must be evaluated first");
-            SField gradp(m_obj.currentIterate().gradp_JS());
+            SField gradp(m_obj.currentIterate().gradp());
 
             dlib_vector result(nParams);
             for (size_t p = 0; p < nParams; ++p)
@@ -525,16 +527,17 @@ public:
             return result;
         }
     private:
-        const DLibObjectiveEvaluator &m_obj;
+        const DLibObjectiveEvaluator<_ItManager> &m_obj;
     };
 
     // Hack to get notified at the end of each iteration: subclass the stop
     // strategy.
+    template<class _ItManager>
     class ReportingStopStrategy : public dlib::objective_delta_stop_strategy {
         typedef dlib::objective_delta_stop_strategy Base;
     public:
         ReportingStopStrategy(double min_delta, unsigned long max_iter,
-                              DLibObjectiveEvaluator &obj, const std::string &outPath)
+                              DLibObjectiveEvaluator<_ItManager> &obj, const std::string &outPath)
             : Base(min_delta, max_iter), m_obj(obj), m_outPath(outPath), m_iter(0) { }
 
         template <typename T>
@@ -549,7 +552,7 @@ public:
         }
 
     private:
-        const DLibObjectiveEvaluator &m_obj;
+        const DLibObjectiveEvaluator<_ItManager> &m_obj;
         std::string m_outPath;
         size_t m_iter;
     };
@@ -558,8 +561,11 @@ public:
     // otherwise l-bfgs is used.
     void optimize_bfgs(SField &params, const _ETensor &targetS, size_t niters,
                        const string &outPath, size_t max_size = 0) {
-        DLibObjectiveEvaluator obj(m_inflator, targetS);
-        DLibGradientEvaluator grad(obj);
+        using IM = SharedIterateManager<IterateFactory<>>;
+        IM imanager(m_inflator, targetS);
+
+        DLibObjectiveEvaluator<IM> obj(imanager);
+        DLibGradientEvaluator<IM> grad(obj);
 
         size_t nParams = m_inflator.numParameters();
         // convert initial parameter vector
@@ -572,11 +578,11 @@ public:
 
         if (max_size == 0)
             dlib::find_min_box_constrained(dlib::bfgs_search_strategy(),
-                    ReportingStopStrategy(1e-16, niters, obj, outPath),
+                    ReportingStopStrategy<IM>(1e-16, niters, obj, outPath),
                     obj, grad, optParams, lowerBounds, upperBounds);
         else
             dlib::find_min_box_constrained(dlib::lbfgs_search_strategy(max_size),
-                    ReportingStopStrategy(1e-16, niters, obj, outPath),
+                    ReportingStopStrategy<IM>(1e-16, niters, obj, outPath),
                     obj, grad, optParams, lowerBounds, upperBounds);
 
         // convert solution

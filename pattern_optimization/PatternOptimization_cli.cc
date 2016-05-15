@@ -26,18 +26,42 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <map>
+#include <functional>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
-#include "PatternOptimization.hh"
-#include "PatternOptimizationJob.hh"
+#include "optimizers/ceres.hh"
+#include "optimizers/dlib.hh"
+#include "optimizers/gradient_descent.hh"
 
+#include "PatternOptimizationIterate.hh"
+
+#include "PatternOptimizationJob.hh"
+#include "BoundConstraints.hh"
+#include "IterateFactory.hh"
+#include "IterateManager.hh"
+
+#include "OptimizerConfig.hh"
 #include "PatternOptimizationConfig.hh"
+#include "objective_terms/TensorFit.hh"
+#include "objective_terms/ProximityRegularization.hh"
 
 namespace po = boost::program_options;
 using namespace std;
 using namespace PatternOptimization;
+
+using OptimizerMap =
+    map<string, std::function<void(ScalarField<Real> &, const BoundConstraints &,
+            IterateManagerBase &, const OptimizerConfig &, const string &)>>;
+OptimizerMap optimizers = {
+    {"levenberg_marquardt",  optimize_ceres_lm},
+    {"dogleg",               optimize_ceres_dogleg},
+    {"bfgs",                 optimize_dlib_bfgs},
+    {"lbfgs",                optimize_dlib_bfgs},
+    {"gradient_descent",     optimize_gd}
+};
 
 void usage(int exitVal, const po::options_description &visible_opts) {
     cout << "Usage: PatternOptimization_cli [options] job.opt" << endl;
@@ -68,10 +92,11 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("sub_algorithm,A", po::value<string>()->default_value("simple"),        "subdivision algorithm for 3D inflator (simple or loop)")
         ("max_volume,v", po::value<double>(),                                    "maximum element volume parameter for wire inflator")
         ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
-        ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
-        ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
+        ("step,s",       po::value<double>()->default_value(0.0001),             "gradient descent step size")
+        ("nIters,n",     po::value<size_t>(),                                    "number of iterations (infinite by default)")
         ("fullCellInflator",                                                     "use the full periodic inflator instead of the reflection-based one")
         ("ignoreShear",                                                          "Ignore the shear components in the isotropic tensor fitting")
+        ("proximityRegularizationWeight", po::value<double>(),                   "Use a quadratic proximity regularization term with the specified weight.")
         ;
 
     po::options_description cli_opts;
@@ -105,8 +130,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
-    set<string> solvers = {"gradient_descent", "bfgs", "lbfgs", "levenberg_marquardt", "lm_bd_penalty", "levmar"};
-    if (solvers.count(vm["solver"].as<string>()) == 0) {
+    if (optimizers.count(vm["solver"].as<string>()) == 0) {
         cout << "Illegal solver specified" << endl;
         fail = true;
     }
@@ -204,26 +228,33 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         }
     }
 
-    PatternOptimization::Config::get().ignoreShear = args.count("ignoreShear");
-    if (PatternOptimization::Config::get().ignoreShear) cout << "Ignoring shear components" << endl;
-    Optimizer<Simulator> optimizer(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
-                                   job->varLowerBounds, job->varUpperBounds);
+    using Iterate = Iterate<Simulator>;
+    auto ifactory = make_iterate_factory<Iterate,
+                                         ObjectiveTerms::IFConfigTensorFit<Simulator>,
+                                         ObjectiveTerms::IFConfigProximityRegularization>(inflator, true);
+
+    ifactory->ignoreShear = args.count("ignoreShear");
+    if (ifactory->ignoreShear) cout << "Ignoring shear components" << endl;
+    ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled = false;
+    if (args.count("proximityRegularizationWeight")) {
+        ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled = true;
+        ifactory->ObjectiveTerms::IFConfigProximityRegularization::initParams = job->initialParams;
+        ifactory->ObjectiveTerms::IFConfigProximityRegularization::weight     = args["proximityRegularizationWeight"].as<double>();
+    }
+
+    auto imanager = make_iterate_manager(ifactory);
+    ifactory->targetS = targetS;
+    BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
+                          job->varLowerBounds, job->varUpperBounds);
+
     string solver = args["solver"].as<string>(),
            output = args["output"].as<string>();
-    size_t niters = args["nIters"].as<size_t>();
-    if (solver == "levenberg_marquardt")
-        optimizer.optimize_lm(params, targetS, output);
-    else if (solver == "lm_bd_penalty")
-        optimizer.optimize_lm_bound_penalty(params, targetS, output);
-    else if (solver == "levmar")
-        optimizer.optimize_levmar(params, targetS, niters, output);
-    else if (solver == "gradient_descent")
-        optimizer.optimize_gd(params, targetS, niters,
-                          args["step"].as<double>(), output);
-    else if (solver == "bfgs")
-        optimizer.optimize_bfgs(params, targetS, niters, output);
-    else if (solver == "lbfgs")
-        optimizer.optimize_bfgs(params, targetS, niters, output, 10);
+    OptimizerConfig oconfig;
+    if (args.count("nIters")) oconfig.niters = args["nIters"].as<size_t>();
+    oconfig.gd_step = args["step"].as<double>();
+
+    if (solver == "lbfgs") oconfig.lbfgs_memory = 10;
+    optimizers.at(solver)(params, bdcs, *imanager, oconfig, output);
 
     std::cout << "Final p:";
     std::vector<Real> result(params.domainSize());

@@ -18,8 +18,8 @@ for mesh in fine_meshes/*.msh; do
         Simulate_cli -d2 $tmesh -b <(./pull_y_dirichlet_scaled.sh $yDispMag)   -m $MICRO_DIR/materials/B9Creator.material -o $pully_mesh > /dev/null
         Simulate_cli -d2 $tmesh -b <(./pull_xy_dirichlet_scaled.sh $xyDispMag) -m $MICRO_DIR/materials/B9Creator.material -o $pullxy_mesh > /dev/null
 
-        pully_stress=$(msh_processor  $pully_mesh  -e 'stress' -l --maxMag --max)
-        pullxy_stress=$(msh_processor $pullxy_mesh -e 'stress' -l --maxMag --max)
+        pully_stress=$($MeshFEM/tools/msh_processor  $pully_mesh  -e 'stress' -l --maxMag --max)
+        pullxy_stress=$($MeshFEM/tools/msh_processor $pullxy_mesh -e 'stress' -l --maxMag --max)
 
         echo -ne "$pully_stress\t$pullxy_stress\t"
     done

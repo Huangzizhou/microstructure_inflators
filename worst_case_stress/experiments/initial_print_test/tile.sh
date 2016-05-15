@@ -1,5 +1,5 @@
 #!/usr/bin/env zsh
-for cf in {coarse,fine}; do
+for cf in {coarse,fine_adaptive}; do
     mkdir -p ${cf}_tilings
     for i in ${cf}_meshes/*.msh; do
         cp $i in.msh

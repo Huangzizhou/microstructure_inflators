@@ -2,7 +2,7 @@
 // ParameterConstraints.hh
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
-//      Parses and holds constraints relating the pattern parameters.
+//      Parses and holds constraints relating and bounding the pattern parameters.
 //      Constraints should be LINEAR and of the form:
 //      p0  = p1 + c
 //      p2 <= p1 + c
@@ -20,17 +20,17 @@
 
 class ParameterConstraint {
 public:
-    enum class Type { EQ, LEQ, LE, GEQ, GE, UNKNOWN };
+    enum class Type { EQ, LEQ, GEQ, UNKNOWN };
     ParameterConstraint(size_t numParams, const std::string &constraint)
         : m_numParams(numParams), m_type(Type::UNKNOWN)
     {
-        std::runtime_error invalid("Invalid constraint.");
+        std::runtime_error invalid("Invalid constraint. Only =, <= and >= constraints are allowed.");
 
         // NOTE: Must be arranged longest to shortest.
         static const std::vector<std::string> tokens =
-            { "<=", ">=", "<", ">", "=" };
+            { "<=", ">=", "=" };
         static const std::vector<Type> types =
-            { Type::LEQ, Type::GEQ, Type::LE, Type::GE, Type::EQ };
+            { Type::LEQ, Type::GEQ, Type::EQ };
 
         std::string lhs, rhs;
         for (size_t i = 0; i < tokens.size(); ++i) {
@@ -64,12 +64,16 @@ public:
 
         // Probe for the parameter coefficients, moving them to the LHS
         m_lhsCoeffs.assign(m_numParams, 0.0);
+        m_paramsInvolved.reserve(m_numParams);
         for (size_t p = 0; p < m_numParams; ++p) {
             env.setValue("p" + std::to_string(p), 1.0);
             m_lhsCoeffs[p] = (lhsExpr.eval(env) - lhsConst) -
                              (rhsExpr.eval(env) - rhsConst);
             env.setValue("p" + std::to_string(p), 0.0);
+            if (m_lhsCoeffs[p] != 0.0) m_paramsInvolved.push_back(p);
         }
+        if (m_paramsInvolved.size() == 0) throw std::runtime_error("Invalid constraint: no parameters present.");
+        if (isBoundConstraint()) throw std::runtime_error("Bound constraints should be specified separately.");
     }
 
     // Get this constraint's row in an augmented system of the form (LHS | RHS)
@@ -81,6 +85,8 @@ public:
 
     Type type() const { return m_type; }
     bool isEqualityConstraint() const { return m_type == Type::EQ; }
+    bool isBoundConstraint() const { return (m_paramsInvolved.size() == 1) &&
+                                            ((m_type == Type::LEQ) || (m_type == Type::GEQ)); }
 
     friend std::ostream & operator<<(std::ostream &os, const ParameterConstraint &c) {
         for (size_t p = 0; p < c.m_lhsCoeffs.size(); ++p) {
@@ -89,8 +95,6 @@ public:
 
         switch (c.m_type) {
             case Type::EQ:  os <<  " = "; break;
-            case Type::LE:  os <<  " < "; break;
-            case Type::GE:  os <<  " > "; break;
             case Type::LEQ: os << " <= "; break;
             case Type::GEQ: os << " >= "; break;
             default: throw std::runtime_error("Invalid constraint.");
@@ -104,6 +108,8 @@ private:
     size_t m_numParams;
     Type m_type;
     Real m_rhsConst;
+    size_t m_numParamsInvolved;
+    std::vector<size_t> m_paramsInvolved;
     std::vector<Real> m_lhsCoeffs;
 };
 

@@ -196,7 +196,6 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<2> *j
     Real   stepSize = args[      "step"].as<double>();
     string  outName = args[    "output"].as<string>();
     size_t   niters = args[    "nIters"].as<size_t>();
-    poConfig.fem2DSubdivRounds = args["subdivide"].as<size_t>();
 
     std::vector<MeshIO::IOVertex>  vertices;
     std::vector<MeshIO::IOElement> elements;

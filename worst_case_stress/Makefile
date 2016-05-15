@@ -57,7 +57,10 @@ GRADVALID_OBJS=GradientComponentValidation.o ../pattern_optimization/PatternOpti
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
 WCSOPT_OBJS=WCSOptimization_cli.o ../pattern_optimization/PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
-			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
+			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS) \
+			../pattern_optimization/optimizers/ceres.o \
+			../pattern_optimization/optimizers/dlib.o \
+			../pattern_optimization/optimizers/gradient_descent.o
 WCS_REMESH_OPT_OBJS=WCSRemeshingOptimization_cli.o ../pattern_optimization/PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)

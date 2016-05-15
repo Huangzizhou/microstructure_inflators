@@ -27,6 +27,7 @@
 #include <GlobalBenchmark.hh>
 
 #include "WCStressOptimizationConfig.hh"
+#include "../pattern_optimization/SDConversions.hh"
 
 // Local alias of PeriodicHomogenization namespace.
 namespace {
@@ -678,27 +679,19 @@ struct IntegratedWorstCaseObjective {
 
         // Gamma term
         BENCHMARK_START_TIMER_SECTION("Gamma Term");
-        auto sdCh = PH::homogenizedElasticityTensorGradient(w, sim);
-        auto gamma = dJ_dCH(sim);
-        using ETensorSD = PH::BEHTensorGradInterpolant<Sim>;
-        using GTermSD   = Interpolant<Real, ETensorSD::K, ETensorSD::Deg>;
-        GTermSD gammaTermIntegrand;
-        for (auto be : mesh.boundaryElements()) {
-            if (be->isPeriodic) continue;
-            const ETensorSD &dCh_e = sdCh.at(be.index());
-            for (size_t i = 0; i < gammaTermIntegrand.size(); ++i)
-                gammaTermIntegrand[i] = gamma.quadrupleContract(dCh_e[i]);
-            // Integrate against each boundary vertex's linear shape function
-            for (auto bv : be.vertices()) {
-                Interpolant<Real, GTermSD::K, 1> bary_bv;
-                bary_bv = 0.0;
-                bary_bv[bv.localIndex()] = 1.0;
-                delta_j(bv.volumeVertex().index()) += be->normal() *
-                    Quadrature<GTermSD::K, GTermSD::Deg + 1>::integrate(
-                            [&](const VectorND<be.numVertices()> &p) { return
-                                bary_bv(p) * gammaTermIntegrand(p);
-                            }, be->volume());
+        {
+            MinorSymmetricRank4Tensor<N> gamma = dJ_dCH(sim);
+            using ETensorSD = PH::BEHTensorGradInterpolant<Sim>;
+            using GTermSD   = Interpolant<Real, ETensorSD::K, ETensorSD::Deg>;
+            std::vector<ETensorSD> sdCh = PH::homogenizedElasticityTensorGradient(w, sim);
+            std::vector<GTermSD> gammaTermFunctional(sdCh.size());
+            for (size_t i = 0; i < sdCh.size(); ++i) {
+                for (size_t j = 0; j < ETensorSD::size(); ++j)
+                    gammaTermFunctional[i][j] = gamma.quadrupleContract(sdCh[i][j]);
             }
+            auto gterm_bdry = SDConversions::diff_bdry_from_nsv_functional(gammaTermFunctional, mesh);
+            for (auto bv : mesh.boundaryVertices())
+                delta_j(bv.volumeVertex().index()) += gterm_bdry(bv.index());
         }
         BENCHMARK_STOP_TIMER_SECTION("Gamma Term");
 

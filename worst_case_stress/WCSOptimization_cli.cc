@@ -31,6 +31,7 @@
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <functional>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
@@ -39,24 +40,49 @@
 #include <PatternOptimizationJob.hh>
 #include <PatternOptimizationConfig.hh>
 
-#include "WCSOptimization.hh"
-#include "WCSObjective.hh"
-
-#include "WCStressOptimizationIterate.hh"
-#include "BoundaryPerturbationIterate.hh"
+#include <BoundConstraints.hh>
+#include <IterateFactory.hh>
+#include <IterateManager.hh>
 
 #include <LpHoleInflator.hh>
 #include <BoundaryPerturbationInflator.hh>
 
+#include <optimizers/ceres.hh>
+#include <optimizers/dlib.hh>
+#include <optimizers/gradient_descent.hh>
+
+#include <PatternOptimizationIterate.hh>
+
+#include <OptimizerConfig.hh>
+#include <PatternOptimizationConfig.hh>
+#include <objective_terms/TensorFit.hh>
+#include <objective_terms/ProximityRegularization.hh>
+#include "WCSObjectiveTerm.hh"
+
+#include "WCSObjective.hh"
+
 namespace po = boost::program_options;
+namespace PO = PatternOptimization;
 using namespace std;
 using namespace WCStressOptimization;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: PatternOptimization_cli [options] job.opt" << endl;
+    cout << "Usage: WCSOptimization_cli [options] job.opt" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
 }
+
+using OptimizerMap =
+    map<string, std::function<void(ScalarField<Real> &, const PO::BoundConstraints &,
+            PO::IterateManagerBase &, const PO::OptimizerConfig &, const string &)>>;
+
+OptimizerMap optimizers = {
+    {"levenberg_marquardt",  optimize_ceres_lm},
+    {"dogleg",               optimize_ceres_dogleg},
+    {"bfgs",                 optimize_dlib_bfgs},
+    {"lbfgs",                optimize_dlib_bfgs},
+    {"gradient_descent",     optimize_gd}
+};
 
 po::variables_map parseCmdLine(int argc, const char *argv[])
 {
@@ -97,8 +123,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("pnorm,P",      po::value<double>()->default_value(1.0),         "pnorm used in the Lp global worst case stress measure")
         ("usePthRoot,R",                                                  "Use the true Lp norm for global worst case stress measure (applying pth root)")
         ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
-        ("JSWeight",     po::value<double>()->default_value(0.0),         "Weight for the JS term of the objective")
-        ("JVolWeight",   po::value<double>()->default_value(0.0),         "Weight for the JVol term of the objective")
+        ("JSWeight",     po::value<double>(),                             "Use the NLLS tensor fitting term with specified weight.")
+        ("proximityRegularizationWeight", po::value<double>(),            "Use a quadratic proximity regularization term with the specified weight.")
         ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ;
 
@@ -178,11 +204,9 @@ typedef ScalarField<Real> SField;
 #include "InflatorTraits.inl"
 
 template<size_t _N, size_t _FEMDegree, template<size_t> class _ITraits>
-void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *job)
+void execute(const po::variables_map &args, const PO::Job<_N> *job)
 {
-    using _Inflator = typename _ITraits<_N>::type;
     auto inflator_ptr = _ITraits<_N>::construct(args, job);
-
     auto &inflator = *inflator_ptr;
 
     auto targetC = job->targetMaterial.getTensor();
@@ -210,28 +234,62 @@ void execute(const po::variables_map &args, const PatternOptimization::Job<_N> *
 
     SField params = _ITraits<_N>::initParams(inflator_ptr, args, job);
 
-    PatternOptimization::Config::get().ignoreShear = args.count("ignoreShear");
-    if (PatternOptimization::Config::get().ignoreShear) cout << "Ignoring shear components" << endl;
-    Optimizer<Simulator, _Inflator, _ITraits<_N>::template Iterate>
-        optimizer(inflator, job->radiusBounds,   job->translationBounds, job->blendingBounds,
-                            job->varLowerBounds, job->varUpperBounds);
+    // TODO: Laplacian regularization term (probably only needed for boundary
+    // perturbation version.
 
-    // Create scalarized multi-objective with weights specified by the
-    // arguments.
-    WCStressOptimization::Objective<_N> fullObjective(targetS,
-                                args[  "JSWeight"].as<double>(),
-                                args[ "WCSWeight"].as<double>(),
-                                args["JVolWeight"].as<double>(),
-                                args["LaplacianRegWeight"].as<double>());
+    using WCSTermConfig       = PO::ObjectiveTerms::IFConfigWorstCaseStress<Simulator>;
+    using TensorFitTermConfig = PO::ObjectiveTerms::IFConfigTensorFit<Simulator>;
+    using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
+    bool isParametric = _ITraits<_N>::isParametric();
 
+    // TODO: what to do for boundary perturbation inflator? higher order optimizers should
+    // probably check that they're running on a parametric iterate factory, and
+    // gradient descent should allow resizing of params otherwise.
+    auto ifactory = PO::make_iterate_factory<PO::Iterate<Simulator>,
+                                             WCSTermConfig,
+                                             TensorFitTermConfig,
+                                             PRegTermConfig>(inflator, isParametric);
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // Configure the objective terms
+    ////////////////////////////////////////////////////////////////////////////////
+    ifactory->WCSTermConfig      ::enabled = true;
+    ifactory->TensorFitTermConfig::enabled = args.count("JSWeight");
+    ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
+
+    ifactory->WCSTermConfig::weight = args[ "WCSWeight"].as<double>();
+
+    if (args.count("JSWeight")) {
+        ifactory->TensorFitTermConfig::weight  = args["JSWeight"].as<double>();
+        ifactory->TensorFitTermConfig::targetS = targetS;
+        ifactory->TensorFitTermConfig::ignoreShear = args.count("ignoreShear");
+        if (ifactory->TensorFitTermConfig::ignoreShear) cout << "Ignoring shear components" << endl;
+    }
+
+    if (args.count("proximityRegularizationWeight")) {
+        ifactory->PRegTermConfig::initParams = job->initialParams;
+        ifactory->PRegTermConfig::weight     = args["proximityRegularizationWeight"].as<double>();
+    }
+
+    auto imanager = PO::make_iterate_manager(ifactory);
+    PO::BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
+                              job->varLowerBounds, job->varUpperBounds);
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // Run the optimizer
+    ////////////////////////////////////////////////////////////////////////////////
     string solver = args["solver"].as<string>(),
            output = args["output"].as<string>();
-    size_t niters = args["nIters"].as<size_t>();
+    PO::OptimizerConfig oconfig;
+    if (args.count("nIters")) oconfig.niters = args["nIters"].as<size_t>();
+    oconfig.gd_step = args["step"].as<double>();
 
-    if (solver == "gradient_descent") optimizer.optimize_gd(  params, fullObjective, niters, args["step"].as<double>(), output);
-    else if (solver == "bfgs")        optimizer.optimize_bfgs(params, fullObjective, niters, output, 0);
-    else if (solver == "lbfgs")       optimizer.optimize_bfgs(params, fullObjective, niters, output, 10);
+    if (solver == "lbfgs") oconfig.lbfgs_memory = 10;
+    optimizers.at(solver)(params, bdcs, *imanager, oconfig, output);
 
+    ////////////////////////////////////////////////////////////////////////////////
+    // Extract and process the result.
+    ////////////////////////////////////////////////////////////////////////////////
     std::vector<Real> result(params.domainSize());
     for (size_t i = 0; i < result.size(); ++i)
         result[i] = params[i];
@@ -247,12 +305,12 @@ int main(int argc, const char *argv[])
 
     po::variables_map args = parseCmdLine(argc, argv);
 
-    auto job = PatternOptimization::parseJobFile(args["job"].as<string>());
+    auto job = PO::parseJobFile(args["job"].as<string>());
 
     auto inflator = args["inflator"].as<string>();
 
     size_t deg = args["degree"].as<size_t>();
-    if (auto job2D = dynamic_cast<PatternOptimization::Job<2> *>(job)) {
+    if (auto job2D = dynamic_cast<PO::Job<2> *>(job)) {
         if (inflator == "original") {
             if (deg == 1) execute<2, 1, InflatorTraitsConstrainedInflator>(args, job2D);
             if (deg == 2) execute<2, 2, InflatorTraitsConstrainedInflator>(args, job2D);
@@ -267,7 +325,7 @@ int main(int argc, const char *argv[])
         }
         else throw std::runtime_error("Unknown inflator: " + inflator);
     }
-    else if (auto job3D = dynamic_cast<PatternOptimization::Job<3> *>(job)) {
+    else if (auto job3D = dynamic_cast<PO::Job<3> *>(job)) {
         if (inflator == "original") {
             if (deg == 1) execute<3, 1, InflatorTraitsConstrainedInflator>(args, job3D);
             if (deg == 2) execute<3, 2, InflatorTraitsConstrainedInflator>(args, job3D);

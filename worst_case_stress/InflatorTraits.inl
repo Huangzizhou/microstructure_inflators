@@ -4,7 +4,7 @@
 template<size_t N>
 struct InflatorTraits {
     template<class Sim>
-    using Iterate = WCStressOptimization::Iterate<Sim>;
+    using Iterate = PO::Iterate<Sim>;
 
     template<class type>
     static SField initParams(shared_ptr<type> iptr,
@@ -45,6 +45,8 @@ struct InflatorTraits {
             cout << "\t" << result[i];
         cout << endl;
     }
+
+    static constexpr bool isParametric() { return true; }
 };
 
 template<size_t N>
@@ -128,10 +130,6 @@ template<size_t N>
 struct InflatorTraitsBoundaryPerturbation : public InflatorTraits<N> {
     using type = BoundaryPerturbationInflator<N>;
 
-    // Special iterate for BoundaryPerturbationInflator
-    template<class Sim>
-    using Iterate = WCStressOptimization::BoundaryPerturbationIterate<Sim>;
-
     static shared_ptr<type> construct(const po::variables_map &args, const PatternOptimization::Job<N> * /* job */) {
         std::vector<MeshIO::IOVertex>  vertices;
         std::vector<MeshIO::IOElement> elements;
@@ -158,6 +156,8 @@ struct InflatorTraitsBoundaryPerturbation : public InflatorTraits<N> {
                          const po::variables_map &/* args */,
                          const PatternOptimization::Job<N> * /* job */) {
     }
+
+    static constexpr bool isParametric() { return false; }
 };
 
 #endif /* end of include guard: INFLATORTRAITS_INL */
