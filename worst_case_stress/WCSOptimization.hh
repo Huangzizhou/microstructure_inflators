@@ -203,14 +203,14 @@ public:
         dlib_vector lowerBounds(nParams), upperBounds(nParams);
         getParameterBounds(lowerBounds, upperBounds);
 
+        auto stopStrategy = ReportingStopStrategy(1e-16, niters, obj, outPath);
+        stopStrategy.be_verbose();
         if (max_size == 0)
             dlib::find_min_box_constrained(dlib::bfgs_search_strategy(),
-                    ReportingStopStrategy(1e-16, niters, obj, outPath),
-                    obj, grad, optParams, lowerBounds, upperBounds);
+                    stopStrategy, obj, grad, optParams, lowerBounds, upperBounds);
         else
             dlib::find_min_box_constrained(dlib::lbfgs_search_strategy(max_size),
-                    ReportingStopStrategy(1e-16, niters, obj, outPath),
-                    obj, grad, optParams, lowerBounds, upperBounds);
+                    stopStrategy, obj, grad, optParams, lowerBounds, upperBounds);
 
         // convert solution
         for (size_t p = 0; p < nParams; ++p)

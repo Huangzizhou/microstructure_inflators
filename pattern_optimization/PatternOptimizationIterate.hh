@@ -163,7 +163,7 @@ struct Iterate : public IterateBase {
     }
 
     // Steepest descent parameter vector in terms of object's L2 metric. 
-    SField steepestDescentParam(const std::vector<VField> &bdrySVels) const {
+    SField steepestDescentParam(const std::vector<VField> &/*bdrySVels*/) const {
         throw std::runtime_error("steepestDescentParam unimplemented");
     }
 

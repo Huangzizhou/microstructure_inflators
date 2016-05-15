@@ -108,7 +108,6 @@ private:
     size_t m_numParams;
     Type m_type;
     Real m_rhsConst;
-    size_t m_numParamsInvolved;
     std::vector<size_t> m_paramsInvolved;
     std::vector<Real> m_lhsCoeffs;
 };
