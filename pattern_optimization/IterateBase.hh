@@ -21,6 +21,8 @@
 namespace PatternOptimization {
 
 struct IterateBase {
+    using EOTPtr = std::unique_ptr<EvaluatedObjectiveTerm>;
+
     using SField = ScalarField<Real>;
     // parametricOptimization: whether we're running a lower-dimensional
     // parametric optimization where gradients must be computed by taking inner
@@ -39,6 +41,11 @@ struct IterateBase {
     const EvaluatedObjectiveTerm &evaluatedObjectiveTerm(size_t i) const {
         m_assertParametric();
         return *m_evaluatedObjectiveTerms.at(i);
+    }
+
+    const std::vector<EOTPtr> &evaluatedObjectiveTerms() const {
+        m_assertParametric();
+        return m_evaluatedObjectiveTerms;
     }
 
     virtual size_t numObjectiveTerms() const { return m_evaluatedObjectiveTerms.size(); }
@@ -95,8 +102,9 @@ protected:
         if (!m_parametricOptimization)
             throw std::runtime_error("This operation is only supported for parametric optimization.");
     }
+
     // Filled out by subclass
-    std::vector<std::unique_ptr<EvaluatedObjectiveTerm>> m_evaluatedObjectiveTerms;
+    std::vector<EOTPtr> m_evaluatedObjectiveTerms;
 };
 
 }

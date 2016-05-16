@@ -35,6 +35,7 @@
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <Inflator.hh>
 #include <PatternOptimizationJob.hh>
@@ -134,6 +135,15 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("degree,d",     po::value<size_t>()->default_value(2),  "FEM Degree")
         ;
 
+    po::options_description gvOptions;
+    gvOptions.add_options()
+        ("validateGradientComponent", po::value<size_t>(),                   "Run gradient component validation instead of optimization")
+        ("nsamples",                  po::value<size_t>()->default_value(5), "Number of gradient component validation samples")
+        ("range",                     po::value<string>(),                   "Absolute sweep range (lower:upper)")
+        ("rangeRelative",             po::value<double>(),                   "Relative sweep range: current +/- arg * paramBound(compIdx)")
+        ("singleIteration",           po::value<size_t>(),                   "Only run the ith iteration of the validation")
+        ;
+
     po::options_description generalOptions;
     generalOptions.add_options()
         ("help,h",                                               "Produce this help message")
@@ -143,7 +153,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description visibleOptions;
     visibleOptions.add(patternOptions).add(meshingOptions).add(optimizerOptions)
-                  .add(objectiveOptions).add(elasticityOptions).add(generalOptions);
+                  .add(objectiveOptions).add(elasticityOptions).add(gvOptions).add(generalOptions);
 
     po::options_description cli_opts;
     cli_opts.add(visibleOptions).add(hidden_opts);
@@ -216,7 +226,7 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     targetC.printOrthotropic(cout);
     cout << endl;
 
-    cout << "target tensor: " << targetC << endl;
+    // cout << "target tensor: " << targetC << endl;
 
     typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh;
     typedef LinearElasticity::Simulator<Mesh> Simulator;
@@ -250,9 +260,9 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
                                              TensorFitTermConfig,
                                              PRegTermConfig>(inflator, isParametric);
 
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     ifactory->WCSTermConfig      ::enabled = true;
     ifactory->TensorFitTermConfig::enabled = args.count("JSWeight");
     ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
@@ -275,9 +285,69 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     PO::BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
                               job->varLowerBounds, job->varUpperBounds);
 
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
+    // Gradient component validation, if requested, bypasses optimization 
+    ////////////////////////////////////////////////////////////////////////////
+    if (args.count("validateGradientComponent")) {
+        size_t compIdx = args["validateGradientComponent"].as<size_t>();
+        if (compIdx >= params.domainSize()) throw runtime_error("Gradient component index out of bounds");
+        if (args.count("range") == args.count("rangeRelative"))
+            throw runtime_error("Either range or rangeRelative must be specified (not both)");
+
+        if (!bdcs.hasLowerBound.at(compIdx) || !bdcs.hasUpperBound.at(compIdx))
+            throw runtime_error("Swept parameters must be bounded");
+
+        Real prlb = bdcs.lowerBound[compIdx], prub = bdcs.upperBound[compIdx];
+        Real lb, ub;
+
+        if (args.count("range")) {
+            auto rangeStr = args["range"].as<string>();
+            vector<string> rangeComponents;
+            boost::trim(rangeStr), boost::split(rangeComponents, rangeStr, boost::is_any_of(":"));
+            if (rangeComponents.size() != 2) throw runtime_error("Invalid range; expected lower:upper");
+            lb = stod(rangeComponents[0]), ub = stod(rangeComponents[1]);
+        }
+        else {
+            Real rr = args["rangeRelative"].as<double>();
+            Real prSize = prub - prlb;
+            lb = params[compIdx] - rr * prSize, ub = params[compIdx] + rr * prSize;
+        }
+
+        if ((lb < prlb) || (ub > prub)) {
+            std::cerr << "WARNING: Specified sweep range of " << lb << ":" << ub
+                << " outside parameter range of " << prlb << ":" << prub << std::endl;
+        }
+
+        params[compIdx] = lb; // make dummy iterate below actually 0th iterate.
+        cout << "it\tparam\tJFull\tgradp JFull";
+        {
+            auto &it = imanager->get(params.size(), params.data());
+            for (const auto &etermptr : it.evaluatedObjectiveTerms())
+                cout << "\t" << etermptr->name << "\tgradp " << etermptr->name;
+        }
+        cout << endl;
+
+        const size_t nsamples = args["nsamples"].as<size_t>();
+        for (size_t i = 0; i < nsamples; ++i) {
+            if (args.count("singleIteration")) i = args["singleIteration"].as<size_t>();
+            params[compIdx] = lb + ((nsamples == 1) ? 0.0 : (ub - lb) * (double(i) / (nsamples - 1)));
+            auto &it = imanager->get(params.size(), params.data());
+            cout << i << "\t" << params[compIdx] << "\t" << it.evaluate() << "\t" << it.gradp()[compIdx];
+            for (const auto &etermptr : it.evaluatedObjectiveTerms())
+                cout << "\t" << etermptr->value() << "\t" << etermptr->gradp[compIdx];
+            cout << endl;
+
+            if (args.count("output")) it.writeMeshAndFields(args["output"].as<string>() + "_" + std::to_string(i) + ".msh");
+            if (args.count("singleIteration")) break;
+        }
+
+        // BENCHMARK_REPORT();
+        return;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
     // Run the optimizer
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     string solver = args["solver"].as<string>(),
            output = args["output"].as<string>();
     PO::OptimizerConfig oconfig;
@@ -287,9 +357,9 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     if (solver == "lbfgs") oconfig.lbfgs_memory = 10;
     optimizers.at(solver)(params, bdcs, *imanager, oconfig, output);
 
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     // Extract and process the result.
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     std::vector<Real> result(params.domainSize());
     for (size_t i = 0; i < result.size(); ++i)
         result[i] = params[i];
