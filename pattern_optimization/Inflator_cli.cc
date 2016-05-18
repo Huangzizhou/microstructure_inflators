@@ -131,11 +131,11 @@ int main(int argc, const char *argv[])
     if (args.count("constraints"))
         constraints = args["constraints"].as<vector<string>>();
 
-#if DIMENSIONS==3
     Real cellSize = args["cell_size"].as<double>();
     bool isotropicParameters = args.count("isotropicParameters");
     bool vertexThickness = args.count("vertexThickness");
 
+#if DIMENSIONS==3
     ConstrainedInflator<3> inflator(constraints, args["pattern"].as<string>(),
             cellSize, defaultThickness, isotropicParameters, vertexThickness);
 
@@ -162,7 +162,8 @@ int main(int argc, const char *argv[])
     }
 #else
     // 2D inflator doesn't support many of the configuration options 3D supports
-    ConstrainedInflator<2> inflator(constraints, args["pattern"].as<string>());
+    ConstrainedInflator<2> inflator(constraints, args["pattern"].as<string>(),
+            cellSize, defaultThickness, isotropicParameters, vertexThickness);
 #endif
 
     if (args.count("max_volume"))

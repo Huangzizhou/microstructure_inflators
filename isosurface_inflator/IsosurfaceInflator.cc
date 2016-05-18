@@ -189,8 +189,8 @@ public:
                 if (std::isnan(partials[p][e])) {
                     std::cerr << "nan sd partial " << p << " at evaluation point "
                               << evalPoints[e] << std::endl;
-                    std::cout << "sd at pt:\t" << pattern.signedDistance(evalPoints[e]) << std::endl;
-                    std::cout << "autodiff sd at pt:\t" << sd << std::endl;
+                    std::cerr << "sd at pt:\t" << pattern.signedDistance(evalPoints[e]) << std::endl;
+                    std::cerr << "autodiff sd at pt:\t" << sd << std::endl;
                     throw std::runtime_error("nan sd");
                 }
             }
@@ -322,6 +322,32 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
         evalPointIndex[bv.index()] = evaluationPoints.size();
         evaluationPoints.push_back(vertices.at(bv.volumeVertex().index()));
     }
+
+#if 0
+    {
+        MSHFieldWriter debug("debug.msh", vertices, elements);
+        for (size_t d = 0; d < N; ++d) {
+            ScalarField<Real> minFaceIndicator(vertices.size()), maxFaceIndicator(vertices.size());
+            for (size_t i = 0; i < vertices.size(); ++i) {
+                minFaceIndicator[i] = onMinFace[d].at(i) ? 1.0 : 0.0;
+                maxFaceIndicator[i] = onMaxFace[d].at(i) ? 1.0 : 0.0;
+            }
+            debug.addField("onMinFace[" + std::to_string(d) + "]", minFaceIndicator);
+            debug.addField("onMaxFace[" + std::to_string(d) + "]", maxFaceIndicator);
+        }
+        ScalarField<Real> evalPtIndicator(vertices.size());
+        ScalarField<Real> icfv(vertices.size());
+        evalPtIndicator.clear();
+        icfv.clear();
+        for (auto bv : symBaseCellMesh.boundaryVertices()) {
+            if (evalPointIndex[bv.index()] < evaluationPoints.size())
+                evalPtIndicator[bv.volumeVertex().index()] = 1.0;
+            icfv[bv.volumeVertex().index()] = internalCellFaceVertex.at(bv.index()) ? 1.0 : 0.0;
+        }
+        debug.addField("isEvalPoint", evalPtIndicator);
+        debug.addField("internalCellFaceVertex", icfv);
+    }
+#endif
 
     BENCHMARK_STOP_TIMER("SnapAndDetermineEvaluationPts");
 

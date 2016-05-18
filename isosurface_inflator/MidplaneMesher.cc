@@ -202,8 +202,9 @@ mesh(const SignedDistanceFunction &sdf,
     BENCHMARK_START_TIMER("Curve Cleanup");
     for (auto &poly : polygons) {
         // std::vector<Real> kappa = signedCurvature(poly);
+        Real cellEpsilon = 0.0; // Marching squares guarantees cell boundary vertex coords are exact
         curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
-                meshingOptions.featureAngleThreshold, periodic, variableMinLen);
+                meshingOptions.featureAngleThreshold, periodic, variableMinLen, cellEpsilon);
     }
     BENCHMARK_STOP_TIMER("Curve Cleanup");
 

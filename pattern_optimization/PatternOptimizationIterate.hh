@@ -100,7 +100,7 @@ struct Iterate : public IterateBase {
         // std::cout << "Homogenizing" << std::endl;
 
         try {
-            PeriodicHomogenization::solveCellProblems(w_ij, *m_sim);
+            PeriodicHomogenization::solveCellProblems(w_ij, *m_sim, 1e-9);
         }
         catch(std::exception &e) {
             std::cerr << "Cell problem solve failed: " << e.what() << std::endl;

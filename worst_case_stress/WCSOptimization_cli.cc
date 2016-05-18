@@ -146,9 +146,9 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description generalOptions;
     generalOptions.add_options()
-        ("help,h",                                               "Produce this help message")
-        ("output,o",     po::value<string>()->default_value(""), "output mesh and fields at each iteration")
-        ("dumpShapeDerivatives"  , po::value<string>(),          "Dump shape derivative fields for JVol, JS, and WCS")
+        ("help,h",                                      "Produce this help message")
+        ("output,o",     po::value<string>(),           "output mesh and fields at each iteration")
+        ("dumpShapeDerivatives"  , po::value<string>(), "Dump shape derivative fields for JVol, JS, and WCS")
         ;
 
     po::options_description visibleOptions;
@@ -221,10 +221,12 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
 
     auto targetC = job->targetMaterial.getTensor();
     ETensor<_N> targetS = targetC.inverse();
-
-    cout << "Target moduli:\t";
-    targetC.printOrthotropic(cout);
-    cout << endl;
+    bool gradientValidationMode = args.count("validateGradientComponent");
+    if (!gradientValidationMode) {
+        cout << "Target moduli:\t";
+        targetC.printOrthotropic(cout);
+        cout << endl;
+    }
 
     // cout << "target tensor: " << targetC << endl;
 
@@ -288,7 +290,7 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     ////////////////////////////////////////////////////////////////////////////
     // Gradient component validation, if requested, bypasses optimization 
     ////////////////////////////////////////////////////////////////////////////
-    if (args.count("validateGradientComponent")) {
+    if (gradientValidationMode) {
         size_t compIdx = args["validateGradientComponent"].as<size_t>();
         if (compIdx >= params.domainSize()) throw runtime_error("Gradient component index out of bounds");
         if (args.count("range") == args.count("rangeRelative"))
@@ -348,8 +350,9 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     ////////////////////////////////////////////////////////////////////////////
     // Run the optimizer
     ////////////////////////////////////////////////////////////////////////////
-    string solver = args["solver"].as<string>(),
-           output = args["output"].as<string>();
+    string solver = args["solver"].as<string>(), output;
+    if (args.count("output")) output = args["output"].as<string>();
+
     PO::OptimizerConfig oconfig;
     if (args.count("nIters")) oconfig.niters = args["nIters"].as<size_t>();
     oconfig.gd_step = args["step"].as<double>();
