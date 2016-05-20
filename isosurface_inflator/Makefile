@@ -17,6 +17,13 @@ LIBS+=$(TRIANGLE_LFLAGS)
 # CPPFLAGS=-g -O0 # -DCGAL_MESH_3_VERBOSE -DCGAL_MESH_3_PROTECTION_DEBUG -ftemplate-backtrace-limit=0
 # CPPFLAGS += -DDEBUG_MARCHING_SQUARES
 TARGETS=isosurface_cli SignedDistance_cli
+
+# DEPENDENCY STUFF
+DEPDIR:=.d
+COMMA:=,
+$(shell mkdir -p $(DEPDIR) >/dev/null)
+DEPFLAGS=-MT $@ -MMD -MP -MF $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).Td
+
 all: $(TARGETS)
 
 isosurface_cli: isosurface_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/GlobalBenchmark.o IsosurfaceInflator.o  MidplaneMesher.o MeshingOptions.o BoxIntersectionMesher.o # VCGSurfaceMesher.o CGALClippedVolumeMesher.o
@@ -30,9 +37,21 @@ TestWireMesh: tests/TestWireMesh.o
 
 INCLUDES+=-isystem /opt/local/include -I$(MeshFEM) -I$(CSGFEM) -isystem /opt/local/include/eigen3 -isystem $(VCGLIB_PATH) 
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DBENCHMARK
+
+# Delete built-in rule, forcing ours to run
 %.o: %.cc
-	$(CXX) $(CPPFLAGS) -c $< -o $@
+%.o: %.cc Makefile
+	$(CXX) $(DEPFLAGS) $(CPPFLAGS) -c $< -o $@
+	mv -f $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).Td $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).d
+
+%.o: %.c
+%.o: %.c Makefile
+	$(CC) $(DEPFLAGS) -c $(CFLAGS) $< -o $@
+	mv -f $(DEPDIR)/$$(subst .,$(COMMA),$(subst /,__,$*)).Td $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).d
 
 .PHONY: clean
 clean:
 	rm -f *.o $(TARGETS)
+
+# Read dependencies
+-include $(DEPDIR)/*.d

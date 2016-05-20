@@ -262,8 +262,8 @@ public:
         return m_c1 + clamp(parallelDist, Real(0), m_axisLength) * m_axisUnit;
     }
 
-    // Signs are based on whether the overlap with the enpoint sphere increases
-    // (positive) or decreases (negative)
+    // Signs are based on whether the overlap with the enpoint sphere decreases
+    // (positive) or increases (negative)
     Real angleAtP1() const { return  m_theta; }
     Real angleAtP2() const { return -m_theta; }
 

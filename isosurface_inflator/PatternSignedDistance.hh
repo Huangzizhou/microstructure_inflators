@@ -128,17 +128,25 @@ public:
                         else                      { edgeAngle = M_PI + asin(sinTheta); }
                     }
 
-                    edgeAngle -= angleDeficit1;
-                    edgeAngle -= uIsP1OfE2 ? m_edgeGeometry.at(e2).angleAtP1() : m_edgeGeometry.at(e2).angleAtP2();
+                    Real initEdgeAngle = edgeAngle;
+
+                    edgeAngle += angleDeficit1;
+                    edgeAngle += uIsP1OfE2 ? m_edgeGeometry.at(e2).angleAtP1() : m_edgeGeometry.at(e2).angleAtP2();
                     theta = std::min(theta, edgeAngle);
+                    // std::cout << "Vertex " << u
+                    //           << " edge pair " << e1 << "," << e2
+                    //           << ": initEdgeAngle " << initEdgeAngle
+                    //           << ", edgeAngle " << edgeAngle
+                    //           << ", angleDeficit1 " << angleDeficit1
+                    //           << std::endl;
                 }
             }
-            Real sinSqTheta = sin(theta);
+            Real sinSq4Theta = sin(4.0 * theta);
             // std::cout << "Vertex " << u << " theta: " << theta << std::endl;
-            sinSqTheta *= sinSqTheta;
-            if (theta >= M_PI)           m_vertexSmoothness.push_back(0.0);
-            else if (theta > M_PI / 2.0) m_vertexSmoothness.push_back(sinSqTheta);
-            else                         m_vertexSmoothness.push_back(1.0);
+            sinSq4Theta *= sinSq4Theta;
+            if (theta >= M_PI)               m_vertexSmoothness.push_back(0.0);
+            else if (theta > 7 * M_PI / 8.0) m_vertexSmoothness.push_back(sinSq4Theta);
+            else                             m_vertexSmoothness.push_back(1.0);
         }
 
         // for (size_t u = 0; u < points.size(); ++u) {
