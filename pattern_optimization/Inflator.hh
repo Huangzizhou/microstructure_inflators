@@ -75,7 +75,7 @@ public:
     }
 
     void setReflectiveInflator(bool /* use */) {
-        throw std::runtime_error("Reflective inflator not supported in 2D");
+        throw std::runtime_error("Luigi's inflator is not reflective");
     }
 
     size_t numParameters() const { return m_inflator->numberOfParameters(); }

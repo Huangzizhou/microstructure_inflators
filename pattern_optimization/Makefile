@@ -26,7 +26,6 @@ INCLUDES+=-I$(MeshFEM) -I$(CSGFEM) -I$(EIGEN_INC) -isystem $(SUITESPARSE_INC) -i
 INCLUDES+=-isystem $(CLIPPER_INC) -isystem $(VCGLIB_INC) -isystem $(DLIB_INC)
 INCLUDES+=-I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
 INCLUDES+=-isystem $(TRIANGLE_INC)
-INCLUDES+=-I../Luigi/wireinflator2D/src
 
 INCLUDES+=-isystem $(ADEPT_INC) -isystem $(VCGLIB_INC) \
 		  -isystem $(CGAL_INC) -isystem $(GMP_INC) -isystem $(MPFR_INC)

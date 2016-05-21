@@ -96,6 +96,9 @@ DiscreteShapeDerivativeValidation_cli: $(DISCRETE_DERIVATIVE_OBJS)
 WCSOptimization_cli: $(WCSOPT_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
+WCSOptimization_cli_tmp: $(WCSOPT_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
+
 WCSRemeshingOptimization_cli: $(WCS_REMESH_OPT_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 

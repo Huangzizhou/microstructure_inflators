@@ -43,7 +43,7 @@ public:
     bool shouldGenerateFullPeriodCell() const;
 
     // Access the inflation result
-    // Vertex normals and shape velocity are per-vertex, taking value 0 on
+    // Vertex normals and shape velocity are ***per-volume-vertex***, taking value 0 on
     // non-boundary vertices.
     const std::vector<MeshIO::IOVertex>  &vertices() const;
     const std::vector<MeshIO::IOElement> &elements() const;
