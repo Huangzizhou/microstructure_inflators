@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <map>
-#include "InflatorBase.hh"
+#include "Inflator.hh"
 
 namespace PatternOptimization {
 
@@ -11,8 +11,7 @@ struct BoundConstraints {
     // lb, ub: manually configured lower and upper bounds. All other bounds are
     // set using the defaults in radiusBounds[01] and translationBounds[01],
     // selected based on parameter type as determined by inflator.
-    template<class _Inflator>
-    BoundConstraints(const _Inflator &inflator,
+    BoundConstraints(const InflatorBase &inflator,
                      const std::vector<Real> &radiusBounds,
                      const std::vector<Real> &translationBounds,
                      const std::vector<Real> &blendingBounds,

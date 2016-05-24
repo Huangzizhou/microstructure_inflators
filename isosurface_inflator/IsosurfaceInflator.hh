@@ -47,6 +47,7 @@ public:
     // non-boundary vertices.
     const std::vector<MeshIO::IOVertex>  &vertices() const;
     const std::vector<MeshIO::IOElement> &elements() const;
+    void clear();
     const std::vector<std::vector<Real>> &normalShapeVelocities() const;
     const std::vector<Point>             &vertexNormals() const;
 

@@ -47,11 +47,18 @@ ISOINFLATOR_OBS=../isosurface_inflator/IsosurfaceInflator.o \
 				../isosurface_inflator/BoxIntersectionMesher.o \
 				../isosurface_inflator/MidplaneMesher.o
 
+INFLATOR_OBJS=MakeInflator.o \
+				inflators/EqualityConstrainedInflator.o \
+				inflators/IsoinflatorWrapper.o \
+				inflators/JamesInflatorWrapper.o \
+				inflators/LuigiInflatorWrapper.o
+
 SOURCES=PatternOptimization_cli.cc PatternOptimizationJob.cc RandomJob.cc SpacedJob.cc GradientComponentValidation.cc \
 		Inflator_cli.cc ParamRegion_cli.cc
 PATOPT_OBJS=PatternOptimization_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
-			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS) \
+			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o \
+			$(INFLATOR_OBJS) $(ISOINFLATOR_OBS) \
 			optimizers/ceres.o optimizers/dlib.o optimizers/gradient_descent.o
 CREATJOB_OBJS=CreateJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
@@ -65,15 +72,15 @@ SPACED_OBJS=SpacedJob.o  PatternOptimizationJob.o \
 GRADVALID_OBJS=GradientComponentValidation.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
-INFLATOR_OBJS=Inflator_cli.o PatternOptimizationJob.o \
+INFLATOR_CLI_OBJS=Inflator_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o  $(ISOINFLATOR_OBS)
 PREGION_OBJS=ParamRegion_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
-OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_OBJS) $(INFLATOR_OBJS) $(PREGION_OBJS)
+OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_OBJS) $(INFLATOR_CLI_OBJS) $(PREGION_OBJS)
 
-DEFAULT_TARGETS=PatternOptimization_cli CreateJob GradientComponentValidation Inflator_cli Inflator2D_cli
+DEFAULT_TARGETS=PatternOptimization_cli # CreateJob GradientComponentValidation Inflator_cli Inflator2D_cli
 OPTIONAL_TAGETS=SpacedJob ParamRegion_cli
 ALL_TARGETS=$(DEFAULT_TARGETS) $(OPTIONAL_TAGETS)
 
@@ -101,10 +108,10 @@ CreateJob: $(CREATJOB_OBJS)
 GradientComponentValidation: $(GRADVALID_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
-Inflator_cli: $(INFLATOR_OBJS)
+Inflator_cli: $(INFLATOR_CLI_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
-Inflator2D_cli: $(filter-out Inflator_cli.o, $(INFLATOR_OBJS)) Inflator2D_cli.o
+Inflator2D_cli: $(filter-out Inflator_cli.o, $(INFLATOR_CLI_OBJS)) Inflator2D_cli.o
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@
 
 Inflator2D_cli.o: Inflator_cli.cc Makefile

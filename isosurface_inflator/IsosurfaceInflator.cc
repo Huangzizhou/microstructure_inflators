@@ -84,6 +84,13 @@ public:
     // Whether the inflator generates only the orthotropic symmetry base cell
     virtual bool _mesherGeneratesOrthoCell() const = 0;
 
+    void clear() {
+        vertices.clear(), elements.clear();
+        normalShapeVelocities.clear();
+        vertexNormals.clear();
+        inflatedParams.clear();
+    }
+
     virtual ~Impl() { }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -228,6 +235,8 @@ bool IsosurfaceInflator::shouldGenerateFullPeriodCell() const { return m_imp->ge
 const vector<MeshIO::IOVertex > &IsosurfaceInflator::vertices()              const { return m_imp->vertices; }
 const vector<MeshIO::IOElement> &IsosurfaceInflator::elements()              const { return m_imp->elements; }
 const vector<vector<Real>>      &IsosurfaceInflator::normalShapeVelocities() const { return m_imp->normalShapeVelocities; }
+
+void                             IsosurfaceInflator::clear()                       { m_imp->clear(); }
 
 auto IsosurfaceInflator::vertexNormals() const -> const vector<Point> & { return m_imp->vertexNormals; }
 

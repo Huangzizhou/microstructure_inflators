@@ -128,7 +128,7 @@ public:
                         else                      { edgeAngle = M_PI + asin(sinTheta); }
                     }
 
-                    Real initEdgeAngle = edgeAngle;
+                    // Real initEdgeAngle = edgeAngle;
 
                     edgeAngle += angleDeficit1;
                     edgeAngle += uIsP1OfE2 ? m_edgeGeometry.at(e2).angleAtP1() : m_edgeGeometry.at(e2).angleAtP2();

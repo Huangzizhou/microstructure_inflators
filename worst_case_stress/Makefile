@@ -46,6 +46,12 @@ ISOINFLATOR_OBS=../isosurface_inflator/IsosurfaceInflator.o \
 				# ../isosurface_inflator/VCGSurfaceMesher.o \
 				# ../isosurface_inflator/CGALClippedVolumeMesher.o \
 
+INFLATOR_OBJS=../pattern_optimization/MakeInflator.o \
+				../pattern_optimization/inflators/EqualityConstrainedInflator.o \
+				../pattern_optimization/inflators/IsoinflatorWrapper.o \
+				../pattern_optimization/inflators/JamesInflatorWrapper.o \
+				../pattern_optimization/inflators/LuigiInflatorWrapper.o
+
 CPPFLAGS+=$(INCLUDES)
 
 DISCRETE_DERIVATIVE_OBJS=DiscreteShapeDerivativeValidation_cli.o \
@@ -57,7 +63,8 @@ GRADVALID_OBJS=GradientComponentValidation.o ../pattern_optimization/PatternOpti
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
 WCSOPT_OBJS=WCSOptimization_cli.o ../pattern_optimization/PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
-			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS) \
+			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o \
+			$(ISOINFLATOR_OBS)  $(INFLATOR_OBJS) \
 			../pattern_optimization/optimizers/ceres.o \
 			../pattern_optimization/optimizers/dlib.o \
 			../pattern_optimization/optimizers/gradient_descent.o

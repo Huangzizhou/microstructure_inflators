@@ -316,8 +316,9 @@ public:
 		vcgMeshToOutMesh(out, m);
 
 		// compute edge velocity field
+		// JP: also extract the per-vertex velocity fields
 		if (genVelocityField)
-			m_pattern.computeVelocityField(m, out.edge_fields);
+			m_pattern.computeVelocityField(m, out.edge_fields, &out.vertex_velocities);
 	}
 
 	void generateTiledPattern(const Array2D<CellParameters *> & inP, const TessellationParameters & inT, OutMeshType & out)

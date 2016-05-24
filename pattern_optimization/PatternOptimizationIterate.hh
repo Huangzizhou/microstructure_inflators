@@ -51,10 +51,8 @@ struct Iterate : public IterateBase {
 
     using IterateBase::m_params;
 
-    template<class _Inflator>
-    Iterate(_Inflator &inflator, size_t nParams, const double *params,
-            bool parametricOptimization = true)
-        : IterateBase(parametricOptimization)
+    Iterate(Inflator<_N> &inflator, size_t nParams, const double *params)
+        : IterateBase(inflator.isParametric())
     {
         m_params.resize(nParams);
         for (size_t i = 0; i < nParams; ++i)
@@ -233,8 +231,7 @@ struct Iterate : public IterateBase {
     const _ETensor &complianceTensor() const { return S; }
     const std::vector<VField> &fluctuationDisplacements() const { return w_ij; }
 
-    template<class _Inflator>
-    void evaluateObjectiveTerms(const _Inflator &inflator) {
+    void evaluateObjectiveTerms(const Inflator<_N> &inflator) {
         m_evaluatedObjectiveTerms.clear();
         m_evaluatedObjectiveTerms.reserve(m_objectiveTerms.size());
         for (auto &term : m_objectiveTerms) {

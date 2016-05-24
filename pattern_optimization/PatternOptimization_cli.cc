@@ -16,6 +16,7 @@
 #include "GlobalBenchmark.hh"
 
 #include "Inflator.hh"
+#include "MakeInflator.hh"
 
 #include <vector>
 #include <queue>
@@ -80,12 +81,12 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description visible_opts;
     visible_opts.add_options()("help",        "Produce this help message")
-        ("pattern,p",    po::value<string>(), "Pattern wire mesh (.obj|wire)")
-        ("material,m",   po::value<string>(), "base material")
+        ("inflator,i",   po::value<string>()->default_value("Isosurface"),       "inflator to use (defaults to Isosurface)")
+        ("pattern,p",    po::value<string>(),                                    "Pattern wire mesh (.obj|wire)")
+        ("material,m",   po::value<string>(),                                    "base material")
         ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
         ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
-        ("dofOut",       po::value<string>()->default_value(""),                 "output pattern dofs in James' format at each iteration (3D Only)")
-        ("cell_size,c",  po::value<double>()->default_value(5.0),                "Inflation cell size (3D only)")
+        ("cell_size,c",  po::value<double>(),                                    "Inflation cell size (James' inflator only. Default: 5mm)")
         ("isotropicParameters,I",                                                "Use isotropic DoFs (3D only)")
         ("vertexThickness,V",                                                    "Use vertex thickness instead of edge thickness (3D only)")
         ("subdivide,S",  po::value<size_t>()->default_value(0),                  "number of subdivisions to run for 3D inflator")
@@ -157,32 +158,11 @@ typedef ScalarField<Real> SField;
 template<size_t _N, size_t _FEMDegree>
 void execute(const po::variables_map &args, const Job<_N> *job)
 {
-    shared_ptr<ConstrainedInflator<_N>> inflator_ptr;
-    if (_N == 2) {
-        inflator_ptr = make_shared<ConstrainedInflator<_N>>(
-                job->parameterConstraints,
-                args["pattern"].as<string>(),
-                args["cell_size"].as<double>(),
-                0.5 * sqrt(2),
-                args.count("isotropicParameters"),
-                args.count("vertexThickness"));
-    }
-    else {
-        inflator_ptr = make_shared<ConstrainedInflator<_N>>(
-                job->parameterConstraints,
-                args["pattern"].as<string>(),
-                args["cell_size"].as<double>(),
-                0.5 * sqrt(2),
-                args.count("isotropicParameters"),
-                args.count("vertexThickness"));
-        inflator_ptr->configureSubdivision(args["sub_algorithm"].as<string>(),
-                                           args["subdivide"].as<size_t>());
-        inflator_ptr->setReflectiveInflator(args.count("fullCellInflator") == 0);
-    }
+    auto infl_ptr = make_inflator<_N>(args["inflator"].as<string>(),
+                                     filterInflatorOptions(args),
+                                     job->parameterConstraints);
 
-    ConstrainedInflator<_N> &inflator = *inflator_ptr;
-    if (args.count("max_volume"))
-        inflator.setMaxElementVolume(args["max_volume"].as<double>());
+    Inflator<_N> &inflator = *infl_ptr;
 
     auto targetC = job->targetMaterial.getTensor();
     ETensor<_N> targetS = targetC.inverse();
@@ -193,14 +173,7 @@ void execute(const po::variables_map &args, const Job<_N> *job)
 
     cout << "target tensor: " << targetC << endl;
 
-    if (job->numParams() != inflator.numParameters()) {
-        for (size_t i = 0; i < inflator.numParameters(); ++i) {
-            cout << "param " << i << " role: " <<
-                (inflator.parameterType(i) == ParameterType::Offset ? "Offset" : "Thickness")
-                << endl;
-        }
-        throw runtime_error("Invalid number of parameters.");
-    }
+    SField params = job->validatedInitialParams(inflator);
 
     typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh;
     typedef LinearElasticity::Simulator<Mesh> Simulator;
@@ -209,35 +182,16 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
-    string dofOut = args["dofOut"].as<string>();
-    if (dofOut != "")
-        inflator.setDoFOutputPrefix(dofOut);
-
-    SField params(job->initialParams);
-    for (const auto &boundEntry : job->varLowerBounds) {
-        if (boundEntry.first > params.domainSize())
-            cerr << "WARNING: bound on nonexistent variable" << endl;
-    }
-
-    for (size_t p = 0; p < params.domainSize(); ++p) {
-        if (job->varLowerBounds.count(p)) {
-             if ((params[p] < job->varLowerBounds.at(p)) ||
-                 (params[p] > job->varUpperBounds.at(p))) {
-                throw std::runtime_error("Initial point infeasible");
-             }
-        }
-    }
-
     using Iterate = Iterate<Simulator>;
     auto ifactory = make_iterate_factory<Iterate,
                                          ObjectiveTerms::IFConfigTensorFit<Simulator>,
-                                         ObjectiveTerms::IFConfigProximityRegularization>(inflator, true);
+                                         ObjectiveTerms::IFConfigProximityRegularization>(inflator);
 
     ifactory->ignoreShear = args.count("ignoreShear");
     if (ifactory->ignoreShear) cout << "Ignoring shear components" << endl;
     ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled = false;
     if (args.count("proximityRegularizationWeight")) {
-        ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled = true;
+        ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled    = true;
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::initParams = job->initialParams;
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::weight     = args["proximityRegularizationWeight"].as<double>();
     }
@@ -256,15 +210,15 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     if (solver == "lbfgs") oconfig.lbfgs_memory = 10;
     optimizers.at(solver)(params, bdcs, *imanager, oconfig, output);
 
-    std::cout << "Final p:";
-    std::vector<Real> result(params.domainSize());
-    for (size_t i = 0; i < result.size(); ++i) {
-        result[i] = params[i];
-        cout << "\t" << params[i];
+    if (inflator.isParametric()) {
+        cout << "Final p:";
+        vector<Real> result(params.domainSize());
+        for (size_t i = 0; i < result.size(); ++i) {
+            result[i] = params[i];
+            cout << "\t" << params[i];
+        }
+        cout << endl;
     }
-    if (dofOut != "") inflator.writePatternDoFs(dofOut + ".final.dof", result);
-    cout << endl;
-
 
     BENCHMARK_REPORT();
 }
@@ -292,7 +246,7 @@ int main(int argc, const char *argv[])
         if (deg == 1) execute<3, 1>(args, job3D);
         if (deg == 2) execute<3, 2>(args, job3D);
     }
-    else throw std::runtime_error("Invalid job file.");
+    else throw runtime_error("Invalid job file.");
 
     return 0;
 }

@@ -28,6 +28,7 @@
 
 #include "PatternOptimizationIterate.hh"
 #include "ObjectiveTermNormalizations.hh"
+#include "Inflator.hh"
 
 namespace PatternOptimization {
 
@@ -68,13 +69,13 @@ struct IFApplyConfigs<> {
     static void apply(_Factory *, const std::unique_ptr<_Iterate> &, ObjectiveTermNormalizations &) { }
 };
 
-template<class _Iterate, class _Inflator, class... IFConfigs>
+template<class _Iterate, class... IFConfigs>
 struct IterateFactory : public IFConfigs... {
     using Iterate = _Iterate;
-    using Inflator = _Inflator;
+    using _Inflator = Inflator<Iterate::_N>;
 
-    IterateFactory(_Inflator &inflator, bool parametricOptimization)
-        : m_inflator(inflator), m_parametricOptimization(parametricOptimization) { }
+    IterateFactory(_Inflator &inflator)
+        : m_inflator(inflator) { }
 
     // Use previous iterate if evaluating the same point. Otherwise, attempt to
     // inflate the new parameters. Try three times to inflate, and if
@@ -96,8 +97,7 @@ struct IterateFactory : public IFConfigs... {
         for (size_t i = 0; i < 3; ++i) {
             success = true;
             try {
-                newIterate = Future::make_unique<_Iterate>(m_inflator,
-                                nParams, params, m_parametricOptimization);
+                newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params);
             }
             catch (std::exception &e) {
                 std::cerr << "INFLATOR FAILED: " << e.what() << std::endl;
@@ -115,7 +115,7 @@ struct IterateFactory : public IFConfigs... {
 
         // We actually created a new iterate--configure it accordingly.
         IFApplyConfigs<IFConfigs...>::apply(this, newIterate, m_normalizations);
-        if (m_parametricOptimization)
+        if (m_inflator.isParametric())
             newIterate->evaluateObjectiveTerms(m_inflator);
         return newIterate;
     }
@@ -129,9 +129,9 @@ private:
 };
 
 // Inflator template parameter is last so that it can be inferred...
-template<class _Iterate, class... IFConfigs, class _Inflator>
-std::shared_ptr<IterateFactory<_Iterate, _Inflator, IFConfigs...>> make_iterate_factory(_Inflator &inflator, bool parametricOptimization) {
-    return std::make_shared<IterateFactory<_Iterate, _Inflator, IFConfigs...>>(inflator, parametricOptimization);
+template<class _Iterate, class... IFConfigs>
+std::shared_ptr<IterateFactory<_Iterate, IFConfigs...>> make_iterate_factory(Inflator<_Iterate::_N> &inflator) {
+    return std::make_shared<IterateFactory<_Iterate, IFConfigs...>>(inflator);
 }
 
 }

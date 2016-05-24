@@ -8,6 +8,7 @@
 #include "InflatorParameters.h"
 
 #include "tessellator2d.h"
+#include "OutMesh.h"
 #include <stdlib.h>
 #include <cmath>
 #include <utility>
@@ -24,25 +25,6 @@
 #include <vcg/space/index/grid_static_ptr2d.h>
 #include <vcg/complex/algorithms/local_optimization/tri_edge_collapse.h>
 
-namespace std
-{
-template <>
-struct hash<pair<int, int> >
-{
-	typedef pair<int, int> argument_type;
-	typedef size_t result_type;
-
-	result_type operator()(const argument_type& a) const
-	{
-		hash<int> hasher;
-		argument_type e = a;
-		if (e.first > e.second)
-			std::swap(e.first, e.second);
-
-		return hasher(e.first) * 31 + hasher(e.second);
-	}
-};
-}
 
 template <typename T>
 class Array2D
@@ -221,9 +203,14 @@ public:
 	}
 
 	// works only when generating a single axis-aligned cell
+	// JP: I added (optional) output of per-vertex velocity fields induced by
+	//     each parameter. The velocity induced by parameter p on vertex vi is
+	//     stored in
+	//          vtx_velocities[p][vi]
 	void computeVelocityField(TriMesh & mesh,
-	                          std::unordered_map<std::pair<int, int>, std::vector<ScalarType> > & fields)
-	{                                                              // contains one scalar for each pattern parameter
+	                          OutMesh<2, 3>::EdgeFields & fields, // contains one scalar for each pattern parameter
+	                          OutMesh<2, 3>::VertexVelocities *vtx_velocities = NULL)
+	{
 		typedef typename ParameterOperation::NodeID NodeID;
 
 		if (!m_wire.isValid())
@@ -237,31 +224,6 @@ public:
 		vcg::tri::UpdateTopology<TriMesh>::FaceFace(mesh);
 		vcg::tri::UpdateFlags<TriMesh>::FaceBorderFromFF(mesh);
 		vcg::tri::UpdateFlags<TriMesh>::VertexBorderFromFaceBorder(mesh);
-
-		// get all border edges and their normals
-		std::unordered_map<std::pair<int,int>, vcg::Point2d> edges;
-		for (size_t i=0; i<mesh.face.size(); ++i)
-		{
-			typename TriMesh::FaceType & f = mesh.face[i];
-			for (char j=0; j<3; ++j)
-			{
-				if (vcg::face::IsBorder(f, j))
-				{
-					const typename TriMesh::VertexType * v0 = f.cV(j);
-					const typename TriMesh::VertexType * v1 = f.cV((j+1)%3);
-					int idx0 = vcg::tri::Index(mesh, v0);
-					int idx1 = vcg::tri::Index(mesh, v1);
-					std::pair<int, int> e = { idx0, idx1 };
-
-					if (edges.count(e) == 0)
-					{
-						// compute normal of edge
-						ECoordType n = ECoordType::Construct((v1->cP() - v0->cP()).Normalize());
-						edges[e] = vcg::Point2d(n[1], -n[0]); // rotated by -90 degrees
-					}
-				}
-			}
-		}
 
 		// collect all border vertex pointers
 		std::vector<typename TriMesh::VertexPointer> vtx;
@@ -353,6 +315,7 @@ public:
 
 		fields.clear();
 		typedef typename TriMesh::VertexType::NormalType NormalType;
+		if (vtx_velocities) vtx_velocities->reserve(numberOfParameters);
 		for (size_t p=0; p<numberOfParameters; ++p)
 		{
 			const ParameterOperation & par = params_op[p];
@@ -437,6 +400,31 @@ public:
 				assert(0);
 			}
 
+			// get all border edges and their normals
+			std::unordered_map<std::pair<int,int>, vcg::Point2d, edge_hash> edges;
+			for (size_t i=0; i<mesh.face.size(); ++i)
+			{
+				typename TriMesh::FaceType & f = mesh.face[i];
+				for (char j=0; j<3; ++j)
+				{
+					if (vcg::face::IsBorder(f, j))
+					{
+						const typename TriMesh::VertexType * v0 = f.cV(j);
+						const typename TriMesh::VertexType * v1 = f.cV((j+1)%3);
+						int idx0 = vcg::tri::Index(mesh, v0);
+						int idx1 = vcg::tri::Index(mesh, v1);
+						std::pair<int, int> e = { idx0, idx1 };
+						
+						if (edges.count(e) == 0)
+						{
+							// compute normal of edge
+							ECoordType n = ECoordType::Construct((v1->cP() - v0->cP()).Normalize());
+							edges[e] = vcg::Point2d(n[1], -n[0]); // rotated by -90 degrees
+						}
+					}
+				}
+			}
+
 			// compute edge velocity field
 			for (auto & e : edges)
 			{
@@ -449,6 +437,16 @@ public:
 					f.resize(numberOfParameters);
 				}
 				f[p] = val;
+			}
+			// JP: extract the per-vertex velocities stored in the N field as a
+			// side-effect
+			if (vtx_velocities) {
+				vtx_velocities->emplace_back(OutMesh<2, 3>::VField(mesh.vert.size(), {{0.0, 0.0}}));
+				auto &v_p = vtx_velocities->back();
+				for (size_t i = 0; i < mesh.vert.size(); ++i) {
+					typename TriMesh::VertexType &v = mesh.vert[i];
+					if (v.IsB()) v_p[i] = {{v.cN()[0], v.cN()[1]}};
+				}
 			}
 		}
 	}

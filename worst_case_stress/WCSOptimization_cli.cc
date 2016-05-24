@@ -38,15 +38,13 @@
 #include <boost/algorithm/string.hpp>
 
 #include <Inflator.hh>
+#include <MakeInflator.hh>
 #include <PatternOptimizationJob.hh>
 #include <PatternOptimizationConfig.hh>
 
 #include <BoundConstraints.hh>
 #include <IterateFactory.hh>
 #include <IterateManager.hh>
-
-#include <LpHoleInflator.hh>
-#include <BoundaryPerturbationInflator.hh>
 
 #include <optimizers/ceres.hh>
 #include <optimizers/dlib.hh>
@@ -97,7 +95,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description patternOptions;
     patternOptions.add_options()
         ("pattern,p",    po::value<string>(),                            "Pattern wire mesh (.obj|wire), or initial mesh for BoundaryPerturbationInflator")
-        ("inflator,i",   po::value<string>()->default_value("original"), "Which inflator to use: original (default), lphole, boundary_perturbation")
+        ("inflator,i",   po::value<string>()->default_value("original"), "Which inflator to use: Isosurface (default), lphole, boundary_perturbation")
         ("isotropicParameters,I",                                        "Use isotropic DoFs (3D only)")
         ("vertexThickness,V",                                            "Use vertex thickness instead of edge thickness (3D only)")
         ("cell_size,c",  po::value<double>()->default_value(5.0),        "Inflation cell size (3D only)")
@@ -107,7 +105,10 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     meshingOptions.add_options()
         ("meshingOptions,M", po::value<string>(),                    "Meshing options configuration file")
         ("max_volume,v",     po::value<double>(),                    "Maximum element area for remeshing (overrides meshing options)")
-        ("hole_segments",    po::value<size_t>()->default_value(64), "Number of segments in hole boundary (LpHoleInflator)")
+        ("hole_segments",    po::value<size_t>(),                    "Number of segments in hole boundary for LpHoleInflator (default: 64)")
+        ("subdivide,S",  po::value<size_t>()->default_value(0),           "Number of subdivisions to run for James' inflator")
+        ("sub_algorithm,A", po::value<string>()->default_value("simple"), "Subdivision algorithm for James' inflator (simple or loop)")
+        ("fullCellInflator",                                              "use the full periodic inflator instead of the reflection-based one")
         ;
 
     po::options_description optimizerOptions;
@@ -211,13 +212,13 @@ template<size_t _N>
 using ETensor = ElasticityTensor<Real, _N>;
 typedef ScalarField<Real> SField;
 
-#include "InflatorTraits.inl"
-
-template<size_t _N, size_t _FEMDegree, template<size_t> class _ITraits>
+template<size_t _N, size_t _FEMDegree>
 void execute(const po::variables_map &args, const PO::Job<_N> *job)
 {
-    auto inflator_ptr = _ITraits<_N>::construct(args, job);
-    auto &inflator = *inflator_ptr;
+    auto infl_ptr = make_inflator<_N>(args["inflator"].as<string>(),
+                                     filterInflatorOptions(args),
+                                     job->parameterConstraints);
+    auto &inflator = *infl_ptr;
 
     auto targetC = job->targetMaterial.getTensor();
     ETensor<_N> targetS = targetC.inverse();
@@ -244,7 +245,7 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
         wcsConfig.globalObjectiveRoot = 2.0 * wcsConfig.globalObjectivePNorm;
     wcsConfig.useVtxNormalPerturbationGradientVersion = args.count("vtxNormalPerturbationGradient");
 
-    SField params = _ITraits<_N>::initParams(inflator_ptr, args, job);
+    SField params = job->validatedInitialParams(inflator);
 
     // TODO: Laplacian regularization term (probably only needed for boundary
     // perturbation version.
@@ -252,7 +253,6 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     using WCSTermConfig       = PO::ObjectiveTerms::IFConfigWorstCaseStress<Simulator>;
     using TensorFitTermConfig = PO::ObjectiveTerms::IFConfigTensorFit<Simulator>;
     using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
-    bool isParametric = _ITraits<_N>::isParametric();
 
     // TODO: what to do for boundary perturbation inflator? higher order optimizers should
     // probably check that they're running on a parametric iterate factory, and
@@ -260,7 +260,7 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     auto ifactory = PO::make_iterate_factory<PO::Iterate<Simulator>,
                                              WCSTermConfig,
                                              TensorFitTermConfig,
-                                             PRegTermConfig>(inflator, isParametric);
+                                             PRegTermConfig>(inflator);
 
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
@@ -367,7 +367,12 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     for (size_t i = 0; i < result.size(); ++i)
         result[i] = params[i];
 
-    _ITraits<_N>::finalize(inflator_ptr, result, args, job);
+    if (inflator.isParametric()) {
+        cout << "Final p:";
+        for (size_t i = 0; i < result.size(); ++i)
+            cout << "\t" << result[i];
+        cout << endl;
+    }
 
     BENCHMARK_REPORT();
 }
@@ -380,35 +385,14 @@ int main(int argc, const char *argv[])
 
     auto job = PO::parseJobFile(args["job"].as<string>());
 
-    auto inflator = args["inflator"].as<string>();
-
     size_t deg = args["degree"].as<size_t>();
     if (auto job2D = dynamic_cast<PO::Job<2> *>(job)) {
-        if (inflator == "original") {
-            if (deg == 1) execute<2, 1, InflatorTraitsConstrainedInflator>(args, job2D);
-            if (deg == 2) execute<2, 2, InflatorTraitsConstrainedInflator>(args, job2D);
-        }
-        else if (inflator == "lphole") {
-            if (deg == 1) execute<2, 1, InflatorTraitsLpHole>(args, job2D);
-            if (deg == 2) execute<2, 2, InflatorTraitsLpHole>(args, job2D);
-        }
-        else if (inflator == "boundary_perturbation") {
-            if (deg == 1) execute<2, 1, InflatorTraitsBoundaryPerturbation>(args, job2D);
-            if (deg == 2) execute<2, 2, InflatorTraitsBoundaryPerturbation>(args, job2D);
-        }
-        else throw std::runtime_error("Unknown inflator: " + inflator);
+        if (deg == 1) execute<2, 1>(args, job2D);
+        if (deg == 2) execute<2, 2>(args, job2D);
     }
     else if (auto job3D = dynamic_cast<PO::Job<3> *>(job)) {
-        if (inflator == "original") {
-            if (deg == 1) execute<3, 1, InflatorTraitsConstrainedInflator>(args, job3D);
-            if (deg == 2) execute<3, 2, InflatorTraitsConstrainedInflator>(args, job3D);
-        }
-        else if (inflator == "lphole") throw std::runtime_error("3D LpHole inflator unimplemented");
-        else if (inflator == "boundary_perturbation") {
-            if (deg == 1) execute<3, 1, InflatorTraitsBoundaryPerturbation>(args, job3D);
-            if (deg == 2) execute<3, 2, InflatorTraitsBoundaryPerturbation>(args, job3D);
-        }
-        else throw std::runtime_error("Unknown inflator: " + inflator);
+        if (deg == 1) execute<3, 1>(args, job3D);
+        if (deg == 2) execute<3, 2>(args, job3D);
     }
     else throw std::runtime_error("Invalid job file.");
 

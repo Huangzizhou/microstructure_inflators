@@ -32,10 +32,55 @@
 #include <fstream>
 #include <boost/optional.hpp>
 
+#include "Inflator.hh"
+
 namespace PatternOptimization  {
 class JobBase {
 public:
     virtual ~JobBase() { }
+
+    size_t numParams() const { return initialParams.size(); }
+
+    // Verifies that the correct number of parameters were specified in the job
+    // (must match inflator). For non-parametric inflators (like the
+    // BoundaryPerturbationInflator) an incorrect number of parameters is
+    // tolerated with a warning, in which case the initial parameters are taken
+    // to be all zero.
+    // Returns the (possibly modified) initial parameters
+    std::vector<Real> validatedInitialParams(const InflatorBase &inflator) const {
+        std::vector<Real> params(initialParams);
+        // Allow non-parametric inflator to ignore initialParams (if size mismatch)
+        if (!inflator.isParametric()) {
+            if (numParams() != inflator.numParameters()) {
+                if (numParams() > 0)
+                    std::cerr << "WARNING: ignoring incorrectly-sized initial parameters for non-parametric inflator." << std::endl;
+                params.assign(inflator.numParameters(), 0.0);
+            }
+        }
+        if (numParams() != inflator.numParameters()) {
+            for (size_t i = 0; i < inflator.numParameters(); ++i)
+                std::cerr << "param " << i
+                          << " role: " << parameterTypeString(inflator.parameterType(i))
+                          << std::endl;
+            throw std::runtime_error("Invalid number of parameters.");
+        }
+
+        for (const auto &boundEntry : varLowerBounds) {
+            if (boundEntry.first > params.size())
+                std::cerr << "WARNING: bound on nonexistent variable" << std::endl;
+        }
+
+        for (size_t p = 0; p < params.size(); ++p) {
+            if (varLowerBounds.count(p)) {
+                 if ((params[p] < varLowerBounds.at(p)) ||
+                     (params[p] > varUpperBounds.at(p))) {
+                    throw std::runtime_error("Initial point infeasible");
+                 }
+            }
+        }
+        return params;
+    }
+
 
     std::vector<Real> initialParams, radiusBounds, translationBounds;
     std::vector<Real> blendingBounds = { 10.0, 100.0 };
@@ -50,7 +95,6 @@ public:
 template<size_t _N>
 class Job : public JobBase {
 public:
-    size_t numParams() const { return initialParams.size(); }
     void writeJobFile(const std::string &jobFile) const {
         std::ofstream os(jobFile);
         if (!os.is_open()) 

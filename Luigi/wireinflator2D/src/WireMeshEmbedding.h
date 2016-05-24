@@ -159,7 +159,7 @@ public:
 
 	// MHS on AUG14, 2015:
 	// this is not being used, right now. It must be updated in case it is needed in the future!
-	static std::vector<char> idxToElementInAdjacentFaceVertex(PolyMesh & pmesh, const PFaceType & f, unsigned char vertIdx)
+	static std::vector<char> idxToElementInAdjacentFaceVertex(PolyMesh & /* pmesh */, const PFaceType & /* f */, unsigned char /* vertIdx */)
 	{
 		std::vector<char> ret;
 		return ret;
