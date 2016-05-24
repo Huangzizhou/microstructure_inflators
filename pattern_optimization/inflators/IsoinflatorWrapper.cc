@@ -36,12 +36,7 @@ IsoinflatorWrapper<N>::IsoinflatorWrapper(const std::string &wireMeshPath,
 template<size_t N>
 void IsoinflatorWrapper<N>::inflate(const std::vector<Real> &params)
 {
-    try {
-        m_inflator->inflate(params);
-        // Could avoid duplicate storage for this inflator...
-        this->m_vertices = m_inflator->vertices();
-        this->m_elements = m_inflator->elements();
-    }
+    try         { m_inflator->inflate(params); }
     catch (...) { this->m_reportInflationException(params); throw; }
 }
 
