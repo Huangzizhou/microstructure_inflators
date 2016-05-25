@@ -95,20 +95,20 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description patternOptions;
     patternOptions.add_options()
         ("pattern,p",    po::value<string>(),                            "Pattern wire mesh (.obj|wire), or initial mesh for BoundaryPerturbationInflator")
-        ("inflator,i",   po::value<string>()->default_value("original"), "Which inflator to use: Isosurface (default), lphole, boundary_perturbation")
+        ("inflator,i",   po::value<string>()->default_value("isosurface"), "Which inflator to use: isosurface (default), lphole, boundary_perturbation")
         ("isotropicParameters,I",                                        "Use isotropic DoFs (3D only)")
         ("vertexThickness,V",                                            "Use vertex thickness instead of edge thickness (3D only)")
-        ("cell_size,c",  po::value<double>()->default_value(5.0),        "Inflation cell size (3D only)")
+        ("cell_size,c",  po::value<double>(),                            "Inflation cell size (3D only)")
         ;
 
     po::options_description meshingOptions;
     meshingOptions.add_options()
-        ("meshingOptions,M", po::value<string>(),                    "Meshing options configuration file")
-        ("max_volume,v",     po::value<double>(),                    "Maximum element area for remeshing (overrides meshing options)")
-        ("hole_segments",    po::value<size_t>(),                    "Number of segments in hole boundary for LpHoleInflator (default: 64)")
-        ("subdivide,S",  po::value<size_t>()->default_value(0),           "Number of subdivisions to run for James' inflator")
-        ("sub_algorithm,A", po::value<string>()->default_value("simple"), "Subdivision algorithm for James' inflator (simple or loop)")
-        ("fullCellInflator",                                              "use the full periodic inflator instead of the reflection-based one")
+        ("meshingOptions,M", po::value<string>(),  "Meshing options configuration file")
+        ("max_volume,v",     po::value<double>(),  "Maximum element area for remeshing (overrides meshing options)")
+        ("hole_segments",    po::value<size_t>(),  "Number of segments in hole boundary for LpHoleInflator (default: 64)")
+        ("subdivide,S",  po::value<size_t>(),      "Number of subdivisions to run for James' inflator (default: 0)")
+        ("sub_algorithm,A", po::value<string>(),   "Subdivision algorithm for James' inflator (simple or loop, default: simple)")
+        ("fullCellInflator",                       "Use the full period cell inflator instead of the reflection-based one")
         ;
 
     po::options_description optimizerOptions;
@@ -190,12 +190,6 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     set<string> solvers = {"gradient_descent", "bfgs", "lbfgs"};
     if (solvers.count(vm["solver"].as<string>()) == 0) {
         cout << "Illegal solver specified" << endl;
-        fail = true;
-    }
-
-    set<string> inflators = {"original", "lphole", "boundary_perturbation"};
-    if (inflators.count(vm["inflator"].as<string>()) == 0) {
-        cout << "Illegal inflator specified" << endl;
         fail = true;
     }
 

@@ -16,7 +16,11 @@ namespace po = boost::program_options;
 
 template<typename T>
 T extract_required(po::variables_map &opts, const string &key) {
-    if (opts.count(key)) return opts[key].as<T>();
+    if (opts.count(key)) {
+        T val(opts[key].as<T>());
+        opts.erase(key);
+        return val;
+    }
     throw runtime_error("Options passed to makeInflator missing required option '" + key + "'");
 }
 

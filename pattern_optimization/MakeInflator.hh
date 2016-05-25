@@ -7,6 +7,7 @@
 #include <stdexcept>
 
 #include <boost/program_options.hpp>
+#include <Utilities/ci_string.hh>
 
 using po_vm = boost::program_options::variables_map;
 
@@ -38,7 +39,7 @@ template<size_t N>
 std::unique_ptr<Inflator<N>> make_inflator(std::string name, po_vm options,
                                            const std::vector<std::string> &constraints = std::vector<std::string>())
 {
-    if (name == "Isosurface") name += std::to_string(N);
+    if (ci_string("Isosurface") == name.c_str()) { name += std::to_string(N); name += "D"; }
     auto infl = make_inflator(name, options, constraints);
     
     InflatorBase *rawPtr = infl.release();
