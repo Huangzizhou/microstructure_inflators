@@ -141,6 +141,12 @@ public:
                                  const typename Sim::VField &dv) const {
         assert(dv.domainSize() == sim.mesh().numVertices());
 
+        // If there are no true boundary vertices, there is no adjoint velocity
+        if (m_bdryVars.size() == 0) {
+            typename Sim::VField result(sim.mesh().numBoundaryVertices());
+            result.clear();
+            return result;
+        }
         SPSDSystem<Real> Lsys(L);
 
         // Fix boundary vars to zero
