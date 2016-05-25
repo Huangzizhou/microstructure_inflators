@@ -31,12 +31,9 @@
 #include "../pattern_optimization/BoundaryPerturbationInflator.hh"
 #include "../pattern_optimization/ShapeVelocityInterpolator.hh"
 #include "WorstCaseStress.hh"
-#include "WCSOptimization.hh"
-#include "WCStressOptimizationConfig.hh"
 
 namespace po = boost::program_options;
 using namespace std;
-using namespace WCStressOptimization;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
     cout << "Usage: DiscreteShapeDerivativeValidation_cli [options] mesh.msh" << endl;
@@ -172,21 +169,6 @@ void execute(const po::variables_map &args,
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
-    // Configure WCS Objective
-    auto &wcsConfig = WCStressOptimization::Config::get();
-    wcsConfig.globalObjectivePNorm = args["pnorm"].as<double>();
-    if (args.count("usePthRoot"))
-        wcsConfig.globalObjectiveRoot = 2.0 * wcsConfig.globalObjectivePNorm;
-    wcsConfig.useVtxNormalPerturbationGradientVersion = args.count("vtxNormalPerturbationGradient");
-
-    // Create scalarized multi-objective with weights specified by the
-    // arguments.
-    WCStressOptimization::Objective<_N> fullObjective(ETensor(),
-                                args[  "JSWeight"].as<double>(),
-                                args[ "WCSWeight"].as<double>(),
-                                args["JVolWeight"].as<double>(),
-                                args["LaplacianRegWeight"].as<double>());
-
     std::vector<VField> w;
     PeriodicHomogenization::solveCellProblems(w, sim);
     auto delta_w = PeriodicHomogenization::deltaFluctuationDisplacements(sim, w, delta_p);
@@ -258,8 +240,13 @@ void execute(const po::variables_map &args,
     cout << "Relative error: " << sqrt((deltaCh - cdDeltaCh).frobeniusNormSq() / cdDeltaCh.frobeniusNormSq()) << endl;
     cout << endl;
 
+
     auto buildWCSObjective = [&](const Simulator &sim_, const ETensor &Ch_, vector<VField> w_) {
         PthRootObjective<IntegratedWorstCaseObjective<_N, WCStressIntegrandLp>> objective;
+
+        objective.integrand.p = args["pnorm"].as<double>();
+        objective.p = args.count("usePthRoot") ? 2.0 * args["pnorm"].as<double>() : 1.0;
+
         objective.setPointwiseWCS(sim_.mesh(),
             worstCaseFrobeniusStress(mat.getTensor(), Ch_.inverse(),
                 PeriodicHomogenization::macroStrainToMicroStrainTensors(w_, sim_)));

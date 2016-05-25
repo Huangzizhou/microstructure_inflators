@@ -16,7 +16,12 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
     using Base = ObjectiveTerm<_Sim::N>;
     using VField = typename _Sim::VField;
     template<class _Iterate>
-    WorstCaseStress(const _Iterate &it, const _Sim &sim) : m_sim(sim) {
+    WorstCaseStress(const _Iterate &it, const _Sim &sim,
+                    Real globalObjectivePNorm, Real globalObjectiveRoot) : m_sim(sim) {
+        // Configure objective
+        m_wcs_objective.integrand.p = globalObjectivePNorm;
+        m_wcs_objective.p           = globalObjectiveRoot;
+
         // Worst case stress currently assumes that the base material is
         // constant, so we can read it off a single element.
         m_wcs_objective.setPointwiseWCS(m_sim.mesh(),
@@ -47,6 +52,7 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
         }
         // writer.addField("Principal eigenvalue", eigPrincipal, DomainType::PER_ELEMENT);
         // writer.addField("Secondary eigenvalue", eigSecondary, DomainType::PER_ELEMENT);
+        // writer.addField("Eigenvalue multiplicity", eigMult, DomainType::PER_ELEMENT);
         writer.addField("Eigenvalue relative distance", dist, DomainType::PER_ELEMENT);
 
         writer.addField("Steepest Descent VVel",
@@ -83,7 +89,8 @@ struct IFConfigWorstCaseStress : public IFConfig {
     template<class _Iterate>
     void configIterate(const std::unique_ptr<_Iterate> &it, ObjectiveTermNormalizations &normalizations) const {
         static_assert(_Iterate::_N == N, "Mismatch in problem dimensions.");
-        auto wcs = Future::make_unique<WorstCaseStress<_Sim, _WCSObjectiveType>>(*it, it->simulator());
+        auto wcs = Future::make_unique<WorstCaseStress<_Sim, _WCSObjectiveType>>(
+                *it, it->simulator(), globalObjectivePNorm, globalObjectiveRoot);
         wcs->setWeight(weight);
 
         // WCS normalization is the initial worst case stress
@@ -93,7 +100,10 @@ struct IFConfigWorstCaseStress : public IFConfig {
         wcs->setNormalization(normalizations["WCS"]);
         it->addObjectiveTerm("WCS", std::move(wcs));
     }
+
     Real weight = 1.0;
+    Real globalObjectivePNorm = 1.0;
+    Real globalObjectiveRoot = 1.0;
 };
 
 }}

@@ -65,7 +65,7 @@
 
 #include <GlobalBenchmark.hh>
 
-#include "InflatorBase.hh"
+#include "../Inflator.hh"
 #include <UniformLaplacian.hh>
 #include <FEMMesh.hh>
 #include <Fields.hh>

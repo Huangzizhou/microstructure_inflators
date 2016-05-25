@@ -58,12 +58,9 @@
 #include <objective_terms/ProximityRegularization.hh>
 #include "WCSObjectiveTerm.hh"
 
-#include "WCSObjective.hh"
-
 namespace po = boost::program_options;
 namespace PO = PatternOptimization;
 using namespace std;
-using namespace WCStressOptimization;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
     cout << "Usage: WCSOptimization_cli [options] job.opt" << endl;
@@ -116,7 +113,6 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
         ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs")
-        ("vtxNormalPerturbationGradient,N",                                      "use the vertex-normal-based version of the boundary perturbation gradient")
         ;
 
     po::options_description objectiveOptions;
@@ -232,13 +228,6 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
-    // Configure WCS Objective
-    auto &wcsConfig = WCStressOptimization::Config::get();
-    wcsConfig.globalObjectivePNorm = args["pnorm"].as<double>();
-    if (args.count("usePthRoot"))
-        wcsConfig.globalObjectiveRoot = 2.0 * wcsConfig.globalObjectivePNorm;
-    wcsConfig.useVtxNormalPerturbationGradientVersion = args.count("vtxNormalPerturbationGradient");
-
     SField params = job->validatedInitialParams(inflator);
 
     // TODO: Laplacian regularization term (probably only needed for boundary
@@ -263,7 +252,15 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     ifactory->TensorFitTermConfig::enabled = args.count("JSWeight");
     ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
 
-    ifactory->WCSTermConfig::weight = args[ "WCSWeight"].as<double>();
+    // Configure WCS Objective
+    // By default, an "Lp norm" objective is really the p^th power of the Lp norm.
+    // To use the true "Lp norm", globalObjectiveRoot must be set to
+    // 2.0 * globalObjectivePNorm (since pointwise WCS is already squared (e.g. Frobenius) norm)
+    ifactory->WCSTermConfig::weight = args["WCSWeight"].as<double>();
+    Real pnorm = args["pnorm"].as<double>();
+    ifactory->WCSTermConfig::globalObjectivePNorm = pnorm;
+    ifactory->WCSTermConfig::globalObjectiveRoot  = args.count("usePthRoot") ? 2.0 * pnorm : 1.0;
+
 
     if (args.count("JSWeight")) {
         ifactory->TensorFitTermConfig::weight  = args["JSWeight"].as<double>();

@@ -26,7 +26,6 @@
 #include <tuple>
 #include <GlobalBenchmark.hh>
 
-#include "WCStressOptimizationConfig.hh"
 #include "../pattern_optimization/SDConversions.hh"
 
 // Local alias of PeriodicHomogenization namespace.
@@ -427,8 +426,8 @@ struct IntegratedWorstCaseObjective {
                           const std::vector<VectorField<Real, N>> &w,
                           const _NormalShapeVelocity &vn) const {
         std::vector<VectorField<Real, N>> dot_w;
-        PH::fluctuationDisplacementShapeDerivatives(sim, w, vn, dot_w,
-                WCStressOptimization::Config::get().projectOutNormalStress);
+        PH::fluctuationDisplacementShapeDerivatives(sim, w, vn, dot_w /* ,
+                WCStressOptimization::Config::get().projectOutNormalStress */);
         assert(dot_w.size() == w.size());
 
         const auto &mesh = sim.mesh();
@@ -755,13 +754,12 @@ struct WCStressIntegrandLp {
     template<size_t N, class Mesh>
     void init(const Mesh &/* m */, const WorstCaseStress<N> &/* wcs */) { }
 
-    WCStressIntegrandLp() {
-        p = WCStressOptimization::Config::get().globalObjectivePNorm;
-    }
+    WCStressIntegrandLp() { }
+
     Real j(Real wcStress, size_t /* x_i */) const { return pow(wcStress, p); }
     // Derivative of global objective integrand wrt worst case stress.
     Real j_prime(Real wcStress, size_t /* x_i */) const { return p * pow(wcStress, p - 1); }
-    Real p;
+    Real p = 1.0;
 };
 
 // Global max worst-case objective:
@@ -815,9 +813,7 @@ using Base = SubObjective;
     // Forward all constructor args to SubObjective
     template<typename... Args>
     PthRootObjective(Args&&... args)
-        : Base(std::forward<Args>(args)...) {
-        p = WCStressOptimization::Config::get().globalObjectiveRoot;
-    }
+        : Base(std::forward<Args>(args)...) { }
 
     Real evaluate() const {
         if (p == 1) return Base::evaluate();
@@ -869,7 +865,7 @@ using Base = SubObjective;
         return pder;
     }
 
-    Real p;
+    Real p = 1.0;
 private:
     Real m_gradientScale() const {
         return (1.0 / p) * pow(Base::evaluate(), 1.0 / p - 1.0);
