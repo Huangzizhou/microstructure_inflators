@@ -26,8 +26,11 @@
 #define SHAPEVELOCITYINTERPOLATOR_HH
 
 #include <Laplacian.hh>
+#include <limits>
 
 class ShapeVelocityInterpolator {
+    static constexpr size_t NO_VAR = std::numeric_limits<size_t>::max(),
+                              NONE = std::numeric_limits<size_t>::max();
 public:
     template<class Sim>
     ShapeVelocityInterpolator(const Sim &sim) {
@@ -39,8 +42,7 @@ public:
         // just vertices, so we have to reindex to get contiguous variables
         size_t nv = mesh.numVertices();
         m_varForVertex.reserve(nv);
-        constexpr size_t NO_VAR = std::numeric_limits<size_t>::max();
-        std::vector<size_t> varForDoF(sim.numDoFs(), NO_VAR);
+        std::vector<size_t> varForDoF(sim.numDoFs(), size_t(NO_VAR));
         size_t numVars = 0;
         for (auto v : mesh.vertices()) {
             size_t d = sim.DoF(v.node().index());
@@ -60,21 +62,27 @@ public:
         std::vector<bool> isTrueBoundaryVertex(mesh.numBoundaryVertices(), false);
         for (auto be : mesh.boundaryElements()) {
             if (be->isPeriodic) continue;
-            for (size_t i = 0; i < be.numVertices(); ++i)
-                isTrueBoundaryVertex.at(be.vertex(i).index()) = true;
+            for (auto bv : be.vertices())
+                isTrueBoundaryVertex.at(bv.index()) = true;
         }
 
         // Determine vars corresponding to true boundary vertices (to be constrained)
-        // Also, pick an arbitrary representative boundary vertex for a var
-        // (for extracting Dirichlet condition)
-        std::vector<bool> varFixed(numVars, false); // Fix each variable only once
+        std::vector<size_t> bdryVarIdxForVar(numVars, size_t(NONE)); // Has a variable has been marked as bdry?
+        m_bdryVarIdxForBdryVtx.assign(mesh.numBoundaryVertices(), size_t(NONE));
+        m_numBdryVtxsPerBdryVar.clear();
+
         for (auto bv : mesh.boundaryVertices()) {
             if (isTrueBoundaryVertex.at(bv.index())) {
                 size_t vari = m_varForVertex.at(bv.volumeVertex().index());
-                if (varFixed.at(vari)) continue;
-                m_bdryVars.push_back(vari);
-                m_bdryVtxForBdryVar.push_back(bv.index());
-                varFixed.at(vari) = true;
+                if (bdryVarIdxForVar.at(vari) == NO_VAR) {
+                    // vari is newly discovered as boundary variable.
+                    bdryVarIdxForVar.at(vari) = m_bdryVars.size();
+                    m_bdryVars.push_back(vari);
+                    m_numBdryVtxsPerBdryVar.push_back(0);
+                }
+                size_t bvarIdx = bdryVarIdxForVar.at(vari);
+                ++m_numBdryVtxsPerBdryVar.at(bvarIdx);
+                m_bdryVarIdxForBdryVtx.at(bv.index()) = bvarIdx;
             }
         }
     }
@@ -93,13 +101,14 @@ public:
         result.resizeDomain(mesh.numVertices()); // zero-inits
 
         std::vector<Real> bdryVarValues, zero(L.m), x;
-        bdryVarValues.reserve(m_bdryVars.size());
         // Interpolate each component of the boundary velocity.
         for (size_t c = 0; c < N; ++c) {
-            bdryVarValues.clear();
-            // Extract boundary variable values from the per-
-            for (size_t bvi : m_bdryVtxForBdryVar)
-                bdryVarValues.push_back(bdry_svel(bvi)[c]);
+            bdryVarValues.assign(m_bdryVars.size(), 0.0);
+            // Extract boundary variable values from the per-bdry-vertex field
+            for (auto bv : mesh.boundaryVertices()) {
+                size_t bvarIdx = m_bdryVarIdxForBdryVtx.at(bv.index());
+                if (bvarIdx != NONE) bdryVarValues.at(bvarIdx) = bdry_svel(bv.index())[c];
+            }
 
             // TODO: allow changing the fixed variable constraint RHS without
             // rebuilding the system
@@ -132,10 +141,9 @@ public:
     //             = lambda . vb
     //    ==> dvb = lambda = A^T [-L_bi L_ii^-1 I] S^T dv = A^T B  S^T dv - A^T L_bi L_ii^{-1} C S^T dv
     //                                                    = A^T B (S^T dv - L C^T    L_ii^{-1} C S^T dv)
-    // WARNING, matrix A doesn't really "average" values from identified vertices:
-    // For now, we just extract value from a single one of the identified vertices.
-    // This is valid because we only operate on periodic fields, but it means
-    // the resulting dvb will put zeros on all but one vertex in each identified vertex set.
+    // The final step of applying A^T means that we create a periodic output
+    // boundary field with 1/N of the contribution to each of the N identified
+    // vertices.
     template<class Sim>
     typename Sim::VField adjoint(const Sim &sim,
                                  const typename Sim::VField &dv) const {
@@ -168,11 +176,13 @@ public:
             for (size_t i = 0; i < dofValues.size(); ++i)
                 dofValues[i] = S_t_dv[i] - dofValues[i];
 
-            // Apply A^T B: extract boundary DoFs and then fractionally
-            // distribute to bdry vertices (places full DoF value on a
-            // single (true bdry) vtx per dof for now).
-            for (size_t i = 0; i < m_bdryVars.size(); ++i)
-                dvb(m_bdryVtxForBdryVar[i])[c] = dofValues.at(m_bdryVars[i]);
+            // Apply A^T B: read (fractional) value for each boundary vertex.
+            for (auto bv : sim.mesh().boundaryVertices()) {
+                size_t bvarIdx = m_bdryVarIdxForBdryVtx.at(bv.index());
+                if (bvarIdx == NONE) continue;
+                dvb(bv.index())[c] = dofValues.at(m_bdryVars.at(bvarIdx))
+                                   / Real(m_numBdryVtxsPerBdryVar.at(bvarIdx));
+            }
         }
 
         return dvb;
@@ -181,7 +191,10 @@ public:
 private:
     // Periodic Laplacian
     TripletMatrix<> L;
-    std::vector<size_t> m_varForVertex, m_bdryVars, m_bdryVtxForBdryVar;
+    std::vector<size_t> m_varForVertex,
+                        m_bdryVars,              // Indices of variables corresponding to true boundary vertices
+                        m_bdryVarIdxForBdryVtx,  // Index into m_bdryVars corresponding to a boundary vertex
+                        m_numBdryVtxsPerBdryVar; // Number of boundary vertices linked to the var m_bdryVars[i]
 };
 
 #endif /* end of include guard: SHAPEVELOCITYINTERPOLATOR_HH */

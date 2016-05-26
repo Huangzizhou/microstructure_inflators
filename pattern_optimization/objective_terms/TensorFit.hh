@@ -27,7 +27,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
     using ETensor = ElasticityTensor<Real, N>;
     using VField = VectorField<Real, N>;
     template<class _Iterate>
-    TensorFit(const ETensor &targetS, const _Iterate &it) {
+    TensorFit(const ETensor &targetS, const _Iterate &it) : m_sim(it.simulator()) {
         const auto S = it.complianceTensor();
         const auto &w = it.fluctuationDisplacements();
         m_diffS = S - targetS;
@@ -66,7 +66,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         }
     }
 
-    virtual Real evaluate() const { return 0.5 * m_diffS.quadrupleContract(m_diffS); }
+    virtual Real evaluate() const override { return 0.5 * m_diffS.quadrupleContract(m_diffS); }
 
     bool ignoringShear() const { return m_ignoreShear; }
     void setIgnoreShear(bool ignore) { m_ignoreShear = ignore; }
@@ -95,7 +95,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
     // single term of the Frobenius distance). The terms are weighted so
     // that the squared norm of the residual vector corresponds to the
     // Frobenius norm of the rank 4 tensor difference S - S^*.
-    virtual SField residual() const {
+    virtual SField residual() const override {
         SField result(numResiduals());
         for (size_t r = 0; r < numResiduals(); ++r) {
             size_t ij, kl;
@@ -120,7 +120,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
     // Derivative of residual(ij, kl) wrt parameter p:
     // d/dp (S_ijkl - target_ijkl) = d/dp S_ijkl = <gradS_ijkl, vn_p>
     // The terms are weighted in accordance with the residual weighting above.
-    virtual Eigen::MatrixXd jacobian(const std::vector<VField> &bdrySVels) const {
+    virtual Eigen::MatrixXd jacobian(const std::vector<VField> &bdrySVels) const override {
         const size_t np = bdrySVels.size();
         Eigen::MatrixXd result(numResiduals(), np);
         for (size_t p = 0; p < np; ++p) {
@@ -143,10 +143,23 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         return result;
     }
 
+    virtual void writeFields(MSHFieldWriter &writer) const override {
+        auto bdryVel = SDConversions::descent_from_diff_bdry(this->m_differential, m_sim);
+        VField xferBdryVel(m_sim.mesh().numVertices());
+        xferBdryVel.clear();
+        for (auto v : m_sim.mesh().vertices()) {
+            auto bv = v.boundaryVertex();
+            if (!bv) continue;
+            xferBdryVel(v.index()) = bdryVel(bv.index());
+        }
+        writer.addField("JS Steepest Descent BVel", xferBdryVel, DomainType::PER_NODE);
+    }
+
     virtual ~TensorFit() { }
 
 private:
     // Differentials (one-forms) of each component of the compliance tensor
+    const _Sim &m_sim;
     std::vector<VField> m_component_differentials;
     bool m_ignoreShear = false;
     ETensor m_diffS;

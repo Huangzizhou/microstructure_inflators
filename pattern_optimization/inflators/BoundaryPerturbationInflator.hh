@@ -102,27 +102,7 @@ public:
     // If guaranteeing consistent boundary vertex enumerations across multiple
     // FEMMesh instances becomes a problem, we could change this to take a
     // per-volume-vertex field.
-    virtual ScalarField<Real> paramsFromBoundaryVField(const VectorField<Real, N> &values) const override {
-        std::vector<Real> result(m_numParams);
-        std::vector<bool> isSet(m_numParams, false);
-        assert(values.size() == m_mesh->numBoundaryVertices());
-        for (auto bv : m_mesh->boundaryVertices()) {
-            for (size_t d = 0; d < N; ++d) {
-                Real val = values(bv.index())[d];
-                size_t var = m_varForCoordinate[d].at(bv.volumeVertex().index());
-                size_t p = m_paramForVariable[d].at(var);
-                if (p != NONE) {
-                    if (!isSet.at(p)) {
-                        result.at(p) = val;
-                        isSet.at(p) = true;
-                    }
-                    if (std::abs(result.at(p) - val) > 1e-6)
-                        std::cerr << "WARNING: boundary values violate periodicity constraints";
-                }
-            }
-        }
-        return result;
-    }
+    virtual ScalarField<Real> paramsFromBoundaryVField(const VectorField<Real, N> &values) const override;
 
     ////////////////////////////////////////////////////////////////////////////
     // Queries
@@ -144,19 +124,7 @@ public:
 
     // Get the boundary vector field corresponding to "params" (i.e. the
     // inverse of paramsFromBoundaryVField)
-    VectorField<Real, N> boundaryVFieldFromParams(const ScalarField<Real> &params) const {
-        VectorField<Real, N> result(m_mesh->numBoundaryVertices());
-        result.clear();
-        for (auto bv : m_mesh->boundaryVertices()) {
-            for (size_t d = 0; d < N; ++d) {
-                auto var = m_varForCoordinate[d].at(bv.volumeVertex().index());
-                size_t p = m_paramForVariable[d].at(var);
-                if (p != NONE) result(bv.index())[d] = params[p];
-            }
-        }
-
-        return result;
-    }
+    virtual VectorField<Real, N> boundaryVFieldFromParams(const ScalarField<Real> &params) const override;
 
     const Mesh &mesh() const { return *m_mesh; }
 

@@ -16,8 +16,8 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
     using Base = ObjectiveTerm<_Sim::N>;
     using VField = typename _Sim::VField;
     template<class _Iterate>
-    WorstCaseStress(const _Iterate &it, const _Sim &sim,
-                    Real globalObjectivePNorm, Real globalObjectiveRoot) : m_sim(sim) {
+    WorstCaseStress(const _Iterate &it,
+                    Real globalObjectivePNorm, Real globalObjectiveRoot) : m_sim(it.simulator()) {
         // Configure objective
         m_wcs_objective.integrand.p = globalObjectivePNorm;
         m_wcs_objective.p           = globalObjectiveRoot;
@@ -34,9 +34,9 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
         this->m_differential  = SDConversions::diff_bdry_from_diff_vol(m_diff_vol, m_sim);
     }
 
-    virtual Real evaluate() const { return m_wcs_objective.evaluate(); }
+    virtual Real evaluate() const override { return m_wcs_objective.evaluate(); }
 
-    virtual void writeFields(MSHFieldWriter &writer) const {
+    virtual void writeFields(MSHFieldWriter &writer) const override {
         ScalarField<Real> j = m_wcs_objective.integrandValues();
 
         writer.addField("Pointwise WCS", m_wcs_objective.wcStress.sqrtStressMeasure());
@@ -55,7 +55,7 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
         // writer.addField("Eigenvalue multiplicity", eigMult, DomainType::PER_ELEMENT);
         writer.addField("Eigenvalue relative distance", dist, DomainType::PER_ELEMENT);
 
-        writer.addField("Steepest Descent VVel",
+        writer.addField("WCS Steepest Descent VVel",
                         SDConversions::descent_from_diff_vol(m_diff_vol, m_sim),
                         DomainType::PER_NODE);
 
@@ -67,10 +67,10 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
             if (!bv) continue;
             xferBdryVel(v.index()) = bdryVel(bv.index());
         }
-        writer.addField("Steepest Descent BVel", xferBdryVel, DomainType::PER_NODE);
+        writer.addField("WCS Steepest Descent BVel", xferBdryVel, DomainType::PER_NODE);
     }
 
-    virtual void writeDescription(std::ostream &os, const std::string &name) const {
+    virtual void writeDescription(std::ostream &os, const std::string &name) const override {
         os << "Max Ptwise WCS:\t" << sqrt(m_wcs_objective.wcStress.stressMeasure().maxMag()) << std::endl;
         Base::writeDescription(os, name);
     }
@@ -90,7 +90,7 @@ struct IFConfigWorstCaseStress : public IFConfig {
     void configIterate(const std::unique_ptr<_Iterate> &it, ObjectiveTermNormalizations &normalizations) const {
         static_assert(_Iterate::_N == N, "Mismatch in problem dimensions.");
         auto wcs = Future::make_unique<WorstCaseStress<_Sim, _WCSObjectiveType>>(
-                *it, it->simulator(), globalObjectivePNorm, globalObjectiveRoot);
+                *it, globalObjectivePNorm, globalObjectiveRoot);
         wcs->setWeight(weight);
 
         // WCS normalization is the initial worst case stress

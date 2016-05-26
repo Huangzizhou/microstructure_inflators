@@ -6,13 +6,12 @@ void optimize_gd(ScalarField<Real> &params,
         const PatternOptimization::OptimizerConfig &oconfig,
         const std::string &outPath)
 {
-    // TODO: switch to steepestDescentParam direction when implemented
     for (size_t i = 0; i < oconfig.niters; ++i) {
         auto &it = im.get(params.size(), params.data());
         it.writeDescription(std::cout);
         std::cout << std::endl;
 
-        params -= it.gradp() * oconfig.gd_step;
+        params += it.steepestDescent() * oconfig.gd_step;
 
         // Apply bound constraints
         for (size_t p = 0; p < im.numParameters(); ++p) {

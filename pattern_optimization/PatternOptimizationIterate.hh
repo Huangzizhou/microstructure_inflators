@@ -106,8 +106,10 @@ struct Iterate : public IterateBase {
             MeshIO::save("debug.msh", mesh());
             std::cerr << "Wrote geometry to 'debug.msh'" << std::endl;
             std::cerr << std::setprecision(19) << std::endl;
-            std::cerr << "params:";
-            for (size_t i = 0; i < m_params.size(); ++i) std::cerr << "\t" << m_params[i];
+            if (isParametric()) {
+                std::cerr << "params:";
+                for (size_t i = 0; i < m_params.size(); ++i) std::cerr << "\t" << m_params[i];
+            }
             std::cerr << std::endl;
             exit(-1);
         }
@@ -196,7 +198,9 @@ struct Iterate : public IterateBase {
             term->setEstimateWithDeltaParams(delta);
 
         std::cerr << "WARNING, USING APPROXIMATE OBJECTIVES/GRADIENTS AT DIST:";
-        for (size_t p = 0; p < delta.domainSize(); ++p) std::cerr << "\t" << delta[p];
+        if (isParametric())
+            for (size_t p = 0; p < delta.domainSize(); ++p) std::cerr << "\t" << delta[p];
+        else delta.norm();
         std::cerr << std::endl;
     }
 
@@ -248,12 +252,16 @@ struct Iterate : public IterateBase {
                 eterm->gradp = term.second->gradp(inflator.shapeVelocities(mesh()));
                 // TODO: construct parameter "mass matrix"...
                 // Normalize for unit M-norm
-                eterm->descentp = SField();
+                eterm->descentp = eterm->gradp;
+                eterm->descentp *= -1.0;
             }
             else {
+                std::cerr << "Computing grad for " << term.first << std::endl;
                 eterm->gradp = inflator.paramsFromBoundaryVField(term.second->differential());
+                std::cerr << "Computing descent for " << term.first << std::endl;
                 eterm->descentp = inflator.paramsFromBoundaryVField(
                         SDConversions::descent_from_diff_bdry(term.second->differential(), *m_sim));
+                std::cerr << "Done with " << term.first << std::endl;
             }
 
             IterateBase::m_evaluatedObjectiveTerms.push_back(std::move(eterm));

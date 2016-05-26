@@ -72,8 +72,9 @@ struct IFApplyConfigs<> {
 
 template<class _Iterate, class... IFConfigs>
 struct IterateFactory : public IFConfigs... {
+    static constexpr size_t N = _Iterate::_N;
     using Iterate = _Iterate;
-    using _Inflator = Inflator<Iterate::_N>;
+    using _Inflator = Inflator<N>;
 
     IterateFactory(_Inflator &inflator)
         : m_inflator(inflator) { }
@@ -117,6 +118,21 @@ struct IterateFactory : public IFConfigs... {
         // We actually created a new iterate--configure it accordingly.
         IFApplyConfigs<IFConfigs...>::apply(this, newIterate, m_normalizations);
         newIterate->evaluateObjectiveTerms(m_inflator);
+
+        // // Write debug steepest descent field
+        // {
+        //     MSHFieldWriter debug("descent_debug.msh", newIterate->mesh());
+        //     VectorField<Real, N> bdescent = m_inflator.boundaryVFieldFromParams(newIterate->steepestDescent());
+        //     VectorField<Real, N> vdescent(newIterate->mesh().numVertices());
+        //     vdescent.clear();
+        //     for (auto v : newIterate->mesh().vertices()) {
+        //         auto bv = v.boundaryVertex();
+        //         if (!bv) continue;
+        //         vdescent(v.index()) = bdescent(bv.index());
+        //     }
+        //     debug.addField("JFull Steepest Descent", vdescent);
+        // }
+
         return newIterate;
     }
 

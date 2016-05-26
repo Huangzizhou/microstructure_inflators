@@ -85,12 +85,11 @@ struct IterateBase {
     ////////////////////////////////////////////////////////////////////////////
     // Implemented by subclass
     ////////////////////////////////////////////////////////////////////////////
-    virtual Real evaluate() const = 0;
+    virtual Real evaluate()                                  const = 0;
     virtual Real evaluateNormalized(const std::string &name) const = 0;
     virtual void writeMeshAndFields(const std::string &path) const = 0;
     virtual void writeDescription(std::ostream &os)          const = 0;
     virtual std::vector<std::string> objectiveTermNames()    const = 0;
-
 
     bool isParametric() const { return m_parametricOptimization; }
 

@@ -56,6 +56,7 @@ public:
                     std::cerr << "WARNING: ignoring incorrectly-sized initial parameters for non-parametric inflator." << std::endl;
                 params.assign(inflator.numParameters(), 0.0);
             }
+            return params;
         }
         if (numParams() != inflator.numParameters()) {
             for (size_t i = 0; i < inflator.numParameters(); ++i)

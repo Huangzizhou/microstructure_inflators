@@ -97,7 +97,7 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
     }
     else throw runtime_error("Invalid inflator: " + name);
 
-    infl->setReflectiveInflator(!extract_flag(opts, "fullCellInflator"));
+    if (extract_flag(opts, "fullCellInflator")) infl->setReflectiveInflator(false);
     extract_notify(opts, "meshingOptions", [&](const string &v) { infl->loadMeshingOptions(v); });
     extract_notify(opts, "max_volume",     [&](double        v) { infl->setMaxElementVolume(v); });
 

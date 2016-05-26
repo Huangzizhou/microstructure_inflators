@@ -91,11 +91,11 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description patternOptions;
     patternOptions.add_options()
-        ("pattern,p",    po::value<string>(),                            "Pattern wire mesh (.obj|wire), or initial mesh for BoundaryPerturbationInflator")
-        ("inflator,i",   po::value<string>()->default_value("isosurface"), "Which inflator to use: isosurface (default), lphole, boundary_perturbation")
-        ("isotropicParameters,I",                                        "Use isotropic DoFs (3D only)")
-        ("vertexThickness,V",                                            "Use vertex thickness instead of edge thickness (3D only)")
-        ("cell_size,c",  po::value<double>(),                            "Inflation cell size (3D only)")
+        ("pattern,p",    po::value<string>(),                              "Pattern wire mesh (.obj|wire), or initial mesh for BoundaryPerturbationInflator")
+        ("inflator,i",   po::value<string>()->default_value("isosurface"), "Which inflator to use: Isosurface (default), LpHole, BoundaryPerturbation, Luigi, James")
+        ("isotropicParameters,I",                                          "Use isotropic DoFs (3D only)")
+        ("vertexThickness,V",                                              "Use vertex thickness instead of edge thickness (3D only)")
+        ("cell_size,c",  po::value<double>(),                              "Inflation cell size (3D only)")
         ;
 
     po::options_description meshingOptions;
@@ -237,9 +237,6 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     using TensorFitTermConfig = PO::ObjectiveTerms::IFConfigTensorFit<Simulator>;
     using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
 
-    // TODO: what to do for boundary perturbation inflator? higher order optimizers should
-    // probably check that they're running on a parametric iterate factory, and
-    // gradient descent should allow resizing of params otherwise.
     auto ifactory = PO::make_iterate_factory<PO::Iterate<Simulator>,
                                              WCSTermConfig,
                                              TensorFitTermConfig,

@@ -26,16 +26,11 @@ enum class ParameterType { Thickness, Offset, Blending, Meta };
 
 inline std::string parameterTypeString(const ParameterType &type) {
     switch(type) {
-        case ParameterType::Thickness:
-            return "Thickness";
-        case ParameterType::Offset:
-            return "Offset";
-        case ParameterType::Blending:
-            return "Blending";
-        case ParameterType::Meta:
-            return "Meta";
-        default:
-            return "Invalid";
+        case ParameterType::Thickness: return "Thickness";
+        case ParameterType::Offset:    return "Offset";
+        case ParameterType::Blending:  return "Blending";
+        case ParameterType::Meta:      return "Meta";
+        default:                       return "Invalid";
     }
 }
 
@@ -121,6 +116,12 @@ public:
     // descent direction/differential form.
     virtual ScalarField<Real> paramsFromBoundaryVField(const VectorField<Real, N> &/*bdryVField*/) const {
         throw std::runtime_error("Boundary => param descent conversion only supported by non-parametric inflators.");
+    }
+
+    // Compute the per-boundary-vertex velocity field corresponding to a parameter
+    // velocity field.
+    virtual VectorField<Real, N> boundaryVFieldFromParams(const ScalarField<Real> &/*pvel*/) const {
+        throw std::runtime_error("boundaryVFieldFromParams() unimplemented by this inflator");
     }
 
     // Extract (true) boundary shape velocities from volume shape velocities.
