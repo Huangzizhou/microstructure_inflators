@@ -82,6 +82,9 @@ public:
     static constexpr size_t NONE = std::numeric_limits<size_t>::max();
     using Mesh = FEMMesh<N, 1, VectorND<N>>;
 
+    BoundaryPerturbationInflator(const std::string &meshPath,
+                                 Real epsilon = 1e-5);
+
     BoundaryPerturbationInflator(const std::vector<MeshIO::IOVertex>  &inVertices,
                                  const std::vector<MeshIO::IOElement> &inElements,
                                  Real epsilon = 1e-5);
@@ -102,8 +105,8 @@ public:
     virtual ScalarField<Real> paramsFromBoundaryVField(const VectorField<Real, N> &values) const override {
         std::vector<Real> result(m_numParams);
         std::vector<bool> isSet(m_numParams, false);
-        assert(values.size() == m_mesh.numBoundaryVertices());
-        for (auto bv : m_mesh.boundaryVertices()) {
+        assert(values.size() == m_mesh->numBoundaryVertices());
+        for (auto bv : m_mesh->boundaryVertices()) {
             for (size_t d = 0; d < N; ++d) {
                 Real val = values(bv.index())[d];
                 size_t var = m_varForCoordinate[d].at(bv.volumeVertex().index());
@@ -139,13 +142,12 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     void setNoPerturb(bool noPerturb) { m_noPerturb = noPerturb; }
 
-
     // Get the boundary vector field corresponding to "params" (i.e. the
     // inverse of paramsFromBoundaryVField)
     VectorField<Real, N> boundaryVFieldFromParams(const ScalarField<Real> &params) const {
-        VectorField<Real, N> result(m_mesh.numBoundaryVertices());
+        VectorField<Real, N> result(m_mesh->numBoundaryVertices());
         result.clear();
-        for (auto bv : m_mesh.boundaryVertices()) {
+        for (auto bv : m_mesh->boundaryVertices()) {
             for (size_t d = 0; d < N; ++d) {
                 auto var = m_varForCoordinate[d].at(bv.volumeVertex().index());
                 size_t p = m_paramForVariable[d].at(var);
@@ -156,7 +158,7 @@ public:
         return result;
     }
 
-    const Mesh &mesh() const { return m_mesh; }
+    const Mesh &mesh() const { return *m_mesh; }
 
     virtual ~BoundaryPerturbationInflator() { }
 
@@ -176,7 +178,10 @@ private:
     // (Useful for remeshing gradient descent.)
     bool m_noPerturb = false;
 
-    Mesh m_mesh;
+    std::unique_ptr<Mesh> m_mesh;
+
+    void m_setMesh(const std::vector<MeshIO::IOVertex>  &inVertices,
+                   const std::vector<MeshIO::IOElement> &inElements, Real epsilon);
 };
 
 #endif /* end of include guard: BOUNDARYPERTURBATIONINFLATOR_HH */

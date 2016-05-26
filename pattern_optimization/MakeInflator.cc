@@ -10,6 +10,7 @@
 #include "inflators/LuigiInflatorWrapper.hh"
 #include "inflators/LpHoleInflator.hh"
 #include "inflators/EqualityConstrainedInflator.hh"
+#include "inflators/BoundaryPerturbationInflator.hh"
 
 using namespace std;
 namespace po = boost::program_options;
@@ -83,6 +84,16 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
         auto lphole_infl = Future::make_unique<LpHoleInflator>();
         extract_notify(opts, "hole_segments", [&](size_t hs) { lphole_infl->setNumSubdiv(hs); });
         infl = std::move(lphole_infl);
+    }
+    else if (ci_string("BoundaryPerturbation") == name.c_str()) {
+        std::vector<MeshIO::IOVertex>  inVertices;
+        std::vector<MeshIO::IOElement> inElements;
+        auto type = MeshIO::load(extract_required<string>(opts, "pattern"),
+                                 inVertices, inElements);
+
+        if      (type == MeshIO::MESH_TRI) infl = Future::make_unique<BoundaryPerturbationInflator<2>>(inVertices, inElements, 1e-10);
+        else if (type == MeshIO::MESH_TET) infl = Future::make_unique<BoundaryPerturbationInflator<3>>(inVertices, inElements, 1e-10);
+        else    throw std::runtime_error("Mesh must be triangle or tet.");
     }
     else throw runtime_error("Invalid inflator: " + name);
 

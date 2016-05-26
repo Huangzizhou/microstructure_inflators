@@ -50,7 +50,8 @@ INFLATOR_OBJS=../pattern_optimization/MakeInflator.o \
 				../pattern_optimization/inflators/EqualityConstrainedInflator.o \
 				../pattern_optimization/inflators/IsoinflatorWrapper.o \
 				../pattern_optimization/inflators/JamesInflatorWrapper.o \
-				../pattern_optimization/inflators/LuigiInflatorWrapper.o
+				../pattern_optimization/inflators/LuigiInflatorWrapper.o \
+				../pattern_optimization/inflators/BoundaryPerturbationInflator.o
 
 CPPFLAGS+=$(INCLUDES)
 
