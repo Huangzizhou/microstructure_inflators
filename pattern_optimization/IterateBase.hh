@@ -31,20 +31,18 @@ struct IterateBase {
     // For free boundary shape optimization problems, this inner product
     // approach to gradients is intractable and unnecessary.
     IterateBase(bool parametricOptimization) : m_parametricOptimization(parametricOptimization) { }
+
     const EvaluatedObjectiveTerm &evaluatedObjectiveTerm(const std::string &name) const {
-        m_assertParametric();
         for (const auto &term : m_evaluatedObjectiveTerms)
             if (term->name == name) return *term;
         throw std::runtime_error("Objective term not found: " + name);
     }
 
     const EvaluatedObjectiveTerm &evaluatedObjectiveTerm(size_t i) const {
-        m_assertParametric();
         return *m_evaluatedObjectiveTerms.at(i);
     }
 
     const std::vector<EOTPtr> &evaluatedObjectiveTerms() const {
-        m_assertParametric();
         return m_evaluatedObjectiveTerms;
     }
 
@@ -63,11 +61,16 @@ struct IterateBase {
         return full;
     }
 
-    SField steepestDescentParam() const {
-        m_assertParametric();
-        // TODO: construct parameter "mass matrix"...
-        // Normalize for unit M-norm
-        throw std::runtime_error("Unimplemented.");
+    // Steepest descent direction with respect to the object's L^2 boundary
+    // metric.
+    // Works for both parametric and non-parametric optimization.
+    SField steepestDescent() const {
+        SField full;
+        for (const auto &term : m_evaluatedObjectiveTerms) {
+            if (full.domainSize() == 0) full  = term->descentContribution();
+            else                        full += term->descentContribution();
+        }
+        return full;
     }
 
     bool paramsDiffer(size_t nParams, const Real *params) const {
@@ -79,12 +82,15 @@ struct IterateBase {
     }
 
     const std::vector<Real> &params() const { return m_params; }
-
+    ////////////////////////////////////////////////////////////////////////////
     // Implemented by subclass
+    ////////////////////////////////////////////////////////////////////////////
     virtual Real evaluate() const = 0;
+    virtual Real evaluateNormalized(const std::string &name) const = 0;
     virtual void writeMeshAndFields(const std::string &path) const = 0;
-    virtual void writeDescription(std::ostream &os) const = 0;
-    virtual std::vector<std::string> objectiveTermNames() const = 0;
+    virtual void writeDescription(std::ostream &os)          const = 0;
+    virtual std::vector<std::string> objectiveTermNames()    const = 0;
+
 
     bool isParametric() const { return m_parametricOptimization; }
 
@@ -97,11 +103,6 @@ protected:
     // velocity fields. This also determines whether gradients are printed by
     // the writeDescription method.
     bool m_parametricOptimization;
-
-    void m_assertParametric() const {
-        if (!m_parametricOptimization)
-            throw std::runtime_error("This operation is only supported for parametric optimization.");
-    }
 
     // Filled out by subclass
     std::vector<EOTPtr> m_evaluatedObjectiveTerms;

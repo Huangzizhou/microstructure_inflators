@@ -78,6 +78,7 @@ void optimize_dlib_bfgs(ScalarField<Real> &params,
         const PatternOptimization::OptimizerConfig &oconfig,
         const std::string &outPath)
 {
+    if (!im.isParametric()) throw std::runtime_error("BFGS only works with parametric inflators");
     DLibObjectiveEvaluator obj(im);
     DLibGradientEvaluator grad(im);
 

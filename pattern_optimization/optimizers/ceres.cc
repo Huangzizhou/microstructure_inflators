@@ -84,7 +84,10 @@ void optimize_ceres_lm(ScalarField<Real> &params,
                        const BoundConstraints &bds,
                        IterateManagerBase &im,
                        const OptimizerConfig &oconfig,
-                       const std::string &outPath) {
+                       const std::string &outPath)
+{
+    if (!im.isParametric()) throw std::runtime_error("Ceres optimizers only work with parametric inflators");
+
     const size_t nParams = params.domainSize();
     const IterateBase &it = im.get(nParams, &params[0]);
     ceres::Problem problem;
@@ -119,7 +122,9 @@ void optimize_ceres_dogleg(ScalarField<Real> &params,
         const PatternOptimization::BoundConstraints &bds,
         PatternOptimization::IterateManagerBase &im,
         const PatternOptimization::OptimizerConfig &oconfig,
-        const std::string &outPath) {
+        const std::string &outPath)
+{
+    if (!im.isParametric()) throw std::runtime_error("Ceres optimizers only work with parametric inflators");
 
     const size_t nParams = params.domainSize();
     const IterateBase &it = im.get(nParams, &params[0]);

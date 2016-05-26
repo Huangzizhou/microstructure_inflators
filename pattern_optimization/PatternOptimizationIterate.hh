@@ -34,6 +34,7 @@
 #include "SDConversions.hh"
 
 #include "IterateBase.hh"
+#include "Inflator.hh"
 
 #include <Future.hh>
 
@@ -124,21 +125,15 @@ struct Iterate : public IterateBase {
     // derivatives/gradients/steepest descent directions
     ////////////////////////////////////////////////////////////////////////////////
     // Evaluate full objective
-    Real evaluate() const {
+    virtual Real evaluate() const override {
         Real full = 0;
-        if (isParametric()) {
-            for (const auto &term : m_evaluatedObjectiveTerms)
-                full += term->contribution();
-        }
-        else {
-            for (const auto &term : m_objectiveTerms)
-                full += term.second->normalizedWeight() * term.second->evaluate();
-        }
+        for (const auto &term : m_evaluatedObjectiveTerms)
+            full += term->contribution();
         return full;
     }
 
     // Evaluate normalized sub-objective
-    Real evaluateNormalized(const std::string &name) const {
+    virtual Real evaluateNormalized(const std::string &name) const override {
         return m_objectiveTerms.at(name)->evaluateNormalized();
     }
 
@@ -155,19 +150,9 @@ struct Iterate : public IterateBase {
         return full;
     }
 
-    // Steepest descent boundary velocity field for the full objective
-    VField steepestDescent() const {
-        return SDConversions::descent_from_diff_bdry(differential(), m_sim);
-    }
-
-    // Steepest descent parameter vector in terms of object's L2 metric. 
-    SField steepestDescentParam(const std::vector<VField> &/*bdrySVels*/) const {
-        throw std::runtime_error("steepestDescentParam unimplemented");
-    }
-
     // Partial derivatives of full objective wrt each pattern parameter with
     // specified boundary velocities.
-    using IterateBase::gradp;   // Prevent hiding over overload
+    using IterateBase::gradp;   // Prevent hiding instead of overloading
     SField gradp(const std::vector<VField> &bdrySVels) const {
         auto diff = differential();
         SField g(bdrySVels.size());
@@ -184,7 +169,7 @@ struct Iterate : public IterateBase {
 
     virtual size_t numObjectiveTerms() const { return m_objectiveTerms.size(); }
 
-    virtual std::vector<std::string> objectiveTermNames() const {
+    virtual std::vector<std::string> objectiveTermNames() const override {
         std::vector<std::string> names;
         for (auto &term : m_objectiveTerms) names.push_back(term.first);
         return names;
@@ -203,7 +188,6 @@ struct Iterate : public IterateBase {
     // this->evaluate() for parametric optimization iterates, but not the
     // individual objective terms' evaluate().
     void estimatePoint(size_t nParams, const double *params) {
-        this->m_assertParametric();
         assert(nParams == m_params.size());
         SField delta(nParams);
         for (size_t p = 0; p < nParams; ++p)
@@ -231,20 +215,28 @@ struct Iterate : public IterateBase {
     const _ETensor &complianceTensor() const { return S; }
     const std::vector<VField> &fluctuationDisplacements() const { return w_ij; }
 
+    // Must be called *after* objective terms are added. (cannot be from the
+    // constructor...)
     void evaluateObjectiveTerms(const Inflator<_N> &inflator) {
         m_evaluatedObjectiveTerms.clear();
         m_evaluatedObjectiveTerms.reserve(m_objectiveTerms.size());
         for (auto &term : m_objectiveTerms) {
             std::unique_ptr<EvaluatedObjectiveTerm> eterm;
-            if (auto nllsTerm = dynamic_cast<const NLLSObjectiveTerm<_N> *>(term.second.get())) {
-                auto enterm = Future::make_unique<EvaluatedObjectiveTermNLLS>();
-                // Fill out NLLS info
-                enterm->residualComponents = nllsTerm->residual();
-                enterm->jacobianComponents = nllsTerm->jacobian(inflator.shapeVelocities(mesh()));
-                eterm = std::move(enterm);
-            }
-            else {
-                eterm = Future::make_unique<EvaluatedObjectiveTerm>();
+            // Conditionally construct EvaluatedObjectiveTerm{,NLLS}
+            {
+                auto nllsTerm = dynamic_cast<const NLLSObjectiveTerm<_N> *>(term.second.get());
+                // NLLS optimization only works for parametric inflators--use
+                // general nonlinear optimization otherwise
+                if (inflator.isParametric() && nllsTerm) {
+                    auto enterm = Future::make_unique<EvaluatedObjectiveTermNLLS>();
+                    // Fill out NLLS info
+                    enterm->residualComponents = nllsTerm->residual();
+                    enterm->jacobianComponents = nllsTerm->jacobian(inflator.shapeVelocities(mesh()));
+                    eterm = std::move(enterm);
+                }
+                else {
+                    eterm = Future::make_unique<EvaluatedObjectiveTerm>();
+                }
             }
             assert(eterm);
             eterm->name = term.first;
@@ -252,19 +244,29 @@ struct Iterate : public IterateBase {
 
             eterm->normalization = term.second->normalization();
             eterm->weight        = term.second->weight();
-            eterm->gradp         = term.second->gradp(inflator.shapeVelocities(mesh()));
+            if (inflator.isParametric()) {
+                eterm->gradp = term.second->gradp(inflator.shapeVelocities(mesh()));
+                // TODO: construct parameter "mass matrix"...
+                // Normalize for unit M-norm
+                eterm->descentp = SField();
+            }
+            else {
+                eterm->gradp = inflator.paramsFromBoundaryVField(term.second->differential());
+                eterm->descentp = inflator.paramsFromBoundaryVField(
+                        SDConversions::descent_from_diff_bdry(term.second->differential(), *m_sim));
+            }
 
             IterateBase::m_evaluatedObjectiveTerms.push_back(std::move(eterm));
         }
     }
 
-    void writeMeshAndFields(const std::string &path) const {
+    virtual void writeMeshAndFields(const std::string &path) const override {
         MSHFieldWriter writer(path, m_sim->mesh());
         for (auto &term : m_objectiveTerms)
             term.second->writeFields(writer);
     }
 
-    void writeDescription(std::ostream &os) const {
+    virtual void writeDescription(std::ostream &os) const override {
         if (isParametric()) {
             os << "p:";
             for (size_t i = 0; i < m_params.size(); ++i)
@@ -284,20 +286,19 @@ struct Iterate : public IterateBase {
 
         for (auto &term : m_objectiveTerms)
             term.second->writeDescription(os, term.first);
-        if (isParametric()) {
-            // Evaluated objective terms know the gradient information
-            for (auto &eterm : this->m_evaluatedObjectiveTerms)
-                eterm->writeGradientDescription(os);
-        }
+        // Evaluated objective terms know the gradient information
+        for (auto &eterm : this->m_evaluatedObjectiveTerms)
+            eterm->writeGradientDescription(os, isParametric());
 
         if (numObjectiveTerms() > 1) {
             os << "JFull:\t" << this->evaluate() << std::endl;
+            SField gp = IterateBase::gradp();
             if (isParametric()) {
-                SField gp = IterateBase::gradp();
                 os << "grad_p JFull:\t";
                 gp.print(os, "", "", "", "\t");
-                os << std::endl << "||grad_p JFull||:\t" << gp.norm() << std::endl;
+                os << std::endl;
             }
+            os << "||grad_p JFull||:\t" << gp.norm() << std::endl;
         }
     }
 
@@ -305,8 +306,6 @@ protected:
     std::unique_ptr<_Sim> m_sim;
     _ETensor C, S ;
     bool m_printable;
-
-    bool m_parametricOptimization;
 
     ObjectiveTermMap m_objectiveTerms; 
 

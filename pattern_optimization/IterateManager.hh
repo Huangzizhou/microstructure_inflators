@@ -35,14 +35,14 @@ struct IterateManager : public IterateManagerBase {
         return *m_currIterate;
     }
 
-          Iterate &get()       { assert(m_currIterate); return *m_currIterate; }
-    const Iterate &get() const { assert(m_currIterate); return *m_currIterate; }
+    virtual       Iterate &get()          override { assert(m_currIterate); return *m_currIterate; }
+    virtual const Iterate &get()    const override { assert(m_currIterate); return *m_currIterate; }
 
-          Iterate *getPtr()       { return m_currIterate.get(); }
-    const Iterate *getPtr() const { return m_currIterate.get(); }
+    virtual       Iterate *getPtr()       override { return m_currIterate.get(); }
+    virtual const Iterate *getPtr() const override { return m_currIterate.get(); }
 
-    virtual size_t numParameters() const { return m_iterFactory->numParameters(); }
-    virtual bool    isParametric() const { return m_iterFactory->isParametric(); }
+    virtual size_t numParameters() const override { return m_iterFactory->numParameters(); }
+    virtual bool    isParametric() const override { return m_iterFactory->isParametric(); }
 
     virtual ~IterateManager() { }
 private:

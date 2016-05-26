@@ -94,34 +94,12 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     // Shape velocity
     ////////////////////////////////////////////////////////////////////////////
-    virtual ScalarField<Real> paramDescentFromBdryDescent(const VectorField<Real, N> &bdescent) const override {
-        return ScalarField<Real>(paramsFromBoundaryVField(bdescent));
-    }
-
-    ////////////////////////////////////////////////////////////////////////////
-    // Queries
-    ////////////////////////////////////////////////////////////////////////////
-    virtual bool isParametric() const override { return false; }
-    virtual size_t numParameters() const override { return m_numParams; }
-    virtual ParameterType parameterType(size_t /* p */) const override {
-        return ParameterType::Offset;
-    }
-    virtual bool isPrintable(const std::vector<Real> &/* p */) override {
-        // TODO
-        return true;
-    }
-
-    ////////////////////////////////////////////////////////////////////////////
-    // Boundary perturbation-specific
-    ////////////////////////////////////////////////////////////////////////////
-    void setNoPerturb(bool noPerturb) { m_noPerturb = noPerturb; }
-
     // Read off the parameter values from a particular per-boundary-vertex
     // vector field, verifying its consistency with the periodic constraints
     // If guaranteeing consistent boundary vertex enumerations across multiple
     // FEMMesh instances becomes a problem, we could change this to take a
     // per-volume-vertex field.
-    ScalarField<Real> paramsFromBoundaryVField(const VectorField<Real, N> &values) const {
+    virtual ScalarField<Real> paramsFromBoundaryVField(const VectorField<Real, N> &values) const override {
         std::vector<Real> result(m_numParams);
         std::vector<bool> isSet(m_numParams, false);
         assert(values.size() == m_mesh.numBoundaryVertices());
@@ -142,6 +120,25 @@ public:
         }
         return result;
     }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Queries
+    ////////////////////////////////////////////////////////////////////////////
+    virtual bool isParametric() const override { return false; }
+    virtual size_t numParameters() const override { return m_numParams; }
+    virtual ParameterType parameterType(size_t /* p */) const override {
+        return ParameterType::Offset;
+    }
+    virtual bool isPrintable(const std::vector<Real> &/* p */) override {
+        // TODO
+        return true;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Boundary perturbation-specific
+    ////////////////////////////////////////////////////////////////////////////
+    void setNoPerturb(bool noPerturb) { m_noPerturb = noPerturb; }
+
 
     // Get the boundary vector field corresponding to "params" (i.e. the
     // inverse of paramsFromBoundaryVField)

@@ -36,6 +36,12 @@ struct EvaluatedObjectiveTerm {
         return result;
     }
 
+    ScalarField<Real> descentContribution() const {
+        ScalarField<Real> result(descentp);
+        result *= normalizedWeight();
+        return result;
+    }
+
     virtual Real value() const {
         Real result = m_value;
         if (isEstimating()) result += gradp.values().dot(m_estimationDeltaP.values());
@@ -53,17 +59,19 @@ struct EvaluatedObjectiveTerm {
     void disableEstimation() { m_estimationDeltaP.resizeDomain(0); }
 
     // Note: also outputs estimated term, if we're estimating
-    virtual void writeGradientDescription(std::ostream &os) {
+    virtual void writeGradientDescription(std::ostream &os, bool isParametric) {
         if (isEstimating())
             os << "estimated " << name << ":\t" << value() << std::endl;
-        os << "grad_p " << name << ":\t";
-        gradp.print(os, "", "", "", "\t");
-        os << std::endl;
+        if (isParametric) {
+            os << "grad_p " << name << ":\t";
+            gradp.print(os, "", "", "", "\t");
+            os << std::endl;
+        }
         os << "||grad_p " << name << "||:\t" << gradp.norm() << std::endl;
     }
 
     // All objective terms provide gradient information.
-    ScalarField<Real> gradp;
+    ScalarField<Real> gradp, descentp;
     virtual ~EvaluatedObjectiveTerm() { }
 protected:
     Real m_value;

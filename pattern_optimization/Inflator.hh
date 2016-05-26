@@ -118,8 +118,8 @@ public:
     // For non-parametric inflators (where individual vertex positions are
     // variables), it's inefficient to work with parameter velocities. However,
     // we can efficiently extract the parameter vector corresponding to a boundary
-    // descent direction.
-    virtual ScalarField<Real> paramDescentFromBdryDescent(const VectorField<Real, N> &bdescent) const {
+    // descent direction/differential form.
+    virtual ScalarField<Real> paramsFromBoundaryVField(const VectorField<Real, N> &/*bdryVField*/) const {
         throw std::runtime_error("Boundary => param descent conversion only supported by non-parametric inflators.");
     }
 

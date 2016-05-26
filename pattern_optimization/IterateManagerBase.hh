@@ -9,12 +9,14 @@ namespace PatternOptimization {
 // CeresCostWrapper(s) and IterationCallback)
 struct IterateManagerBase {
     virtual IterateBase &get(size_t nParams, const double * const params) = 0;
-    virtual          IterateBase &get()       = 0;
-    virtual const    IterateBase &get() const = 0;
+
+    virtual       IterateBase    &get()       = 0;
+    virtual const IterateBase    &get() const = 0;
     virtual       IterateBase *getPtr()       = 0;
     virtual const IterateBase *getPtr() const = 0;
 
     virtual size_t numParameters() const = 0;
+    virtual bool    isParametric() const = 0;
 
     virtual ~IterateManagerBase() { }
 };

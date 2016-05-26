@@ -116,8 +116,7 @@ struct IterateFactory : public IFConfigs... {
 
         // We actually created a new iterate--configure it accordingly.
         IFApplyConfigs<IFConfigs...>::apply(this, newIterate, m_normalizations);
-        if (m_inflator.isParametric())
-            newIterate->evaluateObjectiveTerms(m_inflator);
+        newIterate->evaluateObjectiveTerms(m_inflator);
         return newIterate;
     }
 
