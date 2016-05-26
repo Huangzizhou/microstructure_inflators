@@ -1147,7 +1147,7 @@ protected:
 			// deform c 
 			std::vector<Coord2Type> deformedC;
 			deformedC.clear();
-			for (int j = 0; j < c.size(); ++j)
+			for (size_t j = 0; j < c.size(); ++j)
 			{
 				deformedC.push_back(quadInterpolate<PolyMesh>(c[j], pmesh, f));
 			}
@@ -1203,15 +1203,15 @@ protected:
 
 		std::vector<double> distances;
 		distances.clear();
-		for (int i = 0; i < e0.vert.size(); ++i)
+		for (size_t i = 0; i < e0.vert.size(); ++i)
 		{
 			PCoordType newPT = qpar.interpolate(vcg::Point2d(double(e0.vert[i].cP()[0]), double(e0.vert[i].cP()[1])), face);
 			vcg::Point2d diff  = vcg::Point2d( double(newPT[0]), double(newPT[1]) ) - vcg::Point2d( double(p.X()), double(p.Y()) );
 			distances.push_back(diff.Norm());
 		}
 
-		int targetVertex = 0;
-		for (int i = 1; i < distances.size(); ++i)
+		size_t targetVertex = 0;
+		for (size_t i = 1; i < distances.size(); ++i)
 			if (distances[i] < distances[targetVertex])
 				targetVertex = i;
 

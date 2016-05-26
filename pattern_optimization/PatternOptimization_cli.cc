@@ -195,9 +195,9 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::initParams = job->initialParams;
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::weight     = args["proximityRegularizationWeight"].as<double>();
     }
-
-    auto imanager = make_iterate_manager(ifactory);
     ifactory->targetS = targetS;
+
+    auto imanager = make_iterate_manager(std::move(ifactory));
     BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
                           job->varLowerBounds, job->varUpperBounds);
 

@@ -261,7 +261,6 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     ifactory->WCSTermConfig::globalObjectivePNorm = pnorm;
     ifactory->WCSTermConfig::globalObjectiveRoot  = args.count("usePthRoot") ? 2.0 * pnorm : 1.0;
 
-
     if (args.count("JSWeight")) {
         ifactory->TensorFitTermConfig::weight  = args["JSWeight"].as<double>();
         ifactory->TensorFitTermConfig::targetS = targetS;
@@ -274,7 +273,7 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
         ifactory->PRegTermConfig::weight     = args["proximityRegularizationWeight"].as<double>();
     }
 
-    auto imanager = PO::make_iterate_manager(ifactory);
+    auto imanager = make_iterate_manager(std::move(ifactory));
     PO::BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
                               job->varLowerBounds, job->varUpperBounds);
 

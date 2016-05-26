@@ -55,7 +55,7 @@ std::vector<VectorField<Real, 3>> JamesInflatorWrapper::volumeShapeVelocities() 
     const size_t nv = vertices().size();
     size_t nParams = numParameters();
     assert(vertexVelocities.size() == nParams);
-    assert(vertexVelocities.at(0).size() == nv);
+    assert(vertexVelocities.at(0).size() == int(nv));
     std::vector<VectorField<Real, 3>> result(nParams, VectorField<Real, 3>(nv));
     for (size_t p = 0; p < nParams; ++p) {
         for (size_t vi = 0; vi < nv; ++vi)

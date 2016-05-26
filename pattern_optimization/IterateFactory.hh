@@ -29,6 +29,7 @@
 #include "PatternOptimizationIterate.hh"
 #include "ObjectiveTermNormalizations.hh"
 #include "Inflator.hh"
+#include <Future.hh>
 
 namespace PatternOptimization {
 
@@ -121,17 +122,17 @@ struct IterateFactory : public IFConfigs... {
     }
 
     size_t numParameters() const { return m_inflator.numParameters(); }
+    bool    isParametric() const { return m_inflator.isParametric(); }
 
 private:
     ObjectiveTermNormalizations m_normalizations;
     _Inflator &m_inflator;
-    bool m_parametricOptimization;
 };
 
 // Inflator template parameter is last so that it can be inferred...
 template<class _Iterate, class... IFConfigs>
-std::shared_ptr<IterateFactory<_Iterate, IFConfigs...>> make_iterate_factory(Inflator<_Iterate::_N> &inflator) {
-    return std::make_shared<IterateFactory<_Iterate, IFConfigs...>>(inflator);
+std::unique_ptr<IterateFactory<_Iterate, IFConfigs...>> make_iterate_factory(Inflator<_Iterate::_N> &inflator) {
+    return Future::make_unique<IterateFactory<_Iterate, IFConfigs...>>(inflator);
 }
 
 }

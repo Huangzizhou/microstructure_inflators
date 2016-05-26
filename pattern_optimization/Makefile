@@ -51,7 +51,8 @@ INFLATOR_OBJS=MakeInflator.o \
 				inflators/EqualityConstrainedInflator.o \
 				inflators/IsoinflatorWrapper.o \
 				inflators/JamesInflatorWrapper.o \
-				inflators/LuigiInflatorWrapper.o
+				inflators/LuigiInflatorWrapper.o \
+				inflators/BoundaryPerturbationInflator.o
 
 SOURCES=PatternOptimization_cli.cc PatternOptimizationJob.cc RandomJob.cc SpacedJob.cc GradientComponentValidation.cc \
 		Inflator_cli.cc ParamRegion_cli.cc

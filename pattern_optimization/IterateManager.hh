@@ -27,8 +27,8 @@ template<class _ItFactory>
 struct IterateManager : public IterateManagerBase {
     using Iterate  = typename _ItFactory::Iterate;
 
-    IterateManager(std::shared_ptr<_ItFactory> itFactory)
-        : m_iterFactory(itFactory) { }
+    IterateManager(std::unique_ptr<_ItFactory> itFactory)
+        : m_iterFactory(std::move(itFactory)) { }
 
     Iterate &get(size_t nParams, const double * const params) {
         m_currIterate = m_iterFactory->getIterate(std::move(m_currIterate), nParams, &params[0]);
@@ -42,16 +42,17 @@ struct IterateManager : public IterateManagerBase {
     const Iterate *getPtr() const { return m_currIterate.get(); }
 
     virtual size_t numParameters() const { return m_iterFactory->numParameters(); }
+    virtual bool    isParametric() const { return m_iterFactory->isParametric(); }
 
     virtual ~IterateManager() { }
 private:
-    std::shared_ptr<_ItFactory> m_iterFactory;
+    std::unique_ptr<_ItFactory> m_iterFactory;
     std::unique_ptr<Iterate>    m_currIterate;
 };
 
 template<class _IF>
-std::shared_ptr<IterateManager<_IF>> make_iterate_manager(std::shared_ptr<_IF> itFactory) {
-    return std::make_shared<IterateManager<_IF>>(itFactory);
+std::shared_ptr<IterateManager<_IF>> make_iterate_manager(std::unique_ptr<_IF> itFactory) {
+    return std::make_shared<IterateManager<_IF>>(std::move(itFactory));
 }
 
 }

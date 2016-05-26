@@ -111,7 +111,17 @@ public:
     // This is done because the inflators themselves might not know which are
     // boundary vertices (or might not have the same boundary vertex indexing)
     ////////////////////////////////////////////////////////////////////////////
-    virtual std::vector<VectorField<Real, N>> volumeShapeVelocities() const = 0;
+    virtual std::vector<VectorField<Real, N>> volumeShapeVelocities() const {
+        throw std::runtime_error("Shape velocities only supported by parametric inflators.");
+    }
+
+    // For non-parametric inflators (where individual vertex positions are
+    // variables), it's inefficient to work with parameter velocities. However,
+    // we can efficiently extract the parameter vector corresponding to a boundary
+    // descent direction.
+    virtual ScalarField<Real> paramDescentFromBdryDescent(const VectorField<Real, N> &bdescent) const {
+        throw std::runtime_error("Boundary => param descent conversion only supported by non-parametric inflators.");
+    }
 
     // Extract (true) boundary shape velocities from volume shape velocities.
     // Non-virtual! 

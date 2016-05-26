@@ -453,7 +453,7 @@ public:
 		vcg::Point2d dx(1.0, 0.0);
 		vcg::Point2d dy(0.0, 1.0);
 
-		for (int i = 0; i < em.vert.size(); ++i)
+		for (size_t i = 0; i < em.vert.size(); ++i)
 		{
 			op.type = ParameterOperation::Radius;
 			op.nodes.clear();
@@ -563,7 +563,7 @@ public:
 
 	void addBaseSymmetry()
 	{
-		for (int i = 0; i < m_em.vert.size(); ++i)
+		for (size_t i = 0; i < m_em.vert.size(); ++i)
 		{
 			for (int flipAxis = 0; flipAxis < 2; ++flipAxis) // 0 corresponds to the x-axis and 1 corresponds to the y-axis
 			{
@@ -575,7 +575,7 @@ public:
 				int  firstAxisDegree = (flipAxis == 0) ? 0 : 90;
 				int secondAxisDegree = (flipAxis == 0) ? 90 : 0;
 
-				int j = findNodeIdx(flipPoint(m_em.vert[i].cP(), firstAxisDegree));
+				size_t j = findNodeIdx(flipPoint(m_em.vert[i].cP(), firstAxisDegree));
 				if (j == i)
 				{
 					int k = findNodeIdx(flipPoint(m_em.vert[j].cP(), secondAxisDegree));
@@ -685,10 +685,10 @@ protected:
 	void addRadiusSymmetries(const int axisDegree)
 	{
 		// add the radius symmetries
-		for (int i = 0; i < m_em.vert.size(); ++i)
+		for (size_t i = 0; i < m_em.vert.size(); ++i)
 		{	
-			int currentNode = i;
-			int flippedNode = findNodeIdx(flipPoint(m_em.vert[i].cP(), axisDegree));
+			size_t currentNode = i;
+			size_t flippedNode = findNodeIdx(flipPoint(m_em.vert[i].cP(), axisDegree));
 
 			if (currentNode != flippedNode)
 			{
@@ -707,7 +707,7 @@ protected:
 
 	void addAboutCoordAxisSymmetries(const int axisDegree, const std::string axis)
 	{
-		for (int i = 0; i < m_em.vert.size(); ++i)
+		for (size_t i = 0; i < m_em.vert.size(); ++i)
 		{
 			std::pair<int, ScalarType>	 currentOpSignPair, flippedOpSignPair;
 			int							 currentOpIdx,      flippedOpIdx;
@@ -846,7 +846,7 @@ protected:
 		int idx, i;
 		bool flag = false;
 
-		for (i = 0; i < m_em.vert.size(); ++i)
+		for (i = 0; i < int(m_em.vert.size()); ++i)
 		{
 			CoordType delta = vcg::Abs(m_em.vert[i].cP() - inPoint);
 			if (delta[0] <= Epsilon() &&
