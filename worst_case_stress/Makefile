@@ -31,7 +31,7 @@ INCLUDES+=-isystem $(TRIANGLE_INC)
 INCLUDES+=-isystem $(ADEPT_INC) -isystem $(VCGLIB_INC) -isystem $(DLIB_INC) \
 		  -isystem $(CGAL_INC) -isystem $(GMP_INC) -isystem $(MPFR_INC)
 
-LIBS=$(BOOST_LFLAGS) $(SUITESPARSE_LFLAGS) $(CERES_LFLAGS) $(LIBMATHEVAL_LFLAGS)
+LIBS=$(BOOST_LFLAGS) $(SUITESPARSE_LFLAGS) $(CERES_LFLAGS) $(LIBMATHEVAL_LFLAGS) $(NLOPT_LFLAGS)
 LIBS+=$(CLIPPER_LFLAGS) $(TRIANGLE_LFLAGS) $(LEVMAR_LFLAGS)
 LIBS+=-L$(PYMESH_PATH)/lib -lwires
 
@@ -53,6 +53,11 @@ INFLATOR_OBJS=../pattern_optimization/MakeInflator.o \
 				../pattern_optimization/inflators/LuigiInflatorWrapper.o \
 				../pattern_optimization/inflators/BoundaryPerturbationInflator.o
 
+OPTIMIZER_OBJS=../pattern_optimization/optimizers/ceres.o \
+			../pattern_optimization/optimizers/dlib.o \
+			../pattern_optimization/optimizers/gradient_descent.o \
+			../pattern_optimization/optimizers/nlopt.o
+
 CPPFLAGS+=$(INCLUDES)
 
 DISCRETE_DERIVATIVE_OBJS=DiscreteShapeDerivativeValidation_cli.o \
@@ -62,10 +67,7 @@ WCS_OBJS=WCS_cli.o  $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.
 WCSOPT_OBJS=WCSOptimization_cli.o ../pattern_optimization/PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o \
-			$(ISOINFLATOR_OBS)  $(INFLATOR_OBJS) \
-			../pattern_optimization/optimizers/ceres.o \
-			../pattern_optimization/optimizers/dlib.o \
-			../pattern_optimization/optimizers/gradient_descent.o
+			$(ISOINFLATOR_OBS)  $(INFLATOR_OBJS)  $(OPTIMIZER_OBJS)
 WCS_REMESH_OPT_OBJS=WCSRemeshingOptimization_cli.o ../pattern_optimization/PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
@@ -102,12 +104,12 @@ WCSRemeshingOptimization_cli: $(WCS_REMESH_OPT_OBJS)
 
 # Delete built-in rule, forcing ours to run
 %.o: %.cc
-%.o: %.cc Makefile
+%.o: %.cc # Makefile
 	$(CXX) $(DEPFLAGS) $(CPPFLAGS) -c $< -o $@
 	mv -f $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).Td $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).d
 
 %.o: %.c
-%.o: %.c Makefile
+%.o: %.c # Makefile
 	$(CC) $(DEPFLAGS) -c $(CFLAGS) $< -o $@
 	mv -f $(DEPDIR)/$$(subst .,$(COMMA),$(subst /,__,$*)).Td $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).d
 

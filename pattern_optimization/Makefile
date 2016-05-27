@@ -54,13 +54,15 @@ INFLATOR_OBJS=MakeInflator.o \
 				inflators/LuigiInflatorWrapper.o \
 				inflators/BoundaryPerturbationInflator.o
 
+OPTIMIZER_OBJS=optimizers/ceres.o optimizers/dlib.o optimizers/gradient_descent.o \
+			   optimizers/nlopt.o
+
 SOURCES=PatternOptimization_cli.cc PatternOptimizationJob.cc RandomJob.cc SpacedJob.cc GradientComponentValidation.cc \
 		Inflator_cli.cc ParamRegion_cli.cc
 PATOPT_OBJS=PatternOptimization_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o \
-			$(INFLATOR_OBJS) $(ISOINFLATOR_OBS) \
-			optimizers/ceres.o optimizers/dlib.o optimizers/gradient_descent.o
+			$(INFLATOR_OBJS) $(ISOINFLATOR_OBS) $(OPTIMIZER_OBJS)
 CREATJOB_OBJS=CreateJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/MSHFieldParser.o $(MeshFEM)/GlobalBenchmark.o

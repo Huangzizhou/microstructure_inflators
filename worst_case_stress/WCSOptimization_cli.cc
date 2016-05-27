@@ -49,6 +49,7 @@
 #include <optimizers/ceres.hh>
 #include <optimizers/dlib.hh>
 #include <optimizers/gradient_descent.hh>
+#include <optimizers/nlopt.hh>
 
 #include <PatternOptimizationIterate.hh>
 
@@ -77,6 +78,7 @@ OptimizerMap optimizers = {
     {"dogleg",               optimize_ceres_dogleg},
     {"bfgs",                 optimize_dlib_bfgs},
     {"lbfgs",                optimize_dlib_bfgs},
+    {"slsqp",                optimize_nlopt_sqslp},
     {"gradient_descent",     optimize_gd}
 };
 
@@ -112,7 +114,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     optimizerOptions.add_options()
         ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
-        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs")
+        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, slsqp, bfgs, lbfgs")
         ;
 
     po::options_description objectiveOptions;
@@ -183,8 +185,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
-    set<string> solvers = {"gradient_descent", "bfgs", "lbfgs"};
-    if (solvers.count(vm["solver"].as<string>()) == 0) {
+    if (optimizers.count(vm["solver"].as<string>()) == 0) {
         cout << "Illegal solver specified" << endl;
         fail = true;
     }
