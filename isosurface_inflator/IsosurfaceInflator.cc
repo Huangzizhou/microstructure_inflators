@@ -14,6 +14,8 @@
 #include "SnapAndReflect.hh"
 #include "Isometries.hh"
 
+#define DEBUG_EVALPTS 0
+
 #if 0
 #include "CGALClippedVolumeMesher.hh"
 #include "VCGSurfaceMesher.hh"
@@ -198,7 +200,7 @@ public:
                               << evalPoints[e] << std::endl;
                     std::cerr << "sd at pt:\t" << pattern.signedDistance(evalPoints[e]) << std::endl;
                     std::cerr << "autodiff sd at pt:\t" << sd << std::endl;
-                    throw std::runtime_error("nan sd");
+                    // throw std::runtime_error("nan sd");
                 }
             }
         }
@@ -332,9 +334,9 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
         evaluationPoints.push_back(vertices.at(bv.volumeVertex().index()));
     }
 
-#if 0
+#if DEBUG_EVALPTS
     {
-        MSHFieldWriter debug("debug.msh", vertices, elements);
+        MSHFieldWriter debug("debug_evalpts.msh", vertices, elements);
         for (size_t d = 0; d < N; ++d) {
             ScalarField<Real> minFaceIndicator(vertices.size()), maxFaceIndicator(vertices.size());
             for (size_t i = 0; i < vertices.size(); ++i) {
@@ -364,8 +366,18 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     // sd(x, p) = 0
     // grad_x(sd) . dx/dp + d(sd)/dp = 0,   grad_x(sd) = n |grad_x(sd)|
     // ==>  v . n = -[ d(sd)/dp ] / |grad_x(sd)|
-    vector<vector<Real>> vnp = inflator.signedDistanceParamPartials(evaluationPoints);
-    vector<Point>    sdGradX = inflator.signedDistanceGradient(evaluationPoints);
+    vector<vector<Real>> vnp;
+    vector<Point> sdGradX;
+    // try {
+        vnp = inflator.signedDistanceParamPartials(evaluationPoints);
+        sdGradX = inflator.signedDistanceGradient(evaluationPoints);
+    // }
+    // catch(...) {
+    //     MSHFieldWriter debug("debug.msh", vertices, elements);
+    //     BENCHMARK_STOP_TIMER_SECTION("SignedDistanceGradientsAndPartials");
+    //     BENCHMARK_STOP_TIMER_SECTION("postProcess");
+    //     throw;
+    // }
     vector<Real> sdGradNorms(evaluationPoints.size());
     for (size_t i = 0; i < evaluationPoints.size(); ++i) {
         sdGradNorms[i] = sdGradX[i].norm();
@@ -388,6 +400,9 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
 
                 MSHFieldWriter debug("debug.msh", vertices, elements);
                 debug.addField("fail", fail);
+                BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");
+                BENCHMARK_STOP_TIMER_SECTION("postProcess");
+                throw std::runtime_error("nan vn");
                 // assert(false);
             }
         }
