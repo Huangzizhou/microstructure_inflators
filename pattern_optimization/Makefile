@@ -15,7 +15,8 @@ endif
 # Configuration section
 ################################################################################
 # **** Configuration: Use the isosurface inflator for 3D ****
-CPPFLAGS+=-DISOSURFACE_INFLATOR -DBENCHMARK
+# CPPFLAGS+= -DBENCHMARK
+# CPPFLAGS+= -DTOO_LARGE_FOR_METIS
 CPPFLAGS+=-Wall -pedantic -std=c++11
 # CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
 ################################################################################

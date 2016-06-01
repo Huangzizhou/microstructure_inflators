@@ -243,22 +243,27 @@ mesh(const SignedDistanceFunction &sdf,
         for (const auto &poly : polygons) {
             if (poly.size() < 3) throw std::runtime_error("Polygon of size " + std::to_string(poly.size()) + " in marching squares output.");
             if (isHoleBdry.at(i++)) {
-                bool found = false;
-                for (auto p_it = poly.begin(); !found && (p_it != poly.end()); ++p_it) {
+                // Choose the hole point of greatest signed distance (furthest
+                // into void) for robustness
+                Real maxDist = 0;
+                Point2D candidate;
+                for (auto p_it = poly.begin(); p_it != poly.end(); ++p_it) {
                     auto p_next = p_it; ++p_next;
                     if (p_next == poly.end()) p_next = poly.begin();
                     Point2D midpoint = 0.5 * (*p_next + *p_it);
-                    Point2D edgeVec = *p_next - *p_it; // ccw pointing edge
-                    Vector2D inwardNormal(-edgeVec[1], edgeVec[0]);
-                    Point2D query = midpoint + (1e-5 / inwardNormal.norm()) * inwardNormal;
-                    if (slice.signedDistance(query) < 0.0) {
-                        holePts.push_back(query);
-                        found = true;
+                    Point2D edgeVec = *p_next - *p_it;
+                    Vector2D outwardNormal(edgeVec[1], -edgeVec[0]); // outward from geometry (inward to hole)
+                    Point2D query = midpoint + (1e-4 / outwardNormal.norm()) * outwardNormal;
+                    Real querySD = slice.signedDistance(query);
+                    if (querySD > maxDist) {
+                        maxDist = querySD;
+                        candidate = query;
                     }
                 }
-                if (!found) {
-                    throw std::runtime_error("Couldn't find point inside hole " + std::to_string(i));
-                }
+                if (maxDist == 0) throw std::runtime_error("Couldn't find point inside hole " + std::to_string(i));
+                holePts.push_back(candidate);
+                // std::cerr << "Found hole point: " << candidate << std::endl;
+                // std::cerr << "signed distance at hole point: " << maxDist << std::endl;
             }
         }
     }

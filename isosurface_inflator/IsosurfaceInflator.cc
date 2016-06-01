@@ -8,6 +8,8 @@
 #include <MeshIO.hh>
 #include <MSHFieldWriter.hh>
 #include <SimplicialMesh.hh>
+#include <Future.hh>
+
 #include "AutomaticDifferentiation.hh"
 #include "WireMesh.hh"
 #include "PatternSignedDistance.hh"
@@ -300,7 +302,18 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     // TODO: change to pass the meshing cell
     snapVerticesToUnitCell<MeshIO::IOVertex, std::ratio<1, long(1e10)>>(vertices, onMinFace, onMaxFace);
 
-    SimplicialMesh<N> symBaseCellMesh(elements, vertices.size());
+    std::unique_ptr<SimplicialMesh<N>> bcm;
+    try {
+        bcm = Future::make_unique<SimplicialMesh<N>>(elements, vertices.size());
+    }
+    catch (...) {
+        std::cerr << "Exception while building mesh" << std::endl;
+        std::cerr << "Dumping debug.msh" << std::endl;
+        MeshIO::save("debug.msh", vertices, elements);
+        throw;
+    }
+    SimplicialMesh<N> &symBaseCellMesh = *bcm;
+
     // Mark internal cell-face vertices: vertices on the meshing cell
     // boundary that actually lie inside the object (i.e. they are only mesh
     // boundary vertices because of the intersection of the periodic pattern with
@@ -382,7 +395,11 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     for (size_t i = 0; i < evaluationPoints.size(); ++i) {
         sdGradNorms[i] = sdGradX[i].norm();
         // We evaluate on the boundary--there should be a well-defined normal
-        if (std::abs(sdGradNorms[i]) < 1e-8) throw std::runtime_error("Normal undefined.");
+        if (std::abs(sdGradNorms[i]) < 1e-8) {
+            BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");
+            BENCHMARK_STOP_TIMER_SECTION("postProcess");
+            throw std::runtime_error("Normal undefined.");
+        }
     }
 
     for (auto &vn : vnp) {

@@ -14,10 +14,8 @@ endif
 ################################################################################
 # Configuration section
 ################################################################################
-# **** Configuration: Use the isosurface inflator for 3D ****
-CPPFLAGS+=-DISOSURFACE_INFLATOR -DBENCHMARK -DTOO_LARGE_FOR_METIS
-# CPPFLAGS+=-DBENCHMARK -DTOO_LARGE_FOR_METIS
 # CPPFLAGS+= -DBENCHMARK
+# CPPFLAGS+= -DTOO_LARGE_FOR_METIS
 CPPFLAGS+=-Wall -pedantic -Wunused-parameter -Wpedantic -std=c++14
 # CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
 ################################################################################
@@ -104,12 +102,12 @@ WCSRemeshingOptimization_cli: $(WCS_REMESH_OPT_OBJS)
 
 # Delete built-in rule, forcing ours to run
 %.o: %.cc
-%.o: %.cc # Makefile
+%.o: %.cc Makefile
 	$(CXX) $(DEPFLAGS) $(CPPFLAGS) -c $< -o $@
 	mv -f $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).Td $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).d
 
 %.o: %.c
-%.o: %.c # Makefile
+%.o: %.c Makefile
 	$(CC) $(DEPFLAGS) -c $(CFLAGS) $< -o $@
 	mv -f $(DEPDIR)/$$(subst .,$(COMMA),$(subst /,__,$*)).Td $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).d
 
