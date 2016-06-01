@@ -25,6 +25,9 @@
 #include <Flattening.hh>
 #include <MSHFieldWriter.hh>
 
+#include <Fields.hh>
+#include <OneForm.hh>
+
 namespace PatternOptimization {
 
 // Base class for objective terms. At a minimum, subclasses must implement:
@@ -37,6 +40,7 @@ template<size_t N>
 struct ObjectiveTerm {
     ObjectiveTerm() { }
 
+    using  OForm = ScalarOneForm<N>;
     using VField = VectorField<Real, N>;
     using SField = ScalarField<Real>;
 
@@ -49,7 +53,7 @@ struct ObjectiveTerm {
 
     // Differential (one-forms) of the sub-objective
     // This is a BOUNDARY differential!
-    const VField &differential() const { return m_differential; }
+    const OForm &differential() const { return m_differential; }
 
     // Partial derivatives with respect to pattern parameters inducing boundary
     // shape velocities bdrySVels
@@ -57,7 +61,7 @@ struct ObjectiveTerm {
         size_t np = bdrySVels.size();
         SField g(np);
         for (size_t p = 0; p < np; ++p)
-            g[p] = m_differential.innerProduct(bdrySVels[p]);
+            g[p] = m_differential[bdrySVels[p]];
         return g;
     }
 
@@ -90,7 +94,7 @@ struct ObjectiveTerm {
 protected:
     Real m_weight = 1.0;
     Real m_normalization = 1.0;
-    VField m_differential;
+    OForm m_differential;
 };
 
 // Abstract base class for Nonlinear Least Squares objective terms.

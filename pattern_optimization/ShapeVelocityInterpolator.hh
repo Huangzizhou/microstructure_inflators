@@ -28,6 +28,9 @@
 #include <Laplacian.hh>
 #include <limits>
 
+#include <Fields.hh>
+#include <OneForm.hh>
+
 class ShapeVelocityInterpolator {
     static constexpr size_t NO_VAR = std::numeric_limits<size_t>::max(),
                               NONE = std::numeric_limits<size_t>::max();
@@ -145,13 +148,13 @@ public:
     // boundary field with 1/N of the contribution to each of the N identified
     // vertices.
     template<class Sim>
-    typename Sim::VField adjoint(const Sim &sim,
-                                 const typename Sim::VField &dv) const {
+    ScalarOneForm<Sim::N> adjoint(const Sim &sim,
+                                 const ScalarOneForm<Sim::N> &dv) const {
         assert(dv.domainSize() == sim.mesh().numVertices());
 
         // If there are no true boundary vertices, there is no adjoint velocity
         if (m_bdryVars.size() == 0) {
-            typename Sim::VField result(sim.mesh().numBoundaryVertices());
+            ScalarOneForm<Sim::N> result(sim.mesh().numBoundaryVertices());
             result.clear();
             return result;
         }
@@ -162,7 +165,7 @@ public:
         Lsys.fixVariables(m_bdryVars, std::vector<Real>(m_bdryVars.size()));
 
         std::vector<Real> S_t_dv, C_t_Lii_inv_C_S_t_dv;
-        typename Sim::VField dvb(sim.mesh().numBoundaryVertices());
+        ScalarOneForm<Sim::N> dvb(sim.mesh().numBoundaryVertices());
         dvb.clear();
         for (size_t c = 0; c < Sim::N; ++c) {
             // Sum identified values onto the DoFs

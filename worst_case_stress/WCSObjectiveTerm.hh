@@ -4,6 +4,9 @@
 #include <ObjectiveTerm.hh>
 #include <MSHFieldWriter.hh>
 
+#include <Fields.hh>
+#include <OneForm.hh>
+
 #include "WorstCaseStress.hh"
 
 namespace PatternOptimization {
@@ -13,7 +16,8 @@ namespace PH = PeriodicHomogenization;
 
 template<class _Sim, class _WCSObjectiveType>
 struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
-    using Base = ObjectiveTerm<_Sim::N>;
+    using   Base = ObjectiveTerm<_Sim::N>;
+    using  OForm = ScalarOneForm<_Sim::N>;
     using VField = typename _Sim::VField;
     template<class _Iterate>
     WorstCaseStress(const _Iterate &it,
@@ -77,7 +81,7 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
 
     virtual ~WorstCaseStress() { }
 private:
-    VField m_diff_vol; // per-volume-vertex differential
+    OForm m_diff_vol; // per-volume-vertex differential
     const _Sim &m_sim;
     _WCSObjectiveType m_wcs_objective;
 };

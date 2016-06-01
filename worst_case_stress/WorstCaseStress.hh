@@ -600,12 +600,12 @@ struct IntegratedWorstCaseObjective {
     // M_ij v[j], where M is the deg 1 mass matrix. Or for Newton's method, the
     // Hessian.).
     template<class Sim>
-    typename Sim::VField
+    ScalarOneForm<Sim::N>
     adjointDeltaJ(const Sim &sim, const std::vector<typename Sim::VField> &w) const {
         // Dilation and delta strain terms
         const auto mesh = sim.mesh();
         size_t nv = mesh.numVertices();
-        typename Sim::VField delta_j(nv);
+        ScalarOneForm<Sim::N> delta_j(nv);
         delta_j.clear();
 
         BENCHMARK_START_TIMER_SECTION("Adjoint Cell Problem");
@@ -856,10 +856,10 @@ using Base = SubObjective;
     }
 
     template<class Sim>
-    typename Sim::VField
+    ScalarOneForm<Sim::N>
     adjointDeltaJ(const Sim &sim,
             const std::vector<typename Sim::VField> &w) const {
-        auto pder = Base::adjointDeltaJ(sim, w); 
+        ScalarOneForm<Sim::N> pder = Base::adjointDeltaJ(sim, w); 
         if (p == 1) return pder;
         pder *= m_gradientScale();
         return pder;

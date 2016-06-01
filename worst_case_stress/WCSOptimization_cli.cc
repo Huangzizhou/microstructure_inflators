@@ -98,6 +98,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("isotropicParameters,I",                                          "Use isotropic DoFs (3D only)")
         ("vertexThickness,V",                                              "Use vertex thickness instead of edge thickness (3D only)")
         ("cell_size,c",  po::value<double>(),                              "Inflation cell size (3D only)")
+        ("params",       po::value<string>(),                              "Initial params (overrides those specified in job file).")
         ;
 
     po::options_description meshingOptions;
@@ -204,7 +205,7 @@ using ETensor = ElasticityTensor<Real, _N>;
 typedef ScalarField<Real> SField;
 
 template<size_t _N, size_t _FEMDegree>
-void execute(const po::variables_map &args, const PO::Job<_N> *job)
+void execute(const po::variables_map &args, PO::Job<_N> *job)
 {
     auto infl_ptr = make_inflator<_N>(args["inflator"].as<string>(),
                                      filterInflatorOptions(args),
@@ -229,6 +230,18 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
+    // If requested, override the initial parameters set in the job file
+    if (args.count("params")) {
+        string paramString = args["params"].as<string>();
+        boost::trim(paramString);
+        std::vector<string> pStrings;
+        boost::split(pStrings, paramString, boost::is_any_of("\t "),
+                     boost::token_compress_on);
+        job->initialParams.clear();
+        for (const auto &p : pStrings)
+            job->initialParams.push_back(std::stod(p));
+    }
+
     SField params = job->validatedInitialParams(inflator);
 
     // TODO: Laplacian regularization term (probably only needed for boundary
@@ -246,7 +259,7 @@ void execute(const po::variables_map &args, const PO::Job<_N> *job)
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
     ////////////////////////////////////////////////////////////////////////////
-    ifactory->WCSTermConfig      ::enabled = true;
+    ifactory->WCSTermConfig      ::enabled = args["WCSWeight"].as<double>() != 0;
     ifactory->TensorFitTermConfig::enabled = args.count("JSWeight");
     ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
 

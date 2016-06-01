@@ -11,6 +11,9 @@
 #ifndef SDCONVERSIONS_HH
 #define SDCONVERSIONS_HH
 
+#include <Fields.hh>
+#include <OneForm.hh>
+
 #include <vector>
 #include <GaussQuadrature.hh>
 
@@ -19,19 +22,19 @@
 
 namespace SDConversions {
 
-// Compute a boundary differential (vector field) from a NSV functional. This is
+// Compute a boundary differential from a NSV functional. This is
 // the per-boundary-vertex vector field whose inner product with a (periodic)
 // vector field v_b representing a piecewise linear shape velocity computes the
 // same functional as sd[dot(v_b, n)].
 // (Nonperiodic, vertices on the periodic cell get "half" (partial) contributions.)
 template<class _FEMMesh, size_t _SDDeg>
-VectorField<Real, _FEMMesh::K> diff_bdry_from_nsv_functional(
+ScalarOneForm<_FEMMesh::K> diff_bdry_from_nsv_functional(
         const std::vector<Interpolant<Real, _FEMMesh::K - 1, _SDDeg>> &sd,
         const _FEMMesh &mesh)
 {
     constexpr size_t BdryK = _FEMMesh::K - 1;
     constexpr size_t N     = _FEMMesh::K;
-    VectorField<Real, N> result(mesh.numBoundaryVertices());
+    ScalarOneForm<N> result(mesh.numBoundaryVertices());
     result.clear();
 
     assert(sd.size() == mesh.numBoundaryElements());
@@ -64,8 +67,8 @@ VectorField<Real, _FEMMesh::K> diff_bdry_from_nsv_functional(
 //  for all v_bdry ==> diff_bdry = I^T diff_vol
 //  Where I is the linear bdry -> vol velocity interpolation operator.
 template<class _Sim>
-typename _Sim::VField diff_bdry_from_diff_vol(
-        const typename _Sim::VField &diff_vol,
+ScalarOneForm<_Sim::N> diff_bdry_from_diff_vol(
+        const ScalarOneForm<_Sim::N> &diff_vol,
         const _Sim &sim)
 {
     ShapeVelocityInterpolator interpolator(sim);
@@ -105,7 +108,7 @@ typename _Sim::VField diff_bdry_from_diff_vol(
 // @return      -S M_dof^-1 S^T diff_bdry
 template<class _Sim>
 typename _Sim::VField descent_from_diff_bdry(
-        const typename _Sim::VField &diff_bdry,
+        const ScalarOneForm<_Sim::N> &diff_bdry,
         const _Sim &sim)
 {
     // Extract boundary vertex periodicity from m_sim.
@@ -215,7 +218,7 @@ typename _Sim::VField descent_from_diff_bdry(
 // and we can recover the velocity field coefficients g = S g_dof
 template<class _Sim>
 typename _Sim::VField descent_from_diff_vol(
-        const typename _Sim::VField &diff_vol,
+        const ScalarOneForm<_Sim::N> &diff_vol,
         const _Sim &sim)
 {
     // Determine S, the map from reduced periodic DoFs to vertices

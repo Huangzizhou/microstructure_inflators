@@ -5,6 +5,9 @@
 #include "../IterateFactory.hh"
 #include "../SDConversions.hh"
 
+#include <Fields.hh>
+#include <OneForm.hh>
+
 #include <PeriodicHomogenization.hh>
 #include <MSHFieldWriter.hh>
 
@@ -23,6 +26,7 @@ namespace PH = PeriodicHomogenization;
 template<class _Sim>
 struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
     static constexpr size_t N = _Sim::N;
+    using  OForm = ScalarOneForm<_Sim::N>;
     using SField = ScalarField<Real>;
     using ETensor = ElasticityTensor<Real, N>;
     using VField = VectorField<Real, N>;
@@ -137,7 +141,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
                     if (ij >= N) weight *= sqrt(2); // Left shear doubler
                     if (kl >= N) weight *= sqrt(2); // Right shear doubler
                 }
-                result(r, p) = weight * m_component_differentials.at(r).innerProduct(bdrySVels[p]);
+                result(r, p) = weight * m_component_differentials.at(r)[bdrySVels[p]];
             }
         }
         return result;
@@ -160,7 +164,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
 private:
     // Differentials (one-forms) of each component of the compliance tensor
     const _Sim &m_sim;
-    std::vector<VField> m_component_differentials;
+    std::vector<OForm> m_component_differentials;
     bool m_ignoreShear = false;
     ETensor m_diffS;
 };

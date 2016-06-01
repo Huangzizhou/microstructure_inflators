@@ -86,7 +86,7 @@ void optimize_nlopt_sqslp(ScalarField<Real> &params,
         x[p] = params[p];
 
     double minf;
-    nlopt::result result = opt.optimize(x, minf);
+    /* nlopt::result result = */ opt.optimize(x, minf);
 
     // Convert the solution back.
     for (size_t p = 0; p < nParams; ++p)

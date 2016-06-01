@@ -42,6 +42,7 @@ namespace PatternOptimization {
 
 template<class _Sim>
 struct Iterate : public IterateBase {
+    using    OForm = ScalarOneForm<_Sim::N>;
     using   VField = typename _Sim::VField;
     using   SField = ScalarField<Real>;
     using _ETensor = typename _Sim::ETensor;
@@ -141,10 +142,10 @@ struct Iterate : public IterateBase {
 
     // Evaluate full objective's differential one-form acting on boundary
     // velocity vector fields
-    VField differential() const {
-        VField full;
+    OForm differential() const {
+        OForm full;
         for (const auto &term : m_objectiveTerms) {
-            VField contrib = term.second->diff_bdry();
+            OForm contrib = term.second->diff_bdry();
             contrib *= term.second->normalizedWeight();
             if (full.domainSize() == 0) full  = contrib;
             else                        full += contrib;
@@ -156,12 +157,10 @@ struct Iterate : public IterateBase {
     // specified boundary velocities.
     using IterateBase::gradp;   // Prevent hiding instead of overloading
     SField gradp(const std::vector<VField> &bdrySVels) const {
-        auto diff = differential();
+        OForm diff = differential();
         SField g(bdrySVels.size());
-        for (size_t p = 0; p < bdrySVels.size(); ++p) {
-            assert(bdrySVels[p].domainSize() == diff.domainSize());
-            g[p] = diff.innerProduct(bdrySVels[p]);
-        }
+        for (size_t p = 0; p < bdrySVels.size(); ++p)
+            g[p] = diff[bdrySVels[p]];
         return g;
     }
 
@@ -257,7 +256,7 @@ struct Iterate : public IterateBase {
             }
             else {
                 std::cerr << "Computing grad for " << term.first << std::endl;
-                eterm->gradp = inflator.paramsFromBoundaryVField(term.second->differential());
+                eterm->gradp = inflator.paramsFromBoundaryVField(term.second->differential().asVectorField());
                 std::cerr << "Computing descent for " << term.first << std::endl;
                 eterm->descentp = inflator.paramsFromBoundaryVField(
                         SDConversions::descent_from_diff_bdry(term.second->differential(), *m_sim));
