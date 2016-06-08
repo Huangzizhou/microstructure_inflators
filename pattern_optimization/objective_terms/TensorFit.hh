@@ -7,6 +7,8 @@
 
 #include <Fields.hh>
 #include <OneForm.hh>
+#include <ElasticityTensor.hh>
+#include <LinearIndexer.hh>
 
 #include <PeriodicHomogenization.hh>
 #include <MSHFieldWriter.hh>
@@ -36,37 +38,15 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         const auto &w = it.fluctuationDisplacements();
         m_diffS = S - targetS;
 
-        // Compute compliance tensor gradient from elasticity tensor:
-        // dSh = -S : dCh : S
-        using ETensorSD = PH::BEHTensorGradInterpolant<_Sim>;
-        std::vector<ETensorSD> dSh = PH::homogenizedElasticityTensorGradient(w, it.simulator());
-        for (auto &GS : dSh) {
-            for (size_t n = 0; n < GS.size(); ++n)
-                GS[n] = -S.doubleDoubleContract(GS[n]);
-        }
+        auto dChVol  = PH::homogenizedElasticityTensorDiscreteDifferential(w, it.simulator());
+        auto dChBdry = SDConversions::diff_bdry_from_diff_vol(dChVol, it.simulator());
+        auto dShBdry = compose([&](const ETensor &e) { ETensor result = S.doubleDoubleContract(e); result *= -1.0; return result; }, dChBdry);
+        this->m_differential = compose([&](const ETensor &e) { return m_diffS.quadrupleContract(e); }, dShBdry);
 
-        // Compute differential of objective, first as NSV linear functional
-        using NSVFuncInterp = Interpolant<Real, ETensorSD::K, ETensorSD::Deg>;
-        std::vector<NSVFuncInterp> dJS(dSh.size());
-        for (size_t i = 0; i < dSh.size(); ++i) {
-            const auto &GS = dSh[i];
-            for (size_t n = 0; n < GS.size(); ++n)
-                dJS[i][n] = m_diffS.quadrupleContract(GS[n]);
-        }
-        this->m_differential = SDConversions::diff_bdry_from_nsv_functional(dJS, it.mesh());
-
-        // compute each compliance tensor component's differentials
-        std::vector<NSVFuncInterp> dShComponent(dSh.size());
-        for (size_t r = 0; r < numResiduals(); ++r) {
-            size_t ij, kl;
-            residual2DIndexFrom1D(r, ij, kl);
-            for (size_t bei = 0; bei < dSh.size(); ++bei) {
-                const auto &GS = dSh[bei];
-                for (size_t n = 0; n < GS.size(); ++n)
-                    dShComponent[bei][n] = GS[n].D(ij, kl);
-            }
+        using LI = LinearIndexer<ETensor>;
+        for (size_t i = 0; i < LI::size(); ++i) {
             m_component_differentials.push_back(
-                    SDConversions::diff_bdry_from_nsv_functional(dShComponent, it.mesh()));
+                    compose([&](const ETensor &e) { return LI::index(e, i); }, dShBdry));
         }
     }
 
@@ -75,25 +55,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
     bool ignoringShear() const { return m_ignoreShear; }
     void setIgnoreShear(bool ignore) { m_ignoreShear = ignore; }
 
-    static constexpr size_t numResiduals() {
-        return (flatLen(N) * (flatLen(N) + 1)) / 2;
-    }
-
-    // Compute the flattened tensor row and column index corresponding to a
-    // residual component. Inverse of the following map:
-    //    r(ij, kl) = kl + flatlen * ij - (ij * (ij + 1)) / 2
-    // Not a closed form inverse, but likely faster than sqrt version anyway
-    static void residual2DIndexFrom1D(const size_t r, size_t &ij, size_t &kl) {
-        assert(r < numResiduals());
-        size_t ri = r;
-        kl = flatLen(N) + 1; // invalid
-        for (ij = 0; ij < flatLen(N); ++ij) {
-            size_t rowSize = flatLen(N) - ij;
-            if (ri < rowSize) { kl = ri + ij; break;}
-            ri -= rowSize;
-        }
-        assert((ij < flatLen(N)) && (kl < flatLen(N)));
-    }
+    static constexpr size_t numResiduals() { return LinearIndexer<ETensor>::size(); }
 
 	// The (ij, kl)th residual (kl >= ij) for the nonlinear least squares (a
     // single term of the Frobenius distance). The terms are weighted so
@@ -103,7 +65,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         SField result(numResiduals());
         for (size_t r = 0; r < numResiduals(); ++r) {
             size_t ij, kl;
-            residual2DIndexFrom1D(r, ij, kl);
+            LinearIndexer<ETensor>::linearIndexTo2D(r, ij, kl);
             assert(kl >= ij);
             Real weight = 1.0;
             if (kl != ij) weight *= sqrt(2); // Account for lower triangle
@@ -130,7 +92,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         for (size_t p = 0; p < np; ++p) {
             for (size_t r = 0; r < numResiduals(); ++r) {
                 size_t ij, kl;
-                residual2DIndexFrom1D(r, ij, kl);
+                LinearIndexer<ETensor>::linearIndexTo2D(r, ij, kl);
                 Real weight = 1.0;
                 if (kl != ij) weight *= sqrt(2); // Account for lower triangle
                 if (ignoringShear()) {

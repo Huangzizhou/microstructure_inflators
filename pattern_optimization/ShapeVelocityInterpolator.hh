@@ -30,6 +30,7 @@
 
 #include <Fields.hh>
 #include <OneForm.hh>
+#include <LinearIndexer.hh>
 
 class ShapeVelocityInterpolator {
     static constexpr size_t NO_VAR = std::numeric_limits<size_t>::max(),
@@ -147,14 +148,14 @@ public:
     // The final step of applying A^T means that we create a periodic output
     // boundary field with 1/N of the contribution to each of the N identified
     // vertices.
-    template<class Sim>
-    ScalarOneForm<Sim::N> adjoint(const Sim &sim,
-                                 const ScalarOneForm<Sim::N> &dv) const {
+    template<class Sim, class T = Real>
+    OneForm<T, Sim::N> adjoint(const Sim &sim, const OneForm<T, Sim::N> &dv) const {
         assert(dv.domainSize() == sim.mesh().numVertices());
+        using OF = OneForm<T, Sim::N>;
 
         // If there are no true boundary vertices, there is no adjoint velocity
         if (m_bdryVars.size() == 0) {
-            ScalarOneForm<Sim::N> result(sim.mesh().numBoundaryVertices());
+            OF result(sim.mesh().numBoundaryVertices());
             result.clear();
             return result;
         }
@@ -165,26 +166,31 @@ public:
         Lsys.fixVariables(m_bdryVars, std::vector<Real>(m_bdryVars.size()));
 
         std::vector<Real> S_t_dv, C_t_Lii_inv_C_S_t_dv;
-        ScalarOneForm<Sim::N> dvb(sim.mesh().numBoundaryVertices());
+        OF dvb(sim.mesh().numBoundaryVertices());
         dvb.clear();
         for (size_t c = 0; c < Sim::N; ++c) {
-            // Sum identified values onto the DoFs
-            S_t_dv.assign(L.m, 0.0);
-            for (size_t i = 0; i < m_varForVertex.size(); ++i)
-                S_t_dv.at(m_varForVertex[i]) += dv(i)[c];
+            // Interpolate each component of the output tensor (e.g. just one
+            // componene
+            using LI = LinearIndexer<T>;
+            for (size_t cc = 0; cc < LI::size(); ++cc) {
+                // Sum identified values onto the DoFs
+                S_t_dv.assign(L.m, 0.0);
+                for (size_t i = 0; i < m_varForVertex.size(); ++i)
+                    S_t_dv.at(m_varForVertex[i]) += LI::index(dv(i)[c], cc);
 
-            Lsys.solve(S_t_dv, C_t_Lii_inv_C_S_t_dv); 
-            auto dofValues = L.apply(C_t_Lii_inv_C_S_t_dv);
-            // dofValues = S^T dv - L C^T    L_ii^{-1} C S^T dv
-            for (size_t i = 0; i < dofValues.size(); ++i)
-                dofValues[i] = S_t_dv[i] - dofValues[i];
+                Lsys.solve(S_t_dv, C_t_Lii_inv_C_S_t_dv);
+                auto dofValues = L.apply(C_t_Lii_inv_C_S_t_dv);
+                // dofValues = S^T dv - L C^T    L_ii^{-1} C S^T dv
+                for (size_t i = 0; i < dofValues.size(); ++i)
+                    dofValues[i] = S_t_dv[i] - dofValues[i];
 
-            // Apply A^T B: read (fractional) value for each boundary vertex.
-            for (auto bv : sim.mesh().boundaryVertices()) {
-                size_t bvarIdx = m_bdryVarIdxForBdryVtx.at(bv.index());
-                if (bvarIdx == NONE) continue;
-                dvb(bv.index())[c] = dofValues.at(m_bdryVars.at(bvarIdx))
-                                   / Real(m_numBdryVtxsPerBdryVar.at(bvarIdx));
+                // Apply A^T B: read (fractional) value for each boundary vertex.
+                for (auto bv : sim.mesh().boundaryVertices()) {
+                    size_t bvarIdx = m_bdryVarIdxForBdryVtx.at(bv.index());
+                    if (bvarIdx == NONE) continue;
+                    LI::index(dvb(bv.index())[c], cc) = dofValues.at(m_bdryVars.at(bvarIdx))
+                                                      / Real(m_numBdryVtxsPerBdryVar.at(bvarIdx));
+                }
             }
         }
 

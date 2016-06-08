@@ -684,22 +684,22 @@ struct IntegratedWorstCaseObjective {
             ScalarOneForm<N> gtermNew = compose([&](const ElasticityTensor<Real, N> &e) { return e.quadrupleContract(gamma); }, dCh);
             delta_j += gtermNew;
 
-            using ETensorSD = PH::BEHTensorGradInterpolant<Sim>;
-            using GTermSD   = Interpolant<Real, ETensorSD::K, ETensorSD::Deg>;
-            std::vector<ETensorSD> sdCh = PH::homogenizedElasticityTensorGradient(w, sim);
-            std::vector<GTermSD> gammaTermFunctional(sdCh.size());
-            for (size_t i = 0; i < sdCh.size(); ++i) {
-                for (size_t j = 0; j < ETensorSD::size(); ++j)
-                    gammaTermFunctional[i][j] = gamma.quadrupleContract(sdCh[i][j]);
-            }
-            auto gterm_bdry = SDConversions::diff_bdry_from_nsv_functional(gammaTermFunctional, mesh);
-            ScalarOneForm<N> gtermOld(mesh.numVertices());
-            gtermOld.clear();
-            for (auto bv : mesh.boundaryVertices())
-                gtermOld(bv.volumeVertex().index()) += gterm_bdry(bv.index());
-            MSHFieldWriter writer("debug_gamma.msh", mesh);
-            writer.addField("gamma term new", gtermNew.asVectorField());
-            writer.addField("gamma term old", gtermOld.asVectorField());
+            // using ETensorSD = PH::BEHTensorGradInterpolant<Sim>;
+            // using GTermSD   = Interpolant<Real, ETensorSD::K, ETensorSD::Deg>;
+            // std::vector<ETensorSD> sdCh = PH::homogenizedElasticityTensorGradient(w, sim);
+            // std::vector<GTermSD> gammaTermFunctional(sdCh.size());
+            // for (size_t i = 0; i < sdCh.size(); ++i) {
+            //     for (size_t j = 0; j < ETensorSD::size(); ++j)
+            //         gammaTermFunctional[i][j] = gamma.quadrupleContract(sdCh[i][j]);
+            // }
+            // auto gterm_bdry = SDConversions::diff_bdry_from_nsv_functional(gammaTermFunctional, mesh);
+            // ScalarOneForm<N> gtermOld(mesh.numVertices());
+            // gtermOld.clear();
+            // for (auto bv : mesh.boundaryVertices())
+            //     gtermOld(bv.volumeVertex().index()) += gterm_bdry(bv.index());
+            // MSHFieldWriter writer("debug_gamma.msh", mesh);
+            // writer.addField("gamma term new", gtermNew.asVectorField());
+            // writer.addField("gamma term old", gtermOld.asVectorField());
         }
         BENCHMARK_STOP_TIMER_SECTION("Gamma Term");
 

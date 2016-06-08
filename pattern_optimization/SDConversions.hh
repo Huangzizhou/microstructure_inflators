@@ -3,7 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
 //      Conversions between various forms of shape derivatives.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  05/02/2016 18:18:27
@@ -66,9 +66,9 @@ ScalarOneForm<_FEMMesh::K> diff_bdry_from_nsv_functional(
 //                           = <I^T diff_vol, v_bdry>
 //  for all v_bdry ==> diff_bdry = I^T diff_vol
 //  Where I is the linear bdry -> vol velocity interpolation operator.
-template<class _Sim>
-ScalarOneForm<_Sim::N> diff_bdry_from_diff_vol(
-        const ScalarOneForm<_Sim::N> &diff_vol,
+template<class _Sim, typename T = Real>
+OneForm<T, _Sim::N> diff_bdry_from_diff_vol(
+        const OneForm<T, _Sim::N> &diff_vol,
         const _Sim &sim)
 {
     ShapeVelocityInterpolator interpolator(sim);
@@ -80,7 +80,7 @@ ScalarOneForm<_Sim::N> diff_bdry_from_diff_vol(
 // respect to the boundary geometry's L^2 norm):
 //      min dJ[g]                   (dJ[g] = sum_i diff_bdry[i] . g[i])
 //       g          ==> diff_bdry + 2 l M g = 0
-//   g^T M g = h^2    
+//   g^T M g = h^2
 //      ==> g \propto -M^-1 diff_bdry
 // Here M is the boundary mass matrix (g^T M g = int_bdry g(x) . g(x) dA(x),
 // where g(x) is the interpolated scalar field corresponding to vector g).
@@ -100,7 +100,7 @@ ScalarOneForm<_Sim::N> diff_bdry_from_diff_vol(
 //    a *periodic* discrete boundary nodal vector field). Thus the summed
 //    quantity S^T diff_bdry gives the one-form acting on periodic
 //    boundary node displacements.
-//    
+//
 //    Letting M_dof = S^T M S, we arrive at the equation:
 //         g_dof \propto -  M_dof^-1 S^T diff_bdry
 //    ==>  g     \propto -S M_dof^-1 S^T diff_bdry
@@ -174,7 +174,7 @@ typename _Sim::VField descent_from_diff_bdry(
             neg_S_t_diff_bdry.at(dofForBdryVertex.at(bv.index()))
                 -= diff_bdry(bv.index())[c];
         }
-        
+
         auto g_dof = M_dof.solve(neg_S_t_diff_bdry);
 
         // Apply S
@@ -251,11 +251,11 @@ typename _Sim::VField descent_from_diff_vol(
 
         auto g_dof = M_dof.solve(neg_S_t_diff_vol);
 
-        // Apply S 
+        // Apply S
         for (auto v : mesh.vertices())
             g(v.index())[c] = g_dof.at(dofForVertex.at(v.index()));
     }
-    
+
     return g;
 }
 
