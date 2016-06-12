@@ -1,0 +1,319 @@
+// Topology enumeration:
+//
+// Enumerate using barycentric coordinates. 2D enumeration is equivalent to a 3D
+// enumeration that considers only edges among vertices with base tet apex
+// barycentric coordinate 0.
+//
+// Brute-force point merging.
+#include "../isosurface_inflator/Symmetry.hh"
+#include "intersection_check.hh"
+#include <vector>
+#include <array>
+#include <limits>
+#include <utility>
+#include <set>
+#include <queue>
+#include <MeshIO.hh>
+
+#include <sstream>
+#include <iomanip>
+
+#define MAX_VALENCE 7
+
+using namespace std;
+using BaryPoint = array<Real, 4>;
+using Sym = Symmetry::Cubic<>;
+
+constexpr size_t NONE = numeric_limits<size_t>::max();
+
+vector<Isometry> symmetryGroup = Sym::symmetryGroup(); 
+Real epsilon = double(Sym::Tolerance::num) / double(Sym::Tolerance::den);
+Real epsilonSq = epsilon * epsilon;
+
+vector<BaryPoint> nodesBary;
+vector<Point3d> nodes;
+vector<pair<size_t, size_t>> edges;
+
+size_t nonSelfIntersecting = 0;
+size_t connectedCount = 0;
+size_t noCoincidingEdges = 0;
+size_t noDanglingEdges = 0;
+size_t valenceTresholded = 0;
+size_t validCount = 0;
+
+// taken: which edges are chosen
+void processGraph(const vector<size_t> &taken) {
+    // Extract subgraph, converting from barycentric coordinates
+    vector<pair<size_t, size_t>> subEdges;
+    vector<Point3d> subNodes;
+    vector<size_t> subNodeForNode(nodes.size(), NONE);
+
+    static size_t checkedCount = 0;
+    ++checkedCount;
+    if (checkedCount % 1000 == 0) cout << checkedCount << endl;
+
+    for (size_t ei : taken) {
+        size_t u, v;
+        tie(u, v) = edges.at(ei);
+        if (subNodeForNode.at(u) == NONE) {
+            subNodeForNode.at(u) = subNodes.size();
+            subNodes.push_back(nodes.at(u));
+        }
+
+        if (subNodeForNode.at(v) == NONE) {
+            subNodeForNode.at(v) = subNodes.size();
+            subNodes.push_back(nodes.at(v));
+        }
+
+        subEdges.push_back({subNodeForNode.at(u),
+                            subNodeForNode.at(v)});
+    }
+
+    // Check for self-intersections. We define these as edges that intersect
+    // while not being neighbors.
+    if (hasSelfIntersection(subNodes, subEdges)) return; // BAIL
+    ++nonSelfIntersecting;
+
+    // Replicate subgraph. Note: this will also replicate neighboring
+    // subgraphs. This is useful for checking dangling vertices/valences since
+    // we don't need special cases for the border vertices.
+    // However, we must make sure only to check the graph inside the base
+    // cell...
+    set<pair<size_t, size_t>>    replicatedEdges;
+    vector<Point3d>              replicatedNodes;
+    replicatedNodes.reserve(symmetryGroup.size() * subNodes.size());
+    // replicatedEdges.reserve(symmetryGroup.size() * subEdges.size());
+
+    vector<size_t> nodeRemapper(subNodes.size());
+
+    // Brute-force merging of replicated graph
+    for (const auto &iso : symmetryGroup) {
+        for (size_t i = 0; i < subNodes.size(); ++i) {
+            Point3d pt = iso.apply(subNodes[i]);
+            size_t vtxIdx = NONE;
+            for (size_t j = 0; j < replicatedNodes.size(); ++j) {
+                if ((pt - replicatedNodes[j]).squaredNorm() < epsilonSq) {
+                    vtxIdx = j;
+                    break;
+                }
+            }
+            if (vtxIdx == NONE) {
+                vtxIdx = replicatedNodes.size();
+                replicatedNodes.push_back(pt);
+            }
+            nodeRemapper[i] = vtxIdx;
+        }
+
+        // using a set ignores replicated edges
+        for (const auto &e : subEdges) { replicatedEdges.insert({nodeRemapper.at(e.first),
+                                                                 nodeRemapper.at(e.second)}); }
+    }
+
+    // Build traversible graph representation
+    vector<vector<size_t>> adj(replicatedNodes.size());
+    for (const auto &e : replicatedEdges) {
+        adj.at(e.first).push_back(e.second);
+        adj.at(e.second).push_back(e.first);
+    }
+
+    // Check if connected
+    {
+        vector<bool> seen(replicatedNodes.size(), false);
+        queue<size_t> bfs;
+        bfs.push(0);
+        seen[0] = true;
+        while (!bfs.empty()) {
+            size_t u = bfs.front();
+            bfs.pop();
+            for (size_t v : adj[u]) {
+                if (!seen[v]) {
+                    seen[v] = true;
+                    bfs.push(v);
+                }
+            }
+        }
+
+        for (bool b : seen) if (!b) return; // BAIL
+        ++connectedCount;
+    }
+
+    // Check for coinciding edges
+    // (This really should be done first, but Nico/Luigi did it after
+    // connectivity check, so I need to as well to verify number of patterns.)
+    {
+        // Check one tet edge at a time
+        for (size_t i = 0; i < 4; ++i) {
+            for (size_t j = i + 1; j < 4; ++j) {
+                bool hasSubEdge = false;
+                bool hasFullEdge = false;
+                // See if any of the pattern edges overlap on this tet edge
+                for (size_t ei : taken) {
+                    const auto &uBary = nodesBary[edges[ei].first];
+                    const auto &vBary = nodesBary[edges[ei].second];
+                    // Edges were already generated so that "u" < "v"
+                    hasFullEdge |= ((uBary[i] == 1.0) && (vBary[j] == 1.0));
+
+                    // Tet edge nodes are placed after tet vertex nodes, so
+                    // again we know the ordering: vertex node is first
+                    hasSubEdge |= ((uBary[i] == 1.0) || (uBary[j] == 1.0)) && // One of the edge endpoints
+                                  ((vBary[i] == 0.5) && (vBary[j] == 0.5));   // the edge midpoint
+
+                    bool hasOverlap = hasSubEdge && hasFullEdge;
+                    if (hasOverlap ) return; // BAIL
+                }
+            }
+        }
+
+        // We have coinciding edges exactly when a full tet edge is taken and
+        // one of the sub tet edges is taken.
+        ++noCoincidingEdges;
+    }
+
+    // Check for dangling edges (valence 1 vertices in the period cell)
+    // and vertices exceeding max valence.
+    {
+        bool dangling = false, exceedsValence = false;
+        for (size_t i = 0; i < replicatedNodes.size(); ++i) {
+            const auto &pt = replicatedNodes[i];
+            if (!Symmetry::TriplyPeriodic<>::inBaseUnit(pt)) continue;
+            const size_t valence = adj[i].size();
+            assert(valence > 0);
+
+            if (valence == 1)  { dangling = true; }
+            if (valence >  MAX_VALENCE) { exceedsValence = true; }
+        }
+
+        if (dangling) return; // BAIL
+        ++noDanglingEdges;
+        if (exceedsValence) return; // BAIL
+        ++valenceTresholded;
+    }
+
+    ++validCount;
+
+    // Write the period cell (only)
+    {
+        std::vector<MeshIO::IOVertex> outVertices;
+        std::vector<MeshIO::IOElement> outElements;
+
+        std::vector<size_t> outVertexForRepNode(replicatedNodes.size(), NONE);
+        // Get nodes inside period cell
+        for (size_t i = 0; i < replicatedNodes.size(); ++i) {
+            const auto &pt = replicatedNodes[i];
+            if (!Symmetry::TriplyPeriodic<>::inBaseUnit(pt)) continue;
+
+            outVertexForRepNode[i] = outVertices.size();
+            outVertices.emplace_back(pt);
+        }
+
+        // Construct induced graph
+        for (const auto &e : replicatedEdges) {
+            size_t u = outVertexForRepNode.at(e.first),
+                   v = outVertexForRepNode.at(e.second);
+            if ((u == NONE) || (v == NONE)) continue;
+            outElements.emplace_back(u, v);
+        }
+
+        stringstream ss;
+        ss << setfill('0') << setw(4) << validCount;
+        string outName = ss.str() + ".obj";
+        cout << outName << endl;
+        MeshIO::save(outName, outVertices, outElements);
+
+        // Output subgraph too
+        outVertices.clear(); outElements.clear();
+        for (auto &p : subNodes) outVertices.emplace_back(p);
+        for (auto &e : subEdges) outElements.emplace_back(e.first, e.second);
+        MeshIO::save("subgraph_" + outName, outVertices, outElements);
+    }
+}
+
+size_t enumerateGraphs(size_t levels, size_t offset = 0, vector<size_t> taken = vector<size_t>()) {
+    if (levels == 0) {
+        processGraph(taken);
+        return 1;
+    }
+
+    size_t count = 0;
+    for (size_t i = offset; i < edges.size(); ++i) {
+        taken.push_back(i);
+        count += enumerateGraphs(levels - 1, i + 1, taken);
+        taken.pop_back();
+    }
+
+    return count;
+}
+
+int main(int argc, char *argv[])
+{
+    nodesBary.reserve(15);
+
+    BaryPoint p;
+    p.fill(0);
+
+    // Create the tet vertex nodes
+    for (size_t i = 0; i < 4; ++i) {
+        p[i] = 1;
+        nodesBary.push_back(p);
+        p[i] = 0;
+    }
+
+    // Create the tet edge nodes
+    for (size_t i = 0; i < 4; ++i) {
+        p[i] = 0.5;
+        for (size_t j = i + 1; j < 4; ++j) {
+            p[j] = 0.5;
+            nodesBary.push_back(p);
+            p[j] = 0;
+        }
+        p[i] = 0;
+    }
+
+    // Create the tet face nodes
+    p.fill(1.0 / 3.0);
+    for (size_t i = 0; i < 4; ++i) {
+        p[i] = 0;
+        nodesBary.push_back(p);
+        p[i] = 1.0 / 3.0;
+    }
+
+    // Create the tet center node;
+    p.fill(0.25);
+    nodesBary.push_back(p);
+
+    // Convert barycentric coordinates to spatial coords
+    // (0, 0, 0), (1, 0, 0), (1, 1, 0), (1, 1, 1)
+    nodes.reserve(nodesBary.size());
+    for (const BaryPoint &p : nodesBary) {
+        nodes.emplace_back(p[1] + p[2] + p[3],
+                                  p[2] + p[3],
+                                         p[3]);
+    }
+
+    // Create all graph edges.
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        for (size_t j = i + 1; j < nodes.size(); ++j) {
+            edges.push_back({i, j});
+        }
+    }
+
+    size_t count = 0;
+    count += enumerateGraphs(1);
+    count += enumerateGraphs(2);
+    count += enumerateGraphs(3);
+
+    cout << "num nodes:\t" << nodes.size() << endl;
+    cout << "num edges:\t" << edges.size() << endl;
+    cout << "num patterns:\t" << count << endl;
+
+    cout << "num non-self intersecting base tet:\t" << nonSelfIntersecting << endl;
+    cout << "connected:\t" << connectedCount << endl;
+    cout << "no coinciding edges:\t" << noCoincidingEdges << endl;
+    cout << "no dangling edges:\t" << noDanglingEdges << endl;
+    cout << "valence less than 8:\t" << valenceTresholded << endl;
+
+    cout << endl;
+    cout << "valid patterns: " << validCount << endl;
+
+    return 0;
+}
