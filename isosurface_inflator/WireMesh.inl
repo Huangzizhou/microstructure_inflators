@@ -45,7 +45,6 @@ load(const std::string &wirePath) {
     }
 
     // Compute edges in the induced subgraph
-    // Also determine edges adjacent to the base unit subgraph
     for (const auto &e : m_fullEdges) {
         int u = baseVertexIndex.at(e.first), v = baseVertexIndex.at(e.second);
         if ((u >= 0) && (v >= 0))

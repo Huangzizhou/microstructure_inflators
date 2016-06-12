@@ -2,7 +2,7 @@
 // WireMesh.hh
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
-//      Pattern graph stucture with parameterized embedding.
+//      Pattern graph structure with parameterized embedding.
 //      Handles assignment of degrees of freedom to the graph structure based on
 //      the requested symmetry and thickness parameter type (both configured by
 //      template parameter)
@@ -209,7 +209,7 @@ private:
     // The edge.second field indexes into m_adjacentVertices
     std::vector<Edge>           m_adjacentEdges;
     std::vector<AdjacentVertex> m_adjacentVertices;
-    // Which base edge originated each adjacent edge (via transormation)
+    // Which base edge originated each adjacent edge (via transformation)
     std::vector<size_t>         m_adjacentEdgeOrigin;
 
     // Find the base vertex within symmetry tolerance of p

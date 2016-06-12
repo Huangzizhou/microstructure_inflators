@@ -115,8 +115,6 @@ struct TriplyPeriodic : SymmetryCRTP<TriplyPeriodic<TOL>> {
         return p;
     }
 
-    
-
     template<typename Real>
     static bool inBaseUnit(const Point3<Real> &p) {
         return (isNegative<TOL>(std::abs(p[0]) - 1.0)) &&
@@ -139,8 +137,6 @@ struct TriplyPeriodic : SymmetryCRTP<TriplyPeriodic<TOL>> {
         }
         return group;
     }
-
-
 };
 
 // Base unit is the positive octant: [0, 1]^3
