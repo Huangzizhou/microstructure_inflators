@@ -7,15 +7,17 @@ class PatternOptimization:
         self.dim = config['dim']
         self.pattern = config['pattern']
         self.material = paths.material(config['material'])
-        self.patoptArgs = config.get('args', ['-I', '--solver', 'levenberg_marquardt'])
+        self.patoptArgs = config.get('args', ['-I', '--solver', 'levenberg_marquardt', '-n50'])
 
         # Read variable bounds from config, with dim-dependent defaults
         if (self.dim == 2):
             self.radiusBounds      = config.get(     'radiusBounds', [0.02, 0.17])
             self.translationBounds = config.get('translationBounds', [-0.14, 0.14])
+            self.blendingBounds    = config.get('blendingBounds', [0.0078125, 0.2])
         elif (self.dim == 3):
             self.radiusBounds      = config.get(     'radiusBounds', [0.3, 0.8])
             self.translationBounds = config.get('translationBounds', [-0.3, 0.3])
+            self.blendingBounds    = config.get('blendingBounds', [0.0078125, 0.2])
         else: raise Exception("Invalid dimension")
 
         self.jobs = []
@@ -52,12 +54,14 @@ class PatternOptimization:
             },%s
             "initial_params": [%s],
             "radiusBounds": [%s],
-            "translationBounds": [%s]
+            "translationBounds": [%s],
+            "blendingBounds": [%s]
         }
         """
         jobContents = dedent(jobContents) % (self.dim, targetE, targetNu, constraintString,
                 formatSequence(initialParams), formatSequence(self.radiusBounds),
-                formatSequence(self.translationBounds))
+                formatSequence(self.translationBounds),
+                formatSequence(self.blendingBounds))
         self.jobs.append(jobContents)
 
     def run(self, directory):
@@ -101,6 +105,8 @@ class PatternOptimization:
         #PBS -l mem={mem}
         #PBS -M fjp234@nyu.edu
         #PBS -m a
+        #PBS -j oe
+        #PBS -o /state/partition1/${{PBS_JOBNAME}}.o${{PBS_JOBID}}.${{PBS_ARRAYID}}
         #PBS -t {firstIndex}-{lastIndex}
 
         ###-----PBS Directives End-----###

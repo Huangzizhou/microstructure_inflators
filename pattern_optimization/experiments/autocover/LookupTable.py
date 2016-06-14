@@ -86,6 +86,8 @@ class LUT:
 
     # Side effect: sorts the lookup table by Young's modulus
     def removeDuplicates(self):
+        if self.size() < 2: return
+
         # Sort by Young's modulus
         order = np.argsort(self.youngPoissonAnisotropy[:, 0])
         self.youngPoissonAnisotropy = self.youngPoissonAnisotropy[order, :]
@@ -121,6 +123,7 @@ def extract(dim, pat, directory, printableOnly = True):
     moduli, aniso, params, printable = [], [], [], []
     for fname in glob(directory + '/stdout_*.txt'):
         for line in file(fname):
+            # print(line)
             m = re.search('^moduli:\s*\S*.*', line)
             if (m):
                 m = m.group(0).strip().split('\t')

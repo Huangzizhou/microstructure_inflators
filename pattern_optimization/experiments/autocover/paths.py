@@ -16,4 +16,4 @@ def material(name):
     return os.environ['MICRO_DIR'] + ("/materials/%s.material" % name)
         
 def optimizer(dim = 3):
-    return os.environ['MICRO_DIR'] + "/pattern_optimization/PatternOptimization_cli"
+    return os.environ['MICRO_DIR'] + "/worst_case_stress/WCSOptimization_cli"
