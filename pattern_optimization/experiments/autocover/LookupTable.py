@@ -74,9 +74,12 @@ class LUT:
     def filterAnisotropy(self, anisoMin, anisoMax):
         aniso = self.youngPoissonAnisotropy[:, 2]
         anisoIndices = np.where(np.logical_or(aniso < anisoMin, aniso > anisoMax))
-        self.youngPoissonAnisotropy = np.delete(self.youngPoissonAnisotropy, anisoIndices, 0)
-        self.params                 = np.delete(self.params, anisoIndices, 0)
-        self.pattern                = np.delete(self.pattern, anisoIndices, 0)
+        self.removeIndices(anisoIndices)
+
+    def removeIndices(self, indices):
+        self.youngPoissonAnisotropy = np.delete(self.youngPoissonAnisotropy, indices, 0)
+        self.params                 = np.delete(self.params, indices, 0)
+        self.pattern                = np.delete(self.pattern, indices, 0)
 
     def filterPattern(self, pat):
         notPatEntries = np.where(self.pattern != pat)
