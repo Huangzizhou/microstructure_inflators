@@ -82,6 +82,15 @@ public:
         return params;
     }
 
+    void writeJobFile(const std::string &jobFile) const {
+        std::ofstream os(jobFile);
+        if (!os.is_open()) 
+            throw std::runtime_error("Couldn't open output job file " + jobFile);
+        writeJobFile(os);
+    }
+
+    virtual void writeJobFile(std::ostream &os) const = 0;
+
 
     std::vector<Real> initialParams, radiusBounds, translationBounds;
     std::vector<Real> blendingBounds = { 10.0, 100.0 };
@@ -96,10 +105,7 @@ public:
 template<size_t _N>
 class Job : public JobBase {
 public:
-    void writeJobFile(const std::string &jobFile) const {
-        std::ofstream os(jobFile);
-        if (!os.is_open()) 
-            throw std::runtime_error("Couldn't open output job file " + jobFile);
+    virtual void writeJobFile(std::ostream &os) const {
         os << "{" << std::endl
            << "\t\"dim\": " << _N << "," << std::endl
            << "\t\"target\": " << targetMaterial << "," << std::endl;
@@ -117,10 +123,38 @@ public:
             os << "]," << std::endl;
         }
 
+        if (parameterConstraints.size()) {
+            os << "\t\"paramConstraints\": [";
+            bool first = true;
+            for (const std::string &pc : parameterConstraints) {
+                if (!first) os << ",";
+                first = false;
+                os << std::endl << "\t\t\"" << pc << "\"";
+            }
+            os << "\t]," << std::endl;
+        }
+
+        if (varLowerBounds.size() + varUpperBounds.size()) {
+            os << "\t\"bounds\": [";
+            bool first = true;
+            for (size_t p = 0; p < numParams(); ++p) {
+                if (varLowerBounds.count(p) + varUpperBounds.count(p) == 0)
+                    continue;
+                if (!first) os << ",";
+                first = false;
+                os << std::endl << "\t\t{\"var\": " << p;
+                if (varLowerBounds.count(p)) os << ", \"lower\": " << varLowerBounds.at(p);
+                if (varUpperBounds.count(p)) os << ", \"upper\": " << varUpperBounds.at(p);
+                os << "}";
+            }
+            os << std::endl << "\t]," << std::endl;
+        }
+
         os << "\t\"radiusBounds\": [" << radiusBounds[0] << ", " << radiusBounds[1] << "]," << std::endl
-           << "\t\"translationBounds\": [" << translationBounds[0] << ", " << translationBounds[1] << "]" << std::endl
-           << "\t\"blendingBounds\": [" << blendingBounds[0] << ", " << blendingBounds[1] << "]" << std::endl
-           << "}" << std::endl;
+           << "\t\"translationBounds\": [" << translationBounds[0] << ", " << translationBounds[1] << "]," << std::endl
+           << "\t\"blendingBounds\": [" << blendingBounds[0] << ", " << blendingBounds[1] << "]" << std::endl;
+
+        os << "}" << std::endl;
     }
 
     virtual ~Job() { }

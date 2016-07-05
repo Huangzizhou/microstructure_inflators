@@ -1,14 +1,21 @@
 #include <algorithm>
 #include <iterator>
 
-// Set from embedded graph stored in obj/msh format.
+// Set from embedded graph
 template<ThicknessType thicknessType, class Sym>
 void WireMesh<thicknessType, Sym>::
-load(const std::string &wirePath) {
-    std::vector<MeshIO::IOVertex> inVertices;
-    std::vector<MeshIO::IOElement> inElements;
-    auto type = MeshIO::load(wirePath, inVertices, inElements);
-    if (type != MeshIO::MESH_LINE) throw std::runtime_error("Expected line element mesh.");
+set(const std::vector<MeshIO::IOVertex > &inVertices,
+    const std::vector<MeshIO::IOElement> &inElements)
+{
+    for (const auto &e : inElements)
+        if (e.size() != 2) throw std::runtime_error("Expected line element mesh.");
+
+    // Clear old state.
+    m_fullVertices.clear(), m_fullEdges.clear();
+    m_baseVertices.clear(), m_baseEdges.clear();
+    m_baseVertexPositioners.clear();
+    m_adjacentVertices.clear(), m_adjacentEdges.clear();
+    m_adjacentEdgeOrigin.clear();
 
     m_fullVertices.reserve(inVertices.size());
     m_fullEdges.reserve(inElements.size());
@@ -133,6 +140,16 @@ load(const std::string &wirePath) {
     m_baseVertexPositioners.reserve(m_baseVertices.size());
     for (const auto &p : m_baseVertices)
         m_baseVertexPositioners.push_back(PatternSymmetry::nodePositioner(p));
+}
+
+// Set from embedded graph stored in obj/msh format.
+template<ThicknessType thicknessType, class Sym>
+void WireMesh<thicknessType, Sym>::
+load(const std::string &wirePath) {
+    std::vector<MeshIO::IOVertex> inVertices;
+    std::vector<MeshIO::IOElement> inElements;
+    MeshIO::load(wirePath, inVertices, inElements);
+    set(inVertices, inElements);
 }
 
 template<class Point>

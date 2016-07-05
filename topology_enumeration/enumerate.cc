@@ -1,8 +1,8 @@
 // Topology enumeration:
 //
 // Enumerate using barycentric coordinates. 2D enumeration is equivalent to a 3D
-// enumeration that considers only edges among vertices with base tet apex
-// barycentric coordinate 0.
+// enumeration that considers only patterns lying perfectly in the midplane (and
+// ignores isometries mapping out of the midplane)
 //
 // Brute-force point merging.
 #include "../isosurface_inflator/Symmetry.hh"
@@ -17,6 +17,11 @@
 
 #include <sstream>
 #include <iomanip>
+
+// 3D enumeration by default.
+#ifndef DIM
+#define DIM 3
+#endif
 
 #define MAX_VALENCE 7
 
@@ -34,6 +39,7 @@ vector<BaryPoint> nodesBary;
 vector<Point3d> nodes;
 vector<pair<size_t, size_t>> edges;
 
+size_t numChecked = 0;
 size_t nonSelfIntersecting = 0;
 size_t connectedCount = 0;
 size_t noCoincidingEdges = 0;
@@ -43,18 +49,27 @@ size_t validCount = 0;
 
 // taken: which edges are chosen
 void processGraph(const vector<size_t> &taken) {
-    // Extract subgraph, converting from barycentric coordinates
+    // Extract subgraph
     vector<pair<size_t, size_t>> subEdges;
     vector<Point3d> subNodes;
     vector<size_t> subNodeForNode(nodes.size(), NONE);
 
-    static size_t checkedCount = 0;
-    ++checkedCount;
-    if (checkedCount % 1000 == 0) cout << checkedCount << endl;
+    bool verbose = false;
+    // if ((taken[0] == 31) && (taken[1] == 58) && (taken[2] == 82)) {
+    //     verbose = true;
+    //     cout << "verbose mode" << endl;
+    // }
 
     for (size_t ei : taken) {
         size_t u, v;
         tie(u, v) = edges.at(ei);
+#if DIM == 2
+        // Only consider subgraphs in the 2D base triangle.
+        if ((fabs(nodes.at(u)[2]) > 1e-8) || (fabs(nodes.at(v)[2]) > 1e-8)) {
+            if (verbose) std::cout << "Not in base triangle" << endl;
+            return; // BAIL early (before incrementing numChecked)
+        }
+#endif
         if (subNodeForNode.at(u) == NONE) {
             subNodeForNode.at(u) = subNodes.size();
             subNodes.push_back(nodes.at(u));
@@ -69,9 +84,15 @@ void processGraph(const vector<size_t> &taken) {
                             subNodeForNode.at(v)});
     }
 
+    ++numChecked;
+    if (numChecked % 1000 == 0) cout << numChecked << endl;
+
     // Check for self-intersections. We define these as edges that intersect
     // while not being neighbors.
-    if (hasSelfIntersection(subNodes, subEdges)) return; // BAIL
+    if (hasSelfIntersection(subNodes, subEdges)) {
+        if (verbose) std::cout << "Has self-intersection" << endl;
+        return; // BAIL
+    }
     ++nonSelfIntersecting;
 
     // Replicate subgraph. Note: this will also replicate neighboring
@@ -79,17 +100,22 @@ void processGraph(const vector<size_t> &taken) {
     // we don't need special cases for the border vertices.
     // However, we must make sure only to check the graph inside the base
     // cell...
-    set<pair<size_t, size_t>>    replicatedEdges;
-    vector<Point3d>              replicatedNodes;
+    set<pair<size_t, size_t>> replicatedEdges;
+    vector<Point3d>           replicatedNodes;
     replicatedNodes.reserve(symmetryGroup.size() * subNodes.size());
     // replicatedEdges.reserve(symmetryGroup.size() * subEdges.size());
 
-    vector<size_t> nodeRemapper(subNodes.size());
-
+    vector<size_t> nodeRemapper;
     // Brute-force merging of replicated graph
     for (const auto &iso : symmetryGroup) {
+        nodeRemapper.assign(subNodes.size(), NONE);
         for (size_t i = 0; i < subNodes.size(); ++i) {
             Point3d pt = iso.apply(subNodes[i]);
+#if DIM == 2
+            // Ignore vertices created outside the midplane
+            if (fabs(pt[2]) > 1e-8) continue;
+#endif
+
             size_t vtxIdx = NONE;
             for (size_t j = 0; j < replicatedNodes.size(); ++j) {
                 if ((pt - replicatedNodes[j]).squaredNorm() < epsilonSq) {
@@ -105,8 +131,15 @@ void processGraph(const vector<size_t> &taken) {
         }
 
         // using a set ignores replicated edges
-        for (const auto &e : subEdges) { replicatedEdges.insert({nodeRemapper.at(e.first),
-                                                                 nodeRemapper.at(e.second)}); }
+        for (const auto &e : subEdges) {
+            size_t u = nodeRemapper.at(e.first),
+                   v = nodeRemapper.at(e.second);
+            if ((u == NONE) || (v == NONE)) {
+                assert(DIM == 2); // only 2D should drop vertices
+                continue;
+            }
+            replicatedEdges.insert({u, v});
+        }
     }
 
     // Build traversible graph representation
@@ -133,7 +166,12 @@ void processGraph(const vector<size_t> &taken) {
             }
         }
 
-        for (bool b : seen) if (!b) return; // BAIL
+        bool disconnected = false;
+        for (bool b : seen) disconnected |= !b;
+        if (disconnected) {
+            if (verbose) cout << "disconnected" << endl;
+            return; // BAIL
+        }
         ++connectedCount;
     }
 
@@ -159,7 +197,10 @@ void processGraph(const vector<size_t> &taken) {
                                   ((vBary[i] == 0.5) && (vBary[j] == 0.5));   // the edge midpoint
 
                     bool hasOverlap = hasSubEdge && hasFullEdge;
-                    if (hasOverlap ) return; // BAIL
+                    if (hasOverlap) {
+                        if (verbose) cout << "has overlap" << endl;
+                        return; // BAIL
+                    }
                 }
             }
         }
@@ -183,9 +224,15 @@ void processGraph(const vector<size_t> &taken) {
             if (valence >  MAX_VALENCE) { exceedsValence = true; }
         }
 
-        if (dangling) return; // BAIL
+        if (dangling) {
+            if (verbose) cout << "has dangling" << endl;
+            return; // BAIL
+        }
         ++noDanglingEdges;
-        if (exceedsValence) return; // BAIL
+        if (exceedsValence) {
+            if (verbose) cout << "Exceeds max valence" << endl;
+            return; // BAIL
+        }
         ++valenceTresholded;
     }
 
@@ -297,14 +344,21 @@ int main(int argc, char *argv[])
         }
     }
 
-    size_t count = 0;
-    count += enumerateGraphs(1);
-    count += enumerateGraphs(2);
-    count += enumerateGraphs(3);
+    vector<MeshIO::IOElement> tetEdges;
+    vector<MeshIO::IOVertex> tetNodes;
+    for (const auto &n : nodes)
+        tetNodes.emplace_back(n);
+    for (const auto &e : edges)
+        tetEdges.emplace_back(e.first, e.second);
+    MeshIO::save("tet.msh", tetNodes, tetEdges);
+
+    enumerateGraphs(1);
+    enumerateGraphs(2);
+    enumerateGraphs(3);
 
     cout << "num nodes:\t" << nodes.size() << endl;
     cout << "num edges:\t" << edges.size() << endl;
-    cout << "num patterns:\t" << count << endl;
+    cout << "num patterns:\t" << numChecked << endl;
 
     cout << "num non-self intersecting base tet:\t" << nonSelfIntersecting << endl;
     cout << "connected:\t" << connectedCount << endl;

@@ -87,6 +87,10 @@ class LUT:
         self.params                 = np.delete(self.params, notPatEntries, 0)
         self.pattern                = np.delete(self.pattern, notPatEntries, 0)
 
+    def filterInvalidPoisson(self, poissonLimit = 0.5):
+        bad = [i for i, yna in enumerate(self.youngPoissonAnisotropy) if yna[1] > poissonLimit]
+        self.removeIndices(bad)
+
     # Side effect: sorts the lookup table by Young's modulus
     def removeDuplicates(self):
         if self.size() < 2: return

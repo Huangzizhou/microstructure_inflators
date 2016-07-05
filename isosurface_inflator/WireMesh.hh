@@ -39,6 +39,10 @@ public:
     static constexpr ThicknessType thicknessType = thicknessType_;
 
     WireMesh(const std::string &wirePath) { load(wirePath); }
+    WireMesh(const std::vector<MeshIO::IOVertex > &inVertices,
+             const std::vector<MeshIO::IOElement> &inElements) {
+        set(inVertices, inElements);
+    }
 
     // Embedded graph I/O (OBJ/MSH format)
     void load                  (const std::string &path);
@@ -46,6 +50,9 @@ public:
     void saveBaseUnit          (const std::string &path) const;
     void saveReplicatedBaseUnit(const std::string &path) const;
     void saveInflationGraph    (const std::string &path, std::vector<double> params = std::vector<double>()) const;
+
+    void set(const std::vector<MeshIO::IOVertex > &inVertices,
+             const std::vector<MeshIO::IOElement> &inElements);
 
     size_t numVertices    () const { return m_fullVertices.size(); }
     size_t numEdges       () const { return m_fullEdges   .size(); }
@@ -92,11 +99,11 @@ public:
 
     // TODO: MAKE CONFIGURABLE.
     std::vector<double> defaultThicknessParams() const {
-        return std::vector<double>(numThicknessParams(), 0.05);
+        return std::vector<double>(numThicknessParams(), 0.07);
     }
 
     std::vector<double> defaultBlendingParams() const {
-        return std::vector<double>(numBlendingParameters(), 32.0);
+        return std::vector<double>(numBlendingParameters(), 0.01);
     }
 
     // Position parameters come first, followed by thickness and blending

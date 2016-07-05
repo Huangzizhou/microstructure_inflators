@@ -82,9 +82,10 @@ INFLATOR_CLI_OBJS=Inflator_cli.o PatternOptimizationJob.o \
 PREGION_OBJS=ParamRegion_cli.o PatternOptimizationJob.o \
 			$(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/Materials.o \
 			$(MeshFEM)/EdgeFields.o $(MeshFEM)/GlobalBenchmark.o $(ISOINFLATOR_OBS)
-OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_OBJS) $(INFLATOR_CLI_OBJS) $(PREGION_OBJS)
+GENISOSURFJOB_OBJS=GenIsosurfaceJob.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o
+OBJS=$(PATOPT_OBJS) $(CREATJOB_OBJS) $(RANDJOB_OBJS) $(GRADVALID_OBJS) $(SPACED_OBJS) $(INFLATOR_CLI_OBJS) $(PREGION_OBJS) $(GENISOSURFJOB_OBJS)
 
-DEFAULT_TARGETS=PatternOptimization_cli # CreateJob GradientComponentValidation Inflator_cli Inflator2D_cli
+DEFAULT_TARGETS=PatternOptimization_cli GenIsosurfaceJob # CreateJob GradientComponentValidation Inflator_cli Inflator2D_cli
 OPTIONAL_TAGETS=SpacedJob ParamRegion_cli
 ALL_TARGETS=$(DEFAULT_TARGETS) $(OPTIONAL_TAGETS)
 
@@ -98,6 +99,9 @@ default_build: $(DEFAULT_TARGETS)
 all: $(ALL_TARGETS)
 
 PatternOptimization_cli: $(PATOPT_OBJS)
+	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
+
+GenIsosurfaceJob: $(GENISOSURFJOB_OBJS)
 	$(CXX) $(CPPFLAGS) $^ $(LIBS) -o $@ $(LIBS) # static library ordering
 
 RandomJob: $(RANDJOB_OBJS)
