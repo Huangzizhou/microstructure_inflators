@@ -36,6 +36,7 @@
 #include "optimizers/ceres.hh"
 #include "optimizers/dlib.hh"
 #include "optimizers/gradient_descent.hh"
+#include "optimizers/nlopt.hh"
 
 #include "PatternOptimizationIterate.hh"
 
@@ -61,6 +62,7 @@ OptimizerMap optimizers = {
     {"dogleg",               optimize_ceres_dogleg},
     {"bfgs",                 optimize_dlib_bfgs},
     {"lbfgs",                optimize_dlib_bfgs},
+    {"slsqp",                optimize_nlopt_sqslp},
     {"gradient_descent",     optimize_gd}
 };
 
@@ -79,8 +81,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::positional_options_description p;
     p.add("job", 1);
 
-    po::options_description visible_opts;
-    visible_opts.add_options()("help",        "Produce this help message")
+    po::options_description misc_opts;
+    misc_opts.add_options()("help",        "Produce this help message")
         ("inflator,i",   po::value<string>()->default_value("Isosurface"),       "inflator to use (defaults to Isosurface)")
         ("pattern,p",    po::value<string>(),                                    "Pattern wire mesh (.obj|wire)")
         ("material,m",   po::value<string>(),                                    "base material")
@@ -89,16 +91,24 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("cell_size,c",  po::value<double>(),                                    "Inflation cell size (James' inflator only. Default: 5mm)")
         ("isotropicParameters,I",                                                "Use isotropic DoFs (3D only)")
         ("vertexThickness,V",                                                    "Use vertex thickness instead of edge thickness (3D only)")
-        ("subdivide,S",  po::value<size_t>()->default_value(0),                  "number of subdivisions to run for 3D inflator")
-        ("sub_algorithm,A", po::value<string>()->default_value("simple"),        "subdivision algorithm for 3D inflator (simple or loop)")
-        ("max_volume,v", po::value<double>(),                                    "maximum element volume parameter for wire inflator")
-        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, levenberg_marquardt")
+        ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, slsqp, levenberg_marquardt")
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient descent step size")
         ("nIters,n",     po::value<size_t>(),                                    "number of iterations (infinite by default)")
-        ("fullCellInflator",                                                     "use the full periodic inflator instead of the reflection-based one")
         ("ignoreShear",                                                          "Ignore the shear components in the isotropic tensor fitting")
         ("proximityRegularizationWeight", po::value<double>(),                   "Use a quadratic proximity regularization term with the specified weight.")
         ;
+
+    po::options_description meshingOptions;
+    meshingOptions.add_options()
+        ("meshingOptions,M", po::value<string>(),  "Meshing options configuration file")
+        ("max_volume,v",     po::value<double>(),  "Maximum element area for remeshing (overrides meshing options)")
+        ("subdivide,S",  po::value<size_t>(),      "Number of subdivisions to run for James' inflator (default: 0)")
+        ("sub_algorithm,A", po::value<string>(),   "Subdivision algorithm for James' inflator (simple or loop, default: simple)")
+        ("fullCellInflator",                       "Use the full period cell inflator instead of the reflection-based one")
+        ;
+
+    po::options_description visible_opts;
+    visible_opts.add(misc_opts).add(meshingOptions);
 
     po::options_description cli_opts;
     cli_opts.add(visible_opts).add(hidden_opts);
@@ -133,12 +143,6 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     if (optimizers.count(vm["solver"].as<string>()) == 0) {
         cout << "Illegal solver specified" << endl;
-        fail = true;
-    }
-
-    set<string> subdivisionAlgorithms = {"simple", "loop"};
-    if (subdivisionAlgorithms.count(vm["sub_algorithm"].as<string>()) == 0) {
-        cout << "Illegal subdivision algorithm specified" << endl;
         fail = true;
     }
 

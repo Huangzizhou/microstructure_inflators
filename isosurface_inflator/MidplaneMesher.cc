@@ -89,16 +89,15 @@ mesh(const SignedDistanceFunction &sdf,
 
     // Non-periodic polygon cleanup (we assume we're meshing a quarter-cell).
     // TODO: periodic cleanup if we're actually meshing the full period cell.
-    std::vector<Real> variableMinLen;
+    std::vector<std::vector<Real>> variableMinLens;
+    variableMinLens.reserve(polygons.size());
     bool periodic = false;
-    if (meshingOptions.curvatureAdaptive)
-    {
-        std::vector<MeshIO::IOVertex> vertices;
-        std::vector<MeshIO::IOElement> elements;
-        std::vector<Real> signedCurvatures;
-        // Choose curvature sign so that it reflects concave/convex geometry
-        // (object normal is a 90 clockwise rotation of curve tangent)
+    if (meshingOptions.curvatureAdaptive) {
         for (const auto &poly : polygons) {
+            std::vector<MeshIO::IOVertex> vertices;
+            std::vector<MeshIO::IOElement> elements;
+            std::vector<Real> signedCurvatures;
+
             size_t offset = vertices.size();
             vertices.reserve(offset + poly.size());
             for (const auto &p : poly) {
@@ -116,9 +115,17 @@ mesh(const SignedDistanceFunction &sdf,
                 if (!PeriodicBoundaryMatcher::FaceMembership<2>(*segmentP0, slice.boundingBox()).onAnyFace())
                     break;
             }
-            assert(segmentP0 != poly.end());
-            auto segmentP1 = segmentP0; ++segmentP1;
-            assert(segmentP1 != poly.end());
+
+            // Skip all-cell-boundary (or an annoying corner case of nearly
+            // all-cell-boundary) polygons--these don't need adaptive meshing
+            auto segmentP1 = segmentP0;
+            if ((segmentP0 == poly.end()) || (++segmentP1 == poly.end())) {
+                variableMinLens.emplace_back();
+                continue;
+            }
+
+            // Choose curvature sign so that it reflects concave/convex geometry
+            // (object normal is a 90 clockwise rotation of curve tangent)
             Point2D midpoint = 0.5 * (*segmentP0 + *segmentP1);
             Vector2D tangent = *segmentP1 - *segmentP0;
             tangent *= 1.0 / tangent.norm();
@@ -135,56 +142,73 @@ mesh(const SignedDistanceFunction &sdf,
             // negative sign.
             for (Real k : signedCurvature(poly))
                 signedCurvatures.push_back(sign * k);
-        }
-        assert(signedCurvatures.size() == vertices.size());
-        ScalarField<Real> kappa(vertices.size());
-        for (size_t i = 0; i < vertices.size(); ++i)
-            kappa[i] = signedCurvatures[i];
 
-        // MSHFieldWriter writer("curvatures.msh", vertices, elements);
-        // writer.addField("signed curvature", kappa, DomainType::PER_NODE);
-        // {
-        //     std::ofstream curvatureOut("curvature.txt");
-        //     for (size_t i = 0; i < signedCurvatures.size(); ++i)
-        //         curvatureOut << signedCurvatures[i] << std::endl;
-        // }
+            assert(signedCurvatures.size() == vertices.size());
+            ScalarField<Real> kappa(vertices.size());
+            for (size_t i = 0; i < vertices.size(); ++i)
+                kappa[i] = signedCurvatures[i];
 
-        // Chose adaptive edge length based on curvature: highly negative
-        // curvature uses the fine marching squares-based edge length while the
-        // zero and higher curvature uses maxLen / 4
-        ScalarField<Real> lengths(vertices.size()); // Actually per edge
-        for (size_t i = 0; i < vertices.size(); ++i) {
-            auto pt1 = truncateFrom3D<Point2D>(vertices[i]),
-                 pt2 = truncateFrom3D<Point2D>(vertices[(i + 1) % vertices.size()]);
-            int numAverage = 0;
-            Real k = 0;
-            if (!PeriodicBoundaryMatcher::FaceMembership<2>(pt1, slice.boundingBox()).onAnyFace()) {
-                ++numAverage; k += kappa[i];
+#if DEBUG_OUT
+            MSHFieldWriter writer("curvatures.msh", vertices, elements);
+            writer.addField("signed curvature", kappa, DomainType::PER_NODE);
+#endif
+            // {
+            //     std::ofstream curvatureOut("curvature.txt");
+            //     for (size_t i = 0; i < signedCurvatures.size(); ++i)
+            //         curvatureOut << signedCurvatures[i] << std::endl;
+            // }
+
+            // Chose adaptive edge length based on curvature: highly negative
+            // curvature uses the fine marching squares-based edge length while the
+            // zero and higher curvature uses maxLen / 4
+            ScalarField<Real> lengths(vertices.size()); // Actually per edge
+            for (size_t i = 0; i < vertices.size(); ++i) {
+                auto pt1 = truncateFrom3D<Point2D>(vertices[i]),
+                     pt2 = truncateFrom3D<Point2D>(vertices[(i + 1) % vertices.size()]);
+                int numAverage = 0;
+                Real k = 0;
+                if (!PeriodicBoundaryMatcher::FaceMembership<2>(pt1, slice.boundingBox()).onAnyFace()) {
+                    ++numAverage; k += kappa[i];
+                }
+                if (!PeriodicBoundaryMatcher::FaceMembership<2>(pt2, slice.boundingBox()).onAnyFace()) {
+                    ++numAverage; k += kappa[(i + 1) % vertices.size()];
+                }
+                if (numAverage != 0) k /= numAverage;
+
+                // Want to interpolate from upper at k >= c to lower at k = d
+                // using function a * 2^(k * b)
+                Real upper = maxLen / 4.0;
+                Real lower = minLen;
+                Real c = -1.0, d = -4;
+                // upper = a * 2^(cb)
+                // lower = a * 2^(db)
+                // upper / lower = 2^((c - d) b) ==> b = log2(u / l) / (c - d)
+                // a = upper / 2^(c * b)
+                Real b = log(upper / lower) / (log(2) * (c - d));
+                Real a = upper / pow(2, c * b);
+                lengths[i] = a * pow(2, b * k);
+                lengths[i] = std::min(lengths[i], upper);
+                lengths[i] = std::max(lengths[i], lower);
             }
-            if (!PeriodicBoundaryMatcher::FaceMembership<2>(pt2, slice.boundingBox()).onAnyFace()) {
-                ++numAverage; k += kappa[(i + 1) % vertices.size()];
+#if DEBUG_OUT
+            writer.addField("min_lengths", lengths, DomainType::PER_ELEMENT);
+            ScalarField<Real> edgeLengths(vertices.size());
+            ScalarField<Real> isShort(vertices.size());
+            for (size_t i = 0; i < vertices.size(); ++i) {
+                auto pt1 = truncateFrom3D<Point2D>(vertices[i]),
+                     pt2 = truncateFrom3D<Point2D>(vertices[(i + 1) % vertices.size()]);
+                edgeLengths[i] = (pt2 - pt1).norm();
+                isShort[i] = (edgeLengths[i] < lengths[i]) ? 1.0 : 0.0;
             }
-            if (numAverage != 0) k /= numAverage;
 
-            // Want to interpolate from upper at k >= c to lower at k = d
-            // using function a * 2^(k * b)
-            Real upper = maxLen / 4.0;
-            Real lower = minLen;
-            Real c = -1.0, d = -4;
-            // upper = a * 2^(cb)
-            // lower = a * 2^(db)
-            // upper / lower = 2^((c - d) b) ==> b = log2(u / l) / (c - d)
-            // a = upper / 2^(c * b)
-            Real b = log(upper / lower) / (log(2) * (c - d));
-            Real a = upper / pow(2, c * b);
-            lengths[i] = a * pow(2, b * k);
-            lengths[i] = std::min(lengths[i], upper);
-            lengths[i] = std::max(lengths[i], lower);
+            writer.addField("edge_lengths", edgeLengths, DomainType::PER_ELEMENT);
+            writer.addField("is_short", isShort, DomainType::PER_ELEMENT);
+#endif
+            variableMinLens.emplace_back(lengths.domainSize());
+            std::vector<Real> &vml = variableMinLens.back();
+            for (size_t i = 0; i < lengths.domainSize(); ++i)
+                vml[i] = lengths[i];
         }
-        // writer.addField("min_lengths", lengths, DomainType::PER_ELEMENT);
-        variableMinLen.reserve(lengths.domainSize());
-        for (size_t i = 0; i < lengths.domainSize(); ++i)
-            variableMinLen.push_back(lengths[i]);
     }
 
 #if DEBUG_OUT
@@ -200,11 +224,20 @@ mesh(const SignedDistanceFunction &sdf,
 #endif
 
     BENCHMARK_START_TIMER("Curve Cleanup");
-    for (auto &poly : polygons) {
-        // std::vector<Real> kappa = signedCurvature(poly);
-        Real cellEpsilon = 0.0; // Marching squares guarantees cell boundary vertex coords are exact
-        curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
-                meshingOptions.featureAngleThreshold, periodic, variableMinLen, cellEpsilon);
+    {
+        size_t i = 0;
+        for (auto &poly : polygons) {
+            Real cellEpsilon = 0.0; // Marching squares guarantees cell boundary vertex coords are exact
+            if (variableMinLens.size()) {
+                curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
+                        meshingOptions.featureAngleThreshold, periodic, variableMinLens.at(i), cellEpsilon);
+            }
+            else {
+                curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
+                        meshingOptions.featureAngleThreshold, periodic, std::vector<Real>(), cellEpsilon);
+            }
+            ++i;
+        }
     }
     BENCHMARK_STOP_TIMER("Curve Cleanup");
 

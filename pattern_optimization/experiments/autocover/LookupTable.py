@@ -124,10 +124,15 @@ class LUT:
                               + formatEntries(self.params[i][0:self.numParams[i]])) + "\n")
         f.close()
 
-def extract(dim, pat, directory, printableOnly = True):
+# init: don't ignore the first iterate--we're initializing an autocover
+def extract(dim, pat, directory, printableOnly = True, init = False):
     # TODO: try also extracting only the last point of each run
     # (this is the one we want if patterm optimization is truly working)
+    # Note: we mark patterns with significantly differing young's moduli on
+    # different axes as infinitely anisotropic (the anisotropy ratio doesn't
+    # account for this)
     moduli, aniso, params, printable = [], [], [], []
+    allYoung = []
     for fname in glob(directory + '/stdout_*.txt'):
         for line in file(fname):
             # print(line)
@@ -138,6 +143,8 @@ def extract(dim, pat, directory, printableOnly = True):
                 # 3D: m = ['moduli', Ex, Ey, Ez, nu_yz, ...]
                 if dim == 2: moduli.append(map(float, [m[1], m[3]]))
                 if dim == 3: moduli.append(map(float, [m[1], m[4]]))
+                if dim == 2: allYoung.append(map(float, m[1:3]))
+                if dim == 3: allYoung.append(map(float, m[1:4]))
             p = re.search('^p:\s*(.*)', line)
             if (p): params.append(map(float, p.group(1).split()))
             a = re.search('^anisotropy:\s*(.*)', line)
@@ -145,6 +152,7 @@ def extract(dim, pat, directory, printableOnly = True):
             prmatch = re.search('^printable:\s*(\S*)', line)
             if (prmatch): printable.append(prmatch.group(1) == '1')
         lengths = map(len, [moduli, aniso, params, printable])
+        # print lengths
         numIterates = min(lengths)
         if (numIterates != max(lengths)):
             sys.stderr.write("WARNING: invalid iterate printouts in '%s'\n" % fname)
@@ -154,14 +162,22 @@ def extract(dim, pat, directory, printableOnly = True):
             printable = printable[:numIterates]
             continue
     # The first printed iterate is just the initial parameters
-    moduli = moduli[1:]
-    aniso  =  aniso[1:]
-    params = params[1:]
+    # Ignore it unless we're initializing an autocover (init == True)
+    if not init:
+        moduli   =   moduli[1:]
+        aniso    =    aniso[1:]
+        params   =   params[1:]
+        allYoung = allYoung[1:]
+    # mark as infinitely anisotropic the patterns with > 10% difference in
+    # Young moduli
+    for i, y in enumerate(allYoung):
+        if abs((max(y) - min(y)) / min(y)) > 0.1:
+            aniso[i] = float(inf)
     if printableOnly:
         # printability filter
         moduli = [m for m,p in zip(moduli,printable) if p]
-        aniso  = [m for m,p in zip(aniso, printable) if p]
-        params = [m for m,p in zip(params,printable) if p]
+        aniso  = [a for a,p in zip(aniso, printable) if p]
+        params = [x for x,p in zip(params,printable) if p]
     l = LUT(patternData=(pat, moduli, aniso, params))
     # NOTE: ceres appears to print the same iterate multiple times (at least
     # they appear to be the same to output precision)

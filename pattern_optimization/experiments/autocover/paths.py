@@ -10,7 +10,10 @@ def homogenizer(dim = 3):
 def pattern(pat, dim = 3):
     if (dim == 3):
         return os.environ['MICRO_DIR'] + ("/patterns/3D/reference_wires/pattern%04i.wire" % pat)
-    return os.environ['MICRO_DIR'] + "/Luigi/wireinflator2D/meshes/octa_cell.obj"
+    if (dim == 2):
+        if (pat > 0):
+            return os.environ['MICRO_DIR'] + ("/patterns/2D/topologies/%04i.obj" % pat)
+        return os.environ['MICRO_DIR'] + "/Luigi/wireinflator2D/meshes/octa_cell.obj"
 
 def material(name):
     return os.environ['MICRO_DIR'] + ("/materials/%s.material" % name)

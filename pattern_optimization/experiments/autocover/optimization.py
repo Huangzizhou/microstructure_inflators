@@ -1,6 +1,7 @@
 from textwrap import dedent
 from LookupTable import LUT
 import paths, os, sys, subprocess, datetime
+import json
 
 class PatternOptimization:
     def __init__(self, config):
@@ -8,6 +9,12 @@ class PatternOptimization:
         self.pattern = config['pattern']
         self.material = paths.material(config['material'])
         self.patoptArgs = config.get('args', ['-I', '--solver', 'levenberg_marquardt', '-n50'])
+
+        self.jobTemplate = None
+        if 'jobTemplate' in config:
+            jtpath = config['jobTemplate']
+            f = open(jtpath, 'r')
+            self.jobTemplate = json.load(open(config['jobTemplate']))
 
         # Read variable bounds from config, with dim-dependent defaults
         if (self.dim == 2):
@@ -36,6 +43,8 @@ class PatternOptimization:
     def setConstraints(self, constraints):
         self.constraints = constraints
 
+    # Create and enqueue a job for a particular target tensor, initialParams
+    # Use template json object self.jobTemplate if it exists
     def enqueueJob(self, targetE, targetNu, initialParams):
         # TODO: make bounds configurable
 
@@ -44,24 +53,30 @@ class PatternOptimization:
         constraintString = ""
         if len(self.constraints) > 0:
             constraintString = '\n"paramConstraints": [%s],' % ", ".join(['"%s"' % c for c in self.constraints])
-        jobContents = """\
-        {
-            "dim": %i,
-            "target": {
-                "type": "isotropic",
-                "young": %f,
-                "poisson": %f
-            },%s
-            "initial_params": [%s],
-            "radiusBounds": [%s],
-            "translationBounds": [%s],
-            "blendingBounds": [%s]
-        }
-        """
-        jobContents = dedent(jobContents) % (self.dim, targetE, targetNu, constraintString,
-                formatSequence(initialParams), formatSequence(self.radiusBounds),
-                formatSequence(self.translationBounds),
-                formatSequence(self.blendingBounds))
+        jobContents = ""
+        if self.jobTemplate != None:
+            self.jobTemplate['target'] = {'type': 'isotropic', 'young': targetE, 'poisson': targetNu};
+            self.jobTemplate['initial_params'] = list(initialParams);
+            jobContents = json.dumps(self.jobTemplate, indent=4)
+        else:
+            jobContents = """\
+            {
+                "dim": %i,
+                "target": {
+                    "type": "isotropic",
+                    "young": %f,
+                    "poisson": %f
+                },%s
+                "initial_params": [%s],
+                "radiusBounds": [%s],
+                "translationBounds": [%s],
+                "blendingBounds": [%s]
+            }
+            """
+            jobContents = dedent(jobContents) % (self.dim, targetE, targetNu, constraintString,
+                    formatSequence(initialParams), formatSequence(self.radiusBounds),
+                    formatSequence(self.translationBounds),
+                    formatSequence(self.blendingBounds))
         self.jobs.append(jobContents)
 
     def run(self, directory):
@@ -72,7 +87,9 @@ class PatternOptimization:
             outPath = directory + '/stdout_%i.txt' % i
             with open(outPath, 'w') as outLog:
                 try: subprocess.call(cmd, stdout=outLog)
-                except: sys.stderr.write("WARNING: optimization '%s/%i.job' died\n" % (directory, i))
+                except:
+                    print cmd
+                    sys.stderr.write("WARNING: optimization '%s/%i.job' died\n" % (directory, i))
         self.jobs = [] # remove finished jobs from queue
 
     # Submit an array job for jobs numbered firstJobIndex..lastJobIndex
