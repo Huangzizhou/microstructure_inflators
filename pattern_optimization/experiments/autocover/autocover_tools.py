@@ -4,6 +4,7 @@ import paths, inflation, sys
 import pattern_constraints
 from LookupTable import LUT, extract as extractLUT
 import os
+import shutil, archive
 
 # The grid is chosen so that a (~targetNSubdiv x ~NSubdivsubdiv) subset of
 # lattice points fully cover the approxERange and approxNuRange ranges.
@@ -79,7 +80,15 @@ def analyzeRuns(dim, prevLUT, num, pat, printableOnly, isotropicOnly):
     if prevLUT == None:
         # the previous round's lookup table better exist (we need to union it)
         prevLUT = LUT(roundLUTPath(num - 1))
-    lut = extractLUT(dim, pat, roundName(num), printableOnly = printableOnly)
+    rdir = roundDirectory(num)
+    lut = extractLUT(dim, pat, rdir, printableOnly = printableOnly)
+
+    # Archive the runs.
+    archive = tarfile.open(rdir + '.tgz', 'w')
+    archive.add(rdir)
+    archive.close()
+    shutil.rmtree(rdir)
+
     if isotropicOnly: lut.filterAnisotropy(0.95, 1.05)
     # TODO: determine convergence by diffing against previous round lookup table?
     # also, could remove duplicates by doing a sort | uniq

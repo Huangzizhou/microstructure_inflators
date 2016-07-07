@@ -172,7 +172,7 @@ def extract(dim, pat, directory, printableOnly = True, init = False):
     # Young moduli
     for i, y in enumerate(allYoung):
         if abs((max(y) - min(y)) / min(y)) > 0.1:
-            aniso[i] = float(inf)
+            aniso[i] = float('inf')
     if printableOnly:
         # printability filter
         moduli = [m for m,p in zip(moduli,printable) if p]

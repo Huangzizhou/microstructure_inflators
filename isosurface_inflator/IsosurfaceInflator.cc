@@ -18,7 +18,7 @@
 
 #define DEBUG_EVALPTS 0
 
-#if 0
+#if 1
 #include "CGALClippedVolumeMesher.hh"
 #include "VCGSurfaceMesher.hh"
 #endif
@@ -251,7 +251,7 @@ MeshingOptions &IsosurfaceInflator::meshingOptions() { return m_imp->meshingOpti
 
 IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickenss, const string &wireMeshPath) {
     if (!vertexThickenss) throw runtime_error("Only per-vertex thickness is currently supported.");
-    if (type == "cubic")                throw std::runtime_error("Disabled."); /* m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>         , CGALClippedVolumeMesher>(wireMeshPath); */
+    if (type == "cubic")                                                          m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>         , CGALClippedVolumeMesher>(wireMeshPath);
     else if (type == "orthotropic")     throw std::runtime_error("Disabled."); /* m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>   , CGALClippedVolumeMesher>(wireMeshPath); */
     else if (type == "triply_periodic") throw std::runtime_error("Disabled."); /* m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, CGALClippedVolumeMesher>(wireMeshPath); */
     else if (type == "cubic_preview")   {
@@ -312,6 +312,8 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
 {
     BENCHMARK_START_TIMER_SECTION("postProcess");
 
+    // MeshIO::save("pre_snap.msh", vertices, elements);
+
     BENCHMARK_START_TIMER("SnapAndDetermineEvaluationPts");
     vector<vector<bool>> onMinFace, onMaxFace;
     // WARNING: for non-reflecting inflators, this should snap to bbmin and bbmax!!!
@@ -319,6 +321,8 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     // TODO: implement smart snapping for 3D; 2D doesn't need snapping
     // snapVerticesToUnitCell<MeshIO::IOVertex, std::ratio<1, long(1e10)>>(vertices, onMinFace, onMaxFace);
     determineFaceMembership(vertices, onMinFace, onMaxFace);
+
+    // MeshIO::save("post_snap.msh", vertices, elements);
 
     std::unique_ptr<SimplicialMesh<N>> bcm;
     try {

@@ -87,16 +87,17 @@ struct Iterate : public IterateBase {
         // std::cout << std::endl;
 
         // MeshIO::save("debug.msh", inflator.vertices(), inflator.elements());
+        // if (isParametric()) {
+        //     std::cerr << std::setprecision(19) << std::endl;
+        //     std::cerr << "params:";
+        //     for (size_t i = 0; i < m_params.size(); ++i) std::cerr << "\t" << m_params[i];
+        // }
 
         // std::cout << "Building Simulator" << std::endl;
         BENCHMARK_START_TIMER_SECTION("Eval");
 
-        {
-            std::unique_ptr<std::vector<MeshIO::IOVertex >> verts;
-            std::unique_ptr<std::vector<MeshIO::IOElement>> elems;
-            m_sim = Future::make_unique<_Sim>(inflator.elements(),
-                                              inflator.vertices());
-        }
+        m_sim = Future::make_unique<_Sim>(inflator.elements(),
+                                          inflator.vertices());
         // std::cout << "Done" << std::endl;
         // std::cout << "Homogenizing" << std::endl;
 

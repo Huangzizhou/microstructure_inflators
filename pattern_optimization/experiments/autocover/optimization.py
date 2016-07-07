@@ -86,7 +86,11 @@ class PatternOptimization:
                 '-p', paths.pattern(self.pattern, self.dim), '-m', self.material] + self.patoptArgs
             outPath = directory + '/stdout_%i.txt' % i
             with open(outPath, 'w') as outLog:
-                try: subprocess.call(cmd, stdout=outLog)
+                try:
+                    ret = subprocess.call(cmd, stdout=outLog)
+                    if (ret != 0):
+                        print cmd
+                        print "FAILED optimization (nonzero exit status)"
                 except:
                     print cmd
                     sys.stderr.write("WARNING: optimization '%s/%i.job' died\n" % (directory, i))
