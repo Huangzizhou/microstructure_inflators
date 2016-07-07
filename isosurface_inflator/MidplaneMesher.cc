@@ -58,8 +58,10 @@ mesh(const SignedDistanceFunction &sdf,
      std::vector<MeshIO::IOElement> &triangles)
 {
     auto bb = sdf.boundingBox();
-    MarchingSquaresGrid msquares(meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[0]),
-                                 meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[1]),
+    size_t gridSizeX = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[0]),
+           gridSizeY = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[1]);
+    Real gridCellWidth = bb.dimensions()[0] / gridSizeX;
+    MarchingSquaresGrid msquares(gridSizeX, gridSizeY,
                                  meshingOptions.marchingSquaresCoarsening);
 
     MidplaneSlice<SignedDistanceFunction> slice(sdf);
@@ -86,6 +88,19 @@ mesh(const SignedDistanceFunction &sdf,
     // Organized polygon soup into ccw polygons
     std::list<std::list<Point2D>> polygons;
     extract_polygons<2>(result.points, edges, polygons);
+
+    // Remove extremely small polygons (relative to MS grid) that are probably
+    // due to sampling error, and that will cause robustness issues for hole
+    // finding.
+    polygons.remove_if([gridCellWidth](const std::list<Point2D> &poly) {
+            BBox<Point2D> pbb(poly);
+            auto dims = pbb.dimensions();
+            if ((dims[0] < 0.25 * gridCellWidth) && (dims[1] < 0.25 * gridCellWidth)) {
+                return true;
+            }
+            return false;
+        }
+    );
 
     // Non-periodic polygon cleanup (we assume we're meshing a quarter-cell).
     // TODO: periodic cleanup if we're actually meshing the full period cell.
@@ -286,7 +301,7 @@ mesh(const SignedDistanceFunction &sdf,
                     Point2D midpoint = 0.5 * (*p_next + *p_it);
                     Point2D edgeVec = *p_next - *p_it;
                     Vector2D outwardNormal(edgeVec[1], -edgeVec[0]); // outward from geometry (inward to hole)
-                    Point2D query = midpoint + (1e-4 / outwardNormal.norm()) * outwardNormal;
+                    Point2D query = midpoint + ((1e-1 * gridCellWidth) / outwardNormal.norm()) * outwardNormal;
                     Real querySD = slice.signedDistance(query);
                     if (querySD > maxDist) {
                         maxDist = querySD;
@@ -295,8 +310,10 @@ mesh(const SignedDistanceFunction &sdf,
                 }
                 if (maxDist == 0) throw std::runtime_error("Couldn't find point inside hole " + std::to_string(i));
                 holePts.push_back(candidate);
-                // std::cerr << "Found hole point: " << candidate << std::endl;
-                // std::cerr << "signed distance at hole point: " << maxDist << std::endl;
+#if DEBUG_OUT
+                std::cerr << "Found hole point: " << candidate << std::endl;
+                std::cerr << "signed distance at hole point: " << maxDist << std::endl;
+#endif
             }
         }
     }

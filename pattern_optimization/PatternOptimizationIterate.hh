@@ -86,6 +86,7 @@ struct Iterate : public IterateBase {
         }
         // std::cout << std::endl;
 
+        // MeshIO::save("debug.msh", inflator.vertices(), inflator.elements());
 
         // std::cout << "Building Simulator" << std::endl;
         BENCHMARK_START_TIMER_SECTION("Eval");

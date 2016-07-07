@@ -283,6 +283,22 @@ IsosurfaceInflator::~IsosurfaceInflator() {
     delete m_imp;
 }
 
+// Determine face membership with no threshold/snapping
+void determineFaceMembership(const std::vector<MeshIO::IOVertex> &vertices,
+                             std::vector<std::vector<bool>> &onMinFace,
+                             std::vector<std::vector<bool>> &onMaxFace) {
+    onMinFace.assign(3, std::vector<bool>(vertices.size(), false));
+    onMaxFace.assign(3, std::vector<bool>(vertices.size(), false));
+
+    for (size_t vi = 0; vi < vertices.size(); ++vi) {
+        auto &v = vertices[vi];
+        for (size_t c = 0; c < 3; ++c) {
+            onMinFace[c][vi] = (v[c] == 0);
+            onMaxFace[c][vi] = (v[c] == 1);
+        }
+    }
+}
+
 // Postprocess:
 //    Snap to base cell and then reflect if necessary
 //    Compute vertex normals and normal shape velocities
@@ -300,7 +316,9 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     vector<vector<bool>> onMinFace, onMaxFace;
     // WARNING: for non-reflecting inflators, this should snap to bbmin and bbmax!!!
     // TODO: change to pass the meshing cell
-    snapVerticesToUnitCell<MeshIO::IOVertex, std::ratio<1, long(1e10)>>(vertices, onMinFace, onMaxFace);
+    // TODO: implement smart snapping for 3D; 2D doesn't need snapping
+    // snapVerticesToUnitCell<MeshIO::IOVertex, std::ratio<1, long(1e10)>>(vertices, onMinFace, onMaxFace);
+    determineFaceMembership(vertices, onMinFace, onMaxFace);
 
     std::unique_ptr<SimplicialMesh<N>> bcm;
     try {
