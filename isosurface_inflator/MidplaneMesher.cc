@@ -283,8 +283,7 @@ mesh(const SignedDistanceFunction &sdf,
                 + std::to_string(polygons.size() - numHoles) + ".");
     }
 
-    // Try to find a point inside each hole boundary by offsetting from the
-    // boundary curve and checking if the point is outside the object.
+    // Try to find a point inside each hole boundary.
     std::vector<Point2D> holePts;
     {
         size_t i = 0;
@@ -294,24 +293,48 @@ mesh(const SignedDistanceFunction &sdf,
                 // Choose the hole point of greatest signed distance (furthest
                 // into void) for robustness
                 Real maxDist = 0;
-                Point2D candidate;
-                for (auto p_it = poly.begin(); p_it != poly.end(); ++p_it) {
-                    auto p_next = p_it; ++p_next;
-                    if (p_next == poly.end()) p_next = poly.begin();
-                    Point2D midpoint = 0.5 * (*p_next + *p_it);
-                    Point2D edgeVec = *p_next - *p_it;
-                    Vector2D outwardNormal(edgeVec[1], -edgeVec[0]); // outward from geometry (inward to hole)
-                    Point2D query = midpoint + ((1e-1 * gridCellWidth) / outwardNormal.norm()) * outwardNormal;
-                    Real querySD = slice.signedDistance(query);
-                    if (querySD > maxDist) {
-                        maxDist = querySD;
-                        candidate = query;
-                    }
+                Point2D bestCandidate;
+                // Polygons are oriented so that the geometry is on the left
+                // and the hole is on the right. In other words, the polygon is
+                // oriented clockwise around the hole.
+                // Hole finding heuristic (should be valid for non-pathalogical cases):
+                //      For each convex vertex, form a triangle with the two incident edges
+                //      Compute the triangle's barycenter as a candidate
+                //      Choose the candidate with highest signed distance (furthest into hole)
+                // All hole polygons must have some convex vertex, and as long
+                // as the boundary isn't too crazy the triangle formed should
+                // lie inside the polygon.
+                size_t numTried = 0;
+                {
+                    auto p_0 = poly.begin();
+                    auto p_1 = p_0; ++p_1;
+                    do {
+                        auto p_2 = p_1; ++p_2;
+                        if (p_2 == poly.end()) p_2 = poly.begin(); // wrap around
+                        Vector2D e_prev = *p_1 - *p_0,
+                                 e_next = *p_2 - *p_1;
+                        // Is *p_1 convex?
+                        if (signedAngle(e_prev, e_next) < 0) {
+                            ++numTried;
+                            // Take barycenter as a hole point candidate
+                            Point2D candidate = 1.0/3.0 * (*p_0 + *p_1 + *p_2);
+                            Real sd = slice.signedDistance(candidate);
+                            if (sd > maxDist) {
+                                bestCandidate = candidate;
+                                maxDist = sd;
+                            }
+                        }
+                        p_0 = p_1; p_1 = p_2;
+                    } while (p_0 != poly.begin()); // full cycle when p_0 returns to poly.begin()
                 }
-                if (maxDist == 0) throw std::runtime_error("Couldn't find point inside hole " + std::to_string(i));
-                holePts.push_back(candidate);
+
 #if DEBUG_OUT
-                std::cerr << "Found hole point: " << candidate << std::endl;
+                std::cerr << "Tried " << numTried << " candidates" << std::endl;
+#endif
+                if (maxDist == 0) throw std::runtime_error("Couldn't find point inside hole " + std::to_string(i));
+                holePts.push_back(bestCandidate);
+#if DEBUG_OUT
+                std::cerr << "Found hole point: " << bestCandidate << std::endl;
                 std::cerr << "signed distance at hole point: " << maxDist << std::endl;
 #endif
             }
