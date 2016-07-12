@@ -44,7 +44,7 @@ struct MeshingOptions {
     double featureAngleThreshold = M_PI / 4.0;
     // Force the marching squares grid resolution declared above, instead of the
     // one derived from the max area threshold.
-    bool forceMSGridSize = false; 
+    bool forceMSGridSize = false;
     // Use an adaptive edge length based on curvature (anticipating high
     // stresses in concave regions).
     bool curvatureAdaptive = false;

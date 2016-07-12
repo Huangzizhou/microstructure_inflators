@@ -117,7 +117,7 @@ public:
 
 // The WMesh-dependent implementation details.
 // E.g.: WMesh = WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>,
-//       Mesher = CGALClippedVolumeMesher 
+//       Mesher = CGALClippedVolumeMesher
 template<class WMesh, template<class> class Mesher>
 class IsosurfaceInflatorImpl : public IsosurfaceInflator::Impl {
 public:
@@ -267,13 +267,13 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickenss,
         disablePostprocess();
     }
     else if (type == "2D_square") {
-        throw std::runtime_error("2D square symmetry unimplemented."); 
+        throw std::runtime_error("2D square symmetry unimplemented.");
         // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(wireMeshPath);
         // Line mesh doesn't support our post-processing
         // disablePostprocess();
     }
     else if (type == "2D_orthotropic") {
-        // throw std::runtime_error("Disabled."); 
+        // throw std::runtime_error("Disabled.");
         m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(wireMeshPath);
     }
     else throw runtime_error("Unknown inflator type: " + type);
@@ -316,13 +316,6 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
 
     BENCHMARK_START_TIMER("SnapAndDetermineEvaluationPts");
     vector<vector<bool>> onMinFace, onMaxFace;
-    // WARNING: for non-reflecting inflators, this should snap to bbmin and bbmax!!!
-    // TODO: change to pass the meshing cell
-    // TODO: implement smart snapping for 3D; 2D doesn't need snapping
-    // snapVerticesToUnitCell<MeshIO::IOVertex, std::ratio<1, long(1e10)>>(vertices, onMinFace, onMaxFace);
-    determineFaceMembership(vertices, onMinFace, onMaxFace);
-
-    // MeshIO::save("post_snap.msh", vertices, elements);
 
     std::unique_ptr<SimplicialMesh<N>> bcm;
     try {
@@ -335,6 +328,13 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
         throw;
     }
     SimplicialMesh<N> &symBaseCellMesh = *bcm;
+
+    // WARNING: for non-reflecting inflators, this should snap to bbmin and bbmax!!!
+    // TODO: change to pass the meshing cell
+    if (N == 3) smartSnap3D(vertices, symBaseCellMesh);
+    determineFaceMembership(vertices, onMinFace, onMaxFace);
+
+    // MeshIO::save("post_snap.msh", vertices, elements);
 
     // Mark internal cell-face vertices: vertices on the meshing cell
     // boundary that actually lie inside the object (i.e. they are only mesh
