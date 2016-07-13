@@ -284,54 +284,42 @@ mesh(const SignedDistanceFunction &sdf,
     }
 
     // Try to find a point inside each hole boundary.
+    BENCHMARK_START_TIMER("Hole detection");
     std::vector<Point2D> holePts;
     {
         size_t i = 0;
         for (const auto &poly : polygons) {
             if (poly.size() < 3) throw std::runtime_error("Polygon of size " + std::to_string(poly.size()) + " in marching squares output.");
             if (isHoleBdry.at(i++)) {
-                // Choose the hole point of greatest signed distance (furthest
-                // into void) for robustness
-                Real maxDist = 0;
+                // Brute-force solution to robustly finding point in the hole:
+                // Triangulate hole and then consider triangle barycenters
+
+                std::list<std::list<Point2D>> holePolygons(1, poly);
+                std::vector<MeshIO::IOVertex > holeVertices;
+                std::vector<MeshIO::IOElement> holeTriangles;
+                triangulatePSLC(holePolygons, std::vector<Point2D>(),
+                                holeVertices, holeTriangles, 1.0, "Q");
+
+                Real maxDist = std::numeric_limits<Real>::lowest();
                 Point2D bestCandidate;
-                // Polygons are oriented so that the geometry is on the left
-                // and the hole is on the right. In other words, the polygon is
-                // oriented clockwise around the hole.
-                // Hole finding heuristic (should be valid for non-pathalogical cases):
-                //      For each convex vertex, form a triangle with the two incident edges
-                //      Compute the triangle's barycenter as a candidate
-                //      Choose the candidate with highest signed distance (furthest into hole)
-                // All hole polygons must have some convex vertex, and as long
-                // as the boundary isn't too crazy the triangle formed should
-                // lie inside the polygon.
-                size_t numTried = 0;
-                {
-                    auto p_0 = poly.begin();
-                    auto p_1 = p_0; ++p_1;
-                    do {
-                        auto p_2 = p_1; ++p_2;
-                        if (p_2 == poly.end()) p_2 = poly.begin(); // wrap around
-                        Vector2D e_prev = *p_1 - *p_0,
-                                 e_next = *p_2 - *p_1;
-                        // Is *p_1 convex?
-                        if (signedAngle(e_prev, e_next) < 0) {
-                            ++numTried;
-                            // Take barycenter as a hole point candidate
-                            Point2D candidate = 1.0/3.0 * (*p_0 + *p_1 + *p_2);
-                            Real sd = slice.signedDistance(candidate);
-                            if (sd > maxDist) {
-                                bestCandidate = candidate;
-                                maxDist = sd;
-                            }
-                        }
-                        p_0 = p_1; p_1 = p_2;
-                    } while (p_0 != poly.begin()); // full cycle when p_0 returns to poly.begin()
+                // Choose barycenter with greatest signed distance (furthest
+                // into hole) for robustness
+                for (const auto &tri : holeTriangles) {
+                    auto candidate = truncateFrom3D<Point2D>(
+                            1.0 / 3.0 * (holeVertices[tri[0]].point +
+                                         holeVertices[tri[1]].point +
+                                         holeVertices[tri[2]].point));
+                    Real sd = slice.signedDistance(candidate);
+                    if (sd > maxDist) {
+                        bestCandidate = candidate;
+                        maxDist = sd;
+                    }
                 }
 
-#if DEBUG_OUT
-                std::cerr << "Tried " << numTried << " candidates" << std::endl;
-#endif
-                if (maxDist == 0) throw std::runtime_error("Couldn't find point inside hole " + std::to_string(i));
+                if (maxDist == std::numeric_limits<Real>::lowest())
+                    throw std::runtime_error("Couldn't find point inside hole " + std::to_string(i));
+                if (maxDist <= 0)
+                    std::cerr << "WARNING: hole point inside object (nonpostive signed distance)" << std::endl;
                 holePts.push_back(bestCandidate);
 #if DEBUG_OUT
                 std::cerr << "Found hole point: " << bestCandidate << std::endl;
@@ -340,6 +328,7 @@ mesh(const SignedDistanceFunction &sdf,
             }
         }
     }
+    BENCHMARK_STOP_TIMER("Hole detection");
     if (polygons.size() - holePts.size() != 1) {
         throw std::runtime_error("Should have exactly one non-hole curve. Got "
                 + std::to_string(polygons.size() - holePts.size()));

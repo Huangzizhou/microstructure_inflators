@@ -92,9 +92,11 @@ protected:
 };
 
 // The dimension-dependent part of the interface
-template<size_t N>
+template<size_t _N>
 class Inflator : public InflatorBase {
 public:
+    static constexpr size_t N = _N;
+
     virtual size_t dimension() const override { return N; }
 
     ////////////////////////////////////////////////////////////////////////////
