@@ -48,7 +48,7 @@ ScalarOneForm<_FEMMesh::K> diff_bdry_from_nsv_functional(
             bary_bv[bv.localIndex()] = 1.0;
             result(bv.index()) += be->normal() *
                 Quadrature<BdryK, _SDDeg + 1>::integrate(
-                        [&](const VectorND<be.numVertices()> &p) { return
+                        [&](const EvalPt<BdryK> &p) { return
                             bary_bv(p) * nsv(p);
                         }, be->volume());
         }

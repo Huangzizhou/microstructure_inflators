@@ -391,7 +391,7 @@ struct IntegratedWorstCaseObjective {
             using  SDInterp = typename std::decay<decltype(sdCh[0])>::type;
             using NSVInterp = typename std::decay<decltype(  vn[0])>::type;
             dCh_vn += Quadrature<SDInterp::K, SDInterp::Deg + NSVInterp::Deg>::
-                integrate([&] (const VectorND<be.numVertices()> &pt) {
+                integrate([&] (const EvalPt<SDInterp::K> &pt) {
                     return vnb(pt) * sdb(pt);
                 }, be->volume());
         }
@@ -641,8 +641,8 @@ struct IntegratedWorstCaseObjective {
                 }
 
                 // pq^th contribution to dilation integrand.
-                dilationIntegrand -= Quadrature<Sim::K, 2 * Strain::Deg>::integrate(
-                        [&] (const VectorND<e.numVertices()> &p) {
+                dilationIntegrand -= Quadrature<N, 2 * Strain::Deg>::integrate(
+                        [&] (const EvalPt<N> &p) {
                     return strain_lambda(p).doubleContract(stress_u(p));
                 }) * shearDoubler;
 
@@ -663,7 +663,7 @@ struct IntegratedWorstCaseObjective {
                         for (size_t i = 0; i < mu_grad_lam_m.size(); ++i)
                             mu_grad_lam_m[i] = gradLam_m.dot(glam_functional[i]);
                         delta_j(v_m.index()) -= Quadrature<N, 2 * Strain::Deg>::
-                            integrate([&](const VectorND<e.numVertices()> &pt) { return
+                            integrate([&](const EvalPt<N> &pt) { return
                                     (mu_grad_lam_m(pt) * gradPhi_n(pt)).eval();
                                 }, e->volume() * shearDoubler);
                     }
