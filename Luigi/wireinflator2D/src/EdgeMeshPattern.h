@@ -623,18 +623,17 @@ public:
 
 
 			// average thickness on boundary vertices
-			typedef struct
-			{
-				typedef enum {
+			struct BoundaryVertex {
+				enum Type {
 					Vertex,
 					Edge,
-				} Type;
+				};
 
 				size_t vindex;
 				char   index;
 				size_t parameter;
 				Type type;
-			} BoundaryVertex;
+			};
 
 			std::vector<BoundaryVertex> boundaryVtx;
 			if (averageThicknessOnBoundary)

@@ -53,6 +53,7 @@ struct Iterate : public IterateBase {
 
     using IterateBase::m_params;
 
+    // Ortho base cell only? TODO: determine from inflator
     Iterate(Inflator<_N> &inflator, size_t nParams, const double *params)
         : IterateBase(inflator.isParametric())
     {
@@ -170,7 +171,7 @@ struct Iterate : public IterateBase {
           ObjectiveTerm<_N> &objectiveTerm(const std::string &name)       { return *m_objectiveTerms.at(name); }
     const ObjectiveTermMap  &objectiveTerms() const { return m_objectiveTerms; }
 
-    virtual size_t numObjectiveTerms() const { return m_objectiveTerms.size(); }
+    virtual size_t numObjectiveTerms() const override { return m_objectiveTerms.size(); }
 
     virtual std::vector<std::string> objectiveTermNames() const override {
         std::vector<std::string> names;

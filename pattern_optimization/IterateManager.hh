@@ -30,7 +30,7 @@ struct IterateManager : public IterateManagerBase {
     IterateManager(std::unique_ptr<_ItFactory> itFactory)
         : m_iterFactory(std::move(itFactory)) { }
 
-    Iterate &get(size_t nParams, const double * const params) {
+    Iterate &get(size_t nParams, const double * const params) override {
         m_currIterate = m_iterFactory->getIterate(std::move(m_currIterate), nParams, &params[0]);
         return *m_currIterate;
     }
@@ -41,8 +41,8 @@ struct IterateManager : public IterateManagerBase {
     virtual       Iterate *getPtr()       override { return m_currIterate.get(); }
     virtual const Iterate *getPtr() const override { return m_currIterate.get(); }
 
-    virtual size_t numParameters() const override { return m_iterFactory->numParameters(); }
-    virtual bool    isParametric() const override { return m_iterFactory->isParametric(); }
+    virtual size_t numParameters()  const override { return m_iterFactory->numParameters(); }
+    virtual bool    isParametric()  const override { return m_iterFactory->isParametric(); }
 
     virtual ~IterateManager() { }
 private:

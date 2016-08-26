@@ -5,7 +5,6 @@
 
 #include <vcg/complex/complex.h>
 #include <vcg/complex/algorithms/create/marching_cubes.h>
-#include <vcg/complex/algorithms/create/extended_marching_cubes.h>
 #include <vcg/complex/algorithms/create/mc_trivial_walker.h>
 
 class MyFace;

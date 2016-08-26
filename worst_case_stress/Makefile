@@ -72,6 +72,7 @@ WCS_REMESH_OPT_OBJS=WCSRemeshingOptimization_cli.o ../pattern_optimization/Patte
 
 OBJS=$(M2MSTRESS_OBJS) $(WCS_OBJS) $(WCSOPT_OBJS) $(WCS_REMESH_OPT_OBJS) $(DISCRETE_DERIVATIVE_OBJS)
 
+DEFAULT_TARGETS=MacroMicroStress_cli WCS_cli WCSOptimization_cli
 TARGETS=DiscreteShapeDerivativeValidation_cli MacroMicroStress_cli WCS_cli WCSOptimization_cli WCSRemeshingOptimization_cli
 
 # DEPENDENCY STUFF
@@ -80,6 +81,7 @@ COMMA:=,
 $(shell mkdir -p $(DEPDIR) >/dev/null)
 DEPFLAGS=-MT $@ -MMD -MP -MF $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).Td
 
+default: $(DEFAULT_TARGETS)
 all: $(TARGETS)
 
 MacroMicroStress_cli: $(M2MSTRESS_OBJS)
