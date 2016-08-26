@@ -326,7 +326,7 @@ struct IntegratedWorstCaseObjective {
                 auto be = mesh.boundaryElement(f.boundaryEntity().index());
                 if (!be) continue;
                 auto &r = result.at(be.index());
-                if (be->isPeriodic) { r = 0; continue; }
+                if (be->isInternal) { r = 0; continue; }
                 r = integrand.j(wcStress(e.index()), e.index());
                 for (size_t pq = 0; pq < flatLen(N); ++pq) {
                     // Sum is only over the "upper triangle" of integrands
@@ -441,7 +441,7 @@ struct IntegratedWorstCaseObjective {
             for (auto f : e.interfaces()) {
                 auto be = mesh.boundaryElement(f.boundaryEntity().index());
                 if (!be) continue;
-                if (be->isPeriodic) continue;
+                if (be->isInternal) continue;
                 advectionTerm += vn[be.index()].integrate(be->volume()) * jval;
             }
         }
@@ -713,6 +713,7 @@ struct IntegratedWorstCaseObjective {
     Integrand integrand;
 
 private:
+    // TODO: change this to accept a BaseCellOperations class
     template<class Sim>
     void m_solveAdjointCellProblems(const Sim &sim,
                     std::vector<VectorField<Real, N>> &lambda_kl) const {

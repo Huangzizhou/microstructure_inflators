@@ -6,7 +6,9 @@
 #include <Fields.hh>
 
 // Forward declare some of James' types
+namespace PyMesh {
 class PeriodicExploration;
+}
 
 class JamesInflatorWrapper : public Inflator<3> {
 public:
@@ -66,7 +68,7 @@ public:
     // Out-of-line destructor needed due to incompletely-typed members.
     virtual ~JamesInflatorWrapper();
 private:
-    std::unique_ptr<PeriodicExploration> m_inflator;
+    std::unique_ptr<PyMesh::PeriodicExploration> m_inflator;
 
     std::string m_dofOutPathPrefix;
     size_t m_inflationCount = 0;

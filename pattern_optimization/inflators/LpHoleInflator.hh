@@ -173,7 +173,7 @@ struct LpHoleInflator : Inflator<2> {
 
         // Clear normals on the periodic boundary
         for (auto be : mesh.boundaryElements()) {
-            if (be->isPeriodic) {
+            if (be->isInternal) {
                 normals(be.vertex(0).index()).setZero();
                 normals(be.vertex(1).index()).setZero();
             }

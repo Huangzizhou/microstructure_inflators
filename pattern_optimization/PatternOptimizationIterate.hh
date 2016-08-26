@@ -32,6 +32,7 @@
 #include "ObjectiveTerm.hh"
 #include "EvaluatedObjectiveTerm.hh"
 #include "SDConversions.hh"
+#include "BaseCellOperations.hh"
 
 #include "IterateBase.hh"
 #include "Inflator.hh"
@@ -103,7 +104,7 @@ struct Iterate : public IterateBase {
         // std::cout << "Homogenizing" << std::endl;
 
         try {
-            PeriodicHomogenization::solveCellProblems(w_ij, *m_sim, 1e-11);
+            m_baseCellOps = BaseCellOperations<_Sim>::construct(BaseCellType::TriplyPeriodic, *m_sim);
         }
         catch(std::exception &e) {
             std::cerr << "Cell problem solve failed: " << e.what() << std::endl;
@@ -118,7 +119,7 @@ struct Iterate : public IterateBase {
             exit(-1);
         }
 
-        C = PeriodicHomogenization::homogenizedElasticityTensorDisplacementForm(w_ij, *m_sim);
+        C = m_baseCellOps->homogenizedElaticityTensor();
         S = C.inverse();
 
         // std::cout << "Done" << std::endl;
@@ -219,7 +220,7 @@ struct Iterate : public IterateBase {
 
     const _ETensor &elasticityTensor() const { return C; }
     const _ETensor &complianceTensor() const { return S; }
-    const std::vector<VField> &fluctuationDisplacements() const { return w_ij; }
+    const std::vector<VField> &fluctuationDisplacements() const { return m_baseCellOps->fluctuationDisplacements(); }
 
     // Must be called *after* objective terms are added. (cannot be from the
     // constructor...)
@@ -314,13 +315,11 @@ struct Iterate : public IterateBase {
 
 protected:
     std::unique_ptr<_Sim> m_sim;
+    std::unique_ptr<BaseCellOperations<_Sim>> m_baseCellOps;
     _ETensor C, S ;
     bool m_printable;
 
     ObjectiveTermMap m_objectiveTerms; 
-
-    // Fluctuation displacements
-    std::vector<VField> w_ij;
 };
 
 }

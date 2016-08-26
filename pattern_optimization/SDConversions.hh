@@ -39,7 +39,7 @@ ScalarOneForm<_FEMMesh::K> diff_bdry_from_nsv_functional(
 
     assert(sd.size() == mesh.numBoundaryElements());
     for (auto be : mesh.boundaryElements()) {
-        if (be->isPeriodic) continue;
+        if (be->isInternal) continue;
         const auto &nsv = sd.at(be.index());
         // Integrate against each boundary vertex's linear shape function
         for (auto bv : be.vertices()) {
@@ -136,8 +136,8 @@ typename _Sim::VField descent_from_diff_bdry(
     std::vector<bool> isTrueBoundaryVertex(mesh.numBoundaryVertices(), false),
                       isPeriodicBE(mesh.numBoundaryElements(), false);
     for (auto be : mesh.boundaryElements()) {
-        isPeriodicBE[be.index()] = be->isPeriodic;
-        if (be->isPeriodic) continue;
+        isPeriodicBE[be.index()] = be->isInternal;
+        if (be->isInternal) continue;
         for (size_t i = 0; i < be.numVertices(); ++i)
             isTrueBoundaryVertex.at(be.vertex(i).index()) = true;
     }

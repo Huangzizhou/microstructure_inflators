@@ -185,7 +185,7 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         if (args.count("velocityOut")) {
             ScalarField<Real> pboundaryIndicator(mesh.numBoundaryElements());
             for (auto be : mesh.boundaryElements()) {
-                pboundaryIndicator[be.index()] = be->isPeriodic ? 1.0 : 0.0;
+                pboundaryIndicator[be.index()] = be->isInternal ? 1.0 : 0.0;
             }
             MSHBoundaryFieldWriter writer(args["velocityOut"].as<string>() + "_" + std::to_string(i) + ".msh", mesh);
             writer.addField("vn", vn);

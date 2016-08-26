@@ -136,7 +136,7 @@ public:
 
         std::vector<bool> isTrueBoundaryVertex(mesh.numBoundaryVertices(), false);
         for (auto be : mesh.boundaryElements()) {
-            if (be->isPeriodic) continue;
+            if (be->isInternal) continue;
             for (auto bv : be.vertices())
                 isTrueBoundaryVertex.at(bv.index()) = true;
         }

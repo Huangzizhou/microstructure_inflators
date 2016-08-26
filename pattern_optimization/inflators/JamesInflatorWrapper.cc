@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <Future.hh>
 
+using namespace PyMesh;
+
 namespace {
     VectorF ToVectorF(const std::vector<Real> &vec) {
         VectorF result(vec.size());
