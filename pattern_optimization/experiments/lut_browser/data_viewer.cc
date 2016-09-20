@@ -62,8 +62,8 @@ public:
     void  apply (float x, float y, float &xout, float &yout) const { xout = transformedX(x, y); yout = transformedY(x, y); }
     void  apply (float &xinout, float &yinout) const { apply(xinout, yinout, xinout, yinout); }
 
-    // Compose b on the right (apply this transform after b).
-    ViewTransform composeRight(const ViewTransform &b) const {
+    // Compose with b on the left (apply this transform after b).
+    ViewTransform composeLeft(const ViewTransform &b) const {
         // WARNING: capturing member variables by value is impossible! A
         // by-value default capture really just captures the "this" pointer and
         // accesses the members through it!
@@ -73,8 +73,8 @@ public:
             [=](Real x, Real y) -> Real { return copy.transformedY(b.transformedX(x, y), b.transformedY(x, y)); });
     }
 
-    // Compose b on the left (apply this transform before b).
-    ViewTransform composeLeft(const ViewTransform &b) const {
+    // Compose with b on the right (apply this transform before b).
+    ViewTransform composeRight(const ViewTransform &b) const {
         // WARNING: capturing member variables by value is impossible! A
         // by-value default capture really just captures the "this" pointer and
         // accesses the members through it!
@@ -94,12 +94,15 @@ void drawString(const std::string &str) {
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, c);
 }
 
+// Empty, transparent view by default.
 class View : public std::enable_shared_from_this<View> {
 public:
-    virtual void render() const = 0;
+    virtual void render() const { };
 
-    virtual ViewPtr viewForPoint(float x, float y) = 0;
-    virtual ViewTransformf viewTransformForPoint(float x, float y) = 0;
+    virtual ViewPtr viewForPoint(float x, float y) { return shared_from_this(); }
+    // Gets the transformation mapping coordinates of a point in the
+    // top-level-view's system to coordinates in the system of the subview at (x, y)
+    virtual ViewTransformf viewTransformForPoint(float x, float y) { return ViewTransformf(); }
 
     virtual bool mousePress(int button, float x, float y)   { return false; }
     virtual bool mouseRelease(int button, float x, float y) { return false; }
@@ -224,11 +227,6 @@ public:
         }
         glEnd();
     }
-
-    virtual ViewPtr viewForPoint(float x, float y) { return shared_from_this(); }
-    // Gets the transformation mapping coordinates of a point in the
-    // top-level-view's system to coordinates in the system of the subview at (x, y)
-    virtual ViewTransformf viewTransformForPoint(float x, float y) { return ViewTransformf(); }
     
 protected:
     RGBColorf m_fgcolor, m_bgcolor, m_slcolor;
@@ -486,6 +484,63 @@ private:
     vector<vector<float>> m_series_viewx_cache, m_series_viewy_cache;
 };
 
+// Wrap a view, providing a proportional margin around it.
+class Margin : public View {
+public:
+    Margin(ViewPtr view, float margin = 0.02)
+        : m_subview(view), m_margin(margin) { }
+
+    void setColor(const RGBColorf &c) { m_color = c; }
+
+    virtual void render() const {
+        glPushMatrix();
+
+        glTranslatef(m_margin, m_margin, 0);
+        glScalef(scale(), scale(), 1);
+
+        glColor4fv(m_color);
+        glBegin(GL_QUADS); {
+            glVertex3f(0, 0, 0);
+            glVertex3f(1, 0, 0);
+            glVertex3f(1, 1, 0);
+            glVertex3f(0, 1, 0);
+        }
+        glEnd();
+
+        m_subview->render();
+
+        glPopMatrix();
+    }
+    
+    float scale() const { return 1 - 2 * m_margin; }
+
+    virtual ViewPtr viewForPoint(float x, float y) {
+        ViewTransformf xf = m_xf();
+        return m_subview->viewForPoint(xf.transformedX(x, y), xf.transformedY(x, y));
+    }
+
+    virtual ViewTransformf viewTransformForPoint(float x, float y) {
+        // cout << "Getting xform for margined view" << endl;
+        ViewTransformf xf = m_xf();
+        auto subviewTransform = m_subview->viewTransformForPoint(xf.transformedX(x, y),
+                                                                 xf.transformedY(x, y));
+        return xf.composeRight(subviewTransform);
+    }
+
+private:
+    ViewTransformf m_xf() const {
+        // Capture margin and scale by value, not this ptr
+        float m = m_margin;
+        float s = scale();
+        return ViewTransformf([=](float xx, float yy) { return (xx - m) / s; },
+                              [=](float xx, float yy) { return (yy - m) / s; });
+    }
+
+    float m_margin;
+    ViewPtr m_subview;
+    RGBColorf m_color;
+};
+
 class Layout : public View {
 public:
     // Stacked views are on top of each other and render in the order added
@@ -543,32 +598,22 @@ public:
 
     virtual ViewPtr viewForPoint(float x, float y) {
         float size, offset;
-        return m_findSubview(x, y, size, offset);
+        auto xf = m_xf(size, offset);
+        return m_findSubview(x, y, size, offset)->viewForPoint(xf.transformedX(x, y), xf.transformedY(x, y));
     }
 
     virtual ViewTransformf viewTransformForPoint(float x, float y) { 
+        // cout << "Getting xform for layout" << endl;
         float size, offset;
         ViewPtr subview = m_findSubview(x, y, size, offset);
         if (!subview) return ViewTransformf();
 
         // left-compose the transform from a point in this view's coordinates to
         // the subview's coordinates
-        ViewTransformf subviewTransform = subview->viewTransformForPoint(x, y);
-        if (m_layoutDir == Direction::Horizontal) {
-            return subviewTransform.composeLeft(
-                    ViewTransformf([=](float xx, float yy) { return xx / size - offset; },
-                                   [=](float xx, float yy) { return yy; }));
-        }
-        else if (m_layoutDir == Direction::Vertical) {
-            return subviewTransform.composeLeft(
-                    ViewTransformf([=](float xx, float yy) { return xx; },
-                                   [=](float xx, float yy) { return yy / size - offset; }));
-        }
-        else if (m_layoutDir == Direction::Stacked) {
-            return subviewTransform;
-        }
-        else assert(false);
-        return ViewTransformf();
+        auto xf = m_xf(size, offset);
+        ViewTransformf subviewTransform = subview->viewTransformForPoint(xf.transformedX(x, y), xf.transformedY(x, y));
+
+        return xf.composeRight(subviewTransform);
     }
 
 protected:
@@ -576,16 +621,16 @@ protected:
     // and get its size/offset in this view.
     ViewPtr m_findSubview(float x, float y, float &size, float &offset) {
         ViewPtr responder;
+        offset = 0;
         for (size_t i = 0; i < m_subviews.size(); ++i) {
             size = m_subviewPercentages[i];
-            offset = 0;
             if (m_layoutDir == Direction::Horizontal) {
-                if (x < size) { responder = m_subviews[i]->viewForPoint(x / size, y); break; }
+                if (x < size) { responder = m_subviews[i]; break; }
                 x -= size;
                 offset += size;
             }
             else if (m_layoutDir == Direction::Vertical) {
-                if (y < size) { responder = m_subviews[i]->viewForPoint(x, y / size); break; }
+                if (y < size) { responder = m_subviews[i]; break; }
                 y -= size;
                 offset += size;
             }
@@ -600,6 +645,24 @@ protected:
         return responder;
     }
 
+    // Get the view transform into the subview with given size and offset
+    ViewTransformf m_xf(float size, float offset) const {
+        ViewTransformf xf;
+        if (m_layoutDir == Direction::Horizontal) {
+            xf = ViewTransformf([=](float xx, float yy) { return (xx - offset) / size; },
+                                [=](float xx, float yy) { return yy; });
+        }
+        else if (m_layoutDir == Direction::Vertical) {
+            xf = ViewTransformf([=](float xx, float yy) { return xx; },
+                                [=](float xx, float yy) { return (yy - offset) / size; });
+        }
+        else if (m_layoutDir == Direction::Stacked) {
+            // xf = leave as identity
+        }
+        else assert(false);
+        return xf;
+    }
+
     Direction m_layoutDir;
     vector<ViewPtr> m_subviews;
     vector<float> m_subviewPercentages;
@@ -608,6 +671,7 @@ protected:
 
 // A clicked review continues to respond to events until all mouse buttons are
 // released.
+// TODO: notify if views are cleared to disable active view?
 class UIHandler {
 public:
     UIHandler(ViewPtr view) : m_mainView(view) { }
@@ -622,6 +686,8 @@ public:
     }
 
     // Return true if handled
+    // TODO: check if the view we clicked on accepted the event before making it
+    // active!
     bool mouseFunc(int button, int state, float x, float y) {
         bool handled = false;
         button = decodeGLUTButton(button);
@@ -645,7 +711,7 @@ public:
             if (!m_anyHeld()) { m_activeView.reset(); }
         }
 
-        if (m_activeView) m_firstResponder = m_activeView;
+        if (m_activeView) { m_firstResponder = m_activeView; }
         return handled;
     }
 
@@ -680,7 +746,7 @@ private:
 ////////////////////////////////////////////////////////////////////////////////
 ViewPtr g_mainView;
 shared_ptr<UIHandler> g_uiHandler;
-shared_ptr<Layout> g_histLayout;
+shared_ptr<Layout> g_histLayoutLeft, g_histLayoutRight;
 
 vector<shared_ptr<HistogramPlot>> g_selectedParamHistograms;
 // Ranges of each parameter over all tables.
@@ -742,7 +808,8 @@ void selectTableAndPattern(size_t table, size_t pat) {
         }
     }
 
-    g_histLayout->clearSubviews();
+    g_histLayoutLeft->clearSubviews();
+    g_histLayoutRight->clearSubviews();
     g_selectedParamHistograms.clear();
 
     for (size_t p = 0; p < nParams; ++p) {
@@ -772,7 +839,9 @@ void selectTableAndPattern(size_t table, size_t pat) {
         paramHistSelected->setBackgroundColor(1, 1, 1, 0);
         paramHistSelected->setForegroundColor(1, 0, 0, 0.95);
         stacker->addSubview(paramHistSelected);
-        g_histLayout->addSubview(stacker);
+        auto marginedStacker = make_shared<Margin>(stacker);
+        if (p & 1) g_histLayoutRight->addSubview(marginedStacker);
+        else       g_histLayoutLeft ->addSubview(marginedStacker);
 
         g_selectedParamHistograms.push_back(paramHistSelected);
     }
@@ -962,12 +1031,25 @@ int main(int argc, char *argv[])
         auto plotStacker = make_shared<Layout>(Layout::Direction::Stacked);
         plotStacker->addSubview(g_allTablesLogscalePlot);
         plotStacker->addSubview(g_currentTableLogscalePlot);
-        mainLayout->addSubview(plotStacker);
 
-        g_histLayout = make_shared<Layout>(Layout::Direction::Vertical);
-        mainLayout->addSubview(g_histLayout);
 
-        mainLayout->setSubviewPercentages({0.75, 0.25});
+        auto sideBar = make_shared<Layout>(Layout::Direction::Vertical);
+        g_histLayoutLeft  = make_shared<Layout>(Layout::Direction::Vertical);
+        g_histLayoutRight = make_shared<Layout>(Layout::Direction::Vertical);
+
+        auto plotWithMargin = make_shared<Margin>(plotStacker);
+
+        auto histLayouts = make_shared<Layout>(Layout::Direction::Horizontal);
+        histLayouts->addSubview(g_histLayoutLeft);
+        histLayouts->addSubview(g_histLayoutRight);
+        sideBar->addSubview(histLayouts);
+        sideBar->addSubview(make_shared<View>());
+        sideBar->setSubviewPercentages({0.67, 0.33});
+
+        mainLayout->addSubview(plotWithMargin);
+        mainLayout->addSubview(sideBar);
+
+        mainLayout->setSubviewPercentages({0.67, 0.33});
 
         g_uiHandler = make_shared<UIHandler>(g_mainView);
         g_uiHandler->setFirstResponder(g_currentTableLogscalePlot);
