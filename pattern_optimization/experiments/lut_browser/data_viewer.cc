@@ -5,7 +5,7 @@
 //      Fast OpenGL-based lookup table viewer for visualizing mapping from
 //      pattern parameters to (E, nu)
 //      Useful for exploring pattern "foldover"
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  07/29/2015 17:56:46
@@ -29,8 +29,14 @@
 #include <GLUT/glut.h>
 
 #include <colors.hh>
+#include <Future.hh>
 #include "../../LookupTable.hh"
+#include "../../../isosurface_inflator/PatternSignedDistance.hh"
 typedef IsotropicLookupTable<double> LUT;
+
+// TODO: make this configurable
+using WMesh = WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>;
+using PSD = PatternSignedDistance<float, WMesh>;
 
 #include <boost/filesystem/operations.hpp>
 
@@ -227,7 +233,7 @@ public:
         }
         glEnd();
     }
-    
+
 protected:
     RGBColorf m_fgcolor, m_bgcolor, m_slcolor;
     CMapPointer m_seriesCMap;
@@ -433,7 +439,7 @@ private:
                 float distx = xd - x, disty = yd - y;
                 distx /= m_selectionAspect;
                 float dist = sqrt(distx * distx + disty * disty);
-                if (dist < m_selectionRadius) 
+                if (dist < m_selectionRadius)
                     m_pointSelected[index] = true;
                 selectionChanged  = selectionChanged || (m_pointSelected[index] != oldSelection[index]);
                 ++index;
@@ -484,6 +490,68 @@ private:
     vector<vector<float>> m_series_viewx_cache, m_series_viewy_cache;
 };
 
+// TODO: make this configurable
+unique_ptr<PSD> g_patternSignedDistance;
+class PatternView : public View {
+public:
+    PatternView(size_t resolution) : m_resolution(resolution) { }
+
+    virtual void render() const {
+        glColor3f(0.8, 0.8, 0.8);
+        glBegin(GL_QUADS); {
+            glVertex3f(0, 0, 0);
+            glVertex3f(1, 0, 0);
+            glVertex3f(1, 1, 0);
+            glVertex3f(0, 1, 0);
+        }
+
+        glColor3f(0.5, 0.06, 0.5);
+        float width = 1.0 / m_resolution;
+        float yoffset = 0;
+        for (size_t r = 0; r < m_resolution; ++r) {
+            float xoffset = 0;
+            for (size_t c = 0; c < m_resolution; ++c) {
+                // Map [0, 1] to [-1, 1]
+                Point3<float> p(2 * (xoffset + 0.5 * width) - 1,
+                                2 * (yoffset + 0.5 * width) - 1,
+                                0);
+                if (g_patternSignedDistance->isInside(p)) {
+                    glVertex3f(xoffset        , yoffset, 0);
+                    glVertex3f(xoffset + width, yoffset, 0);
+                    glVertex3f(xoffset + width, yoffset + width, 0);
+                    glVertex3f(xoffset        , yoffset + width, 0);
+                }
+                xoffset += width;
+            }
+            yoffset += width;
+        }
+
+        glEnd();
+
+#if 0
+        glBegin(GL_QUADS); {
+            float width = 1.0 / m_bins.numBins();
+            float xoffset = 0;
+            float yoffset = 0;
+            for (size_t i = 0; i < m_bins.numBins(); ++i) {
+                float height = m_bins.count(i) / maxCount;
+                glVertex3f(xoffset        , yoffset, 0);
+                glVertex3f(xoffset + width, yoffset, 0);
+                glVertex3f(xoffset + width, yoffset + height, 0);
+                glVertex3f(xoffset        , yoffset + height, 0);
+                xoffset += width;
+            }
+        }
+        glEnd();
+#endif
+    }
+
+    void setResolution(size_t resolution) { m_resolution = resolution; }
+
+private:
+    size_t m_resolution;
+};
+
 // Wrap a view, providing a proportional margin around it.
 class Margin : public View {
 public:
@@ -511,7 +579,7 @@ public:
 
         glPopMatrix();
     }
-    
+
     float scale() const { return 1 - 2 * m_margin; }
 
     virtual ViewPtr viewForPoint(float x, float y) {
@@ -602,7 +670,7 @@ public:
         return m_findSubview(x, y, size, offset)->viewForPoint(xf.transformedX(x, y), xf.transformedY(x, y));
     }
 
-    virtual ViewTransformf viewTransformForPoint(float x, float y) { 
+    virtual ViewTransformf viewTransformForPoint(float x, float y) {
         // cout << "Getting xform for layout" << endl;
         float size, offset;
         ViewPtr subview = m_findSubview(x, y, size, offset);
@@ -637,7 +705,7 @@ protected:
             else if (m_layoutDir == Direction::Stacked) {
                 // Return the topmost (*last*) subview that responds
                 size = 1.0; // Stacked views keep the same coordinate system.
-                auto rsv = m_subviews[i]->viewForPoint(x, y); 
+                auto rsv = m_subviews[i]->viewForPoint(x, y);
                 if (rsv) responder = rsv;
             }
             else assert(false);
@@ -1012,6 +1080,10 @@ int main(int argc, char *argv[])
     glutDisplayFunc(Display);
     glutReshapeFunc(Reshape);
 
+    // TODO: make pattern configurable.
+    WMesh wmesh("../../../Luigi/wireinflator2D/meshes/octa_cell.obj");
+    g_patternSignedDistance = Future::make_unique<PSD>(wmesh);
+
     // try {
         auto mainLayout = make_shared<Layout>(Layout::Direction::Horizontal);
         g_mainView = mainLayout;
@@ -1043,7 +1115,7 @@ int main(int argc, char *argv[])
         histLayouts->addSubview(g_histLayoutLeft);
         histLayouts->addSubview(g_histLayoutRight);
         sideBar->addSubview(histLayouts);
-        sideBar->addSubview(make_shared<View>());
+        sideBar->addSubview(make_shared<PatternView>(256));
         sideBar->setSubviewPercentages({0.67, 0.33});
 
         mainLayout->addSubview(plotWithMargin);
@@ -1077,10 +1149,20 @@ int main(int argc, char *argv[])
                 assert(lv);
                 auto selSubset = g_dataTablesCurrPattern.at(g_currTableIdx).subset(lv->selectedPointIndices());
                 size_t nParams = g_dataTablesCurrPattern.at(g_currTableIdx).numParams();
+                std::vector<float> firstPatternParams(nParams), paramValues;
                 for (size_t p = 0; p < nParams; ++p) {
-                    if (selSubset.size()) g_selectedParamHistograms[p]->setData(selSubset.getParamValues<float>(p), g_paramRanges[p]);
-                    else g_selectedParamHistograms[p]->setData(std::vector<float>());
+                    if (selSubset.size()) {
+                        paramValues = selSubset.getParamValues<float>(p);
+                        firstPatternParams[p] = paramValues.front();
+                    }
+                    else paramValues.clear();
+
+
+                    g_selectedParamHistograms[p]->setData(paramValues, g_paramRanges[p]);
                 }
+
+                // Render the first selected pattern
+                g_patternSignedDistance->setParameters(firstPatternParams);
             }
         );
 
