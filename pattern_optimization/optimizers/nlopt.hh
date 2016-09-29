@@ -8,8 +8,7 @@
 #include "../BoundConstraints.hh"
 #include "../OptimizerConfig.hh"
 
-// bfgs when oconfig.lbfgs_memory == 0, lbfgs otherwise.
-void optimize_nlopt_sqslp(ScalarField<Real> &params,
+void optimize_nlopt_slsqp(ScalarField<Real> &params,
         const PatternOptimization::BoundConstraints &bds,
         PatternOptimization::IterateManagerBase &im,
         const PatternOptimization::OptimizerConfig &oconfig,

@@ -78,7 +78,7 @@ OptimizerMap optimizers = {
     {"dogleg",               optimize_ceres_dogleg},
     {"bfgs",                 optimize_dlib_bfgs},
     {"lbfgs",                optimize_dlib_bfgs},
-    {"slsqp",                optimize_nlopt_sqslp},
+    {"slsqp",                optimize_nlopt_slsqp},
     {"gradient_descent",     optimize_gd}
 };
 

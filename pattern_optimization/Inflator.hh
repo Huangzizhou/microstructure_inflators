@@ -47,7 +47,7 @@ public:
         if (m_inflationDumpPath.size()) {
             // also be more verbose when dumping
             std::cerr << "INFLATING PARAMS:";
-            std::cerr << setprecision(19);
+            std::cerr << std::setprecision(19);
             for (Real p : params) std::cerr << "\t" << p;
             std::cerr << std::endl;
         }

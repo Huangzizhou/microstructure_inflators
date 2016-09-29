@@ -56,7 +56,7 @@ double costFunc(const std::vector<double> &x, std::vector<double> &grad, void *o
     return it.evaluate();
 }
 
-void optimize_nlopt_sqslp(ScalarField<Real> &params,
+void optimize_nlopt_slsqp(ScalarField<Real> &params,
         const PatternOptimization::BoundConstraints &bds,
         PatternOptimization::IterateManagerBase &im,
         const PatternOptimization::OptimizerConfig &oconfig,
