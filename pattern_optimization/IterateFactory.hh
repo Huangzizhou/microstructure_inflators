@@ -94,9 +94,14 @@ struct IterateFactory : public IFConfigs... {
             return oldIterate;
         }
 
+        // Free up memory by releasing the old iterate if we aren't going to
+        // use it for estimation
+        if (!m_allowEstimation)
+            oldIterate.release();
+
         std::unique_ptr<_Iterate> newIterate;
         bool success;
-        for (size_t i = 0; i < 3; ++i) {
+        for (size_t i = 0; i < m_numInflationAttempts; ++i) {
             success = true;
             try {
                 newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params);
@@ -109,6 +114,7 @@ struct IterateFactory : public IFConfigs... {
         }
         if (!success) {
             std::cerr << "3 INFLATION ATTEMPTS FAILED." << std::endl;
+            if (!m_allowEstimation) throw std::runtime_error("Inflation failure with estimation disabled");
             if (!oldIterate) throw std::runtime_error("Inflation failure on first iterate");
             // Extrapolate the old iterate to the new evaluation point.
             oldIterate->estimatePoint(nParams, params);
@@ -142,6 +148,8 @@ struct IterateFactory : public IFConfigs... {
 private:
     ObjectiveTermNormalizations m_normalizations;
     _Inflator &m_inflator;
+    size_t m_numInflationAttempts = 1;
+    bool m_allowEstimation        = false;
 };
 
 // Inflator template parameter is last so that it can be inferred...
