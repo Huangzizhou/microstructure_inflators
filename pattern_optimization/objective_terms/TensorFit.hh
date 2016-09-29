@@ -28,6 +28,8 @@ namespace ObjectiveTerms {
 // objective in terms of it.
 template<class _Sim>
 struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
+    using Base = NLLSObjectiveTerm<_Sim::N>;
+
     static constexpr size_t N = _Sim::N;
     using  OForm = ScalarOneForm<N>;
     using SField = ScalarField<Real>;
@@ -38,8 +40,17 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         const auto S = it.complianceTensor();
         m_diffS = S - targetS;
 
-        auto dChVol  = m_baseCellOps.homogenizedElasticityTensorDiscreteDifferential();
-        auto dChBdry = m_baseCellOps.diff_bdry_from_diff_vol(dChVol);
+        // For reporting only
+        auto targetC = targetS.inverse();
+        m_CDist = (it.elasticityTensor() - targetC).frobeniusNormSq();
+        m_CNormSq = targetC.frobeniusNormSq();
+
+        BENCHMARK_START_TIMER_SECTION("HETDD");
+        auto dChVol  = PH::homogenizedElasticityTensorDiscreteDifferential(w, it.simulator());
+        BENCHMARK_STOP_TIMER_SECTION("HETDD");
+
+        BENCHMARK_START_TIMER_SECTION("Convert");
+        auto dChBdry = SDConversions::diff_bdry_from_diff_vol(dChVol, it.simulator());
         auto dShBdry = compose([&](const ETensor &e) { ETensor result = S.doubleDoubleContract(e); result *= -1.0; return result; }, dChBdry);
         this->m_differential = compose([&](const ETensor &e) { return m_diffS.quadrupleContract(e); }, dShBdry);
 
@@ -64,6 +75,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
             m_component_differentials.push_back(
                     compose([&](const ETensor &e) { return LI::index(e, i); }, dShBdry));
         }
+        BENCHMARK_STOP_TIMER_SECTION("Convert");
     }
 
     virtual Real evaluate() const override { return 0.5 * m_diffS.quadrupleContract(m_diffS); }
@@ -150,6 +162,11 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         }
     }
 
+    virtual void writeDescription(std::ostream &os, const std::string &name) const override {
+        os << "Rel elasticity tensor dist: " << sqrt(m_CDist / m_CNormSq) << std::endl;
+        Base::writeDescription(os, name);
+    }
+
     virtual ~TensorFit() { }
 
 private:
@@ -158,6 +175,7 @@ private:
     std::vector<OForm> m_component_differentials;
     bool m_ignoreShear = false;
     ETensor m_diffS;
+    Real m_CDist, m_CNormSq;
 };
 
 // Configuration to be applyed by iterate factory
@@ -166,6 +184,7 @@ struct IFConfigTensorFit : public IFConfig {
     static constexpr size_t N = _Sim::N;
     template<class _Iterate>
     void configIterate(const std::unique_ptr<_Iterate> &it, ObjectiveTermNormalizations &normalizations) const {
+        BENCHMARK_START_TIMER_SECTION("Tensor fit");
         static_assert(_Iterate::_N == N, "Mismatch in problem dimensions.");
         auto tf = Future::make_unique<TensorFit<_Sim>>(targetS, *it);
         tf->setWeight(weight);
@@ -177,6 +196,7 @@ struct IFConfigTensorFit : public IFConfig {
         tf->setNormalization(normalizations["JS"]);
         tf->setIgnoreShear(ignoreShear);
         it->addObjectiveTerm("JS", std::move(tf));
+        BENCHMARK_STOP_TIMER_SECTION("Tensor fit");
     }
     Real weight = 1.0;
     ElasticityTensor<Real, N> targetS;

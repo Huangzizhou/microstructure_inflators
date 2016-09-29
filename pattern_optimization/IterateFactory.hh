@@ -116,8 +116,13 @@ struct IterateFactory : public IFConfigs... {
         }
 
         // We actually created a new iterate--configure it accordingly.
+        BENCHMARK_START_TIMER_SECTION("Adding objective terms");
         IFApplyConfigs<IFConfigs...>::apply(this, newIterate, m_normalizations);
+        BENCHMARK_STOP_TIMER_SECTION("Adding objective terms");
+
+        BENCHMARK_START_TIMER_SECTION("Caching objective term gradients");
         newIterate->evaluateObjectiveTerms(m_inflator);
+        BENCHMARK_STOP_TIMER_SECTION("Caching objective term gradients");
 
         // // Write debug steepest descent field
         // {

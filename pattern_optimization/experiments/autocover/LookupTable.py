@@ -168,10 +168,10 @@ def extract(dim, pat, directory, printableOnly = True, init = False):
         aniso    =    aniso[1:]
         params   =   params[1:]
         allYoung = allYoung[1:]
-    # mark as infinitely anisotropic the patterns with > 10% difference in
+    # mark as infinitely anisotropic the patterns with > 2% difference in
     # Young moduli
     for i, y in enumerate(allYoung):
-        if abs((max(y) - min(y)) / min(y)) > 0.1:
+        if abs((max(y) - min(y)) / min(y)) > 0.02:
             aniso[i] = float('inf')
     if printableOnly:
         # printability filter
