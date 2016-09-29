@@ -9,7 +9,7 @@
 #include <MSHFieldWriter.hh>
 #include <SimplicialMesh.hh>
 #include <Future.hh>
-#include <Filters/remove_dangling_vertices.hh>
+#include <filters/remove_dangling_vertices.hh>
 
 #include "AutomaticDifferentiation.hh"
 #include "WireMesh.hh"

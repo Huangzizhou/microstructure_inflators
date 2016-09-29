@@ -46,11 +46,11 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         m_CNormSq = targetC.frobeniusNormSq();
 
         BENCHMARK_START_TIMER_SECTION("HETDD");
-        auto dChVol  = PH::homogenizedElasticityTensorDiscreteDifferential(w, it.simulator());
+        auto dChVol  = m_baseCellOps.homogenizedElasticityTensorDiscreteDifferential();
         BENCHMARK_STOP_TIMER_SECTION("HETDD");
 
         BENCHMARK_START_TIMER_SECTION("Convert");
-        auto dChBdry = SDConversions::diff_bdry_from_diff_vol(dChVol, it.simulator());
+        auto dChBdry = m_baseCellOps.diff_bdry_from_diff_vol(dChVol);
         auto dShBdry = compose([&](const ETensor &e) { ETensor result = S.doubleDoubleContract(e); result *= -1.0; return result; }, dChBdry);
         this->m_differential = compose([&](const ETensor &e) { return m_diffS.quadrupleContract(e); }, dShBdry);
 

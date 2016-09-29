@@ -806,6 +806,8 @@ public:
 		return ret;
 	}
 
+    virtual ~EdgeMeshPattern() { }
+
 protected:
 	/// parameters
 	TessellatorSettings m_tri_settings;

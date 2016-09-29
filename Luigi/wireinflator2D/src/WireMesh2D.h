@@ -217,6 +217,8 @@ public:
 		return m_orbits_idx[tag[node]];
 	}
 
+    virtual ~WireMesh2D() { }
+
 protected:
 	EMesh                           m_em;
 	EMesh                           m_normalized_em;
@@ -1170,6 +1172,7 @@ public:
 		return outParams;
 	}
 
+    virtual ~WireMesh2DMorteza() { }
 
 protected:
 	EMesh                           m_em;

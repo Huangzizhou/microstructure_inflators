@@ -65,7 +65,7 @@ void snapVerticesToUnitCell(std::vector<Vertex> &vertices,
 //                          entire component is snapped to the boundary.
 template<class TMesh>
 enable_if_not_models_concept_t<Concepts::TetMesh, TMesh, void>
-smartSnap3D(std::vector<MeshIO::IOVertex> &/* vertices */, const TMesh &/* mesh */, const BBox<Point3D> &cell,
+smartSnap3D(std::vector<MeshIO::IOVertex> &/* vertices */, const TMesh &/* mesh */, const BBox<Point3D> &/* cell */,
                  const Real /* epsilon */ = 1e-4) {
     throw std::runtime_error("smartSnap3D must be called on a tet mesh!");
 }

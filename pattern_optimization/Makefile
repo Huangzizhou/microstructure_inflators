@@ -17,7 +17,7 @@ endif
 # **** Configuration: Use the isosurface inflator for 3D ****
 # CPPFLAGS+= -DBENCHMARK
 # CPPFLAGS+= -DTOO_LARGE_FOR_METIS
-CPPFLAGS+=-Wall -pedantic -std=c++11
+CPPFLAGS+=-std=c++11 $(WARNING_FLAGS)
 # CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
 ################################################################################
 
@@ -35,7 +35,7 @@ CPPFLAGS+=$(INCLUDES)
 
 LIBS=$(BOOST_LFLAGS) $(SUITESPARSE_LFLAGS) $(CERES_LFLAGS) $(LIBMATHEVAL_LFLAGS) $(NLOPT_LFLAGS)
 LIBS+=$(CLIPPER_LFLAGS) $(TRIANGLE_LFLAGS) $(LEVMAR_LFLAGS)
-LIBS+=-L$(PYMESH_PATH)/lib -lwires
+LIBS+=$(PYMESH_WIRES_LFLAGS)
 
 ISOINFLATOR_LIBS=-L$(CGAL_LIB) -lCGAL -L$(GMP_LIB) -lgmp -L$(MPFR_LIB) -lmpfr
 ISOINFLATOR_LIBS+=-L$(ADEPT_LIB) -ladept
