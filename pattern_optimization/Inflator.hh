@@ -44,6 +44,14 @@ public:
     // Inflation
     ////////////////////////////////////////////////////////////////////////////
     void inflate(const std::vector<Real> &params) {
+        if (m_inflationDumpPath.size()) {
+            // also be more verbose when dumping
+            std::cerr << "INFLATING PARAMS:";
+            std::cerr << setprecision(19);
+            for (Real p : params) std::cerr << "\t" << p;
+            std::cerr << std::endl;
+        }
+
         try { this->m_inflate(params); }
         catch (const std::exception &e) {
             std::cerr << std::setprecision(20);
@@ -52,7 +60,13 @@ public:
             std::cerr << std::endl;
             throw;
         }
+        if (m_inflationDumpPath.size())
+            MeshIO::save(m_inflationDumpPath, vertices(), elements());
     }
+
+    // Configure to dump the output geometry immediately after inflation
+    void setInflationDumpPath(const std::string &path) { m_inflationDumpPath = path; }
+    void disableInflationDump() { m_inflationDumpPath.clear(); }
 
     ////////////////////////////////////////////////////////////////////////////
     // Geometry access (dimension agnostic)
@@ -97,6 +111,7 @@ public:
 protected:
     std::vector<MeshIO::IOElement> m_elements;
     std::vector<MeshIO::IOVertex>  m_vertices;
+    std::string m_inflationDumpPath;
 private:
     virtual void m_inflate(const std::vector<Real> &params) = 0;
 };

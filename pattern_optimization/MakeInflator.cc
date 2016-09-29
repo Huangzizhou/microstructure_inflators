@@ -106,6 +106,9 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
 
     if (fullCell) infl->setReflectiveInflator(false);
 
+    // Dump to inflation_dump_path, if specified
+    infl->setInflationDumpPath(extract_defaulted<string>(opts, "inflation_dump_path", ""));
+
     extract_notify(opts, "meshingOptions", [&](const string &v) { infl->loadMeshingOptions(v); });
     extract_notify(opts, "max_volume",     [&](double        v) { infl->setMaxElementVolume(v); });
 
@@ -139,7 +142,8 @@ po_vm filterInflatorOptions(const po_vm &opts) {
         "meshingOptions",
         "subdivide",
         "sub_algorithm",
-        "ortho_cell"
+        "ortho_cell",
+        "inflation_dump_path"
     };
     po_vm filtered;
     for (const string &key : keys)

@@ -103,13 +103,14 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description meshingOptions;
     meshingOptions.add_options()
-        ("meshingOptions,M", po::value<string>(),  "Meshing options configuration file")
-        ("max_volume,v",     po::value<double>(),  "Maximum element area for remeshing (overrides meshing options)")
-        ("hole_segments",    po::value<size_t>(),  "Number of segments in hole boundary for LpHoleInflator (default: 64)")
-        ("subdivide,S",  po::value<size_t>(),      "Number of subdivisions to run for James' inflator (default: 0)")
-        ("sub_algorithm,A", po::value<string>(),   "Subdivision algorithm for James' inflator (simple or loop, default: simple)")
-        ("ortho_cell,O",                           "Only mesh and optimize the orthotropic base cell (for orthotropic patterns only")
-        ("fullCellInflator",                       "Use the full period cell inflator instead of the reflection-based one")
+        ("meshingOptions,M",      po::value<string>(), "Meshing options configuration file")
+        ("max_volume,v",          po::value<double>(), "Maximum element area for remeshing (overrides meshing options)")
+        ("hole_segments",         po::value<size_t>(), "Number of segments in hole boundary for LpHoleInflator (default: 64)")
+        ("subdivide,S",           po::value<size_t>(), "Number of subdivisions to run for James' inflator (default: 0)")
+        ("sub_algorithm,A",       po::value<string>(), "Subdivision algorithm for James' inflator (simple or loop, default: simple)")
+        ("inflation_dump_path,D", po::value<string>(), "Dump the inflated geometry immediately after meshing.")
+        ("ortho_cell,O",                               "Only mesh and optimize the orthotropic base cell (for orthotropic patterns only")
+        ("fullCellInflator",                           "Use the full period cell inflator instead of the reflection-based one")
         ;
 
     po::options_description optimizerOptions;
