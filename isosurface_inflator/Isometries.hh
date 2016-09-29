@@ -16,6 +16,7 @@
 #include <iostream>
 #include <cassert>
 #include <string>
+#include "InflatorTypes.hh"
 
 namespace Symmetry {
     enum class Axis : unsigned int { X = 0, Y = 1, Z = 2 };

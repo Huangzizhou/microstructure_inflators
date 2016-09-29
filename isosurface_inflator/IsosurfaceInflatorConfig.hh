@@ -19,10 +19,11 @@ class IsosurfaceInflatorConfig {
 private:
     IsosurfaceInflatorConfig() { }
 public:
-    std::string inflationGraphPath, replicatedGraphPath;
+    std::string inflationGraphPath, replicatedGraphPath, baseUnitGraphPath;
 
     bool dumpInflationGraph()  const { return  inflationGraphPath.length(); }
     bool dumpReplicatedGraph() const { return replicatedGraphPath.length(); }
+    bool dumpBaseUnitGraph()   const { return   baseUnitGraphPath.length(); }
 
     static IsosurfaceInflatorConfig &get() {
         static IsosurfaceInflatorConfig configSingleton;

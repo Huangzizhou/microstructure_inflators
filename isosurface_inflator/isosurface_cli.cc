@@ -14,7 +14,7 @@ using namespace std;
 using namespace std;
 
 void usage(int status, const po::options_description &visible_opts) {
-    cerr << "Usage: msh_field_extractor ./isosurface_cli mesher_name pattern parameters out.msh [options]" << endl;
+    cerr << "Usage: ./isosurface_cli mesher_name pattern parameters out.msh [options]" << endl;
     cerr << "eg: ./isosurface_cli cubic pattern0746.wire \"0.25 0.5 0.25 0.25 0.5 0.25 0.25 0.25 0.25\" out.msh" << endl;
     cout << visible_opts << endl;
     exit(status);
@@ -36,10 +36,12 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
     po::options_description visible_opts;
     visible_opts.add_options()("help,h", "Produce this help message")
                               ("disablePostprocessing,d",                    " Disable post-processing of mesher output")
+                              ("dumpBaseUnitGraph,B", po::value<string>(),   " Output the base unit inflation graph to the specified path")
                               ("dumpInflationGraph,D", po::value<string>(),  " Output the inflation graph to the specified path")
                               ("dumpReplicatedGraph,R", po::value<string>(), " Output the replicated pattern graph to the specified path")
                               ("mopts,m", po::value<string>(),               " Meshing options file")
                               ("params,p", po::value<string>(),              " Pattern parameters")
+                              ("nonReflectiveInflator",                      " use non-reflective inflator (reflective by default)")
                               ;
 
     po::options_description cli_opts;
@@ -96,9 +98,12 @@ int main(int argc, char *argv[])
         config.inflationGraphPath = args["dumpInflationGraph"].as<string>();
     if (args.count("dumpReplicatedGraph"))
         config.replicatedGraphPath = args["dumpReplicatedGraph"].as<string>();
+    if (args.count("dumpBaseUnitGraph"))
+        config.baseUnitGraphPath = args["dumpBaseUnitGraph"].as<string>();
 
     if (args.count("mopts")) inflator.meshingOptions().load(args["mopts"].as<string>());
     if (args.count("disablePostprocessing")) inflator.disablePostprocess();
+    inflator.setReflectiveInflator(args.count("nonReflectiveInflator") == 0);
     inflator.inflate(params);
 
     MeshIO::save(args["outMSH"].as<string>(), inflator.vertices(), inflator.elements());

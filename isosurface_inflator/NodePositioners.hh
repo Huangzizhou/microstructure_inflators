@@ -127,6 +127,13 @@ struct TetNodePositioner {
             pos[2] += dofs[i] * baseTetCornerPosition(corner, 2);
             lastCoordinate += dofs[i];
         }
+        if (lastCoordinate > 1.0) {
+            std::cerr << "WARNING: node left base tet (lastCoordinate = " << lastCoordinate << ")" << std::endl;
+            std::cerr << "DOFs: " << std::endl;
+            for (size_t i = 0; i < numDoFs(); ++i)
+                std::cerr << dofs[i] << "\t";
+            std::cerr << std::endl;
+        }
         lastCoordinate = 1.0 - lastCoordinate;
         size_t corner = m_affectedBaryCoordIndices[m_numAffectedBarycoords - 1];
         pos[0] += lastCoordinate * baseTetCornerPosition(corner, 0);

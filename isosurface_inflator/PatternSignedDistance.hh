@@ -199,14 +199,15 @@ public:
         return dist;
     }
 
-    bool isInside(Point3<Real> &p) const {
+    bool isInside(const Point3<Real> &p) const {
         return signedDistance(p) <= 0;
     }
 
-    // Representative cell bounding box.
-    static BBox<Point3<Real>> boundingBox() {
-        return WMesh::PatternSymmetry::template representativeMeshCell<Real>();
-    }
+    // Representative cell bounding box (region to be meshed)
+    BBox<Point3<Real>> boundingBox() const { return m_bbox; }
+    // Choose a different box region to be meshed instead of the default
+    // representative cell region (for debugging purposes)
+    void setBoundingBox(const BBox<Point3<Real>> &bb) { m_bbox = bb; }
 
     // Sphere bounding the representative mesh cell, needed for CGAL meshing.
     // Note: CGAL requires the bounding sphere center to lie inside the object.
@@ -221,8 +222,8 @@ public:
         Point3<Real> boxCorner;
         r = 0.0;
         for (size_t corner = 0; corner < 8; ++corner) {
-            for (size_t c = 0; c < 3; ++c) {
-                boxCorner[c] = corner & (1 << c) ? bbox.maxCorner[c] : bbox.minCorner[c];
+            for (size_t d = 0; d < 3; ++d) {
+                boxCorner[d] = (corner & (1 << d)) ? bbox.maxCorner[d] : bbox.minCorner[d];
             }
             r = std::max(r, (c - boxCorner).norm());
         }
@@ -248,6 +249,11 @@ public:
 
 private:
     const WMesh &m_wireMesh;
+
+    // Bounding box for the meshing cell. Defaults to the representative cell
+    // for the symmetry type, but can be changed manually for debugging
+    // purposes.
+    BBox<Point3<Real>> m_bbox = WMesh::PatternSymmetry::template representativeMeshCell<Real>();
 
     std::vector<SD::Primitives::InflatedEdge<Real>> m_edgeGeometry;
     // Quantity between 0 and 1 saying how much to smooth intersections between

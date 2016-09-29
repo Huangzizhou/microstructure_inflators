@@ -34,6 +34,7 @@
 #include "InflatorTypes.hh"
 #include "MarchingSquares/MarchingSquaresStitch.hh"
 #include <MSHFieldWriter.hh>
+#include <list>
 
 // Axis-aligned 2D slice of the 3D signed distance function meant for running
 // marching squares on the bounding box faces.

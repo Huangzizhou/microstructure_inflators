@@ -28,7 +28,7 @@ template<class SignedDistanceFunction>
 struct CGALClippedVolumeMesher<SignedDistanceFunction>::
 ClippedSignedDistanceFunction {
     ClippedSignedDistanceFunction(const SignedDistanceFunction &sdf)
-        : m_sdf(sdf), m_meshingBox(SignedDistanceFunction::boundingBox()) { }
+        : m_sdf(sdf), m_meshingBox(sdf.boundingBox()) { }
 
     FT operator()(const Point &p) const {
         Point3<Real> pp(p[0], p[1], p[2]);
@@ -66,10 +66,12 @@ mesh(const SignedDistanceFunction &sdf,
                                                     typename Mesh_domain::Curve_segment_index> C3t3;
     typedef CGAL::Mesh_criteria_3<Tr> Mesh_criteria;
 
+    // std::cout << "Meshing 1D features" << std::endl;
     ClippedSignedDistanceFunction cgal_sdfunc(sdf);
     std::list<std::vector<MeshIO::IOVertex>> polylinesMeshIO;
     boxIntersection1DFeatures(sdf, meshingOptions.marchingSquaresGridSize,
                               meshingOptions.marchingSquaresCoarsening, polylinesMeshIO);
+    // std::cout << "Checking 1D features..." << std::endl;
     // Check for near-intersection of polylines--this should only happen if
     // we failed to stitch up the boundary curves correctly.
     // This brute-force O(n^2) could easily be sped up...
@@ -89,6 +91,30 @@ mesh(const SignedDistanceFunction &sdf,
             }
         }
     }
+    // std::cout << "Done checking 1D features" << std::endl;
+
+#if 0
+    Real maxDist = 0;
+    for (const auto &pl : polylinesMeshIO) {
+        for (auto &v : pl)
+            maxDist = std::max(maxDist, std::abs(sdf.signedDistance(v.point)));
+    }
+    std::cout << "Max feature dist to surface: " << maxDist << std::endl;
+
+    {
+        std::vector<MeshIO::IOVertex > vertices;
+        std::vector<MeshIO::IOElement> elements;
+        for (const auto &pl : polylinesMeshIO) {
+            std::cout << "feature line curve of length: " << pl.size() << std::endl;
+            assert(pl.size() >= 2);
+            size_t offset = vertices.size();
+            for (auto &v : pl) vertices.emplace_back(v);
+            for (size_t i = offset; i < vertices.size() - 1; ++i)
+                elements.emplace_back(i, i + 1);
+        }
+        MeshIO::save("cgal_features.msh", vertices, elements);
+    }
+#endif
 
     // Convert to CGAL's polyline format
     Polylines polylines;
@@ -103,6 +129,9 @@ mesh(const SignedDistanceFunction &sdf,
     Point3d c;
     double r;
     sdf.boundingSphere(c, r);
+    // std::cout << "meshing bounding sphere, radius = " << r << ", c = " << c << std::endl;
+    // std::cout << "signed distance at sphere center: " << sdf.signedDistance(c) << std::endl;
+    // std::cout << "bounding box: " << sdf.boundingBox() << std::endl;
 
     Mesh_domain domain(cgal_sdfunc,
             K::Sphere_3(Point(c[0], c[1], c[2]), r * r), meshingOptions.domainErrorBound);
@@ -149,4 +178,4 @@ mesh(const SignedDistanceFunction &sdf,
 template class CGALClippedVolumeMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>>>;
 // Enable for slower builds...
 template class CGALClippedVolumeMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>>>;
-// template class CGALClippedVolumeMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>>;
+template class CGALClippedVolumeMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>>;

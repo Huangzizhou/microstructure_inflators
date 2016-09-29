@@ -30,6 +30,5 @@ mesh(const SignedDistanceFunction &sdf,
 // Explicit instantiations
 ////////////////////////////////////////////////////////////////////////////////
 template class BoxIntersectionMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>>>;
-// Enable for slower builds...
-// template class BoxIntersectionMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>>>;
-// template class BoxIntersectionMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>>;
+template class BoxIntersectionMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>>>;
+template class BoxIntersectionMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>>;

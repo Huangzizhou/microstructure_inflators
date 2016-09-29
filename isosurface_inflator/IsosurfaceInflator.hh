@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 #include <MeshIO.hh>
+#include <BaseCellType.hh>
 #include "WireMesh.hh"
 #include "MeshingOptions.hh"
 
@@ -40,7 +41,14 @@ public:
     // orthotropic symmetry, controls whether the representative eighth-cell is
     // reflected into the full cell.
     void setGenerateFullPeriodCell(bool onoff);
-    bool shouldGenerateFullPeriodCell() const;
+
+    // When the full period cell is to be generated from a mesh with a smaller
+    // symmetry base cell (generateFullPeriodCell), configure whether the
+    // smaller base cell is meshed and then reflected (true) or whether the full
+    // period cell is meshed.
+    void setReflectiveInflator(bool onoff);
+
+    BaseCellType baseCellType() const;
 
     // Access the inflation result
     // Vertex normals and shape velocity are ***per-volume-vertex***, taking value 0 on

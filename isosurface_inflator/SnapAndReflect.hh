@@ -23,6 +23,8 @@
 #include <Concepts.hh>
 #include "Isometries.hh"
 
+#define SNAP_DEBUG 0
+
 inline bool isEq(Real a, Real b, Real tol = 0) {
     return std::abs(a - b) < tol;
 }
@@ -63,20 +65,19 @@ void snapVerticesToUnitCell(std::vector<Vertex> &vertices,
 //                          entire component is snapped to the boundary.
 template<class TMesh>
 enable_if_not_models_concept_t<Concepts::TetMesh, TMesh, void>
-smartSnap3D(std::vector<MeshIO::IOVertex> &/* vertices */, const TMesh &/* mesh */,
+smartSnap3D(std::vector<MeshIO::IOVertex> &/* vertices */, const TMesh &/* mesh */, const BBox<Point3D> &cell,
                  const Real /* epsilon */ = 1e-4) {
     throw std::runtime_error("smartSnap3D must be called on a tet mesh!");
 }
 
 template<class TMesh>
 enable_if_models_concept_t<Concepts::TetMesh, TMesh, void>
-smartSnap3D(std::vector<MeshIO::IOVertex> &vertices, const TMesh &mesh,
+smartSnap3D(std::vector<MeshIO::IOVertex> &vertices, const TMesh &mesh, const BBox<Point3D> &cell,
                  const Real epsilon = 1e-3) {
-    BBox<Point3D> cell({0, 0, 0}, {1, 1, 1});
+    // std::cout << "Snapping to meshing cell " << cell << std::endl;
     // Partition the boundary faces into components separated by vertices on the
     // base cell.
     const size_t nbf = mesh.numBoundaryFaces();
-    const size_t nbv = mesh.numBoundaryVertices();
 
     // First mark vertices making up the border between components.
     using FM = PeriodicBoundaryMatcher::FaceMembership<3>;
@@ -123,8 +124,9 @@ smartSnap3D(std::vector<MeshIO::IOVertex> &vertices, const TMesh &mesh,
     // 0th component is unassigned...
     const size_t nComponents = componentIdx + 1;
 
-#if 0
+#if SNAP_DEBUG
     {
+        const size_t nbv = mesh.numBoundaryVertices();
         // Output surface mesh marked with connected components for debugging
         ScalarField<Real> segmentBorder(nbv);
         segmentBorder.clear();
@@ -169,8 +171,8 @@ smartSnap3D(std::vector<MeshIO::IOVertex> &vertices, const TMesh &mesh,
             const auto &v = vertices.at(bv.volumeVertex().index());
             // Compute dist from v to the min/max x/y/z cell faces
             for (size_t c = 0; c < 3; ++c) {
-                cmd[    c] = std::max(cmd[    c], std::abs(v[c] - 0.0));
-                cmd[3 + c] = std::max(cmd[3 + c], std::abs(v[c] - 1.0));
+                cmd[    c] = std::max(cmd[    c], std::abs(v[c] - cell.minCorner[c]));
+                cmd[3 + c] = std::max(cmd[3 + c], std::abs(v[c] - cell.maxCorner[c]));
             }
         }
     }
@@ -193,13 +195,30 @@ smartSnap3D(std::vector<MeshIO::IOVertex> &vertices, const TMesh &mesh,
     for (auto bf : mesh.boundaryFaces()) {
         size_t cf = cellFaceForComponent.at(component[bf.index()]);
         if (cf == NONE) continue;
-        Real val = 0;
-        if (cf >= 3) { val = 1.0; cf -= 3; }
-        assert(cf < 3);
+        assert(cf < 6);
+        bool minFace = cf < 3;
+        if (!minFace) cf -= 3;
+        Real snapVal = minFace ? cell.minCorner[cf] : cell.maxCorner[cf];
+
         for (auto bv : bf.vertices()) {
             auto &vtx = vertices.at(bv.volumeVertex().index());
-            assert(std::abs(vtx.point[cf] - val) < epsilon);
-            vtx[cf] = val;
+            assert(std::abs(vtx.point[cf] - snapVal) < epsilon);
+            vtx[cf] = snapVal;
+        }
+    }
+
+    BBox<Point3D> snappedBB(vertices);
+    if (snappedBB != cell) throw std::runtime_error("Snapped mesh bounding box does not equal meshing cell.");
+}
+
+// For when smartSnap3D fails...
+// Tolerance "epsilon" should be based on CGAL meshing parametrs
+void dumbSnap3D(std::vector<MeshIO::IOVertex> &vertices,
+                const BBox<Point3D> &cell, const Real epsilon) {
+    for (auto &v : vertices) {
+        for (size_t c = 0; c < 3; ++c) {
+            if (isEq(v[c], cell.minCorner[c], epsilon)) v[c] = cell.minCorner[c];
+            if (isEq(v[c], cell.maxCorner[c], epsilon)) v[c] = cell.maxCorner[c];
         }
     }
 }

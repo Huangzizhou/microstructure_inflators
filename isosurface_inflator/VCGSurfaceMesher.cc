@@ -26,7 +26,7 @@ mesh(const SignedDistanceFunction &sdf,
     typedef vcg::tri::MarchingCubes<MyMesh, MyWalker>    MyMarchingCubes;
 
     size_t gs = meshingOptions.marchingCubesGridSize;
-    auto bbox = SignedDistanceFunction::boundingBox();
+    auto bbox = sdf.boundingBox();
     auto bbmin = bbox.minCorner, bbmax = bbox.maxCorner;
 
     // Ugly hack until VCG fixes its off-by-one (two!!??) error
@@ -71,4 +71,4 @@ mesh(const SignedDistanceFunction &sdf,
 template class VCGSurfaceMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>>>;
 // Enable for slower builds...
 // template class VCGSurfaceMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>>>;
-// template class VCGSurfaceMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>>;
+template class VCGSurfaceMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>>;
