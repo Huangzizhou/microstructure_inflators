@@ -37,7 +37,7 @@ BoundaryPerturbationInflator<N>::BoundaryPerturbationInflator(
 // and bounding box positions as Dirichlet constraints
 // Note, "params" are treated as *offsets* to m_origParams
 template<size_t N>
-void BoundaryPerturbationInflator<N>::inflate(const std::vector<Real> &params)
+void BoundaryPerturbationInflator<N>::m_inflate(const std::vector<Real> &params)
 {
     assert(params.size() == m_numParams);
 

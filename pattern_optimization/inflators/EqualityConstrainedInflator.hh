@@ -43,7 +43,9 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     // Inflation
     ////////////////////////////////////////////////////////////////////////////
-    virtual void inflate(const std::vector<Real> &params) override { m_infl->inflate(fullParametersForReduced(params)); }
+private:
+    virtual void m_inflate(const std::vector<Real> &params) override { m_infl->inflate(fullParametersForReduced(params)); }
+public:
 
     ////////////////////////////////////////////////////////////////////////////
     // Shape velocity computation
@@ -80,6 +82,7 @@ public:
     virtual void setReflectiveInflator(bool use)         override { m_infl->setReflectiveInflator(use); }
     virtual void setDumpSurfaceMesh(bool dump = true)    override { m_infl->setDumpSurfaceMesh(dump); }
     virtual void configureSubdivision(const std::string &algorithm, size_t levels) override { m_infl->configureSubdivision(algorithm, levels); }
+    virtual void setOrthoBaseCell(bool ortho)            override { m_infl->setOrthoBaseCell(ortho); }
 
     ////////////////////////////////////////////////////////////////////////////
     // EqualityConstrainedInflator-specific

@@ -20,6 +20,7 @@
 #include <iomanip>
 
 #include <Fields.hh>
+#include <BaseCellType.hh>
 
 // Meta parameters are for EqualityConstrainedInflator
 enum class ParameterType { Thickness, Offset, Blending, Meta };
@@ -42,7 +43,16 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     // Inflation
     ////////////////////////////////////////////////////////////////////////////
-    virtual void inflate(const std::vector<Real> &params) = 0;
+    void inflate(const std::vector<Real> &params) {
+        try { this->m_inflate(params); }
+        catch (const std::exception &e) {
+            std::cerr << std::setprecision(20);
+            std::cerr << "Exception \"" << e.what() << "\" while inflating parameters:" << std::endl;
+            for (size_t i = 0; i < params.size(); ++i) std::cerr << params[i] << "\t";
+            std::cerr << std::endl;
+            throw;
+        }
+    }
 
     ////////////////////////////////////////////////////////////////////////////
     // Geometry access (dimension agnostic)
@@ -72,6 +82,11 @@ public:
     virtual void setReflectiveInflator(bool /* use */)         { throw std::runtime_error("Unimplemented"); }
     virtual void setDumpSurfaceMesh(bool dump = true)          { if (dump) throw std::runtime_error("This inflator does not support surface meshing."); }
 
+    // Triply periodic base cell is used by default, but we can use the
+    // orhotropic base cell instead:
+    virtual void setOrthoBaseCell(bool ortho)                  { if (ortho) throw std::runtime_error("This inflator does not support orthotropic base cells."); }
+    virtual BaseCellType baseCellType() const { return BaseCellType::TriplyPeriodic; }
+
     virtual void configureSubdivision(const std::string &/* algorithm */, size_t levels) {
         if (levels != 0)
             throw std::runtime_error("This inflator doesn't support subdivision");
@@ -82,13 +97,8 @@ public:
 protected:
     std::vector<MeshIO::IOElement> m_elements;
     std::vector<MeshIO::IOVertex>  m_vertices;
-
-    void m_reportInflationException(const std::vector<Real> &params) const {
-        std::cerr << std::setprecision(20);
-        std::cerr << "Exception while inflating parameters" << std::endl;
-        for (size_t i = 0; i < params.size(); ++i) std::cerr << params[i] << "\t";
-        std::cerr << std::endl;
-    }
+private:
+    virtual void m_inflate(const std::vector<Real> &params) = 0;
 };
 
 // The dimension-dependent part of the interface

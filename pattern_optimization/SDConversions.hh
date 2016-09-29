@@ -13,6 +13,7 @@
 
 #include <Fields.hh>
 #include <OneForm.hh>
+#include <Functions.hh>
 
 #include <vector>
 #include <GaussQuadrature.hh>

@@ -34,10 +34,9 @@ IsoinflatorWrapper<N>::IsoinflatorWrapper(const std::string &wireMeshPath,
 // Inflation
 ////////////////////////////////////////////////////////////////////////////////
 template<size_t N>
-void IsoinflatorWrapper<N>::inflate(const std::vector<Real> &params)
+void IsoinflatorWrapper<N>::m_inflate(const std::vector<Real> &params)
 {
-    try         { m_inflator->inflate(params); }
-    catch (...) { this->m_reportInflationException(params); throw; }
+    m_inflator->inflate(params);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -100,6 +99,9 @@ void IsoinflatorWrapper<N>::setMaxElementVolume(Real maxElementVol)
     if (N == 2) m_inflator->meshingOptions().maxArea = maxElementVol;
     else        m_inflator->meshingOptions().cellSize = maxElementVol;
 }
+
+template<size_t N> void IsoinflatorWrapper<N>::setOrthoBaseCell(bool ortho) { m_inflator->setGenerateFullPeriodCell(!ortho); }
+template<size_t N> BaseCellType IsoinflatorWrapper<N>::baseCellType() const { return m_inflator->baseCellType(); } 
 
 ////////////////////////////////////////////////////////////////////////////////
 // Destructor

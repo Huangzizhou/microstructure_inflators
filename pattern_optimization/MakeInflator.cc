@@ -97,7 +97,15 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
     }
     else throw runtime_error("Invalid inflator: " + name);
 
-    if (extract_flag(opts, "fullCellInflator")) infl->setReflectiveInflator(false);
+    bool orthoCell = extract_flag(opts, "ortho_cell");
+    bool  fullCell = extract_flag(opts, "fullCellInflator");
+
+    if (orthoCell && fullCell) throw std::runtime_error("ortho_cell and fullCellInflator are mutually exclusive.");
+    infl->setOrthoBaseCell(orthoCell);
+    infl->setReflectiveInflator(!fullCell);
+
+    if (fullCell) infl->setReflectiveInflator(false);
+
     extract_notify(opts, "meshingOptions", [&](const string &v) { infl->loadMeshingOptions(v); });
     extract_notify(opts, "max_volume",     [&](double        v) { infl->setMaxElementVolume(v); });
 
@@ -130,7 +138,8 @@ po_vm filterInflatorOptions(const po_vm &opts) {
         "max_volume",
         "meshingOptions",
         "subdivide",
-        "sub_algorithm"
+        "sub_algorithm",
+        "ortho_cell"
     };
     po_vm filtered;
     for (const string &key : keys)

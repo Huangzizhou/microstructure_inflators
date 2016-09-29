@@ -33,7 +33,7 @@ LuigiInflatorWrapper::LuigiInflatorWrapper(const std::string &wireMeshPath, cons
 ////////////////////////////////////////////////////////////////////////////////
 // Inflation
 ////////////////////////////////////////////////////////////////////////////////
-void LuigiInflatorWrapper::inflate(const std::vector<Real> &params) {
+void LuigiInflatorWrapper::m_inflate(const std::vector<Real> &params) {
     const size_t np = numParameters();
     assert(params.size() == np);
     CellParameters p_params = m_inflator->createParameters();

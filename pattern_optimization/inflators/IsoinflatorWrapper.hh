@@ -9,6 +9,7 @@
 #include <stdexcept>
 
 #include <Fields.hh>
+#include <BaseCellType.hh>
 
 class IsosurfaceInflator;
 
@@ -28,7 +29,9 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     // Inflation
     ////////////////////////////////////////////////////////////////////////////
-    virtual void inflate(const std::vector<Real> &params) override;
+private:
+    virtual void m_inflate(const std::vector<Real> &params) override;
+public:
 
     ////////////////////////////////////////////////////////////////////////////
     // Shape velocity computation
@@ -51,6 +54,9 @@ public:
     virtual void loadMeshingOptions(const std::string &moptsPath) override;
     virtual void setMaxElementVolume(Real maxElementVol) override;
     virtual void setReflectiveInflator(bool use) override { if (!use) throw std::runtime_error("IsosurfaceInflator is always reflective."); }
+
+    virtual void setOrthoBaseCell(bool ortho) override;
+    virtual BaseCellType baseCellType() const override;
 
     // Out-of-line destructor needed due to incompletely-typed members.
     virtual ~IsoinflatorWrapper();

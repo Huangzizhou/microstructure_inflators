@@ -29,7 +29,8 @@ struct LpHoleInflator : Inflator<2> {
     ////////////////////////////////////////////////////////////////////////////
     // Inflation
     ////////////////////////////////////////////////////////////////////////////
-    virtual void inflate(const std::vector<Real> &params) override {
+private:
+    virtual void m_inflate(const std::vector<Real> &params) override {
         assert(params.size() == numParameters());
         m_radius = params[0];
         m_p = params[1];
@@ -70,6 +71,7 @@ struct LpHoleInflator : Inflator<2> {
 
         reflect(2, m_vertices, m_elements, m_vertices, m_elements);
     }
+public:
 
     ////////////////////////////////////////////////////////////////////////////
     // Shape velocity computation

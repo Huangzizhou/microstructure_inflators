@@ -61,7 +61,7 @@ public:
 
         // Determine which variables correspond to true boundary vertices (as
         // opposed to internal periodic vertices).
-        // Vertices are true boundary vertices if any non-periodic boundary
+        // Vertices are true boundary vertices if any non-internal boundary
         // element touches them.
         std::vector<bool> isTrueBoundaryVertex(mesh.numBoundaryVertices(), false);
         for (auto be : mesh.boundaryElements()) {
@@ -170,7 +170,7 @@ public:
         dvb.clear();
         for (size_t c = 0; c < Sim::N; ++c) {
             // Interpolate each component of the output tensor (e.g. just one
-            // componene
+            // component for scalar-valued one-forms).
             using LI = LinearIndexer<T>;
             for (size_t cc = 0; cc < LI::size(); ++cc) {
                 // Sum identified values onto the DoFs

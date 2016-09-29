@@ -13,10 +13,11 @@
 #include <PeriodicHomogenization.hh>
 #include <MSHFieldWriter.hh>
 
+#include <stdexcept>
+#include <iostream>
+
 namespace PatternOptimization {
 namespace ObjectiveTerms {
-
-namespace PH = PeriodicHomogenization;
 
 // NLLS: 1/2 ||S^H - S^*||_F^2
 // The individual residual components are entries in the upper triangle of
@@ -28,20 +29,36 @@ namespace PH = PeriodicHomogenization;
 template<class _Sim>
 struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
     static constexpr size_t N = _Sim::N;
-    using  OForm = ScalarOneForm<_Sim::N>;
+    using  OForm = ScalarOneForm<N>;
     using SField = ScalarField<Real>;
     using ETensor = ElasticityTensor<Real, N>;
     using VField = VectorField<Real, N>;
     template<class _Iterate>
-    TensorFit(const ETensor &targetS, const _Iterate &it) : m_sim(it.simulator()) {
+    TensorFit(const ETensor &targetS, const _Iterate &it) : m_baseCellOps(it.baseCellOps()) {
         const auto S = it.complianceTensor();
-        const auto &w = it.fluctuationDisplacements();
         m_diffS = S - targetS;
 
-        auto dChVol  = PH::homogenizedElasticityTensorDiscreteDifferential(w, it.simulator());
-        auto dChBdry = SDConversions::diff_bdry_from_diff_vol(dChVol, it.simulator());
+        auto dChVol  = m_baseCellOps.homogenizedElasticityTensorDiscreteDifferential();
+        auto dChBdry = m_baseCellOps.diff_bdry_from_diff_vol(dChVol);
         auto dShBdry = compose([&](const ETensor &e) { ETensor result = S.doubleDoubleContract(e); result *= -1.0; return result; }, dChBdry);
         this->m_differential = compose([&](const ETensor &e) { return m_diffS.quadrupleContract(e); }, dShBdry);
+
+        {
+            auto dJVol = compose([&](const ETensor &e) { return -m_diffS.quadrupleContract(S.doubleDoubleContract(e)); }, dChVol);
+            MSHFieldWriter volWriter("volfields.msh", m_baseCellOps.mesh());
+            volWriter.addField("dJVol", dJVol.asVectorField(), DomainType::PER_NODE);
+
+            MSHBoundaryFieldWriter bdryWriter("bdryfields.msh", m_baseCellOps.mesh());
+            const auto &sim = it.simulator();
+            SField isInternal(sim.mesh().numBoundaryElements());
+            isInternal.clear();
+            for (auto be : sim.mesh().boundaryElements())
+                isInternal(be.index()) = be->isInternal ? 1.0 : 0.0;
+            bdryWriter.addField("isInternal", isInternal, DomainType::PER_ELEMENT);
+        }
+
+
+        // Test the iterate against 
 
         using LI = LinearIndexer<ETensor>;
         for (size_t i = 0; i < LI::size(); ++i) {
@@ -110,22 +127,35 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
     }
 
     virtual void writeFields(MSHFieldWriter &writer) const override {
-        auto bdryVel = SDConversions::descent_from_diff_bdry(this->m_differential, m_sim);
-        VField xferBdryVel(m_sim.mesh().numVertices());
-        xferBdryVel.clear();
-        for (auto v : m_sim.mesh().vertices()) {
-            auto bv = v.boundaryVertex();
-            if (!bv) continue;
-            xferBdryVel(v.index()) = bdryVel(bv.index());
+        try {
+            VField differential(m_baseCellOps.mesh().numVertices());
+            differential.clear();
+            for (auto bv : m_baseCellOps.mesh().boundaryVertices()) {
+                differential(bv.volumeVertex().index()) =
+                    this->m_differential.asVectorField()(bv.index());
+            }
+            writer.addField("JS Differential", differential, DomainType::PER_NODE);
+
+            auto bdryVel = m_baseCellOps.descent_from_diff_bdry(this->m_differential);
+            VField xferBdryVel(m_baseCellOps.mesh().numVertices());
+            xferBdryVel.clear();
+            for (auto v : m_baseCellOps.mesh().vertices()) {
+                auto bv = v.boundaryVertex();
+                if (!bv) continue;
+                xferBdryVel(v.index()) = bdryVel(bv.index());
+            }
+            writer.addField("JS Steepest Descent BVel", xferBdryVel, DomainType::PER_NODE);
         }
-        writer.addField("JS Steepest Descent BVel", xferBdryVel, DomainType::PER_NODE);
+        catch (const std::exception &e) {
+            std::cerr << "Couldn't write TensorFit fields due to exception: " << e.what() << std::endl;
+        }
     }
 
     virtual ~TensorFit() { }
 
 private:
     // Differentials (one-forms) of each component of the compliance tensor
-    const _Sim &m_sim;
+    const BaseCellOperations<_Sim> &m_baseCellOps;
     std::vector<OForm> m_component_differentials;
     bool m_ignoreShear = false;
     ETensor m_diffS;

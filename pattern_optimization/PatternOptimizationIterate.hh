@@ -104,7 +104,7 @@ struct Iterate : public IterateBase {
         // std::cout << "Homogenizing" << std::endl;
 
         try {
-            m_baseCellOps = BaseCellOperations<_Sim>::construct(BaseCellType::TriplyPeriodic, *m_sim);
+            m_baseCellOps = BaseCellOperations<_Sim>::construct(inflator.baseCellType(), *m_sim);
         }
         catch(std::exception &e) {
             std::cerr << "Cell problem solve failed: " << e.what() << std::endl;
@@ -119,7 +119,7 @@ struct Iterate : public IterateBase {
             exit(-1);
         }
 
-        C = m_baseCellOps->homogenizedElaticityTensor();
+        C = m_baseCellOps->homogenizedElasticityTensor();
         S = C.inverse();
 
         // std::cout << "Done" << std::endl;
@@ -218,6 +218,9 @@ struct Iterate : public IterateBase {
           typename _Sim::Mesh &mesh()       { return m_sim->mesh(); }
     const typename _Sim::Mesh &mesh() const { return m_sim->mesh(); }
 
+          BaseCellOperations<_Sim> &baseCellOps()       { return *m_baseCellOps; }
+    const BaseCellOperations<_Sim> &baseCellOps() const { return *m_baseCellOps; }
+
     const _ETensor &elasticityTensor() const { return C; }
     const _ETensor &complianceTensor() const { return S; }
     const std::vector<VField> &fluctuationDisplacements() const { return m_baseCellOps->fluctuationDisplacements(); }
@@ -259,6 +262,8 @@ struct Iterate : public IterateBase {
                 eterm->descentp *= -1.0;
             }
             else {
+                // TODO: use baseCellOps for this... (not needed for parametric
+                // optimization).
                 std::cerr << "Computing grad for " << term.first << std::endl;
                 eterm->gradp = inflator.paramsFromBoundaryVField(term.second->differential().asVectorField());
                 std::cerr << "Computing descent for " << term.first << std::endl;

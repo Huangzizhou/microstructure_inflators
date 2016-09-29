@@ -37,16 +37,15 @@ JamesInflatorWrapper::JamesInflatorWrapper(const std::string &wireMeshPath,
 ////////////////////////////////////////////////////////////////////////////////
 // Inflation
 ////////////////////////////////////////////////////////////////////////////////
-void JamesInflatorWrapper::inflate(const std::vector<Real> &params) {
-    m_inflator->set_dofs(ToVectorF(params));
-    try { m_inflate_dofs(); }
-    catch (...) { this->m_reportInflationException(params); throw; }
-}
-
 // Not part of the Inflator interface
 void JamesInflatorWrapper::inflate(const std::string &dofFile) {
     m_inflator->load_dofs(dofFile);
+    inflate(FromVectorF(m_inflator->get_dofs()));
+}
+
+void JamesInflatorWrapper::m_inflate(const std::vector<Real> &params) {
     m_inflate_dofs();
+    m_inflator->set_dofs(ToVectorF(params));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -19,7 +19,10 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     // Inflation
     ////////////////////////////////////////////////////////////////////////////
-    virtual void inflate(const std::vector<Real> &params) override;
+private:
+    virtual void m_inflate(const std::vector<Real> &params) override;
+public:
+    using Inflator<3>::inflate; // Don't hide primary interface with what follows!
     // Not part of the Inflator interface
     void inflate(const std::string &dofFile);
 

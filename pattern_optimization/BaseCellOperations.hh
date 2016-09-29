@@ -2,7 +2,7 @@
 // BaseCellOperations.hh
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
-//      Organizes the computations we need to perform homogenization and shape
+//      Organizes the computations needed to run homogenization and shape
 //      optimization on various types of microstructure base cells (triply
 //      periodic, orthotropic, ...)
 */
@@ -18,10 +18,10 @@
 #include <stdexcept>
 
 #include <PeriodicHomogenization.hh>
+#include <BaseCellType.hh>
 #include <OrthotropicHomogenization.hh>
 #include "SDConversions.hh"
-
-enum class BaseCellType { TriplyPeriodic, Orthotropic };
+#include "SDConversionsOrthoCell.hh"
 
 template<class _Sim>
 class BaseCellOperations {
@@ -41,31 +41,65 @@ public:
         return bco;
     }
 
-    virtual std::vector<typename _Sim::VField>
-    solveAdjointCellProblems(std::vector<typename _Sim::VField> &adjointRHS) {
-        if (adjointRHS.size() != flatLen(N)) throw std::runtime_error("Incorrect number of right-hand sides");
-
-        std::vector<typename _Sim::VField> lambda;
-        lambda.reserve(flatLen(N));
-        for (size_t ij = 0; ij < flatLen(N); ++ij)
-            lambda.emplace_back(m_solveProbeSystem(ij, adjointRHS[ij]));
-        return lambda;
+    // Solve adjoint problem for the ij^th cell problem
+    VField solveAdjointCellProblem(size_t ij, const VField &adjointRHS) const {
+        return m_solveProbeSystem(ij, adjointRHS);
     }
 
-    virtual ETensor homogenizedElaticityTensor() const = 0;
+    virtual ETensor             homogenizedElasticityTensor()                     const = 0;
+    virtual OneForm<ETensor, N> homogenizedElasticityTensorDiscreteDifferential() const = 0;
 
-    const _Sim &sim() const { return m_sim; }
+    // Note: tensors are only computed for elements in the base cell. E.g., for
+    // the orthotropic cell case, the tensors for elements in the other
+    // reflected cells must be obtained by transforming the tensor for the
+    // corresponding orthotropic base cell element.
+    // However, for the worst-case stress, the transformations end up cancelling
+    // out and the same worst-case stress quantities appear in every reflected
+    // element (thus we needn't explicitly transform anything).
+    std::vector<ElasticityTensor<Real, _Sim::N, false>>
+    macroStrainToMicroStrainTensors() const {
+        // The ordinary PeriodicHomogenization::macroStrainToMicroStrainTensors
+        // computes the correct tensors (for elements inside the base cell)
+        // regardless of base cell type.
+        return PeriodicHomogenization::macroStrainToMicroStrainTensors(m_w_ij, m_sim);
+    }
+
+    const                _Sim & sim() const { return m_sim; }
+    const typename _Sim::Mesh &mesh() const { return m_sim.mesh(); }
+
     const VField &w_ij(size_t ij)                         const { return m_w_ij.at(ij); }
     const std::vector<VField> &fluctuationDisplacements() const { return m_w_ij; }
 
     ////////////////////////////////////////////////////////////////////////////
     // Shape Derivative Conversions
+    // These are template functions and cannot be made virtual; we must handle
+    // dispatch manually...
     ////////////////////////////////////////////////////////////////////////////
-    // TODO: make these non-virtual and manually dispatch based on BaseCellType
-    // virtual diff_bdry_from_nsv_functional() const = 0;
-    // virtual descent_from_diff_vol()         const = 0;
-    // virtual diff_bdry_from_diff_vol()       const = 0;
-    // virtual diff_bdry_from_nsv_functional() const = 0;
+    template<size_t _SDDeg>
+    ScalarOneForm<N> diff_bdry_from_nsv_functional(const std::vector<Interpolant<Real, N - 1, _SDDeg>> &sd) const {
+        if (m_cellType == BaseCellType::TriplyPeriodic) { return SDConversions         ::diff_bdry_from_nsv_functional(sd, mesh()); }
+        if (m_cellType == BaseCellType::Orthotropic)    { return SDConversionsOrthoCell::diff_bdry_from_nsv_functional(sd, mesh()); }
+        throw std::runtime_error("Invalid cell type.");
+    }
+
+    template<typename T = Real>
+    OneForm<T, N> diff_bdry_from_diff_vol(const OneForm<T, N> &diff_vol) const {
+        if (m_cellType == BaseCellType::TriplyPeriodic) { return SDConversions         ::diff_bdry_from_diff_vol(diff_vol, sim()); }
+        if (m_cellType == BaseCellType::Orthotropic)    { return SDConversionsOrthoCell::diff_bdry_from_diff_vol(diff_vol, sim()); }
+        throw std::runtime_error("Invalid cell type.");
+    }
+
+    VField descent_from_diff_bdry(const ScalarOneForm<N> &diff_bdry) const {
+        if (m_cellType == BaseCellType::TriplyPeriodic) { return SDConversions         ::descent_from_diff_bdry(diff_bdry, sim()); }
+        if (m_cellType == BaseCellType::Orthotropic)    { return SDConversionsOrthoCell::descent_from_diff_bdry(diff_bdry, sim()); }
+        throw std::runtime_error("Invalid cell type.");
+    }
+
+    VField descent_from_diff_vol(const ScalarOneForm<N> &diff_vol) const {
+        if (m_cellType == BaseCellType::TriplyPeriodic) { return SDConversions         ::descent_from_diff_vol(diff_vol, sim()); }
+        if (m_cellType == BaseCellType::Orthotropic)    { return SDConversionsOrthoCell::descent_from_diff_vol(diff_vol, sim()); }
+        throw std::runtime_error("Invalid cell type.");
+    }
 
     virtual ~BaseCellOperations() { }
 
@@ -77,7 +111,7 @@ protected:
     virtual VField m_solveProbeSystem(size_t ij, const VField &rhs) const = 0;
 
     // Solved for by derived classes
-    std::vector<typename _Sim::VField> m_w_ij;
+    std::vector<VField> m_w_ij;
     const _Sim &m_sim;
 
     BaseCellType m_cellType;
@@ -101,8 +135,12 @@ public:
     using VField  = typename Base::VField;
     using ETensor = typename Base::ETensor;
 
-    virtual ETensor homogenizedElaticityTensor() const override {
+    virtual ETensor homogenizedElasticityTensor() const override {
         return PeriodicHomogenization::homogenizedElasticityTensorDisplacementForm(this->m_w_ij, this->m_sim);
+    }
+
+    virtual OneForm<ETensor, N> homogenizedElasticityTensorDiscreteDifferential() const override {
+        return PeriodicHomogenization::homogenizedElasticityTensorDiscreteDifferential(this->m_w_ij, this->m_sim);
     }
 
     virtual ~TriplyPeriodicBaseCellOperations() { }
@@ -115,7 +153,8 @@ protected:
         PeriodicHomogenization::solveCellProblems(this->m_w_ij, sim, 1e-11);
     }
 
-    virtual VField m_solveProbeSystem(size_t ij, const VField &rhs) const override {
+    // All probes involve the same linear system in the triply periodic case.
+    virtual VField m_solveProbeSystem(size_t /* ij */, const VField &rhs) const override {
         return this->m_sim.solve(rhs);
     }
 
@@ -139,8 +178,12 @@ public:
     using VField  = typename Base::VField;
     using ETensor = typename Base::ETensor;
 
-    virtual ETensor homogenizedElaticityTensor() const override {
+    virtual ETensor homogenizedElasticityTensor() const override {
         return PeriodicHomogenization::Orthotropic::homogenizedElasticityTensorDisplacementForm(this->m_w_ij, this->m_sim);
+    }
+
+    virtual OneForm<ETensor, N> homogenizedElasticityTensorDiscreteDifferential() const override {
+        return PeriodicHomogenization::Orthotropic::homogenizedElasticityTensorDiscreteDifferential(this->m_w_ij, this->m_sim);
     }
 
     virtual ~OrthotropicBaseCellOperations() { }
