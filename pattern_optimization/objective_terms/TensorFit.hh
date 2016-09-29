@@ -43,6 +43,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         auto dShBdry = compose([&](const ETensor &e) { ETensor result = S.doubleDoubleContract(e); result *= -1.0; return result; }, dChBdry);
         this->m_differential = compose([&](const ETensor &e) { return m_diffS.quadrupleContract(e); }, dShBdry);
 
+#if 0
         {
             auto dJVol = compose([&](const ETensor &e) { return -m_diffS.quadrupleContract(S.doubleDoubleContract(e)); }, dChVol);
             MSHFieldWriter volWriter("volfields.msh", m_baseCellOps.mesh());
@@ -56,9 +57,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
                 isInternal(be.index()) = be->isInternal ? 1.0 : 0.0;
             bdryWriter.addField("isInternal", isInternal, DomainType::PER_ELEMENT);
         }
-
-
-        // Test the iterate against 
+#endif
 
         using LI = LinearIndexer<ETensor>;
         for (size_t i = 0; i < LI::size(); ++i) {
@@ -128,13 +127,13 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
 
     virtual void writeFields(MSHFieldWriter &writer) const override {
         try {
-            VField differential(m_baseCellOps.mesh().numVertices());
-            differential.clear();
-            for (auto bv : m_baseCellOps.mesh().boundaryVertices()) {
-                differential(bv.volumeVertex().index()) =
-                    this->m_differential.asVectorField()(bv.index());
-            }
-            writer.addField("JS Differential", differential, DomainType::PER_NODE);
+            // VField differential(m_baseCellOps.mesh().numVertices());
+            // differential.clear();
+            // for (auto bv : m_baseCellOps.mesh().boundaryVertices()) {
+            //     differential(bv.volumeVertex().index()) =
+            //         this->m_differential.asVectorField()(bv.index());
+            // }
+            // writer.addField("JS Differential", differential, DomainType::PER_NODE);
 
             auto bdryVel = m_baseCellOps.descent_from_diff_bdry(this->m_differential);
             VField xferBdryVel(m_baseCellOps.mesh().numVertices());
