@@ -4,7 +4,7 @@ import paths, inflation, sys
 import pattern_constraints
 from LookupTable import LUT, extract as extractLUT
 import os
-import shutil, archive
+import shutil, tarfile
 
 # The grid is chosen so that a (~targetNSubdiv x ~NSubdivsubdiv) subset of
 # lattice points fully cover the approxERange and approxNuRange ranges.
