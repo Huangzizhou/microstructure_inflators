@@ -27,6 +27,7 @@
 #include <GlobalBenchmark.hh>
 
 #include "../pattern_optimization/SDConversions.hh"
+#include "../pattern_optimization/BaseCellOperations.hh"
 
 // Local alias of PeriodicHomogenization namespace.
 namespace {
@@ -601,9 +602,9 @@ struct IntegratedWorstCaseObjective {
     // Hessian.).
     template<class Sim>
     ScalarOneForm<Sim::N>
-    adjointDeltaJ(const Sim &sim, const std::vector<typename Sim::VField> &w) const {
+    adjointDeltaJ(const BaseCellOperations<Sim> &baseCellOps) const {
         // Dilation and delta strain terms
-        const auto mesh = sim.mesh();
+        const auto mesh = baseCellOps.mesh();
         size_t nv = mesh.numVertices();
         ScalarOneForm<Sim::N> delta_j(nv);
         delta_j.clear();
@@ -615,8 +616,16 @@ struct IntegratedWorstCaseObjective {
         for (size_t pq = 0; pq < flatLen(N); ++pq)
             tau_kl(pq, tau[pq]);
         BENCHMARK_STOP_TIMER("Compute Tau_kl");
+
         std::vector<VectorField<Real, N>> lambda;
-        m_solveAdjointCellProblems(sim, tau, lambda);
+        lambda.reserve(flatLen(N));
+        for (size_t pq = 0; pq < flatLen(N); ++pq) {
+            lambda.emplace_back(baseCellOps.solveAdjointCellProblem(pq,
+                    baseCellOps.sim().perElementStressFieldLoad(tau[pq])));
+        }
+
+        const std::vector<VectorField<Real, N>> &w = baseCellOps.fluctuationDisplacements();
+
         BENCHMARK_STOP_TIMER_SECTION("Adjoint Cell Problem");
 
         BENCHMARK_START_TIMER_SECTION("Dilation and Delta strain");
@@ -679,8 +688,8 @@ struct IntegratedWorstCaseObjective {
         // Gamma term
         BENCHMARK_START_TIMER_SECTION("Gamma Term");
         {
-            MinorSymmetricRank4Tensor<N> gamma = dJ_dCH(sim);
-            auto dCh = PH::homogenizedElasticityTensorDiscreteDifferential(w, sim);
+            MinorSymmetricRank4Tensor<N> gamma = dJ_dCH(baseCellOps.sim());
+            auto dCh = baseCellOps.homogenizedElasticityTensorDiscreteDifferential();
             ScalarOneForm<N> gtermNew = compose([&](const ElasticityTensor<Real, N> &e) { return e.quadrupleContract(gamma); }, dCh);
             delta_j += gtermNew;
 
@@ -823,20 +832,21 @@ using Base = SubObjective;
     // Forward all constructor args to SubObjective
     template<typename... Args>
     PthRootObjective(Args&&... args)
-        : Base(std::forward<Args>(args)...) { }
+        : SubObjective(std::forward<Args>(args)...) { }
 
+    // TODO: scale by number of reflected cells... (in SubObjective!!!)
     Real evaluate() const {
-        if (p == 1) return Base::evaluate();
-        return pow(Base::evaluate(), 1.0 / p);
+        if (p == 1) return SubObjective::evaluate();
+        return pow(SubObjective::evaluate(), 1.0 / p);
     }
 
     template<class Sim, size_t N>
     auto gradient(const Sim &sim,
                   const std::vector<VectorField<Real, N>> &w) const
     -> std::vector<typename Base::template StrainEnergyBdryInterpolant<Sim>> {
-        if (p == 1) return Base::gradient(sim, w);
+        if (p == 1) return SubObjective::gradient(sim, w);
 
-        auto result = Base::gradient(sim, w);
+        auto result = SubObjective::gradient(sim, w);
         Real scale = m_gradientScale();
         for (auto &beInterp : result)
             beInterp *= scale;
@@ -847,7 +857,7 @@ using Base = SubObjective;
     Real directDerivative(const Sim &sim,
                           const std::vector<VectorField<Real, N>> &w,
                           const _NormalShapeVelocity &vn) const {
-        Real pder = Base::directDerivative(sim, w, vn);
+        Real pder = SubObjective::directDerivative(sim, w, vn);
         if (p == 1) return pder;
         return m_gradientScale() * pder;
     }
@@ -860,16 +870,16 @@ using Base = SubObjective;
     Real deltaJ(const Sim &sim,
                 const std::vector<typename Sim::VField> &w,
                 const typename Sim::VField &delta_p) const {
-        Real pder = Base::deltaJ(sim, w, delta_p);
+        Real pder = SubObjective::deltaJ(sim, w, delta_p);
         if (p == 1) return pder;
         return m_gradientScale() * pder;
     }
 
+    // TODO: scale by number of reflected cells... (in SubObjective!!!)
     template<class Sim>
     ScalarOneForm<Sim::N>
-    adjointDeltaJ(const Sim &sim,
-            const std::vector<typename Sim::VField> &w) const {
-        ScalarOneForm<Sim::N> pder = Base::adjointDeltaJ(sim, w); 
+    adjointDeltaJ(const BaseCellOperations<Sim> &baseCellOps) const {
+        ScalarOneForm<Sim::N> pder = SubObjective::adjointDeltaJ(baseCellOps); 
         if (p == 1) return pder;
         pder *= m_gradientScale();
         return pder;

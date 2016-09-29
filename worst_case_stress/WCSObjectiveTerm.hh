@@ -6,13 +6,12 @@
 
 #include <Fields.hh>
 #include <OneForm.hh>
+#include <stdexcept>
 
 #include "WorstCaseStress.hh"
 
 namespace PatternOptimization {
 namespace ObjectiveTerms {
-
-namespace PH = PeriodicHomogenization;
 
 template<class _Sim, class _WCSObjectiveType>
 struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
@@ -21,23 +20,26 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
     using VField = typename _Sim::VField;
     template<class _Iterate>
     WorstCaseStress(const _Iterate &it,
-                    Real globalObjectivePNorm, Real globalObjectiveRoot) : m_sim(it.simulator()) {
+                    Real globalObjectivePNorm, Real globalObjectiveRoot) : m_baseCellOps(it.baseCellOps()) {
         // Configure objective
         m_wcs_objective.integrand.p = globalObjectivePNorm;
         m_wcs_objective.p           = globalObjectiveRoot;
 
+        const auto &mesh = it.simulator().mesh();
+
         // Worst case stress currently assumes that the base material is
         // constant, so we can read it off a single element.
-        m_wcs_objective.setPointwiseWCS(m_sim.mesh(),
-            worstCaseFrobeniusStress(m_sim.mesh().element(0)->E(), it.complianceTensor(),
-                PH::macroStrainToMicroStrainTensors(it.fluctuationDisplacements(), m_sim)));
+        m_wcs_objective.setPointwiseWCS(mesh,
+            worstCaseFrobeniusStress(mesh.element(0)->E(), it.complianceTensor(),
+                m_baseCellOps.macroStrainToMicroStrainTensors()));
 
         // Compute and store WCS's boundary differential one-form
-        m_diff_vol = m_wcs_objective.adjointDeltaJ(m_sim, it.fluctuationDisplacements());
-        
-        this->m_differential  = SDConversions::diff_bdry_from_diff_vol(m_diff_vol, m_sim);
+        // TODO: scale by numReflectedCells^(1.0 / p)
+        m_diff_vol = m_wcs_objective.adjointDeltaJ(m_baseCellOps);
+        this->m_differential = m_baseCellOps.diff_bdry_from_diff_vol(m_diff_vol);
     }
 
+    // TODO: scale by numReflectedCells^(1.0 / p)
     virtual Real evaluate() const override { return m_wcs_objective.evaluate(); }
 
     virtual void writeFields(MSHFieldWriter &writer) const override {
@@ -59,14 +61,19 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
         // writer.addField("Eigenvalue multiplicity", eigMult, DomainType::PER_ELEMENT);
         writer.addField("Eigenvalue relative distance", dist, DomainType::PER_ELEMENT);
 
-        writer.addField("WCS Steepest Descent VVel",
-                        SDConversions::descent_from_diff_vol(m_diff_vol, m_sim),
-                        DomainType::PER_NODE);
+        try {
+            writer.addField("WCS Steepest Descent VVel",
+                            m_baseCellOps.descent_from_diff_vol(m_diff_vol),
+                            DomainType::PER_NODE);
+        }
+        catch (const std::exception &e) {
+            std::cerr << "Couldn't write volume descent velocity: " << e.what() << std::endl;
+        }
 
-        auto bdryVel = SDConversions::descent_from_diff_bdry(this->m_differential, m_sim);
-        VField xferBdryVel(m_sim.mesh().numVertices());
+        auto bdryVel = m_baseCellOps.descent_from_diff_bdry(this->m_differential);
+        VField xferBdryVel(m_baseCellOps.mesh().numVertices());
         xferBdryVel.clear();
-        for (auto v : m_sim.mesh().vertices()) {
+        for (auto v : m_baseCellOps.mesh().vertices()) {
             auto bv = v.boundaryVertex();
             if (!bv) continue;
             xferBdryVel(v.index()) = bdryVel(bv.index());
@@ -82,7 +89,7 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
     virtual ~WorstCaseStress() { }
 private:
     OForm m_diff_vol; // per-volume-vertex differential
-    const _Sim &m_sim;
+    const BaseCellOperations<_Sim> &m_baseCellOps;
     _WCSObjectiveType m_wcs_objective;
 };
 

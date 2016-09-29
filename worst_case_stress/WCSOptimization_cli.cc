@@ -108,6 +108,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("hole_segments",    po::value<size_t>(),  "Number of segments in hole boundary for LpHoleInflator (default: 64)")
         ("subdivide,S",  po::value<size_t>(),      "Number of subdivisions to run for James' inflator (default: 0)")
         ("sub_algorithm,A", po::value<string>(),   "Subdivision algorithm for James' inflator (simple or loop, default: simple)")
+        ("ortho_cell,O",                           "Only mesh and optimize the orthotropic base cell (for orthotropic patterns only")
         ("fullCellInflator",                       "Use the full period cell inflator instead of the reflection-based one")
         ;
 
