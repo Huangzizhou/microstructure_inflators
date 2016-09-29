@@ -318,6 +318,8 @@ struct Iterate : public IterateBase {
         }
     }
 
+    virtual ~Iterate() { }
+
 protected:
     std::unique_ptr<_Sim> m_sim;
     std::unique_ptr<BaseCellOperations<_Sim>> m_baseCellOps;

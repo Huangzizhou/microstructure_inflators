@@ -93,6 +93,8 @@ struct IterateBase {
 
     bool isParametric() const { return m_parametricOptimization; }
 
+    virtual ~IterateBase() { }
+
 protected:
     // Current params
     std::vector<Real> m_params;

@@ -94,10 +94,13 @@ struct IterateFactory : public IFConfigs... {
             return oldIterate;
         }
 
+        std::cerr << "INFLATING PARAMS:";
+        for (size_t p = 0; p < nParams; ++p) { std::cerr << "\t" << params[p]; }
+        std::cerr << std::endl;
+
         // Free up memory by releasing the old iterate if we aren't going to
         // use it for estimation
-        if (!m_allowEstimation)
-            oldIterate.release();
+        if (!m_allowEstimation) { oldIterate.reset(); }
 
         std::unique_ptr<_Iterate> newIterate;
         bool success;
@@ -149,6 +152,8 @@ private:
     ObjectiveTermNormalizations m_normalizations;
     _Inflator &m_inflator;
     size_t m_numInflationAttempts = 1;
+    // TODO: it should be possible to clear all factored matrices and still
+    // support estimation...
     bool m_allowEstimation        = false;
 };
 
