@@ -262,6 +262,8 @@ struct IntegratedWorstCaseObjective {
     // Evaluate objective by integrating over m
     Real evaluate() const { return m_evalCache; }
 
+    // NOTE: these are *NOT* scaled to account for possible reflected base cell
+    // copies (computes just the pointwise value).
     ScalarField<Real> integrandValues() const {
         const size_t numElems = wcStress.size();
         ScalarField<Real> result(numElems);
@@ -272,6 +274,8 @@ struct IntegratedWorstCaseObjective {
 
     // Compute the Eulerian derivative of the integrand at each element given
     // the per-element Eulerian derivative of fluctuation strains, dot_we.
+    // NOTE: this is *NOT* scaled to account for possible reflected base cell
+    // copies (computes just the pointwise value).
     ScalarField<Real> integrandEulerianDerivative(
             const std::vector<SMF> &dot_we) const {
         size_t numElems = wcStress.size();
@@ -292,6 +296,8 @@ struct IntegratedWorstCaseObjective {
 
     // Sensitivity of global objective integrand to cell problem fluctuation
     // strains (rank 2 tensor field tau^kl in the writeup).
+    // NOTE: this is *NOT* scaled to account for possible reflected base cell
+    // copies (computes just the pointwise value).
     void tau_kl(size_t kl, SMF &result) const {
         wcStress.sensitvityToCellStrain(kl, result);
         for (size_t e = 0; e < wcStress.size(); ++e)
@@ -357,12 +363,14 @@ struct IntegratedWorstCaseObjective {
 
         BENCHMARK_STOP_TIMER("WCS shape derivative");
 
+        if (numReflectedCopies != 1) result *= Real(numReflectedCopies);
         return result;
     }
 
     // Compute the pointwise (Eulerian) derivative of integrand j(wcs) due to a
     // normal shape velocity vn:
     //      tau^kl : strain(wdot^kl[vn]) + 2 * j' * sigma : F^T : C^Base : G : dS^H[vn] : sigma
+    // NOTE: *NOT* scaled to account for possible reflected base cell copies
     template<class Sim, class _NormalShapeVelocity>
     ScalarField<Real> directIntegrandDerivative(const Sim &sim,
                                                 const std::vector<VectorField<Real, N>> &w,
@@ -483,13 +491,15 @@ struct IntegratedWorstCaseObjective {
         Real result = advectionTerm;
         for (auto e : mesh.elements())
             result += dj[e.index()] * e->volume();
-        return result;
+        return numReflectedCopies * result;
     }
 
     // Partial ``shape derivative'' of objective J, considering only the effect
     // of the changing homogenized elaticity tensor. In term of the writeup,
     // this is:
     //      gamma : dC^H[v]
+    // NOTE: this is *NOT* scaled to account for possible reflected base cell
+    // copies (i.e. the integral is over a single base cell).
     template<class Sim>
     auto jShapeDependenceViaCh(const Sim &sim,
                                const std::vector<VectorField<Real, N>> &w) const
@@ -523,6 +533,8 @@ struct IntegratedWorstCaseObjective {
     // := -D :: dS^H[v]                 (D = -2 * int_omega (j')...)
     // =   D :: (S^H : dC^H[v] : S^H)
     // = (S^H : D : S^H) :: dC^H[v]     (S^H is major symmetric)
+    // NOTE: this is *NOT* scaled to account for possible reflected base cell
+    // copies (i.e. the integral is over a single base cell).
     template<class Sim>
     MinorSymmetricRank4Tensor<N> dJ_dCH(const Sim &sim) const {
         MinorSymmetricRank4Tensor<N> D;
@@ -583,7 +595,7 @@ struct IntegratedWorstCaseObjective {
             dJ += integrand.j(wcStress(ei), ei) * e->relativeDeltaVolume(cornerPerturbations) * e->volume();
         }
 
-        return dJ;
+        return dJ * numReflectedCopies;
     }
 
     // Compute the linear functional (one-form) dJ[v], represented as a
@@ -712,7 +724,8 @@ struct IntegratedWorstCaseObjective {
         }
         BENCHMARK_STOP_TIMER_SECTION("Gamma Term");
 
-        return delta_j;
+        if (numReflectedCopies != 1) delta_j *= Real(numReflectedCopies);
+        return delta_j * numReflectedCopies;
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -720,9 +733,13 @@ struct IntegratedWorstCaseObjective {
     ////////////////////////////////////////////////////////////////////////////
     WorstCaseStress<N> wcStress;
     Integrand integrand;
+    // number of reflected copies (e.g. for orthocell)
+    // NOTE: assumes the integrand is invariant to the reflection operation!!!
+    // (Should be true for WCS)
+    size_t numReflectedCopies = 1;
 
 private:
-    // TODO: change this to accept a BaseCellOperations class
+    // WARNING: currently only works with triply periodic base cells
     template<class Sim>
     void m_solveAdjointCellProblems(const Sim &sim,
                     std::vector<VectorField<Real, N>> &lambda_kl) const {
@@ -731,20 +748,8 @@ private:
         SMF tau;
         for (size_t kl = 0; kl < numCellProblems; ++kl) {
             tau_kl(kl, tau);
-            lambda_kl.push_back(sim.solve(sim.perElementStressFieldLoad(tau)));
+            lambda_kl.emplace_back(sim.solve(sim.perElementStressFieldLoad(tau)));
         }
-    }
-
-    // Same as above, but with pre-computed tau_kl
-    template<class Sim>
-    void m_solveAdjointCellProblems(const Sim &sim,
-                    const std::vector<SMF> &tau,
-                    std::vector<VectorField<Real, N>> &lambda_kl) const {
-        size_t numCellProblems = flatLen(N);
-        lambda_kl.clear(); lambda_kl.reserve(numCellProblems);
-        assert(tau.size() == numCellProblems);
-        for (size_t kl = 0; kl < numCellProblems; ++kl)
-            lambda_kl.push_back(sim.solve(sim.perElementStressFieldLoad(tau[kl])));
     }
 
     Real m_evalCache = 0.0;
@@ -753,6 +758,7 @@ private:
         m_evalCache = 0;
         for (auto e : m.elements())
             m_evalCache += integrand.j(wcStress(e.index()), e.index()) * e->volume();
+        m_evalCache *= Real(numReflectedCopies);
     }
 };
 
@@ -834,12 +840,12 @@ using Base = SubObjective;
     PthRootObjective(Args&&... args)
         : SubObjective(std::forward<Args>(args)...) { }
 
-    // TODO: scale by number of reflected cells... (in SubObjective!!!)
     Real evaluate() const {
         if (p == 1) return SubObjective::evaluate();
         return pow(SubObjective::evaluate(), 1.0 / p);
     }
 
+#if OLD_EULERIAN_SD
     template<class Sim, size_t N>
     auto gradient(const Sim &sim,
                   const std::vector<VectorField<Real, N>> &w) const
@@ -861,6 +867,7 @@ using Base = SubObjective;
         if (p == 1) return pder;
         return m_gradientScale() * pder;
     }
+#endif
 
     ////////////////////////////////////////////////////////////////////////////
     // Discrete shape derivative under mesh vertex perturbation delta_p
@@ -875,7 +882,6 @@ using Base = SubObjective;
         return m_gradientScale() * pder;
     }
 
-    // TODO: scale by number of reflected cells... (in SubObjective!!!)
     template<class Sim>
     ScalarOneForm<Sim::N>
     adjointDeltaJ(const BaseCellOperations<Sim> &baseCellOps) const {
