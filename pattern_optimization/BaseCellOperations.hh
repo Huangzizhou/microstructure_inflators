@@ -48,6 +48,7 @@ public:
 
     virtual ETensor             homogenizedElasticityTensor()                     const = 0;
     virtual OneForm<ETensor, N> homogenizedElasticityTensorDiscreteDifferential() const = 0;
+    virtual size_t              numReflectedCells()                               const = 0;
 
     // Note: tensors are only computed for elements in the base cell. E.g., for
     // the orthotropic cell case, the tensors for elements in the other
@@ -143,6 +144,8 @@ public:
         return PeriodicHomogenization::homogenizedElasticityTensorDiscreteDifferential(this->m_w_ij, this->m_sim);
     }
 
+    virtual size_t numReflectedCells() const override { return 1; }
+
     virtual ~TriplyPeriodicBaseCellOperations() { }
 
 protected:
@@ -185,6 +188,8 @@ public:
     virtual OneForm<ETensor, N> homogenizedElasticityTensorDiscreteDifferential() const override {
         return PeriodicHomogenization::Orthotropic::homogenizedElasticityTensorDiscreteDifferential(this->m_w_ij, this->m_sim);
     }
+
+    virtual size_t numReflectedCells() const override { return PeriodicHomogenization::Orthotropic::numReflectedCells(N); }
 
     virtual ~OrthotropicBaseCellOperations() { }
 

@@ -725,7 +725,7 @@ struct IntegratedWorstCaseObjective {
         BENCHMARK_STOP_TIMER_SECTION("Gamma Term");
 
         if (numReflectedCopies != 1) delta_j *= Real(numReflectedCopies);
-        return delta_j * numReflectedCopies;
+        return delta_j;
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -758,6 +758,7 @@ private:
         m_evalCache = 0;
         for (auto e : m.elements())
             m_evalCache += integrand.j(wcStress(e.index()), e.index()) * e->volume();
+
         m_evalCache *= Real(numReflectedCopies);
     }
 };

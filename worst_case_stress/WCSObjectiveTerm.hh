@@ -22,8 +22,9 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
     WorstCaseStress(const _Iterate &it,
                     Real globalObjectivePNorm, Real globalObjectiveRoot) : m_baseCellOps(it.baseCellOps()) {
         // Configure objective
-        m_wcs_objective.integrand.p = globalObjectivePNorm;
-        m_wcs_objective.p           = globalObjectiveRoot;
+        m_wcs_objective.integrand.p        = globalObjectivePNorm;
+        m_wcs_objective.p                  = globalObjectiveRoot;
+        m_wcs_objective.numReflectedCopies = m_baseCellOps.numReflectedCells();
 
         const auto &mesh = it.simulator().mesh();
 
@@ -34,12 +35,10 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
                 m_baseCellOps.macroStrainToMicroStrainTensors()));
 
         // Compute and store WCS's boundary differential one-form
-        // TODO: scale by numReflectedCells^(1.0 / p)
         m_diff_vol = m_wcs_objective.adjointDeltaJ(m_baseCellOps);
         this->m_differential = m_baseCellOps.diff_bdry_from_diff_vol(m_diff_vol);
     }
 
-    // TODO: scale by numReflectedCells^(1.0 / p)
     virtual Real evaluate() const override { return m_wcs_objective.evaluate(); }
 
     virtual void writeFields(MSHFieldWriter &writer) const override {
@@ -61,6 +60,7 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
         // writer.addField("Eigenvalue multiplicity", eigMult, DomainType::PER_ELEMENT);
         writer.addField("Eigenvalue relative distance", dist, DomainType::PER_ELEMENT);
 
+#if 0
         try {
             writer.addField("WCS Steepest Descent VVel",
                             m_baseCellOps.descent_from_diff_vol(m_diff_vol),
@@ -69,6 +69,7 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
         catch (const std::exception &e) {
             std::cerr << "Couldn't write volume descent velocity: " << e.what() << std::endl;
         }
+#endif
 
         auto bdryVel = m_baseCellOps.descent_from_diff_bdry(this->m_differential);
         VField xferBdryVel(m_baseCellOps.mesh().numVertices());
