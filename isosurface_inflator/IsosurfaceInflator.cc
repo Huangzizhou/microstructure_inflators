@@ -278,8 +278,8 @@ void IsosurfaceInflator:: enablePostprocess() { m_imp->m_noPostprocess = false; 
 
 MeshingOptions &IsosurfaceInflator::meshingOptions() { return m_imp->meshingOptions(); }
 
-IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickenss, const string &wireMeshPath) {
-    if (!vertexThickenss) throw runtime_error("Only per-vertex thickness is currently supported.");
+IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness, const string &wireMeshPath) {
+    if (!vertexThickness) throw runtime_error("Only per-vertex thickness is currently supported.");
     if (type == "cubic")                                                          m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>         , CGALClippedVolumeMesher>(wireMeshPath);
     else if (type == "orthotropic")                                               m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>   , CGALClippedVolumeMesher>(wireMeshPath);
     else if (type == "triply_periodic")                                           m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, CGALClippedVolumeMesher>(wireMeshPath);

@@ -12,6 +12,7 @@
 #include <LinearElasticity.hh>
 #include <Materials.hh>
 #include <PeriodicHomogenization.hh>
+#include <OrthotropicHomogenization.hh>
 #include <MSHFieldWriter.hh>
 #include <iomanip>
 
@@ -24,6 +25,7 @@
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
+namespace PH = PeriodicHomogenization;
 using namespace std;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
@@ -46,6 +48,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("material,m",               po::value<string>(),                 "base material")
         ("degree,d",                 po::value<int>()->default_value(2),  "degree of finite elements")
         ("fieldOutput,o",            po::value<string>(),                 "Dump fluctation stress and strain fields to specified msh file")
+        ("orthotropicCell,O",                                             "Analyze the orthotropic symmetry base cell only")
         ;
 
     po::options_description cli_opts;
@@ -96,14 +99,25 @@ void execute(const po::variables_map &args,
     using ETensor = typename Sim::ETensor;
     using VField  = typename Sim::VField;
     // using WCSObjective = PthRootObjective<IntegratedWorstCaseObjective<Sim::N, WCStressIntegrandLp>>;
+    const bool orthoCell = args.count("orthotropicCell");
 
     // Periodic Homogenization
     vector<VField> w;
-    PeriodicHomogenization::solveCellProblems(w, sim);
-    ETensor Eh = PeriodicHomogenization::homogenizedElasticityTensorDisplacementForm(w, sim);
-    ETensor Sh = Eh.inverse();
-    auto m2m = PeriodicHomogenization::macroStrainToMicroStrainTensors(w, sim);
+    ETensor Eh;
+    if (!orthoCell) {
+        PH::solveCellProblems(w, sim, 1e-7);
+        Eh = PH::homogenizedElasticityTensorDisplacementForm(w, sim);
+    }
+    else {
+        PH::Orthotropic::solveCellProblems(w, sim, 1e-7);
+        Eh = PH::Orthotropic::homogenizedElasticityTensorDisplacementForm(w, sim);
+    }
 
+    ETensor Sh = Eh.inverse();
+
+    // Pointwise worst-case stress quantities are all computed the same way for
+    // orthotropic and triply periodic cells
+    auto m2m = PH::macroStrainToMicroStrainTensors(w, sim);
     auto wcs = worstCaseFrobeniusStress(mat.getTensor(), Sh, m2m);
     // WCSObjective wcsObjective(mesh, wcs);
     auto wcsValues = wcs.sqrtStressMeasure();
@@ -120,7 +134,7 @@ void execute(const po::variables_map &args,
 
     typename Sim::SMatrix peakMacroStress = wcs.wcMacroStress(argmaxMag);
 
-    cout << "Max WCS Stress:\t" << maxMag << endl;
+    cout << "Peak WCS Stress:\t" << maxMag << endl;
     cout << "Corresponding Macro Stress:" << endl;
     cout << peakMacroStress  << endl;
     cout << "Corresponding Macro strain:" << endl;

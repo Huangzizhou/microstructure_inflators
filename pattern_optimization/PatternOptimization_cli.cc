@@ -243,11 +243,11 @@ int main(int argc, const char *argv[])
     auto job = parseJobFile(args["job"].as<string>());
 
     size_t deg = args["degree"].as<size_t>();
-    if (auto job2D = dynamic_cast<Job<2> *>(job)) {
+    if (auto job2D = dynamic_cast<Job<2> *>(job.get())) {
         if (deg == 1) execute<2, 1>(args, job2D);
         if (deg == 2) execute<2, 2>(args, job2D);
     }
-    else if (auto job3D = dynamic_cast<Job<3> *>(job)) {
+    else if (auto job3D = dynamic_cast<Job<3> *>(job.get())) {
         if (deg == 1) execute<3, 1>(args, job3D);
         if (deg == 2) execute<3, 2>(args, job3D);
     }

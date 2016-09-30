@@ -25,6 +25,8 @@
 #include <stdexcept>
 #include <fstream>
 #include <string>
+#include <memory>
+#include <Future.hh>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -42,7 +44,7 @@ void parseVector(const ptree &pt, vector<Real> &v) {
     }
 }
 
-JobBase *parseJobFile(const string &jobFile) {
+std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     ifstream is(jobFile);
     if (!is.is_open())
         throw runtime_error("Couldn't open job file " + jobFile);
@@ -55,16 +57,16 @@ JobBase *parseJobFile(const string &jobFile) {
     auto radiusBounds = pt.get_child("radiusBounds");
     auto translationBounds = pt.get_child("translationBounds");
 
-    JobBase *job;
+    std::unique_ptr<JobBase> job;
     if (dim == 2) {
-        auto job2D = new Job<2>();
+        auto job2D = Future::make_unique<Job<2>>();
         job2D->targetMaterial.setFromPTree(materialSpec);
-        job = job2D;
+        job = std::move(job2D);
     }
     else if (dim == 3) {
-        auto job3D = new Job<3>();
+        auto job3D = Future::make_unique<Job<3>>();
         job3D->targetMaterial.setFromPTree(materialSpec);
-        job = job3D;
+        job = std::move(job3D);
     }
     else throw runtime_error("Invalid dimension.");
 

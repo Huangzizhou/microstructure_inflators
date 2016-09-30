@@ -27,9 +27,11 @@
 #include <Materials.hh>
 #include <vector>
 #include <map>
+#include <memory>
 #include <string>
 #include <stdexcept>
 #include <fstream>
+#include <iomanip>
 #include <boost/optional.hpp>
 
 #include "Inflator.hh"
@@ -106,6 +108,7 @@ template<size_t _N>
 class Job : public JobBase {
 public:
     virtual void writeJobFile(std::ostream &os) const {
+        os << std::setprecision(19);
         os << "{" << std::endl
            << "\t\"dim\": " << _N << "," << std::endl
            << "\t\"target\": " << targetMaterial << "," << std::endl;
@@ -162,7 +165,7 @@ public:
     Materials::Constant<_N> targetMaterial;
 };
 
-JobBase *parseJobFile(const std::string &jobFile);
+std::unique_ptr<JobBase> parseJobFile(const std::string &jobFile);
 
 }
 

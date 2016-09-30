@@ -31,7 +31,7 @@ public:
     typedef Eigen::Matrix<Real, 3, 1> Point;
     enum class ParameterType { Thickness, Position, Blending };
 
-    IsosurfaceInflator(const std::string &type, bool vertexThickenss,
+    IsosurfaceInflator(const std::string &type, bool vertexThickness,
                        const std::string &wireMeshPath);
 
     void inflate(const std::vector<Real> &params);
