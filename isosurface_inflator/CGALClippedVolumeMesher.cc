@@ -1,5 +1,10 @@
 #include "CGALClippedVolumeMesher.hh"
 
+#if HAS_TBB
+#define CGAL_LINKED_WITH_TBB
+#define CGAL_CONCURRENT_MESH_3
+#endif
+
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Mesh_triangulation_3.h>
 #include <CGAL/Mesh_complex_3_in_triangulation_3.h>
@@ -51,7 +56,8 @@ mesh(const SignedDistanceFunction &sdf,
      std::vector<MeshIO::IOVertex> &vertices,
      std::vector<MeshIO::IOElement> &elements)
 {
-    typedef CGAL::Mesh_domain_with_polyline_features_3<CGAL::Implicit_mesh_domain_3<ClippedSignedDistanceFunction,K> > Mesh_domain;
+    using Mesh_domain = CGAL::Mesh_domain_with_polyline_features_3<
+                            CGAL::Implicit_mesh_domain_3<ClippedSignedDistanceFunction, K>>;
 
     // Polyline
     typedef std::vector<Point>    Polyline_3;
@@ -59,17 +65,15 @@ mesh(const SignedDistanceFunction &sdf,
 
     // Triangulation
 #ifdef CGAL_CONCURRENT_MESH_3
-    typedef typename CGAL::Mesh_triangulation_3<
-            Mesh_domain,
-            CGAL::Kernel_traits<Mesh_domain>::Kernel, // Same as sequential
-            CGAL::Parallel_tag                        // Tag to activate parallelism
-        >::type Tr;
+    using Tr = typename CGAL::Mesh_triangulation_3<Mesh_domain, K,
+            CGAL::Parallel_tag // Tag to activate parallelism
+        >::type;
 #else
-    typedef typename CGAL::Mesh_triangulation_3<Mesh_domain>::type Tr;
+    using Tr = typename CGAL::Mesh_triangulation_3<Mesh_domain>::type;
 #endif
     typedef CGAL::Mesh_complex_3_in_triangulation_3<Tr, typename Mesh_domain::Corner_index,
                                                     typename Mesh_domain::Curve_segment_index> C3t3;
-    typedef CGAL::Mesh_criteria_3<Tr> Mesh_criteria;
+    using Mesh_criteria = CGAL::Mesh_criteria_3<Tr>;
 
     // std::cout << "Meshing 1D features" << std::endl;
     ClippedSignedDistanceFunction cgal_sdfunc(sdf);
