@@ -30,7 +30,7 @@
 
 #include "IsosurfaceInflatorConfig.hh"
 
-#include "parallel_for.h"
+// #include "parallel_for.h"
 
 using namespace std;
 
@@ -209,7 +209,7 @@ public:
         // auto paramPartialLoop = [&partials, &evalPoints, nParams, this](size_t e) {
         using adept::adouble;
         adept::Stack stack;
-        for (size_t e = 0; e <= nEvals; ++ e) {
+        for (size_t e = 0; e < nEvals; ++ e) {
             // assert(!stack.is_thread_unsafe());
             PatternSignedDistance<adouble, WMesh> patternAutodiff(wmesh);
 
