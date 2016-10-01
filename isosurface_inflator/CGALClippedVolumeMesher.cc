@@ -14,6 +14,8 @@
 #include "WireMesh.hh"
 #include "PatternSignedDistance.hh"
 
+#include <GlobalBenchmark.hh>
+
 // avoid verbose function and named parameters call
 using namespace CGAL::parameters;
 
@@ -31,9 +33,12 @@ ClippedSignedDistanceFunction {
         : m_sdf(sdf), m_meshingBox(sdf.boundingBox()) { }
 
     FT operator()(const Point &p) const {
-        Point3<Real> pp(p[0], p[1], p[2]);
-        return std::max(m_sdf.signedDistance(pp),
-                        m_meshingBox.signedDistance(pp));
+        // Note: CGAL actually thresholds the signed distance to a binary
+        // inside/outside and runs dumb bisection, so don't waste time computing
+        // signed distances accurately outside the meshing box.
+        if (!m_meshingBox.isInside(p[0], p[1], p[2]))
+            return 1.0;
+        return m_sdf.isInside(Point3<Real>(p[0], p[1], p[2])) ? -1.0 : 1;
     }
 private:
     const SignedDistanceFunction &m_sdf;
@@ -148,7 +153,9 @@ mesh(const SignedDistanceFunction &sdf,
 
     // Mesh generation
     // std::cout << "Making mesh..." << std::endl;
+    BENCHMARK_START_TIMER("make_mesh_3");
     C3t3 c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria);
+    BENCHMARK_STOP_TIMER("make_mesh_3");
 
     // Access triangulation directly
     const Tr &tr = c3t3.triangulation();

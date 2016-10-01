@@ -10,6 +10,7 @@
 #include <SimplicialMesh.hh>
 #include <Future.hh>
 #include <filters/remove_dangling_vertices.hh>
+#include <GlobalBenchmark.hh>
 
 #include "AutomaticDifferentiation.hh"
 #include "WireMesh.hh"
@@ -29,7 +30,7 @@
 
 #include "IsosurfaceInflatorConfig.hh"
 
-#include <GlobalBenchmark.hh>
+#include "parallel_for.h"
 
 using namespace std;
 
@@ -144,7 +145,7 @@ public:
         //     std::cout << "\t" << p;
         // std::cout << std::endl;
 
-        BENCHMARK_START_TIMER("meshPattern");
+        BENCHMARK_START_TIMER_SECTION("meshPattern");
         // Optional debugging graph output.
         const auto &config = IsosurfaceInflatorConfig::get();
         if (config.dumpInflationGraph())  { wmesh.saveInflationGraph(    config.inflationGraphPath, params); }
@@ -159,7 +160,7 @@ public:
             pattern.setBoundingBox(Symmetry::TriplyPeriodic<>::representativeMeshCell<Real>());
 
         mesher.mesh(pattern, this->vertices, this->elements);
-        BENCHMARK_STOP_TIMER("meshPattern");
+        BENCHMARK_STOP_TIMER_SECTION("meshPattern");
         // cout << vertices.size() << " vertices, " << elements.size() << " elements" << endl;
     }
 
@@ -197,7 +198,7 @@ public:
     // Derivative of signed distance function with respect to each pattern
     // parameter (autodiff-based).
     virtual vector<vector<Real>> signedDistanceParamPartials(const vector<Point> &evalPoints) const {
-        size_t nEvals = evalPoints.size(), nParams = pattern.numParams();
+        const size_t nEvals = evalPoints.size(), nParams = pattern.numParams();
         vector<vector<Real>> partials(nParams, vector<Real>(nEvals));
 
         // Brute force version: rebuild full autodiff pattern signed distance point
@@ -205,9 +206,11 @@ public:
         // only rerun the signed distance evaluation for each evaluation, but
         // this may be difficult with Adept and probably gives negligible
         // speedup.
-        for (size_t e = 0; e < nEvals; ++e) {
-            using adept::adouble;
-            adept::Stack stack;
+        // auto paramPartialLoop = [&partials, &evalPoints, nParams, this](size_t e) {
+        using adept::adouble;
+        adept::Stack stack;
+        for (size_t e = 0; e <= nEvals; ++ e) {
+            // assert(!stack.is_thread_unsafe());
             PatternSignedDistance<adouble, WMesh> patternAutodiff(wmesh);
 
             vector<adouble> params(inflatedParams.size());
@@ -229,7 +232,8 @@ public:
                     // throw std::runtime_error("nan sd");
                 }
             }
-        }
+        };
+        // igl::parallel_for(nEvals, paramPartialLoop);
 
         return partials;
     }

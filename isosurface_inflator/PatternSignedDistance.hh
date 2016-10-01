@@ -170,7 +170,6 @@ public:
 
         // Create smoothed union geometry around each vertex and then union
         // together
-        std::vector<Real2> unionedDist;
         std::vector<Real2> incidentDists;
         Real2 dist = 1e5;
         for (size_t u = 0; u < numVertices(); ++u) {
@@ -199,8 +198,33 @@ public:
         return dist;
     }
 
-    bool isInside(const Point3<Real> &p) const {
-        return signedDistance(p) <= 0;
+    // Accelerated version of "signedDistance(p) <= 0"
+    bool isInside(Point3<Real> p) const {
+        p = WMesh::PatternSymmetry::mapToBaseUnit(p);
+        std::vector<Real> edgeDists;
+        edgeDists.reserve(m_edgeGeometry.size());
+        // Definitely inside if we're inside one of the edges.
+        // Note: possibly could be sped up by implementing cheap isInside for
+        // edge geometry and bailing early if inside?
+        for (const auto &c : m_edgeGeometry) {
+            edgeDists.push_back(c.signedDistance(p));
+            if (edgeDists.back() <= 0) return true;
+        }
+
+        // see signedDistance(p) above
+        for (size_t u = 0; u < numVertices(); ++u) {
+            Real smoothness = m_blendingParams[u] * (1/256.0 + (1.0 - 1/256.0) * m_vertexSmoothness[u]);
+            if (smoothness > 1/256.0) {
+                const Real k = 1.0 / smoothness;
+                Real res = 0;
+                for (size_t ei : m_adjEdges[u])
+                    res += exp(-k * edgeDists[ei]);
+                if (res > 1) return true;
+            }
+            else { continue; } // Note: sharp joints only contain p if one of the edges does (can't happen)
+        }
+
+        return false;
     }
 
     // Representative cell bounding box (region to be meshed)

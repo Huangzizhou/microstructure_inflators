@@ -25,9 +25,10 @@ Real mix(Real x, Real y, Real a) { return x * (1 - a) + y * a; }
 // Min of a collection of values.
 template<typename Real>
 Real min(const std::vector<Real> &values) {
-    auto min_it = std::min_element(values.begin(), values.end());
-    if (min_it == values.end()) return 1e5;
-    return *min_it;
+    Real res = std::numeric_limits<Real>::max();
+    for (Real v : values)
+        res = std::min(res, v);
+    return res;
 }
 
 // exponential smooth min of two values (k = 32);
@@ -61,13 +62,12 @@ Real exp_smin_reparam(Real a, Real b, Real s = 1.0/32)
 
 // exponential smooth min one or more values (s = 1/32);
 template<typename Real>
-Real exp_smin_reparam(const std::vector<Real> &values, Real s = 1.0/32)
-{
+Real exp_smin_reparam(const std::vector<Real> &values, Real s = 1.0/32) {
     Real res = 0;
-    for (Real v : values) {
-        res += exp(-v / s);
-    }
-    return -log(res) * s;
+    Real k = 1.0 / s;
+    for (Real v : values)
+        res += exp(-k * v);
+    return -log(res) / k;
 }
 
 // Minimum max(a, b) - min(a, b) such that
@@ -123,9 +123,17 @@ struct Box {
     Box(const BBox<Point3<Real>> &box) : m_box(box) { }
     void set(const BBox<Point3<Real>> &box) { m_box = box; }
     Real signedDistance(const Point3<Real> &p) const {
-        // Box is union of 6 halfspaces
+        // Box is intersection of 6 halfspaces
         Vector3<Real> d = (m_box.minCorner - p).cwiseMax(p - m_box.maxCorner);
         return std::min(d.maxCoeff(), Real(0)) + d.cwiseMax(Vector3<Real>::Zero()).norm();
+    }
+    bool isInside(Real p0, Real p1, Real p2) const {
+        return (p0 >= m_box.minCorner[0]) &&
+               (p1 >= m_box.minCorner[1]) &&
+               (p2 >= m_box.minCorner[2]) &&
+               (p0 <= m_box.maxCorner[0]) &&
+               (p1 <= m_box.maxCorner[1]) &&
+               (p2 <= m_box.maxCorner[2]);
     }
 private:
     BBox<Point3<Real>> m_box;
@@ -144,6 +152,7 @@ struct ConicalFrustum {
         m_axisLen = sqrt(m_axisLenSq);
     }
 
+    // WARNING: NOT A TRUE SIGNED DISTANCE FUNCTION
     Real signedDistance(const Point3<Real> &p) const {
         Vector3<Real> v(p - m_a);
         Real frac_along = v.dot(m_axis) / m_axisLenSq;

@@ -101,6 +101,7 @@ struct IFConfigWorstCaseStress : public IFConfig {
     template<class _Iterate>
     void configIterate(const std::unique_ptr<_Iterate> &it, ObjectiveTermNormalizations &normalizations) const {
         static_assert(_Iterate::_N == N, "Mismatch in problem dimensions.");
+        BENCHMARK_START_TIMER_SECTION("WCS Term");
         auto wcs = Future::make_unique<WorstCaseStress<_Sim, _WCSObjectiveType>>(
                 *it, globalObjectivePNorm, globalObjectiveRoot);
         wcs->setWeight(weight);
@@ -111,6 +112,7 @@ struct IFConfigWorstCaseStress : public IFConfig {
 
         wcs->setNormalization(normalizations["WCS"]);
         it->addObjectiveTerm("WCS", std::move(wcs));
+        BENCHMARK_STOP_TIMER_SECTION("WCS Term");
     }
 
     Real weight = 1.0;

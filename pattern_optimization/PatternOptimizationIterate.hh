@@ -89,7 +89,7 @@ struct Iterate : public IterateBase {
         // std::cout << std::endl;
 
         // std::cout << "Building Simulator" << std::endl;
-        BENCHMARK_START_TIMER_SECTION("Eval");
+        BENCHMARK_START_TIMER_SECTION("Homogenize");
 
         m_sim = Future::make_unique<_Sim>(inflator.elements(),
                                           inflator.vertices());
@@ -117,7 +117,7 @@ struct Iterate : public IterateBase {
 
         // std::cout << "Done" << std::endl;
 
-        BENCHMARK_STOP_TIMER_SECTION("Eval");
+        BENCHMARK_STOP_TIMER_SECTION("Homogenize");
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -270,9 +270,11 @@ struct Iterate : public IterateBase {
     }
 
     virtual void writeMeshAndFields(const std::string &path) const override {
+        BENCHMARK_START_TIMER_SECTION("writeMeshAndFields");
         MSHFieldWriter writer(path, m_sim->mesh());
         for (auto &term : m_objectiveTerms)
             term.second->writeFields(writer);
+        BENCHMARK_STOP_TIMER_SECTION("writeMeshAndFields");
     }
 
     virtual void writeDescription(std::ostream &os) const override {
