@@ -16,6 +16,7 @@
 #include <MSHFieldWriter.hh>
 #include <iomanip>
 
+// aliases PH = PeriodicHomogenization!
 #include "WorstCaseStress.hh"
 
 #include <vector>
@@ -25,7 +26,6 @@
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
-namespace PH = PeriodicHomogenization;
 using namespace std;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
