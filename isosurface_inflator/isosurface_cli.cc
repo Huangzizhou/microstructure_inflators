@@ -8,6 +8,7 @@
 #include <boost/algorithm/string.hpp>
 
 #include <boost/program_options.hpp>
+#include <GlobalBenchmark.hh>
 namespace po = boost::program_options;
 using namespace std;
 
@@ -115,4 +116,6 @@ int main(int argc, char *argv[])
     inflator.inflate(params);
 
     MeshIO::save(args["outMSH"].as<string>(), inflator.vertices(), inflator.elements());
+
+    BENCHMARK_REPORT();
 }

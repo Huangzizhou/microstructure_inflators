@@ -175,7 +175,10 @@ public:
             // Vertex smoothness is in [0, 1],
             //      1.0: full smoothness (m_blendingParams(u))
             //      0.0: "no" smoothness (1/256.0)
-            Real2 smoothness = m_blendingParams.at(u) * (1/256.0 + (1.0 - 1/256.0) * vertexSmoothness(u));
+            // "smoothness" is computed in multiple steps to work around a bug
+            // in Eigen AutoDiff's make_coherent for expression templates.
+            Real2 smoothness = 1/256.0 + (1.0 - 1/256.0) * vertexSmoothness(u);
+            smoothness *= m_blendingParams.at(u);
             // Transition to precise union for extremely low smoothing
             if (smoothness > 1/256.0) {
                 // inlined exp_smin_reparam
@@ -191,8 +194,8 @@ public:
             }
         }
 
-        assert(!std::isnan(stripAdept(dist)));
-        assert(!std::isinf(stripAdept(dist)));
+        assert(!std::isnan(stripAutodiff(dist)));
+        assert(!std::isinf(stripAutodiff(dist)));
 
         return dist;
     }

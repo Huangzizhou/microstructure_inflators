@@ -68,6 +68,22 @@ struct SymmetryCRTP {
     }
 };
 
+template<typename T, bool _isAutodiffType = IsAutodiffType<T>::value>
+struct OptionalFMod2 {
+    static void run(T &val) {
+        T q = (int) (val / 2); // round toward zero
+        // if (abs(q) > 1000) {
+        //     std::cout << "queried far point " << p.transpose() << std::endl;
+        // }
+        val -= 2 * q; // p[c] reduced to (-2, 2)
+    }
+};
+
+template<typename T>
+struct OptionalFMod2<T, true> {
+    static void run(T &/* val */) { /* nop */ }
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 // Symmetry class definitions
 ////////////////////////////////////////////////////////////////////////////////
@@ -90,24 +106,15 @@ struct TriplyPeriodic : SymmetryCRTP<TriplyPeriodic<TOL>> {
     template<typename Real>
     static Point3<Real> mapToBaseUnit(Point3<Real> p) {
         for (size_t c = 0; c < 3; ++c) {
-            Real q = (int) (p[c] / 2); // round toward zero
-            // if (abs(q) > 1000) {
-            //     std::cout << "queried far point " << p.transpose() << std::endl;
-            // }
-            p[c] -= 2 * q; // p[c] reduced to (-2, 2)
-            // Now reduce to [-1, 1] with tolerance...
-            if (p[c] >  1.0 + tolerance) p[c] -= 2.0;
-            if (p[c] < -1.0 - tolerance) p[c] += 2.0;
-        }
-        return p;
-    }
+            // Quickly reduce to [-2, 2] for plain scalar types to accelerate
+            // far point sampling.
+            // This integer conversion-based reduction will not work with
+            // autodiff types, but the subsequent brute-force redution to
+            // [-1, 1] should be fast since we should never be querying outside
+            // the base cell when using autodiff to compute shape
+            // velocities/normals).
+            OptionalFMod2<Real>::run(p[c]);
 
-    static Point3<adept::adouble> mapToBaseUnit(Point3<adept::adouble> p) {
-        for (size_t c = 0; c < 3; ++c) {
-            // Integer conversion-based rounding will not work with adept. We
-            // use a brute-force reduction in this case (should be
-            // fast since we should never be querying outside the base cell when
-            // using autodiff to compute shape velocities/normals).
             // Now reduce to [-1, 1] with tolerance...
             while (p[c] >  1.0 + tolerance) p[c] -= 2.0;
             while (p[c] < -1.0 - tolerance) p[c] += 2.0;
@@ -161,7 +168,7 @@ struct Orthotropic : public TriplyPeriodic<TOL>, SymmetryCRTP<Orthotropic<TOL>> 
     static Point3<Real> mapToBaseUnit(Point3<Real> p) {
         p = TriplyPeriodic<TOL>::mapToBaseUnit(p);
         for (size_t c = 0; c < 3; ++c)
-            p[c] = fabs(p[c]); // std::abs is problematic for autodiff
+            if (p[c] < 0) p[c] = -p[c]; // std::abs is problematic for autodiff
         return p;
     }
 

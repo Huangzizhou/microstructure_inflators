@@ -205,19 +205,17 @@ public:
     // Derivative of signed distance function with respect to evaluation point
     // (autodiff-based).
     virtual vector<Point> signedDistanceGradient(const vector<Point> &evalPoints) const override {
-        using adept::adouble;
-        typedef Point3<adouble> Pt;
-        adept::Stack stack;
+        // Scalar supporting 3D spatial gradient
+        using ADScalar = Eigen::AutoDiffScalar<Vector3<Real>>;
+        using Pt = Point3<ADScalar>;
 
         vector<Point> distGradX(evalPoints.size());
         for (size_t p = 0; p < evalPoints.size(); ++p) {
-            Pt x(evalPoints[p].template cast<adouble>());
-            stack.new_recording();
-            adouble dist = pattern.signedDistance(x);
-            dist.set_gradient(1);
-            stack.reverse();
-            for (size_t i = 0; i < 3; ++i)
-                 distGradX[p][i] =  x[i].get_gradient();
+            Pt x(ADScalar(evalPoints[p][0], 3, 0),
+                 ADScalar(evalPoints[p][1], 3, 1),
+                 ADScalar(evalPoints[p][2], 3, 2));
+            ADScalar dist = pattern.signedDistance(x);
+            distGradX[p]  = dist.derivatives();
         }
         return distGradX;
     }
@@ -225,32 +223,27 @@ public:
     // Derivative of signed distance function with respect to each pattern
     // parameter (autodiff-based).
     virtual vector<vector<Real>> signedDistanceParamPartials(const vector<Point> &evalPoints) const override {
-        const size_t nEvals = evalPoints.size(), nParams = pattern.numParams();
+        // Scalar supporting derivatives with respect to each pattern parameter
+        using PVec = Eigen::Matrix<Real, Eigen::Dynamic, 1>;
+        using ADScalar = Eigen::AutoDiffScalar<PVec>;
+
+        const size_t nEvals = evalPoints.size(),
+                    nParams = pattern.numParams();
+        assert(inflatedParams.size() == nParams);
+
         vector<vector<Real>> partials(nParams, vector<Real>(nEvals));
+        PatternSignedDistance<ADScalar, WMesh> patternAutodiff(wmesh);
 
-        // Brute force version: rebuild full autodiff pattern signed distance point
-        // for each evaluation point. The obvious optimization is to
-        // only rerun the signed distance evaluation for each evaluation, but
-        // this may be difficult with Adept and probably gives negligible
-        // speedup.
-        using adept::adouble;
-        adept::Stack stack;
-        // auto paramPartialLoop = [&partials, &evalPoints, nParams, this](size_t e) {
+        vector<ADScalar> params;
+        params.reserve(params.size());
+        for (size_t p = 0; p < nParams; ++p)
+            params.emplace_back(inflatedParams[p], nParams, p);
+        patternAutodiff.setParameters(params);
+
         for (size_t e = 0; e < nEvals; ++e) {
-            // assert(!stack.is_thread_unsafe());
-            PatternSignedDistance<adouble, WMesh> patternAutodiff(wmesh);
-
-            vector<adouble> params(inflatedParams.size());
-            for (size_t i = 0; i < params.size(); ++i)
-                params[i] = inflatedParams[i];
-
-            stack.new_recording();
-            patternAutodiff.setParameters(params);
-            adouble sd = patternAutodiff.signedDistance(evalPoints[e].template cast<adouble>().eval());
-            sd.set_gradient(1.0);
-            stack.reverse();
+            ADScalar sd = patternAutodiff.signedDistance(evalPoints[e].template cast<ADScalar>().eval());
             for (size_t p = 0; p < nParams; ++p) {
-                partials[p][e] = params[p].get_gradient();
+                partials[p][e] = sd.derivatives()[p];
                 if (std::isnan(partials[p][e])) {
                     std::cerr << "nan sd partial " << p << " at evaluation point "
                               << evalPoints[e] << std::endl;
@@ -260,7 +253,6 @@ public:
                 }
             }
         };
-        // igl::parallel_for(nEvals, paramPartialLoop);
 
         return partials;
     }
