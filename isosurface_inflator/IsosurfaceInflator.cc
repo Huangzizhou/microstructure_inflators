@@ -64,11 +64,19 @@ public:
     // (via the virtual functions below).
     void inflate(const vector<Real> &params) {
         inflatedParams = params;
-        meshPattern(params);
+        bool needsReflecting = generateFullPeriodCell && _mesherGeneratesOrthoCell();
+
+        if (meshingOptions().debugLoadMeshPath.size()) {
+            MeshIO::load(meshingOptions().debugLoadMeshPath, vertices, elements);
+            // The normal/signed computation expects parameters to have been set
+            m_setParameters(params);
+        }
+        else {
+            meshPattern(params);
+        }
+
         // Terminate after initial meshing, for debugging.
         if (m_noPostprocess) return;
-
-        bool needsReflecting = generateFullPeriodCell && _mesherGeneratesOrthoCell();
 
         // std::cout << "Meshed params:";
         // for (Real p : params) std::cout << "\t" << p;
@@ -78,6 +86,21 @@ public:
         BBox<Point> bbox(vertices);
         if (std::abs(bbox.dimensions()[2]) < 1e-8) postProcess<2>(vertices, elements, normalShapeVelocities, vertexNormals, *this, needsReflecting, meshingCell(), meshingOptions());
         else                                       postProcess<3>(vertices, elements, normalShapeVelocities, vertexNormals, *this, needsReflecting, meshingCell(), meshingOptions());
+
+        if (meshingOptions().debugSVelPath.size()) {
+            MSHFieldWriter writer(meshingOptions().debugSVelPath, vertices, elements);
+            VectorField<Real, 3> normals(vertices.size());
+            for (size_t i = 0; i < vertices.size(); ++i)
+                normals(i) = vertexNormals[i];
+            writer.addField("normals", normals, DomainType::PER_NODE);
+
+            ScalarField<Real> vn(vertices.size());
+            for (size_t p = 0; p < normalShapeVelocities.size(); ++p) {
+                for (size_t i = 0; i < vertices.size(); ++i)
+                    vn(i) = normalShapeVelocities[p][i];
+                writer.addField("svel " + std::to_string(p), vn, DomainType::PER_NODE);
+            }
+        }
     }
 
     // Mesh the param (fills vertices, elements member arrays)
@@ -125,6 +148,10 @@ public:
     // The params that were most recently inflated (to which
     // (vertices, elements) correspond).
     vector<Real> inflatedParams;
+protected:
+    // Manually set the parameters in PatternSignedDistance instance
+    // (usefull if bypassing meshing for debugging).
+    virtual void m_setParameters(const vector<Real> &params) = 0;
 };
 
 // The WMesh-dependent implementation details.
@@ -139,7 +166,7 @@ public:
     IsosurfaceInflatorImpl(const string &wireMeshPath)
         : wmesh(wireMeshPath), pattern(wmesh) { }
 
-    virtual void meshPattern(const vector<Real> &params) {
+    virtual void meshPattern(const vector<Real> &params) override {
         // std::cout << "Meshing parameters:";
         // for (auto p : params)
         //     std::cout << "\t" << p;
@@ -166,18 +193,18 @@ public:
 
     // Note: when reflectiveInflator = false, the mesher generates the full
     // period cell.
-    virtual bool _mesherGeneratesOrthoCell() const {
+    virtual bool _mesherGeneratesOrthoCell() const override {
         return is_base_of<Symmetry::Orthotropic<typename PatternSymmetry::Tolerance>,
                           PatternSymmetry>::value
                && (reflectiveInflator || !generateFullPeriodCell);
     }
 
     // The meshing cell box.
-    virtual BBox<Point> meshingCell() const { return PatternSymmetry::template representativeMeshCell<Real>(); }
+    virtual BBox<Point> meshingCell() const override { return PatternSymmetry::template representativeMeshCell<Real>(); }
 
     // Derivative of signed distance function with respect to evaluation point
     // (autodiff-based).
-    virtual vector<Point> signedDistanceGradient(const vector<Point> &evalPoints) const {
+    virtual vector<Point> signedDistanceGradient(const vector<Point> &evalPoints) const override {
         using adept::adouble;
         typedef Point3<adouble> Pt;
         adept::Stack stack;
@@ -197,7 +224,7 @@ public:
 
     // Derivative of signed distance function with respect to each pattern
     // parameter (autodiff-based).
-    virtual vector<vector<Real>> signedDistanceParamPartials(const vector<Point> &evalPoints) const {
+    virtual vector<vector<Real>> signedDistanceParamPartials(const vector<Point> &evalPoints) const override {
         const size_t nEvals = evalPoints.size(), nParams = pattern.numParams();
         vector<vector<Real>> partials(nParams, vector<Real>(nEvals));
 
@@ -206,10 +233,10 @@ public:
         // only rerun the signed distance evaluation for each evaluation, but
         // this may be difficult with Adept and probably gives negligible
         // speedup.
-        // auto paramPartialLoop = [&partials, &evalPoints, nParams, this](size_t e) {
         using adept::adouble;
         adept::Stack stack;
-        for (size_t e = 0; e < nEvals; ++ e) {
+        // auto paramPartialLoop = [&partials, &evalPoints, nParams, this](size_t e) {
+        for (size_t e = 0; e < nEvals; ++e) {
             // assert(!stack.is_thread_unsafe());
             PatternSignedDistance<adouble, WMesh> patternAutodiff(wmesh);
 
@@ -240,17 +267,19 @@ public:
 
     virtual ~IsosurfaceInflatorImpl() { }
 
-    virtual vector<Real> defaultParameters() const { return wmesh.defaultParameters(); }
-    virtual size_t               numParams() const { return wmesh.numParams(); }
-    virtual bool  isThicknessParam(size_t p) const { return wmesh.isThicknessParam(p); }
-    virtual bool   isPositionParam(size_t p) const { return wmesh.isPositionParam(p); }
-    virtual bool   isBlendingParam(size_t p) const { return wmesh.isBlendingParam(p); }
+    virtual vector<Real> defaultParameters() const override { return wmesh.defaultParameters(); }
+    virtual size_t               numParams() const override { return wmesh.numParams(); }
+    virtual bool  isThicknessParam(size_t p) const override { return wmesh.isThicknessParam(p); }
+    virtual bool   isPositionParam(size_t p) const override { return wmesh.isPositionParam(p); }
+    virtual bool   isBlendingParam(size_t p) const override { return wmesh.isBlendingParam(p); }
 
-    virtual MeshingOptions &meshingOptions() { return mesher.meshingOptions; }
+    virtual MeshingOptions &meshingOptions() override { return mesher.meshingOptions; }
 
     WMesh wmesh;
     PSD pattern;
     Mesher<PSD> mesher;
+protected:
+    virtual void m_setParameters(const vector<Real> &params) override { pattern.setParameters(params); }
 };
 
 void IsosurfaceInflator::inflate(const vector<Real> &params) { m_imp->inflate(params); }

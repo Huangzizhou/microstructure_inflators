@@ -77,6 +77,11 @@ struct MeshingOptions {
 
     void load(const std::string &jsonPath);
 
+    // Set nonempty to dump shape velocity debugging fields upon inflation.
+    std::string debugSVelPath;
+    // Don't inflate; instead, load pre-existing mesh.
+    std::string debugLoadMeshPath;
+
 private:
     bool    m_forceMaxBdryEdgeLen = false;
     double m_forcedMaxBdryEdgeLen = 1.0;

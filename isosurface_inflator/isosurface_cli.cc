@@ -42,6 +42,9 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
                               ("mopts,m", po::value<string>(),               " Meshing options file")
                               ("params,p", po::value<string>(),              " Pattern parameters")
                               ("nonReflectiveInflator",                      " use non-reflective inflator (reflective by default)")
+                              ("ortho_cell,O",                               " Generate the ortho cell only (for ortho-cell meshers)")
+                              ("dumpShapeVelocities,S", po::value<string>(), " Dump the shape velocities for debugging")
+                              ("loadMesh,M",            po::value<string>(), " Skip meshing process, loading existing mesh instead (for debugging)")
                               ;
 
     po::options_description cli_opts;
@@ -104,6 +107,11 @@ int main(int argc, char *argv[])
     if (args.count("mopts")) inflator.meshingOptions().load(args["mopts"].as<string>());
     if (args.count("disablePostprocessing")) inflator.disablePostprocess();
     inflator.setReflectiveInflator(args.count("nonReflectiveInflator") == 0);
+
+    if (args.count("dumpShapeVelocities")) inflator.meshingOptions().debugSVelPath = args["dumpShapeVelocities"].as<string>();
+    if (args.count("loadMesh")) inflator.meshingOptions().debugLoadMeshPath = args["loadMesh"].as<string>();
+
+    inflator.setGenerateFullPeriodCell(args.count("ortho_cell") == 0);
     inflator.inflate(params);
 
     MeshIO::save(args["outMSH"].as<string>(), inflator.vertices(), inflator.elements());

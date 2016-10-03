@@ -170,26 +170,25 @@ public:
 
         // Create smoothed union geometry around each vertex and then union
         // together
-        std::vector<Real2> incidentDists;
         Real2 dist = 1e5;
         for (size_t u = 0; u < numVertices(); ++u) {
-            incidentDists.clear();
-            for (size_t ei : m_adjEdges[u])
-                incidentDists.push_back(edgeDists.at(ei));
             // Vertex smoothness is in [0, 1],
             //      1.0: full smoothness (m_blendingParams(u))
             //      0.0: "no" smoothness (1/256.0)
             Real2 smoothness = m_blendingParams.at(u) * (1/256.0 + (1.0 - 1/256.0) * vertexSmoothness(u));
             // Transition to precise union for extremely low smoothing
-            if (smoothness > 1/256.0)
-                dist = std::min(dist, SD::exp_smin_reparam(incidentDists, smoothness));
-            else
-                dist = std::min(dist, SD::min(incidentDists));
-
-            // THIS SD::mix-BASED VERSION WAS CAUSING PROBLEMS WITH AUTODIFF
-            // Is vertexSmoothness not differentiable?
-            // dist = std::min(dist, SD::mix(SD::min(incidentDists), SD::exp_smin(incidentDists, Real2(m_blendingParams.at(u))),
-            //                      Real2(vertexSmoothness(u))));
+            if (smoothness > 1/256.0) {
+                // inlined exp_smin_reparam
+                Real2 k = 1 / smoothness;
+                Real2 smin = 0;
+                for (size_t ei : m_adjEdges[u])
+                    smin += exp(-k * edgeDists[ei]);
+                dist = std::min<Real2>(dist, -log(smin) * smoothness);
+            }
+            else {
+                for (size_t ei : m_adjEdges[u])
+                    dist = std::min<Real2>(dist, edgeDists.at(ei));
+            }
         }
 
         assert(!std::isnan(stripAdept(dist)));

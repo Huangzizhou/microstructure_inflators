@@ -16,6 +16,7 @@
 #include <vector>
 #include <memory>
 #include <stdexcept>
+#include <Future.hh>
 
 #include <PeriodicHomogenization.hh>
 #include <BaseCellType.hh>
@@ -47,8 +48,16 @@ public:
     }
 
     virtual ETensor             homogenizedElasticityTensor()                     const = 0;
-    virtual OneForm<ETensor, N> homogenizedElasticityTensorDiscreteDifferential() const = 0;
     virtual size_t              numReflectedCells()                               const = 0;
+
+    // Cache the homogenizedElasticityTensorDiscreteDifferential, since it may be needed
+    // more than once (e.g. for TensorFit and WCS shape derivatives)
+    OneForm<ETensor, N> homogenizedElasticityTensorDiscreteDifferential() const {
+        if (!m_cachedHETDD)
+            m_cachedHETDD = Future::make_unique<OneForm<ETensor, N>>(m_homogenizedElasticityTensorDiscreteDifferential());
+        assert(m_cachedHETDD);
+        return *m_cachedHETDD;
+    }
 
     // Note: tensors are only computed for elements in the base cell. E.g., for
     // the orthotropic cell case, the tensors for elements in the other
@@ -110,10 +119,13 @@ protected:
     // Needs non-const sim
     virtual void m_solveCellProblems(_Sim &sim) = 0;
     virtual VField m_solveProbeSystem(size_t ij, const VField &rhs) const = 0;
+    virtual OneForm<ETensor, N> m_homogenizedElasticityTensorDiscreteDifferential() const = 0;
 
     // Solved for by derived classes
     std::vector<VField> m_w_ij;
     const _Sim &m_sim;
+
+    mutable std::unique_ptr<OneForm<ETensor, N>> m_cachedHETDD;
 
     BaseCellType m_cellType;
 };
@@ -140,9 +152,6 @@ public:
         return PeriodicHomogenization::homogenizedElasticityTensorDisplacementForm(this->m_w_ij, this->m_sim);
     }
 
-    virtual OneForm<ETensor, N> homogenizedElasticityTensorDiscreteDifferential() const override {
-        return PeriodicHomogenization::homogenizedElasticityTensorDiscreteDifferential(this->m_w_ij, this->m_sim);
-    }
 
     virtual size_t numReflectedCells() const override { return 1; }
 
@@ -159,6 +168,10 @@ protected:
     // All probes involve the same linear system in the triply periodic case.
     virtual VField m_solveProbeSystem(size_t /* ij */, const VField &rhs) const override {
         return this->m_sim.solve(rhs);
+    }
+
+    virtual OneForm<ETensor, N> m_homogenizedElasticityTensorDiscreteDifferential() const override {
+        return PeriodicHomogenization::homogenizedElasticityTensorDiscreteDifferential(this->m_w_ij, this->m_sim);
     }
 
     template<class _S2>
@@ -185,10 +198,6 @@ public:
         return PeriodicHomogenization::Orthotropic::homogenizedElasticityTensorDisplacementForm(this->m_w_ij, this->m_sim);
     }
 
-    virtual OneForm<ETensor, N> homogenizedElasticityTensorDiscreteDifferential() const override {
-        return PeriodicHomogenization::Orthotropic::homogenizedElasticityTensorDiscreteDifferential(this->m_w_ij, this->m_sim);
-    }
-
     virtual size_t numReflectedCells() const override { return PeriodicHomogenization::Orthotropic::numReflectedCells(N); }
 
     virtual ~OrthotropicBaseCellOperations() { }
@@ -209,6 +218,10 @@ protected:
         if (ij >= flatLen(N)) throw std::runtime_error("probe condition index out of bounds");
         if (ij < N) return *m_probeSystems.at(0);
         else        return *m_probeSystems.at((ij - N) + 1);
+    }
+
+    virtual OneForm<ETensor, N> m_homogenizedElasticityTensorDiscreteDifferential() const override {
+        return PeriodicHomogenization::Orthotropic::homogenizedElasticityTensorDiscreteDifferential(this->m_w_ij, this->m_sim);
     }
 
     std::vector<std::unique_ptr<SPSDSystem<Real>>> m_probeSystems;

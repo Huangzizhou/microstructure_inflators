@@ -223,6 +223,10 @@ struct Iterate : public IterateBase {
     void evaluateObjectiveTerms(const Inflator<_N> &inflator) {
         m_evaluatedObjectiveTerms.clear();
         m_evaluatedObjectiveTerms.reserve(m_objectiveTerms.size());
+
+        std::vector<VField> svels;
+        if (inflator.isParametric()) svels = inflator.shapeVelocities(mesh());
+
         for (auto &term : m_objectiveTerms) {
             std::unique_ptr<EvaluatedObjectiveTerm> eterm;
             // Conditionally construct EvaluatedObjectiveTerm{,NLLS}
@@ -234,7 +238,7 @@ struct Iterate : public IterateBase {
                     auto enterm = Future::make_unique<EvaluatedObjectiveTermNLLS>();
                     // Fill out NLLS info
                     enterm->residualComponents = nllsTerm->residual();
-                    enterm->jacobianComponents = nllsTerm->jacobian(inflator.shapeVelocities(mesh()));
+                    enterm->jacobianComponents = nllsTerm->jacobian(svels);
                     eterm = std::move(enterm);
                 }
                 else {
@@ -248,7 +252,7 @@ struct Iterate : public IterateBase {
             eterm->normalization = term.second->normalization();
             eterm->weight        = term.second->weight();
             if (inflator.isParametric()) {
-                eterm->gradp = term.second->gradp(inflator.shapeVelocities(mesh()));
+                eterm->gradp = term.second->gradp(svels);
                 // TODO: construct parameter "mass matrix"...
                 // Normalize for unit M-norm
                 eterm->descentp = eterm->gradp;
@@ -267,6 +271,14 @@ struct Iterate : public IterateBase {
 
             IterateBase::m_evaluatedObjectiveTerms.push_back(std::move(eterm));
         }
+
+#if 0
+        if (inflator.isParametric()) {
+            MSHBoundaryFieldWriter writer("debug_svel.msh", mesh());
+            for (size_t i = 0; i < svels.size(); ++i)
+                writer.addField("svel " + std::to_string(i), svels[i], DomainType::PER_NODE);
+        }
+#endif
     }
 
     virtual void writeMeshAndFields(const std::string &path) const override {
