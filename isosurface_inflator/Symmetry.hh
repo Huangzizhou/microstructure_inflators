@@ -68,7 +68,7 @@ struct SymmetryCRTP {
     }
 };
 
-template<typename T, bool _isAutodiffType = IsAutodiffType<T>::value>
+template<typename T, bool _isAutoDiffType = IsAutoDiffType<T>::value>
 struct OptionalFMod2 {
     static void run(T &val) {
         T q = (int) (val / 2); // round toward zero

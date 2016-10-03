@@ -27,7 +27,8 @@ INCLUDES+=-I$(PYMESH_PATH)/src -I$(PYMESH_PATH)/tools
 INCLUDES+=-isystem $(TRIANGLE_INC)
 
 INCLUDES+=-isystem $(ADEPT_INC) -isystem $(VCGLIB_INC) -isystem $(DLIB_INC) \
-		  -isystem $(CGAL_INC) -isystem $(GMP_INC) -isystem $(MPFR_INC)
+		  -isystem $(CGAL_INC) -isystem $(GMP_INC) -isystem $(MPFR_INC) \
+		  $(TBB_IFLAGS)
 
 LIBS=$(BOOST_LFLAGS) $(SUITESPARSE_LFLAGS) $(CERES_LFLAGS) $(LIBMATHEVAL_LFLAGS) $(NLOPT_LFLAGS)
 LIBS+=$(CLIPPER_LFLAGS) $(TRIANGLE_LFLAGS) $(LEVMAR_LFLAGS)
@@ -36,6 +37,7 @@ LIBS+=$(PYMESH_WIRES_LFLAGS)
 ISOINFLATOR_LIBS=-L$(CGAL_LIB) -lCGAL -L$(GMP_LIB) -lgmp -L$(MPFR_LIB) -lmpfr
 ISOINFLATOR_LIBS+=-L$(ADEPT_LIB) -ladept
 LIBS+=$(ISOINFLATOR_LIBS)
+LIBS+=$(TBB_LFLAGS)
 
 ISOINFLATOR_OBS=../isosurface_inflator/IsosurfaceInflator.o \
 				../isosurface_inflator/MeshingOptions.o  \

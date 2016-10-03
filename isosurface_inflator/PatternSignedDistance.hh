@@ -194,8 +194,8 @@ public:
             }
         }
 
-        assert(!std::isnan(stripAutodiff(dist)));
-        assert(!std::isinf(stripAutodiff(dist)));
+        assert(!std::isnan(stripAutoDiff(dist)));
+        assert(!std::isinf(stripAutoDiff(dist)));
 
         return dist;
     }

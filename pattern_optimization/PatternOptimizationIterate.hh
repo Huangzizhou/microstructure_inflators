@@ -91,8 +91,10 @@ struct Iterate : public IterateBase {
         // std::cout << "Building Simulator" << std::endl;
         BENCHMARK_START_TIMER_SECTION("Homogenize");
 
+        BENCHMARK_START_TIMER("Build simulator");
         m_sim = Future::make_unique<_Sim>(inflator.elements(),
                                           inflator.vertices());
+        BENCHMARK_STOP_TIMER("Build simulator");
         // std::cout << "Done" << std::endl;
         // std::cout << "Homogenizing" << std::endl;
 
@@ -112,8 +114,10 @@ struct Iterate : public IterateBase {
             exit(-1);
         }
 
+        BENCHMARK_START_TIMER("Compute tensor");
         C = m_baseCellOps->homogenizedElasticityTensor();
         S = C.inverse();
+        BENCHMARK_STOP_TIMER("Compute tensor");
 
         // std::cout << "Done" << std::endl;
 
