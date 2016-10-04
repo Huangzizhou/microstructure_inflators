@@ -19,7 +19,7 @@ CPPFLAGS+= -DBENCHMARK
 CPPFLAGS+=-std=c++11 $(WARNING_FLAGS)
 # CPPFLAGS+=-DHAVE_NAMESPACES -DHAVE_STD # Garbage for OptPP
 ################################################################################
-INCLUDES=-I$(MeshFEM) -I$(CSGFEM) -I$(EIGEN_INC) -isystem $(SUITESPARSE_INC) -isystem $(BOOST_INC) \
+INCLUDES=-I$(MeshFEM) -I$(CSGFEM) -isystem $(EIGEN_INC) -isystem $(SUITESPARSE_INC) -isystem $(BOOST_INC) \
 		 -isystem $(CERES_INC) -isystem $(LIBMATHEVAL_INC) -isystem $(CLIPPER_INC) \
 		  -I../pattern_optimization -isystem ../Luigi/wireinflator2D/src
 
