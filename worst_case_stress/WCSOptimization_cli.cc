@@ -59,6 +59,8 @@
 #include <objective_terms/ProximityRegularization.hh>
 #include "WCSObjectiveTerm.hh"
 
+#include <Parallelism.hh>
+
 namespace po = boost::program_options;
 namespace PO = PatternOptimization;
 using namespace std;
@@ -148,9 +150,10 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description generalOptions;
     generalOptions.add_options()
-        ("help,h",                                      "Produce this help message")
-        ("output,o",     po::value<string>(),           "output mesh and fields at each iteration")
-        ("dumpShapeDerivatives"  , po::value<string>(), "Dump shape derivative fields for JVol, JS, and WCS")
+        ("help,h",                                    "Produce this help message")
+        ("output,o",             po::value<string>(), "Output mesh and fields at each iteration")
+        ("dumpShapeDerivatives", po::value<string>(), "Dump shape derivative fields for JVol, JS, and WCS")
+        ("numProcs",             po::value<size_t>(), "Number of threads to use for TBB parallelism (CGAL mesher, etc.)")
         ;
 
     po::options_description visibleOptions;
@@ -380,12 +383,24 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     BENCHMARK_REPORT();
 }
 
-int main(int argc, const char *argv[])
-{
-    cout << setprecision(16);
-
+int main(int argc, const char *argv[]) {
     po::variables_map args = parseCmdLine(argc, argv);
 
+#if HAS_TBB
+    size_t np = tbb::task_scheduler_init::default_num_threads();
+    if (args.count("numProcs")) {
+        size_t manualNP = args["numProcs"].as<size_t>();
+        if (manualNP > np)
+            std::cerr << "WARNING: specifying more than the default number of TBB threads." << std::endl;
+        np = manualNP;
+    }
+    tbb::task_scheduler_init init(np);
+#else
+    if (args.count("numProcs"))
+        std::cerr << "WARNING: parallelism disabled; numProcs argument ignored." << std::endl;
+#endif
+
+    cout << setprecision(16);
     auto job = PO::parseJobFile(args["job"].as<string>());
 
     size_t deg = args["degree"].as<size_t>();
