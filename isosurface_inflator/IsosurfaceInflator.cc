@@ -11,6 +11,7 @@
 #include <Future.hh>
 #include <filters/remove_dangling_vertices.hh>
 #include <GlobalBenchmark.hh>
+#include <Parallelism.hh>
 
 #include "AutomaticDifferentiation.hh"
 #include "WireMesh.hh"
@@ -208,15 +209,26 @@ public:
         // Scalar supporting 3D spatial gradient
         using ADScalar = Eigen::AutoDiffScalar<Vector3<Real>>;
         using Pt = Point3<ADScalar>;
+        const size_t nEvals = evalPoints.size();
 
         vector<Point> distGradX(evalPoints.size());
-        for (size_t p = 0; p < evalPoints.size(); ++p) {
+        auto evalAtPtIdx = [&](size_t p) {
             Pt x(ADScalar(evalPoints[p][0], 3, 0),
                  ADScalar(evalPoints[p][1], 3, 1),
                  ADScalar(evalPoints[p][2], 3, 2));
             ADScalar dist = pattern.signedDistance(x);
             distGradX[p]  = dist.derivatives();
-        }
+        };
+
+#if USE_TBB
+        tbb::parallel_for(
+            tbb::blocked_range<size_t>(0, nEvals),
+            [&](const tbb::blocked_range<size_t> &r) {
+                for (size_t p = r.begin(); p < r.end(); ++p) evalAtPtIdx(p);
+            });
+#else
+        for (size_t p = 0; p < nEvals; ++p) evalAtPtIdx(p);
+#endif
         return distGradX;
     }
 
@@ -230,17 +242,16 @@ public:
         const size_t nEvals = evalPoints.size(),
                     nParams = pattern.numParams();
         assert(inflatedParams.size() == nParams);
-
         vector<vector<Real>> partials(nParams, vector<Real>(nEvals));
-        PatternSignedDistance<ADScalar, WMesh> patternAutodiff(wmesh);
 
+        PatternSignedDistance<ADScalar, WMesh> patternAutodiff(wmesh);
         vector<ADScalar> params;
         params.reserve(params.size());
         for (size_t p = 0; p < nParams; ++p)
             params.emplace_back(inflatedParams[p], nParams, p);
         patternAutodiff.setParameters(params);
 
-        for (size_t e = 0; e < nEvals; ++e) {
+        auto evalAtPtIdx = [&](size_t e) {
             ADScalar sd = patternAutodiff.signedDistance(evalPoints[e].template cast<ADScalar>().eval());
             for (size_t p = 0; p < nParams; ++p) {
                 partials[p][e] = sd.derivatives()[p];
@@ -253,6 +264,15 @@ public:
                 }
             }
         };
+#if USE_TBB
+        tbb::parallel_for(
+            tbb::blocked_range<size_t>(0, nEvals),
+            [&](const tbb::blocked_range<size_t> &r) {
+                for (size_t e = r.begin(); e < r.end(); ++e) evalAtPtIdx(e);
+            });
+#else
+        for (size_t e = 0; e < nEvals; ++e) evalAtPtIdx(e);
+#endif
 
         return partials;
     }
