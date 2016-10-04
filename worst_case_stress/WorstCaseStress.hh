@@ -25,6 +25,7 @@
 #include <PeriodicHomogenization.hh>
 #include <tuple>
 #include <GlobalBenchmark.hh>
+#include <Parallelism.hh>
 
 #include "../pattern_optimization/SDConversions.hh"
 #include "../pattern_optimization/BaseCellOperations.hh"
@@ -618,8 +619,6 @@ struct IntegratedWorstCaseObjective {
         // Dilation and delta strain terms
         const auto mesh = baseCellOps.mesh();
         size_t nv = mesh.numVertices();
-        ScalarOneForm<Sim::N> delta_j(nv);
-        delta_j.clear();
 
         BENCHMARK_START_TIMER_SECTION("Adjoint Cell Problem");
         BENCHMARK_START_TIMER("Compute Tau_kl");
@@ -641,7 +640,22 @@ struct IntegratedWorstCaseObjective {
         BENCHMARK_STOP_TIMER_SECTION("Adjoint Cell Problem");
 
         BENCHMARK_START_TIMER_SECTION("Dilation and Delta strain");
-        for (auto e : mesh.elements()) {
+
+        using OF = ScalarOneForm<N>;
+        OF delta_j(nv);
+        delta_j.clear();
+
+#if USE_TBB
+        tbb::combinable<OF> sum(delta_j);
+#endif
+
+        auto accumElementContrib = [&](size_t ei) {
+            auto e = mesh.element(ei);
+#if USE_TBB
+            OF &result = sum.local();
+#else
+            OF &result = delta_j;
+#endif
             // j contribution to dilation integrand
             Real dilationIntegrand = integrand.j(wcStress(e.index()), e.index());
             const auto C = e->E();
@@ -683,7 +697,7 @@ struct IntegratedWorstCaseObjective {
                         Interpolant<Real, N, Strain::Deg> mu_grad_lam_m;
                         for (size_t i = 0; i < mu_grad_lam_m.size(); ++i)
                             mu_grad_lam_m[i] = gradLam_m.dot(glam_functional[i]);
-                        delta_j(v_m.index()) -= Quadrature<N, 2 * Strain::Deg>::
+                        result(v_m.index()) -= Quadrature<N, 2 * Strain::Deg>::
                             integrate([&](const EvalPt<N> &pt) { return
                                     (mu_grad_lam_m(pt) * gradPhi_n(pt)).eval();
                                 }, e->volume() * shearDoubler);
@@ -691,10 +705,22 @@ struct IntegratedWorstCaseObjective {
                 }
             }
             for (auto v : e.vertices()) {
-                delta_j(v.index()) += dilationIntegrand * e->volume()
+                result(v.index()) += dilationIntegrand * e->volume()
                     * e->gradBarycentric().col(v.localIndex());
             }
-        }
+        };
+
+#if USE_TBB
+        tbb::parallel_for(
+            tbb::blocked_range<size_t>(0, mesh.numElements()),
+            [&](const tbb::blocked_range<size_t> &r) {
+                for (size_t ei = r.begin(); ei < r.end(); ++ei) accumElementContrib(ei);
+            });
+        delta_j = sum.combine([](const OF &a, const OF &b) { return a + b; } );
+#else
+        for (auto e : sim.mesh().elements()) { accumElementContrib(e.index()); }
+#endif
+
         BENCHMARK_STOP_TIMER_SECTION("Dilation and Delta strain");
 
         // Gamma term
@@ -702,7 +728,7 @@ struct IntegratedWorstCaseObjective {
         {
             MinorSymmetricRank4Tensor<N> gamma = dJ_dCH(baseCellOps.sim());
             auto dCh = baseCellOps.homogenizedElasticityTensorDiscreteDifferential();
-            ScalarOneForm<N> gtermNew = compose([&](const ElasticityTensor<Real, N> &e) { return e.quadrupleContract(gamma); }, dCh);
+            OF gtermNew = compose([&](const ElasticityTensor<Real, N> &e) { return e.quadrupleContract(gamma); }, dCh);
             delta_j += gtermNew;
 
             // using ETensorSD = PH::BEHTensorGradInterpolant<Sim>;
