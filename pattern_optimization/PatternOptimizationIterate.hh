@@ -50,7 +50,9 @@ struct Iterate : public IterateBase {
     static constexpr size_t _N = _Sim::N;
 
     using ObjectiveTermPtr = std::unique_ptr<ObjectiveTerm<_N>>;
+    using ConstraintPtr    = std::unique_ptr<Constraint<_N>>;
     using ObjectiveTermMap = std::map<std::string, ObjectiveTermPtr>;
+    using ConstraintMap    = std::map<std::string, ConstraintPtr>;
 
     using IterateBase::m_params;
 
@@ -169,8 +171,6 @@ struct Iterate : public IterateBase {
           ObjectiveTerm<_N> &objectiveTerm(const std::string &name)       { return *m_objectiveTerms.at(name); }
     const ObjectiveTermMap  &objectiveTerms() const { return m_objectiveTerms; }
 
-    virtual size_t numObjectiveTerms() const override { return m_objectiveTerms.size(); }
-
     virtual std::vector<std::string> objectiveTermNames() const override {
         std::vector<std::string> names;
         for (auto &term : m_objectiveTerms) names.push_back(term.first);
@@ -181,6 +181,12 @@ struct Iterate : public IterateBase {
         if (m_objectiveTerms.count(name))
             throw std::runtime_error("Objective term '" + name + "'already added.");
         m_objectiveTerms.emplace(name, std::move(t));
+    }
+
+    void addConstraint(const std::string &name, std::unique_ptr<Constraint<_N>> c) {
+        if (m_constraints.count(name))
+            throw std::runtime_error("Constraint '" + name + "'already added.");
+        m_constraints.emplace(name, std::move(c));
     }
 
     // Estimate all (evaluated) sub-objectives at an offset point: used for
@@ -285,6 +291,20 @@ struct Iterate : public IterateBase {
 #endif
     }
 
+    void evaluateConstraints(const Inflator<_N> &inflator) {
+        std::vector<VField> svels;
+        if (inflator.isParametric()) svels = inflator.shapeVelocities(mesh());
+
+        m_evaluatedConstraints.clear();
+        for (auto &cit : m_constraints) {
+            const auto &name = cit.first;
+            const auto &c    = *cit.second;
+            IterateBase::m_evaluatedConstraints.emplace_back(
+                Future::make_unique<EvaluatedConstraint>(c.type, name,
+                    c.evaluate(), c.jacobian(svels)));
+        }
+    }
+
     virtual void writeMeshAndFields(const std::string &path) const override {
         BENCHMARK_START_TIMER_SECTION("writeMeshAndFields");
         MSHFieldWriter writer(path, m_sim->mesh());
@@ -313,11 +333,15 @@ struct Iterate : public IterateBase {
 
         for (auto &term : m_objectiveTerms)
             term.second->writeDescription(os, term.first);
-        // Evaluated objective terms know the gradient information
+        for (auto &c : m_constraints)
+            c.second->writeDescription(os, c.first);
+        // Evaluated objective terms/constraints know the gradient information
         for (auto &eterm : this->m_evaluatedObjectiveTerms)
             eterm->writeGradientDescription(os, isParametric());
+        for (auto &ec : this->m_evaluatedConstraints)
+            ec->writeGradientDescription(os, isParametric());
 
-        if (numObjectiveTerms() > 1) {
+        if (this->numObjectiveTerms() > 1) {
             os << "JFull:\t" << this->evaluate() << std::endl;
             SField gp = IterateBase::gradp();
             if (isParametric()) {
@@ -327,6 +351,8 @@ struct Iterate : public IterateBase {
             }
             os << "||grad_p JFull||:\t" << gp.norm() << std::endl;
         }
+
+        os << std::endl;
     }
 
     virtual ~Iterate() { }
@@ -338,6 +364,7 @@ protected:
     bool m_printable;
 
     ObjectiveTermMap m_objectiveTerms; 
+    ConstraintMap    m_constraints; 
 };
 
 }

@@ -6,7 +6,7 @@
 //      various optimization algorithms (objective and gradient info).
 //
 //      This is the primary interface between (parametric) optimization
-//      algorithms and the optimziation iterates.
+//      algorithms and the optimization iterates.
 */ 
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
@@ -18,6 +18,8 @@
 #include <vector>
 #include <memory>
 #include <string>
+
+namespace PatternOptimization {
 
 struct EvaluatedObjectiveTerm {
     std::string name;
@@ -105,5 +107,7 @@ struct EvaluatedObjectiveTermNLLS : public EvaluatedObjectiveTerm {
     Eigen::MatrixXd   jacobianComponents;
     virtual ~EvaluatedObjectiveTermNLLS() { }
 };
+
+}
 
 #endif /* end of include guard: EVALUATEDOBJECTIVETERM_HH */

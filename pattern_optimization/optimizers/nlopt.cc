@@ -6,20 +6,27 @@
 #include <vector>
 #include <cassert>
 
+#include "../pattern_optimization/Constraint.hh"
+
 using namespace PatternOptimization;
 
 struct NLOptState {
     NLOptState(IterateManagerBase &im) : im(im), best(std::numeric_limits<Real>::max()) { }
 
-    // TODO: how to choose when to report when there are constraints? We might
-    // have to hack the NLOpt source.
-    bool isImprovement(Real val) {
+    // TODO: When constraints are involved, the iterate can be an improvement if
+    // either infeasibility decreases or objective decreases.
+    // (Currently just always reports)
+    bool isImprovement(Real /* val */) {
+#if 0
         if (val < best) {
             best = val;
             ++niters;
             return true;
         }
         return false;
+#endif
+		++niters;
+        return true;
     }
 
     size_t niters = 0;
@@ -28,10 +35,16 @@ struct NLOptState {
     std::string outPath;
 };
 
+struct NLOptConstraintEvaluator {
+    NLOptConstraintEvaluator(NLOptState &s, size_t idx)
+        : state(s), constraintIndex(idx) { }
 
-double costFunc(const std::vector<double> &x, std::vector<double> &grad, void *optStateVoid)
-{
-    NLOptState *optState = reinterpret_cast<NLOptState *>(optStateVoid);
+    NLOptState &state;
+    size_t constraintIndex;
+};
+
+double costFunc(const std::vector<double> &x, std::vector<double> &grad, void *optStateVoid) {
+    auto optState = reinterpret_cast<NLOptState *>(optStateVoid);
     assert(optState);
 
     auto &it = optState->im.get(x.size(), &x[0]);
@@ -56,6 +69,26 @@ double costFunc(const std::vector<double> &x, std::vector<double> &grad, void *o
     return it.evaluate();
 }
 
+void constraintFunc(unsigned m, double *result, unsigned n, const double *x,
+                    double *gradient, void *cevalVoid) {
+    auto ceval = reinterpret_cast<NLOptConstraintEvaluator *>(cevalVoid);
+    assert(ceval);
+
+    auto &it = ceval->state.im.get(n, x);
+    const EvaluatedConstraint &c = it.evaluatedConstraint(ceval->constraintIndex);
+    assert(c.values.domainSize() == m);
+
+    for (size_t i = 0; i < m; ++i)
+        result[i] = c.values[i];
+
+    // Unless the gradient is requested, we are done.
+    if (gradient == NULL) return;
+
+    for (size_t i = 0; i < m; ++i)
+        for (size_t j = 0; j < n; ++j)
+            gradient[i * n + j] = c.jacobian(i, j);
+}
+
 void optimize_nlopt_slsqp(ScalarField<Real> &params,
         const PatternOptimization::BoundConstraints &bds,
         PatternOptimization::IterateManagerBase &im,
@@ -77,6 +110,24 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
     state.outPath = outPath;
     opt.set_min_objective(costFunc, (void *) &state);
 
+    // Must create iterate to query the constraints.
+    // This iterate for the initial parameters will be reused by the first
+    // optimization iteration.
+    std::vector<std::unique_ptr<NLOptConstraintEvaluator>> cevals;
+    auto &it = im.get(nParams, &params[0]);
+    for (size_t i = 0; i < it.numConstraints(); ++i) {
+        const auto &c = it.evaluatedConstraint(i);
+        const size_t m = c.dimension();
+        std::vector<Real> tol(m, 1e-4);
+        cevals.push_back(Future::make_unique<NLOptConstraintEvaluator>(state, i));
+        auto ceval = cevals.back().get();
+        switch (c.type) {
+            case ConstraintType::  EQUALITY: opt.  add_equality_mconstraint(constraintFunc, (void *) ceval, tol); break;
+            case ConstraintType::INEQUALITY: opt.add_inequality_mconstraint(constraintFunc, (void *) ceval, tol); break;
+            default: throw std::runtime_error("Unexpected constraint type");
+        }
+    }
+
     opt.set_maxeval(oconfig.niters);
     opt.set_xtol_rel(1e-16);
 
@@ -85,7 +136,7 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
     for (size_t p = 0; p < nParams; ++p)
         x[p] = params[p];
 
-    double minf;
+    double minf = 0;
     /* nlopt::result result = */ opt.optimize(x, minf);
 
     // Convert the solution back.

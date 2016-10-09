@@ -20,6 +20,7 @@ LIBS+=-L$(CGAL_LIB) -lCGAL -L$(GMP_LIB) -lgmp -L$(MPFR_LIB) -lmpfr
 LIBS+=-L$(ADEPT_LIB) -ladept
 LIBS+=$(BOOST_LFLAGS)
 LIBS+=$(TRIANGLE_LFLAGS)
+LIBS+=$(TBB_LFLAGS)
 
 # CPPFLAGS += -DCGAL_MESH_3_VERBOSE -DCGAL_MESH_3_DEBUG
 # CPPFLAGS=-O2 -DCGAL_MESH_3_VERBOSE
@@ -48,6 +49,7 @@ TestWireMesh: tests/TestWireMesh.o
 	g++ -L/usr/local/lib $^ -o $@
 
 INCLUDES+=-isystem /opt/local/include -I$(MeshFEM) -I$(CSGFEM) -isystem /opt/local/include/eigen3 -isystem $(VCGLIB_PATH) 
+INCLUDES+=$(TBB_IFLAGS)
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DBENCHMARK
 
 # Delete built-in rule, forcing ours to run

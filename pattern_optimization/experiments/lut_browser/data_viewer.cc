@@ -1048,12 +1048,13 @@ void Display()
 *///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[])
 {
-    if (argc < 2) {
-        cerr << "Usage: data_viewer dataTable [dataTable2...]" << endl;
+    if (argc < 3) {
+        cerr << "Usage: data_viewer wire_file dataTable [dataTable2...]" << endl;
         exit(-1);
     }
 
-    for (int i = 1; i < argc; ++i)
+    std::string wireFile = argv[1];
+    for (int i = 2; i < argc; ++i)
         g_dataTablePaths.emplace_back(argv[i]);
 
     // Initialize GLUT
@@ -1080,8 +1081,7 @@ int main(int argc, char *argv[])
     glutDisplayFunc(Display);
     glutReshapeFunc(Reshape);
 
-    // TODO: make pattern configurable.
-    WMesh wmesh("../../../Luigi/wireinflator2D/meshes/octa_cell.obj");
+    WMesh wmesh(wireFile);
     g_patternSignedDistance = Future::make_unique<PSD>(wmesh);
 
     // try {

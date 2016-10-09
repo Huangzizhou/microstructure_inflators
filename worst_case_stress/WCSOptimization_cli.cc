@@ -57,6 +57,7 @@
 #include <PatternOptimizationConfig.hh>
 #include <objective_terms/TensorFit.hh>
 #include <objective_terms/ProximityRegularization.hh>
+#include <constraints/TensorFit.hh>
 #include "WCSObjectiveTerm.hh"
 
 #include <Parallelism.hh>
@@ -133,6 +134,11 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ;
 
+    po::options_description constraintOptions;
+    constraintOptions.add_options()
+        ("TensorFitConstraint,C", "Enforce homogenized tensor fitting as a nonlinear equality constraint (for optimizers that support this)")
+        ;
+
     po::options_description elasticityOptions;
     elasticityOptions.add_options()
         ("material,m",   po::value<string>(),                    "Base material")
@@ -158,7 +164,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description visibleOptions;
     visibleOptions.add(patternOptions).add(meshingOptions).add(optimizerOptions)
-                  .add(objectiveOptions).add(elasticityOptions).add(gvOptions).add(generalOptions);
+                  .add(objectiveOptions).add(constraintOptions)
+                  .add(elasticityOptions).add(gvOptions).add(generalOptions);
 
     po::options_description cli_opts;
     cli_opts.add(visibleOptions).add(hidden_opts);
@@ -255,11 +262,13 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     using WCSTermConfig       = PO::ObjectiveTerms::IFConfigWorstCaseStress<Simulator>;
     using TensorFitTermConfig = PO::ObjectiveTerms::IFConfigTensorFit<Simulator>;
     using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
+    using TFConstraintConfig  = PO::   Constraints::IFConfigTensorFit<Simulator>;
 
     auto ifactory = PO::make_iterate_factory<PO::Iterate<Simulator>,
                                              WCSTermConfig,
                                              TensorFitTermConfig,
-                                             PRegTermConfig>(inflator);
+                                             PRegTermConfig,
+                                             TFConstraintConfig>(inflator);
 
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
@@ -267,6 +276,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     ifactory->WCSTermConfig      ::enabled = args["WCSWeight"].as<double>() != 0;
     ifactory->TensorFitTermConfig::enabled = args.count("JSWeight");
     ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
+    ifactory->TFConstraintConfig ::enabled = false;
 
     // Configure WCS Objective
     // By default, an "Lp norm" objective is really the p^th power of the Lp norm.
@@ -282,6 +292,12 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
         ifactory->TensorFitTermConfig::targetS = targetS;
         ifactory->TensorFitTermConfig::ignoreShear = args.count("ignoreShear");
         if (ifactory->TensorFitTermConfig::ignoreShear) cout << "Ignoring shear components" << endl;
+    }
+
+    if (args.count("TensorFitConstraint")) {
+        ifactory->TFConstraintConfig::enabled     = true;
+        ifactory->TFConstraintConfig::targetS     = targetS;
+        ifactory->TFConstraintConfig::ignoreShear = args.count("ignoreShear");
     }
 
     if (args.count("proximityRegularizationWeight")) {
@@ -326,10 +342,11 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
                 << " outside parameter range of " << prlb << ":" << prub << std::endl;
         }
 
-        params[compIdx] = lb; // make dummy iterate below actually 0th iterate.
+        params[compIdx] = lb; // make dummy iterate (actually 0th iterate, will be reused)
+        inflator.meshingOptions().debugSVelPath = "svels.msh";
         cout << "it\tparam\tJFull\tgradp JFull";
         {
-            auto &it = imanager->get(params.size(), params.data());
+            const auto &it = imanager->get(params.size(), params.data());
             for (const auto &etermptr : it.evaluatedObjectiveTerms())
                 cout << "\t" << etermptr->name << "\tgradp " << etermptr->name;
         }

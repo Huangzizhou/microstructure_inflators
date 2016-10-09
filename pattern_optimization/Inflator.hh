@@ -21,6 +21,7 @@
 
 #include <Fields.hh>
 #include <BaseCellType.hh>
+#include "../isosurface_inflator/MeshingOptions.hh"
 
 // Meta parameters are for EqualityConstrainedInflator
 enum class ParameterType { Thickness, Offset, Blending, Meta };
@@ -89,6 +90,9 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     virtual void loadMeshingOptions(const std::string &/* moptsPath */) {
         throw std::runtime_error("This inflator doesn't support meshing options files");
+    }
+    virtual MeshingOptions &meshingOptions() {
+        throw std::runtime_error("This inflator doesn't support MeshingOptions");
     }
 
     virtual void setMaxElementVolume(Real /* maxElementVol */) { throw std::runtime_error("Unimplemented"); }

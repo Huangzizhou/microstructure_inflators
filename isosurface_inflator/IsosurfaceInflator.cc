@@ -422,7 +422,14 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
         dumbSnap3D(vertices, meshCell, opts.facetDistance);
     }
     BBox<Point3D> snappedBB(vertices);
+    if (N == 2) {
+        // We don't care about the z-depth of the bounding box
+        snappedBB.minCorner[2] = meshCell.minCorner[2];
+        snappedBB.maxCorner[2] = meshCell.maxCorner[2];
+    }
     if (snappedBB != meshCell) {
+        std::cerr << "snappedBB: " << snappedBB << std::endl;
+        std::cerr << "meshCell: " << meshCell << std::endl;
         std::cerr << "Failed to snap mesh. Dumping debug.msh" << std::endl;
         MeshIO::save("debug.msh", vertices, elements);
         throw std::runtime_error("Snapping failed.");

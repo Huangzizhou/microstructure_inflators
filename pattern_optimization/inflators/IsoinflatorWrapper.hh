@@ -55,6 +55,8 @@ public:
     virtual void setMaxElementVolume(Real maxElementVol) override;
     virtual void setReflectiveInflator(bool use) override { if (!use) throw std::runtime_error("IsosurfaceInflator is always reflective."); }
 
+    virtual MeshingOptions &meshingOptions() override;
+
     virtual void setOrthoBaseCell(bool ortho) override;
     virtual BaseCellType baseCellType() const override;
 

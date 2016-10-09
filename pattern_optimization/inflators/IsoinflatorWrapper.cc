@@ -94,6 +94,9 @@ template<size_t N>
 void IsoinflatorWrapper<N>::loadMeshingOptions(const std::string &moptsPath) { m_inflator->meshingOptions().load(moptsPath); }
 
 template<size_t N>
+MeshingOptions &IsoinflatorWrapper<N>::meshingOptions() { return m_inflator->meshingOptions(); }
+
+template<size_t N>
 void IsoinflatorWrapper<N>::setMaxElementVolume(Real maxElementVol)
 {
     if (N == 2) m_inflator->meshingOptions().maxArea = maxElementVol;

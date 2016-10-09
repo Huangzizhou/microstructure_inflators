@@ -35,6 +35,8 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
     using SField = ScalarField<Real>;
     using ETensor = ElasticityTensor<Real, N>;
     using VField = VectorField<Real, N>;
+    using LI = LinearIndexer<ETensor>;
+
     template<class _Iterate>
     TensorFit(const ETensor &targetS, const _Iterate &it) : m_baseCellOps(it.baseCellOps()) {
         const auto S = it.complianceTensor();
@@ -70,10 +72,9 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         }
 #endif
 
-        using LI = LinearIndexer<ETensor>;
         for (size_t i = 0; i < LI::size(); ++i) {
             m_component_differentials.push_back(
-                    compose([&](const ETensor &e) { return LI::index(e, i); }, dShBdry));
+                    compose([&](const ETensor &e) { return weightedETensorEntry(e, i); }, dShBdry));
         }
         BENCHMARK_STOP_TIMER_SECTION("Convert");
     }
@@ -83,7 +84,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
     bool ignoringShear() const { return m_ignoreShear; }
     void setIgnoreShear(bool ignore) { m_ignoreShear = ignore; }
 
-    static constexpr size_t numResiduals() { return LinearIndexer<ETensor>::size(); }
+    static constexpr size_t numResiduals() { return LI::size(); }
 
 	// The (ij, kl)th residual (kl >= ij) for the nonlinear least squares (a
     // single term of the Frobenius distance). The terms are weighted so
@@ -91,22 +92,8 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
     // Frobenius norm of the rank 4 tensor difference S - S^*.
     virtual SField residual() const override {
         SField result(numResiduals());
-        for (size_t r = 0; r < numResiduals(); ++r) {
-            size_t ij, kl;
-            LinearIndexer<ETensor>::linearIndexTo2D(r, ij, kl);
-            assert(kl >= ij);
-            Real weight = 1.0;
-            if (kl != ij) weight *= sqrt(2); // Account for lower triangle
-            if (ignoringShear()) {
-                if (ij >= N) weight = 0.0; // Zero out shear components
-                if (kl >= N) weight = 0.0; // Zero out shear components
-            }
-            else {
-                if (ij >= N) weight *= sqrt(2); // Left shear doubler
-                if (kl >= N) weight *= sqrt(2); // Right shear doubler
-            }
-            result[r] = weight * m_diffS.D(ij, kl);
-        }
+        for (size_t r = 0; r < numResiduals(); ++r)
+            result(r) = weightedETensorEntry(m_diffS, r);
 
         return result;
     }
@@ -118,23 +105,31 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         const size_t np = bdrySVels.size();
         Eigen::MatrixXd result(numResiduals(), np);
         for (size_t p = 0; p < np; ++p) {
-            for (size_t r = 0; r < numResiduals(); ++r) {
-                size_t ij, kl;
-                LinearIndexer<ETensor>::linearIndexTo2D(r, ij, kl);
-                Real weight = 1.0;
-                if (kl != ij) weight *= sqrt(2); // Account for lower triangle
-                if (ignoringShear()) {
-                    if (ij >= N) weight = 0.0; // Zero out shear components
-                    if (kl >= N) weight = 0.0; // Zero out shear components
-                }
-                else {
-                    if (ij >= N) weight *= sqrt(2); // Left shear doubler
-                    if (kl >= N) weight *= sqrt(2); // Right shear doubler
-                }
-                result(r, p) = weight * m_component_differentials.at(r)[bdrySVels[p]];
-            }
+            for (size_t r = 0; r < numResiduals(); ++r)
+                result(r, p) = m_component_differentials.at(r)[bdrySVels[p]];
         }
         return result;
+    }
+
+    // Weight each term of each term of (linearly indexed) tensor e so that the
+    // squared norm of the resulting vector corresponds to the Frobenius norm of
+    // e. (Also, the shear components of e can optionally be zeroed out).
+    Real weightedETensorEntry(const ETensor &e, size_t i) const {
+        size_t ij, kl;
+        LI::linearIndexTo2D(i, ij, kl);
+        assert(kl >= ij);
+
+        Real weight = 1.0;
+        if (kl != ij) weight *= sqrt(2); // Account for lower triangle
+        if (ignoringShear()) {
+            if (ij >= N) weight = 0.0; // Zero out shear components
+            if (kl >= N) weight = 0.0; // Zero out shear components
+        }
+        else {
+            if (ij >= N) weight *= sqrt(2); // Left shear doubler
+            if (kl >= N) weight *= sqrt(2); // Right shear doubler
+        }
+        return weight * e.D(ij, kl);
     }
 
     virtual void writeFields(MSHFieldWriter &writer) const override {

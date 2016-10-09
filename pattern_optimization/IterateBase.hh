@@ -17,11 +17,13 @@
 
 #include <Fields.hh>
 #include "EvaluatedObjectiveTerm.hh"
+#include "EvaluatedConstraint.hh"
 
 namespace PatternOptimization {
 
 struct IterateBase {
     using EOTPtr = std::unique_ptr<EvaluatedObjectiveTerm>;
+    using  ECPtr = std::unique_ptr<EvaluatedConstraint>;
 
     using SField = ScalarField<Real>;
     // parametricOptimization: whether we're running a lower-dimensional
@@ -38,15 +40,30 @@ struct IterateBase {
         throw std::runtime_error("Objective term not found: " + name);
     }
 
+    const EvaluatedConstraint &evaluatedConstraint(const std::string &name) const {
+        for (const auto &c : m_evaluatedConstraints)
+            if (c->name == name) return *c;
+        throw std::runtime_error("Constraint not found: " + name);
+    }
+
     const EvaluatedObjectiveTerm &evaluatedObjectiveTerm(size_t i) const {
         return *m_evaluatedObjectiveTerms.at(i);
+    }
+
+    const EvaluatedConstraint &evaluatedConstraint(size_t i) const {
+        return *m_evaluatedConstraints.at(i);
     }
 
     const std::vector<EOTPtr> &evaluatedObjectiveTerms() const {
         return m_evaluatedObjectiveTerms;
     }
 
+    const std::vector<ECPtr> &evaluatedConstraints() const {
+        return m_evaluatedConstraints;
+    }
+
     virtual size_t numObjectiveTerms() const { return m_evaluatedObjectiveTerms.size(); }
+    virtual size_t numConstraints()    const { return m_evaluatedConstraints.size(); }
 
     ////////////////////////////////////////////////////////////////////////////
     // Full objective parametric gradient and steepest descent: linear
@@ -107,6 +124,7 @@ protected:
 
     // Filled out by subclass
     std::vector<EOTPtr> m_evaluatedObjectiveTerms;
+    std::vector< ECPtr> m_evaluatedConstraints;
 };
 
 }

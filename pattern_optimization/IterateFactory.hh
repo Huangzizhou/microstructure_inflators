@@ -34,9 +34,9 @@
 namespace PatternOptimization {
 
 // IterateFactory Configurations:
-// These add objective terms to the iterate. The objectives can be configured
-// by setting the corresponding public member variables inherited into the
-// factory class.
+// IFConfig suclasses add objective terms/constraints to the iterate. These can
+// be configured by setting the corresponding public member variables inherited
+// into the factory class.
 // E.g.:
 //  factory.IFConfigTargetVolume::enabled = true;
 //  factory.IFConfigTargetVolume::targetVolume = 1.0;
@@ -123,6 +123,7 @@ struct IterateFactory : public IFConfigs... {
         // We actually created a new iterate--configure it accordingly.
         IFApplyConfigs<IFConfigs...>::apply(this, newIterate, m_normalizations);
         newIterate->evaluateObjectiveTerms(m_inflator);
+        newIterate->evaluateConstraints(m_inflator);
 
         // // Write debug steepest descent field
         // {
