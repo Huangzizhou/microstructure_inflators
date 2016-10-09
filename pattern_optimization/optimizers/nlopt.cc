@@ -16,7 +16,19 @@ struct NLOptState {
     // TODO: When constraints are involved, the iterate can be an improvement if
     // either infeasibility decreases or objective decreases.
     // (Currently just always reports)
-    bool isImprovement(Real /* val */) {
+    bool isImprovement(Real /* val */, const std::vector<Real> &params) {
+        bool differ = true;
+        if (prevParams.size() == params.size()) {
+            differ = false;
+            for (size_t i = 0; i < params.size(); ++i) {
+                if (std::abs(prevParams[i] - params[i]) > 1e-9) {
+                    differ = true;
+                    break;
+                }
+            }
+        }
+        prevParams = params;
+        if (!differ) return false;
 #if 0
         if (val < best) {
             best = val;
@@ -28,6 +40,8 @@ struct NLOptState {
 		++niters;
         return true;
     }
+
+    std::vector<Real> prevParams;
 
     size_t niters = 0;
     IterateManagerBase &im;
@@ -58,7 +72,7 @@ double costFunc(const std::vector<double> &x, std::vector<double> &grad, void *o
     }
 
     Real val = it.evaluate();
-    if (optState->isImprovement(val)) {
+    if (optState->isImprovement(val, x)) {
         it.writeDescription(std::cout);
         std::cout << std::endl;
         if (optState->outPath != "")
@@ -118,6 +132,7 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
     for (size_t i = 0; i < it.numConstraints(); ++i) {
         const auto &c = it.evaluatedConstraint(i);
         const size_t m = c.dimension();
+        // TODO: change to 1e-2
         std::vector<Real> tol(m, 1e-4);
         cevals.push_back(Future::make_unique<NLOptConstraintEvaluator>(state, i));
         auto ceval = cevals.back().get();
