@@ -41,6 +41,7 @@ struct EvaluatedConstraint {
             os << "jacobian " << name << " row norms:";
             for (int i = 0; i < jacobian.rows(); ++i)
                 os << '\t' << jacobian.row(i).norm();
+            os << std::endl;
             // os << "jacobian " << name << ":\t" << std::endl;
             // os << jacobian << std::endl;
         }

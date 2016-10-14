@@ -13,29 +13,29 @@ struct ProximityRegularization : public NLLSObjectiveTerm<N> {
     using VField = VectorField<Real, N>;
 
     ProximityRegularization(const std::vector<Real> &p,
-                            const std::vector<Real> &initialParams)
-        : m_currParams(p), m_initParams(initialParams) { }
+                            const std::vector<Real> &targetParams)
+        : m_currParams(p), m_targetParams(targetParams) { }
 
     virtual SField gradp(const std::vector<VField> &/*bdrySVels*/) const {
         SField result(m_currParams);
-        result -= m_initParams;
+        result -= m_targetParams;
         result *= this->m_weight;
         return result;
     }
 
-    virtual Real evaluate() const { return (this->m_weight / 2.0) * (m_initParams.values() - m_currParams.values()).squaredNorm(); }
+    virtual Real evaluate() const { return (this->m_weight / 2.0) * (m_targetParams.values() - m_currParams.values()).squaredNorm(); }
 
     virtual SField residual() const {
-        size_t nParams = m_initParams.domainSize();
+        size_t nParams = m_targetParams.domainSize();
         SField result(nParams);
         Real sqrtWeight = std::sqrt(this->m_weight);
         for (size_t i = 0; i < nParams; ++i)
-            result[i] = sqrtWeight * (m_currParams[i] - m_initParams[i]);
+            result[i] = sqrtWeight * (m_currParams[i] - m_targetParams[i]);
         return result;
     }
 
     virtual Eigen::MatrixXd jacobian(const std::vector<VField> &/*bdrySVels*/) const {
-        size_t nParams = m_initParams.domainSize();
+        size_t nParams = m_targetParams.domainSize();
         Eigen::MatrixXd result(nParams, nParams);
         result.setIdentity();
         result *= std::sqrt(this->m_weight);
@@ -45,7 +45,7 @@ struct ProximityRegularization : public NLLSObjectiveTerm<N> {
     virtual ~ProximityRegularization() { }
 
 private:
-    SField m_currParams, m_initParams;
+    SField m_currParams, m_targetParams;
 };
 
 // Configuration to be applied by iterate factory
@@ -55,14 +55,14 @@ struct IFConfigProximityRegularization : public IFConfig {
         if (!normalizations.isSet("ProximityRegularization"))
             normalizations.set("ProximityRegularization", 1.0); // TODO? Base on parameter range?
 
-        auto pr = Future::make_unique<ProximityRegularization<_Iterate::_N>>(it->params(), initParams);
+        auto pr = Future::make_unique<ProximityRegularization<_Iterate::_N>>(it->params(), targetParams);
         pr->setWeight(weight);
 
         pr->setNormalization(normalizations["ProximityRegularization"]);
         it->addObjectiveTerm("ProximityRegularization", std::move(pr));
     }
     Real weight = 0.0;
-    std::vector<Real> initParams;
+    std::vector<Real> targetParams;
 };
 
 

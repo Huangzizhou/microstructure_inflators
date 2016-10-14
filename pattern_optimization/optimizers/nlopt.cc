@@ -132,8 +132,7 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
     for (size_t i = 0; i < it.numConstraints(); ++i) {
         const auto &c = it.evaluatedConstraint(i);
         const size_t m = c.dimension();
-        // TODO: change to 1e-2
-        std::vector<Real> tol(m, 1e-4);
+        std::vector<Real> tol(m, 1e-2);
         cevals.push_back(Future::make_unique<NLOptConstraintEvaluator>(state, i));
         auto ceval = cevals.back().get();
         switch (c.type) {

@@ -399,7 +399,7 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     BENCHMARK_START_TIMER("SnapAndDetermineEvaluationPts");
     vector<vector<bool>> onMinFace, onMaxFace;
 
-    using SMesh = SimplicialMesh_t<N>;
+    using SMesh = SimplicialMesh<N>;
     std::unique_ptr<SMesh> bcm;
     try {
         bcm = Future::make_unique<SMesh>(elements, vertices.size());

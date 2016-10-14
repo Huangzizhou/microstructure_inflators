@@ -131,6 +131,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
         ("JSWeight",     po::value<double>(),                             "Use the NLLS tensor fitting term with specified weight.")
         ("proximityRegularizationWeight", po::value<double>(),            "Use a quadratic proximity regularization term with the specified weight.")
+        ("proximityRegularizationTarget", po::value<string>(),            "The target parameter values for the proximity regularization term (defaults to initial parameters.)")
         ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ;
 
@@ -242,17 +243,19 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
-    // If requested, override the initial parameters set in the job file
-    if (args.count("params")) {
-        string paramString = args["params"].as<string>();
-        boost::trim(paramString);
-        std::vector<string> pStrings;
-        boost::split(pStrings, paramString, boost::is_any_of("\t "),
+    auto parseParams = [](string pstring) -> vector<Real> {
+        boost::trim(pstring);
+        vector<string> tokens;
+        boost::split(tokens, pstring, boost::is_any_of("\t "),
                      boost::token_compress_on);
-        job->initialParams.clear();
-        for (const auto &p : pStrings)
-            job->initialParams.push_back(std::stod(p));
-    }
+        vector<Real> pvals;
+        for (string &s : tokens) pvals.push_back(std::stod(s));
+        return pvals;
+    };
+
+    // If requested, override the initial parameters set in the job file
+    if (args.count("params"))
+        job->initialParams = parseParams(args["params"].as<string>());
 
     SField params = job->validatedInitialParams(inflator);
 
@@ -301,8 +304,13 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     }
 
     if (args.count("proximityRegularizationWeight")) {
-        ifactory->PRegTermConfig::initParams = job->initialParams;
-        ifactory->PRegTermConfig::weight     = args["proximityRegularizationWeight"].as<double>();
+        ifactory->PRegTermConfig::weight = args["proximityRegularizationWeight"].as<double>();
+        ifactory->PRegTermConfig::targetParams = job->initialParams;
+        if (args.count("proximityRegularizationTarget")) {
+            ifactory->PRegTermConfig::targetParams = parseParams(args["proximityRegularizationTarget"].as<string>());
+            if (ifactory->PRegTermConfig::targetParams.size() != job->initialParams.size())
+                throw runtime_error("Invalid proximity regularization target parameter count");
+        }
     }
 
     auto imanager = make_iterate_manager(std::move(ifactory));

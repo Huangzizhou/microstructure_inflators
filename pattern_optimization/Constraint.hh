@@ -65,6 +65,7 @@ struct Constraint {
     virtual void writeDescription(std::ostream &os, const std::string &name) const {
         os << name << " violation:\t";
         evaluate().print(os, "", "", "", "\t");
+        os << std::endl;
         writeContinuousGradientInfo(os, name);
     }
 

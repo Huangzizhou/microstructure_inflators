@@ -196,9 +196,9 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     if (ifactory->ignoreShear) cout << "Ignoring shear components" << endl;
     ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled = false;
     if (args.count("proximityRegularizationWeight")) {
-        ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled    = true;
-        ifactory->ObjectiveTerms::IFConfigProximityRegularization::initParams = job->initialParams;
-        ifactory->ObjectiveTerms::IFConfigProximityRegularization::weight     = args["proximityRegularizationWeight"].as<double>();
+        ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled      = true;
+        ifactory->ObjectiveTerms::IFConfigProximityRegularization::targetParams = job->initialParams;
+        ifactory->ObjectiveTerms::IFConfigProximityRegularization::weight       = args["proximityRegularizationWeight"].as<double>();
     }
     ifactory->targetS = targetS;
 
