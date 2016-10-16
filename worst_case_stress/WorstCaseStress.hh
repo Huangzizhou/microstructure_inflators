@@ -49,9 +49,10 @@ using MinorSymmetricRank4TensorField = std::vector<MinorSymmetricRank4Tensor<N>>
 //      2) von Mises
 //      3) Max stress
 // (1) and (2) are identical except (2) measures deviatoric micro stress.
-// This means that for (2) F maps macro stress to deviatoric micro stress, and
-// Cbase is really Dev : Cbase where Dev is the linear stress -> deviatoric
-// stress map (I_4 - 1/3 I_2 tr).
+// This means that for (2) F maps macro stress to appropriately (scaled)
+// deviatoric micro stress, and Cbase is really V : Cbase, where V is the
+// linear stress -> "von Mises stress tensor" map. (For 2D, this differs from
+// the Deviatoric stress, as described in $CSGFEM/VonMises.hh.
 //
 // The max stress case (3) is the same as (1), except rank 4 tensor
 // eigenvectors are and their eigenvalue are found (instead of eigenstrains).
@@ -149,7 +150,10 @@ struct WorstCaseStress {
     ////////////////////////////////////////////////////////////////////////////
     // Public data members
     ////////////////////////////////////////////////////////////////////////////
-    ElasticityTensor<Real, N> Cbase, Sh;
+    ElasticityTensor<Real, N> Sh;
+    // For the worst-case von Mises analysis, Cbase maps strain to "von Mises
+    // stress." I.e. "Cbase = C
+    ElasticityTensor<Real, N> Cbase;
     // Per-element macro->micro {stress, deviatoric stress} map.
     // See Worst Case Microstructure writeup for details.
     MinorSymmetricRank4TensorField<N> F, G;
@@ -169,7 +173,7 @@ WorstCaseStress<N> worstCaseFrobeniusStress(
     result.Sh = Sh;
     result.G = m2mStrain;
 
-    size_t numElems = m2mStrain.size();
+    const size_t numElems = m2mStrain.size();
 
     // macro -> micro stress tensor map
     result.F.reserve(numElems);
@@ -200,6 +204,10 @@ WorstCaseStress<N> worstCaseVonMisesStress(
         const MinorSymmetricRank4TensorField<N> &m2mStrain)
 {
     WorstCaseStress<N> result;
+    result.Cbase = Cbase;
+    result.Sh = Sh;
+    result.G = m2mStrain;
+
     // TODO
     throw std::runtime_error("Deviatoric stress extractor unimplemented");
     return worstCaseFrobeniusStress(/* DeviatoricExtractor.doubleContract( */ Cbase /* ) */,
@@ -273,28 +281,6 @@ struct IntegratedWorstCaseObjective {
         return result;
     }
 
-    // Compute the Eulerian derivative of the integrand at each element given
-    // the per-element Eulerian derivative of fluctuation strains, dot_we.
-    // NOTE: this is *NOT* scaled to account for possible reflected base cell
-    // copies (computes just the pointwise value).
-    ScalarField<Real> integrandEulerianDerivative(
-            const std::vector<SMF> &dot_we) const {
-        size_t numElems = wcStress.size();
-        ScalarField<Real> result(numElems);
-        result.clear();
-        SMF tau;
-        for (size_t kl = 0; kl < dot_we.size(); ++kl) {
-            assert(dot_we[kl].domainSize() == numElems);
-            tau_kl(kl, tau);
-            for (size_t i = 0; i < numElems; ++i) {
-                // Sum is only over the "upper triangle" of integrands
-                Real shearDoubler = (kl >= N) ? 2.0 : 1.0;
-                result[i] += shearDoubler * (tau(i).doubleContract(dot_we[kl](i)));
-            }
-        }
-        return result;
-    }
-
     // Sensitivity of global objective integrand to cell problem fluctuation
     // strains (rank 2 tensor field tau^kl in the writeup).
     // NOTE: this is *NOT* scaled to account for possible reflected base cell
@@ -303,228 +289,6 @@ struct IntegratedWorstCaseObjective {
         wcStress.sensitvityToCellStrain(kl, result);
         for (size_t e = 0; e < wcStress.size(); ++e)
             result(e) *= integrand.j_prime(wcStress(e), e);
-    }
-
-    // Per-boundary-element interpolant to be integrated against normal shape
-    // velocity to evaluate the shape derivative. This can be interpreted as
-    // the objective's steepest ascent normal velocity field:
-    //      j - strain(lambda^pq) : C : [strain(w^pq) + e^pq]
-    //              + jShapeDependenceViaCh
-    template<class Sim>
-    using StrainEnergyBdryInterpolant = Interpolant<Real, Sim::K - 1, 2 * Sim::Strain::Deg>;
-    template<class Sim>
-    auto gradient(const Sim &sim,
-                  const std::vector<VectorField<Real, N>> &w) const
-    -> std::vector<StrainEnergyBdryInterpolant<Sim>>
-    {
-        BENCHMARK_START_TIMER("WCS shape derivative");
-        using Strain = typename Sim::Strain;
-        using BdryStrain = Interpolant<typename Sim::SMatrix, Sim::K - 1, Strain::Deg>;
-
-        const auto &mesh = sim.mesh();
-
-        std::vector<VectorField<Real, N>> lambda;
-        m_solveAdjointCellProblems(sim, lambda);
-
-        std::vector<StrainEnergyBdryInterpolant<Sim>> result(mesh.numBoundaryElements());
-        for (auto e : mesh.elements()) {
-            if (!e.isBoundary()) continue;
-            const auto C = e->E();
-            for (auto f : e.interfaces()) {
-                auto be = mesh.boundaryElement(f.boundaryEntity().index());
-                if (!be) continue;
-                auto &r = result.at(be.index());
-                if (be->isInternal) { r = 0; continue; }
-                r = integrand.j(wcStress(e.index()), e.index());
-                for (size_t pq = 0; pq < flatLen(N); ++pq) {
-                    // Sum is only over the "upper triangle" of integrands
-                    Real shearDoubler = (pq >= Sim::N) ? 2.0 : 1.0;
-
-                    Strain strain_lambda, strain_w;
-                    BdryStrain strain_lambda_bdry, strain_u_bdry;
-                    e->strain(e, lambda[pq], strain_lambda);
-                    e->strain(e,      w[pq], strain_w);
-
-                    restrictInterpolant(e, be, strain_lambda, strain_lambda_bdry);
-                    restrictInterpolant(e, be, strain_w,      strain_u_bdry     );
-                    strain_u_bdry += Sim::SMatrix::CanonicalBasis(pq);
-                    r -= Interpolation<Sim::K - 1, 2 * Strain::Deg>::interpolant(
-                            [&] (const VectorND<Simplex::numVertices(Sim::K - 1)> &p) {
-                                return ( C.doubleContract(strain_lambda_bdry(p))
-                                          .doubleContract(strain_u_bdry(p)) ) * shearDoubler;
-                            });
-                }
-            }
-        }
-
-        // Add in term accounting for j's shape dependence via C^H
-        auto gamma_dCh = jShapeDependenceViaCh(sim, w);
-        for (auto be : mesh.boundaryElements())
-            result[be.index()] += gamma_dCh[be.index()];
-
-        BENCHMARK_STOP_TIMER("WCS shape derivative");
-
-        if (numReflectedCopies != 1) result *= Real(numReflectedCopies);
-        return result;
-    }
-
-    // Compute the pointwise (Eulerian) derivative of integrand j(wcs) due to a
-    // normal shape velocity vn:
-    //      tau^kl : strain(wdot^kl[vn]) + 2 * j' * sigma : F^T : C^Base : G : dS^H[vn] : sigma
-    // NOTE: *NOT* scaled to account for possible reflected base cell copies
-    template<class Sim, class _NormalShapeVelocity>
-    ScalarField<Real> directIntegrandDerivative(const Sim &sim,
-                                                const std::vector<VectorField<Real, N>> &w,
-                                                const std::vector<VectorField<Real, N>> &dot_w,
-                                                const _NormalShapeVelocity &vn) const {
-        const auto &mesh = sim.mesh();
-        ScalarField<Real> result(mesh.numElements());
-        result.clear();
-        // Compute the tau term contribution to each element
-        SMF tau, dot_w_kl_strain;
-        for (size_t kl = 0; kl < dot_w.size(); ++kl) {
-            tau_kl(kl, tau);
-            // Sum is only over the "upper triangle" of integrands
-            Real shearDoubler = (kl >= Sim::N) ? 2.0 : 1.0;
-            dot_w_kl_strain = sim.averageStrainField(dot_w[kl]);
-            for (auto e : mesh.elements()) {
-                result[e.index()] += shearDoubler * (tau(e.index())
-                              .doubleContract(dot_w_kl_strain(e.index())));
-            }
-        }
-
-        // Compute variation of Ch
-        auto sdCh = PH::homogenizedElasticityTensorGradient(w, sim);
-        ElasticityTensor<Real, N> dCh_vn;
-        for (auto be : mesh.boundaryElements()) {
-            const auto &vnb = vn[be.index()]; const auto &sdb = sdCh[be.index()];
-            using  SDInterp = typename std::decay<decltype(sdCh[0])>::type;
-            using NSVInterp = typename std::decay<decltype(  vn[0])>::type;
-            dCh_vn += Quadrature<SDInterp::K, SDInterp::Deg + NSVInterp::Deg>::
-                integrate([&] (const EvalPt<SDInterp::K> &pt) {
-                    return vnb(pt) * sdb(pt);
-                }, be->volume());
-        }
-
-        // Compute variation of Sh
-        auto dSh_vn = wcStress.Sh.doubleDoubleContract(dCh_vn);
-        dSh_vn *= -1.0;
-
-        // Compute the dSh term contribution to each element
-        for (auto e : mesh.elements()) {
-            // sigma : F^T : C^Base : G : dSh[vn] : sigma
-            // = (F : sigma) : (C^Base : G : dSh[vn] : sigma)
-            //   MicroStress              dMicroStress
-            size_t ei = e.index();
-            auto microStress = wcStress.F[ei].doubleContract(wcStress.wcMacroStress(ei));
-            auto dMicroStress = wcStress.Cbase.doubleContract(
-                            wcStress.G[ei].doubleContract(
-                                dSh_vn.doubleContract(wcStress.wcMacroStress(ei))));
-            Real dShTerm = 2 * integrand.j_prime(wcStress(ei), ei)
-                             * microStress.doubleContract(dMicroStress);
-            result[e.index()] += dShTerm;
-        }
-
-        return result;
-    }
-
-    // Direct (non-adjoint) evaluation of objective's shape derivative on
-    // normal velocity field vn:
-    //  int_vol tau^kl : strain(wdot^kl) dV + int_bdry vn * j dA
-    template<class Sim, class _NormalShapeVelocity>
-    Real directDerivative(const Sim &sim,
-                          const std::vector<VectorField<Real, N>> &w,
-                          const _NormalShapeVelocity &vn) const {
-        std::vector<VectorField<Real, N>> dot_w;
-        PH::fluctuationDisplacementShapeDerivatives(sim, w, vn, dot_w /* ,
-                WCStressOptimization::Config::get().projectOutNormalStress */);
-        assert(dot_w.size() == w.size());
-
-        const auto &mesh = sim.mesh();
-
-        Real advectionTerm = 0;
-        // Assumes j is piecewise constant!
-        // TODO: implement boundary element->element map in FEMMesh to simplify
-        for (auto e : mesh.elements()) {
-            if (!e.isBoundary()) continue;
-            Real jval = integrand.j(wcStress(e.index()), e.index());
-            for (auto f : e.interfaces()) {
-                auto be = mesh.boundaryElement(f.boundaryEntity().index());
-                if (!be) continue;
-                if (be->isInternal) continue;
-                advectionTerm += vn[be.index()].integrate(be->volume()) * jval;
-            }
-        }
-
-#if 0
-        Real dotKLTerm = 0;
-        SMF tau, dot_w_kl_strain;
-        for (size_t kl = 0; kl < dot_w.size(); ++kl) {
-            tau_kl(kl, tau);
-            // Sum is only over the "upper triangle" of integrands
-            Real shearDoubler = (kl >= Sim::N) ? 2.0 : 1.0;
-            dot_w_kl_strain = sim.averageStrainField(dot_w[kl]);
-            for (auto e : mesh.elements()) {
-                dotKLTerm += shearDoubler * e->volume() * (tau(e.index())
-                                .doubleContract(dot_w_kl_strain(e.index())));
-            }
-        }
-
-        // std::cout << dotKLTerm << '\t' << advectionTerm << '\t';
-
-        Real jDirectTerm = 0;
-        auto int_dj_domega = jShapeDependenceViaCh(sim, w);
-        using  SDInterp = typename std::decay<decltype(int_dj_domega[0])>::type;
-        using NSVInterp = typename std::decay<decltype(           vn[0])>::type;
-        static_assert(SDInterp::K == NSVInterp::K, "Invalid boundary interpolant simplex dimension");
-
-        for (auto be : mesh.boundaryElements()) {
-            const auto &vnb = vn[be.index()];
-            const auto &sdb = int_dj_domega[be.index()];
-            jDirectTerm += Quadrature<SDInterp::K, SDInterp::Deg + NSVInterp::Deg>::
-                integrate([&] (const VectorND<be.numVertices()> &pt) {
-                    return vnb(pt) * sdb(pt);
-                }, be->volume());
-        }
-        return advectionTerm + dotKLTerm + jDirectTerm;
-#endif
-        ScalarField<Real> dj = directIntegrandDerivative(sim, w, dot_w, vn);
-        Real result = advectionTerm;
-        for (auto e : mesh.elements())
-            result += dj[e.index()] * e->volume();
-        return numReflectedCopies * result;
-    }
-
-    // Partial ``shape derivative'' of objective J, considering only the effect
-    // of the changing homogenized elaticity tensor. In term of the writeup,
-    // this is:
-    //      gamma : dC^H[v]
-    // NOTE: this is *NOT* scaled to account for possible reflected base cell
-    // copies (i.e. the integral is over a single base cell).
-    template<class Sim>
-    auto jShapeDependenceViaCh(const Sim &sim,
-                               const std::vector<VectorField<Real, N>> &w) const
-    -> std::vector<StrainEnergyBdryInterpolant<Sim>>
-    {
-        auto gamma = dJ_dCH(sim);
-        size_t numBE = sim.mesh().numBoundaryElements();
-        std::vector<StrainEnergyBdryInterpolant<Sim>> result(numBE);
-
-        auto gradCh = PH::homogenizedElasticityTensorGradient(w, sim);
-
-        // Compute each nodal value of the interpolant.
-        for (size_t i = 0; i < numBE; ++i) {
-            auto &r = result[i];
-            const auto &gCh = gradCh[i];
-            using GChInterp = typename std::decay<decltype(gCh)>::type;
-            using   RInterp = typename std::decay<decltype(  r)>::type;
-            static_assert(RInterp::size() == GChInterp::size(),
-                         "Interpolant node count mismatch");
-            for (size_t n = 0; n < r.size(); ++n)
-                r[n] = gamma.quadrupleContract(gCh[n]);
-        }
-
-        return result;
     }
 
     // Compute objective's partial derivative with respect to the homogenized
@@ -765,19 +529,6 @@ struct IntegratedWorstCaseObjective {
     size_t numReflectedCopies = 1;
 
 private:
-    // WARNING: currently only works with triply periodic base cells
-    template<class Sim>
-    void m_solveAdjointCellProblems(const Sim &sim,
-                    std::vector<VectorField<Real, N>> &lambda_kl) const {
-        size_t numCellProblems = flatLen(N);
-        lambda_kl.clear(); lambda_kl.reserve(numCellProblems);
-        SMF tau;
-        for (size_t kl = 0; kl < numCellProblems; ++kl) {
-            tau_kl(kl, tau);
-            lambda_kl.emplace_back(sim.solve(sim.perElementStressFieldLoad(tau)));
-        }
-    }
-
     Real m_evalCache = 0.0;
     template<class Mesh> void m_updateEvalCache(const Mesh &m) {
         assert(m.numElements() == wcStress.size());
@@ -871,30 +622,6 @@ using Base = SubObjective;
         if (p == 1) return SubObjective::evaluate();
         return pow(SubObjective::evaluate(), 1.0 / p);
     }
-
-#if OLD_EULERIAN_SD
-    template<class Sim, size_t N>
-    auto gradient(const Sim &sim,
-                  const std::vector<VectorField<Real, N>> &w) const
-    -> std::vector<typename Base::template StrainEnergyBdryInterpolant<Sim>> {
-        if (p == 1) return SubObjective::gradient(sim, w);
-
-        auto result = SubObjective::gradient(sim, w);
-        Real scale = m_gradientScale();
-        for (auto &beInterp : result)
-            beInterp *= scale;
-        return result;
-    }
-
-    template<class Sim, class _NormalShapeVelocity, size_t N>
-    Real directDerivative(const Sim &sim,
-                          const std::vector<VectorField<Real, N>> &w,
-                          const _NormalShapeVelocity &vn) const {
-        Real pder = SubObjective::directDerivative(sim, w, vn);
-        if (p == 1) return pder;
-        return m_gradientScale() * pder;
-    }
-#endif
 
     ////////////////////////////////////////////////////////////////////////////
     // Discrete shape derivative under mesh vertex perturbation delta_p
