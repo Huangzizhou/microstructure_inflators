@@ -1,0 +1,35 @@
+set terminal pngcairo size 1024,1024
+set pm3d map
+set palette rgbformulae 33,13,10
+
+set size ratio -1
+
+unset key;
+
+set isosample 200
+set samples 500,500
+
+# set output 'backtracking_iterations.png'
+# splot 'iterates.txt' u 1:2:6
+
+# unset xtics;
+# unset ytics;
+# unset border;
+# set output 'angle.png'
+# splot 'iterates.txt' u 1:2:3
+
+unset xtics;
+unset ytics;
+unset border;
+set cbrange [0:1]
+set output 'cp_x.png'
+splot 'iterates.txt' u 1:2:3
+
+set cbrange [-1:1.5]
+set output 'distance.png'
+splot 'iterates.txt' u 1:2:5
+
+
+set cbrange [0:12]
+set output 'iterations.png'
+splot 'iterates.txt' u 1:2:6

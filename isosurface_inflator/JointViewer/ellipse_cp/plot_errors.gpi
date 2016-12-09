@@ -1,0 +1,17 @@
+set terminal pngcairo size 1024,1024
+set pm3d map
+set palette rgbformulae 33,13,10
+
+set size ratio -1
+
+unset key;
+
+set isosample 200
+set samples 500,500
+
+unset xtics;
+unset ytics;
+unset border;
+
+set output 'newton_errors.png'
+splot 'newton_errors.txt' u 1:2:3
