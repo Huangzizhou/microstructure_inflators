@@ -3,9 +3,6 @@
 
 #include "VCGSurfaceMesher.hh"
 
-#include "WireMesh.hh"
-#include "PatternSignedDistance.hh"
-
 #include <vcg/complex/complex.h>
 #include <vcg/complex/algorithms/create/marching_cubes.h>
 #include <vcg/complex/algorithms/create/mc_trivial_walker.h>
