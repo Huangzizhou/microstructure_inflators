@@ -26,15 +26,53 @@ template<typename T> struct IsAutoDiffType<Eigen::AutoDiffScalar<T>> : public st
 // Adept's sqrt overload is not visible to Eigen, so we must use
 // sqrt(x.squaredNorm()) (or include Adept before Eigen).
 
-// Wrapper to get the underlying value of an adept double (or do nothing for
+// Wrapper to get the underlying value of an autodiff type (or do nothing for
 // primitive types)
-template<typename T> struct StripAutoDiffImpl                 { static double run(const              T &v) { return v;         } };
-// template<>           struct StripAutoDiffImpl<adept::adouble> { static double run(const adept::adouble &v) { return v.value(); } };
-
-template<typename T> struct StripAutoDiffImpl<Eigen::AutoDiffScalar<T>> {
-    static double run(const Eigen::AutoDiffScalar<T> &v) { return v.value(); }
+template<typename T>
+struct StripAutoDiffImpl {
+    using result_type = T;
+    static result_type run(const T &v) { return v; }
 };
 
-template<typename T> double stripAutoDiff(const T &val) { return StripAutoDiffImpl<T>::run(val); }
+template<typename _DerType>
+struct StripAutoDiffImpl<Eigen::AutoDiffScalar<_DerType>> {
+    using result_type = typename Eigen::internal::traits<typename Eigen::internal::remove_all<_DerType>::type>::Scalar;
+    static result_type run(const Eigen::AutoDiffScalar<_DerType> &v) { return v.value(); }
+};
 
+// template<>           struct StripAutoDiffImpl<adept::adouble> { static double run(const adept::adouble &v) { return v.value(); } };
+
+// Strip automatic differentiation wrapper from a scalar value type (does
+// nothing when applied to a non-autodiff type).
+template<typename T>
+typename StripAutoDiffImpl<T>::result_type
+stripAutoDiff(const T &val)
+{
+    return StripAutoDiffImpl<T>::run(val);
+}
+
+// Implement tanh for Eigen autodiff (argument dependent lookup)
+namespace Eigen {
+#define EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(FUNC,CODE) \
+  template<typename DerType> \
+  inline const Eigen::AutoDiffScalar<Eigen::CwiseUnaryOp<Eigen::internal::scalar_multiple_op<typename Eigen::internal::traits<typename Eigen::internal::remove_all<DerType>::type>::Scalar>, const typename Eigen::internal::remove_all<DerType>::type> > \
+  FUNC(const Eigen::AutoDiffScalar<DerType>& x) { \
+    using namespace Eigen; \
+    typedef typename Eigen::internal::traits<typename Eigen::internal::remove_all<DerType>::type>::Scalar Scalar; \
+    typedef AutoDiffScalar<CwiseUnaryOp<Eigen::internal::scalar_multiple_op<Scalar>, const typename Eigen::internal::remove_all<DerType>::type> > ReturnType; \
+    CODE; \
+  }
+
+    // Implement tanh for eigen
+    EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(tanh,
+      using std::tanh;
+      using std::cosh;
+      using numext::abs2;
+      return ReturnType(tanh(x.value()),
+                        x.derivatives() * (Scalar(1)/abs2(cosh(x.value()))));
+    )
+
+#undef EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY
+
+}
 #endif /* end of include guard: AUTOMATICDIFFERENTIATION_HH */

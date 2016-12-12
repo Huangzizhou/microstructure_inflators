@@ -27,6 +27,7 @@
 #include "TriangleClosestPoint.hh"
 #include "ConvexHullTriangulation.hh"
 #include "SignedDistance.hh"
+#include "AutomaticDifferentiation.hh"
 
 #ifdef GROUND_TRUTH_DEBUGGING
 #include <CGAL/Simple_cartesian.h>
@@ -37,6 +38,8 @@
 #endif
 
 #include <array>
+#include <vector>
+#include <map>
 #include <limits>
 
 namespace SD { namespace Primitives {
@@ -50,20 +53,46 @@ public:
                      const std::vector<Real> &radii)
         : m_sphereCenters(centers), m_sphereRadii(radii)
     {
+        {
+            std::cout << "SphereConvexHull on centers, radii:" << std::endl;
+            for (const auto &pt : centers) {
+                std::cout << "{"
+                    << pt[0] << ", "
+                    << pt[1] << ", "
+                    << pt[2] << "}, ";
+            }
+            std::cout << std::endl;
+            std::cout << "{";
+            for (const Real &r : radii)
+                std::cout << r << ", ";
+            std::cout << "}" << std::endl;
+        }
+
         // Determine the objects making up the convex hull:
         //      First generate points on each sphere and compute their convex hull
-        std::vector<Point3<double>> spherePts;
+        std::vector<Eigen::Matrix<double, 3, 1, 0, 3, 1>> spherePts;
         size_t pointsPerSphere = 1000;
         spherePts.reserve(centers.size() * pointsPerSphere);
         // Note: the sphere corresponding to point index i is
         // floor(i / pointsPerSphere)
-        for (size_t i = 0; i < centers.size(); ++i)
-            generateSpherePoints(pointsPerSphere, spherePts, radii[i], centers[i]);
+        for (size_t i = 0; i < m_sphereCenters.size(); ++i) {
+            Point3<double> center;
+            // Requires manual downcast since Eigen's autodiff doesn't provide
+            // conversion operators;
+            for (size_t c = 0; c < 3; ++c)
+                center[c] = stripAutoDiff(m_sphereCenters[i][c]);
+            generateSpherePoints(pointsPerSphere, spherePts,
+                    stripAutoDiff(m_sphereRadii[i]), center);
+        }
 
         std::vector<MeshIO::IOVertex > hullVertices;
         std::vector<MeshIO::IOElement> hullTriangles;
         std::vector<size_t> originatingVtx;
         convexHullFromTriangulation(spherePts, hullVertices, hullTriangles, originatingVtx);
+
+#ifdef WRITE_DEBUG_HULL_MESH
+        MeshIO::save("hull_debug.msh", hullVertices, hullTriangles);
+#endif
 
         auto sphereForVtx = [&](size_t i) { return originatingVtx[i] / pointsPerSphere; };
 
@@ -158,7 +187,7 @@ public:
             Vector3<Real> e1perp = midplaneNormal.cross(e1);
             // Hopefully the triangles detected from the discrete convex hull
             // approximation are never degenerate...
-            assert(std::abs(e1perp.norm() - 1.0) < 1e-10);
+            assert(std::abs(stripAutoDiff(e1perp.norm() - 1.0)) < 1e-10);
 
             // Determine the (positive) tangent plane for the three spheres.
             // We compute the tangent plane's normal in terms of its components
@@ -203,17 +232,18 @@ public:
     Real2 signedDistance(const Point3<Real2> &p) const {
         // Fully degenerate case (hull is a single sphere)
         if (m_degenerateHullSphereIdx != NONE) {
-            return (p - m_sphereCenters[m_degenerateHullSphereIdx]).norm()
-                - m_sphereRadii[m_degenerateHullSphereIdx];
+            // Auto-diff compatible version:
+            return (p - m_sphereCenters[m_degenerateHullSphereIdx].template cast<Real2>()).norm() - 
+                    m_sphereRadii[m_degenerateHullSphereIdx];
         }
 
         // Find distance the non-degenerate (volume) regions (if any exist)
-        Real sd = std::numeric_limits<Real>::max();
+        Real2 sd = std::numeric_limits<Real>::max();
         if (m_supportingTriangles.size() > 0) {
-            Real closestTriDist = std::numeric_limits<Real>::max();
+            Real2 closestTriDist = std::numeric_limits<Real>::max();
             size_t closestTri = 0;
             for (size_t i = 0; i < m_supportingTriangles.size(); ++i) {
-                Real dist = (m_supportingTriangles[i].closestPoint(p) - p).norm();
+                Real2 dist = (m_supportingTriangles[i].closestPoint(p) - p).norm();
                 if (dist < closestTriDist) {
                     closestTriDist = dist;
                     closestTri = i;
@@ -221,7 +251,7 @@ public:
             }
 
             const auto &cst = m_supportingTriangles[closestTri];
-            auto lambda = cst.closestBaryCoords(p);
+            Vector3<Real2> lambda = cst.closestBaryCoords(p);
             int numZero = 0;
             int zeroCoords[3];
             if (lambda[0] == 0.0) { zeroCoords[numZero++] = 0; }
@@ -232,10 +262,11 @@ public:
             // If closest point is in the triangle's interior, it's the closest
             // hull point.
             if (numZero == 0) {
-                Vector3<Real> v = p - cst.pointAtBarycoords(lambda);
+                Vector3<Real2> v = p - cst.pointAtBarycoords(lambda);
+                Real normalDist = stripAutoDiff(v.dot(cst.normal().template cast<Real2>()));
 
-                sd = (v.dot(cst.normal()) >= 0) ?  closestTriDist
-                                                : -closestTriDist;
+                if (normalDist >= 0) sd =  closestTriDist;
+                else                 sd = -closestTriDist;
             }
 
             if (numZero == 1) {
@@ -267,7 +298,6 @@ public:
                 // should always be covered up by the triangles (i.e. query
                 // points closest to these concave parts actually fall into the
                 // "numZero == 0" case: closest hull point is on a triangle).
-                int nonzeroCoord = 3 - zeroCoords[0] - zeroCoords[1];
                 sd = std::min(m_edgeOppositeTriangleCorner[3 * closestTri + zeroCoords[0]]->signedDistance(p),
                               m_edgeOppositeTriangleCorner[3 * closestTri + zeroCoords[1]]->signedDistance(p));
             }
@@ -292,8 +322,11 @@ public:
         // Determine the objects making up the convex hull:
         //      First generate points on each sphere and compute their convex hull
         std::vector<Point3<double>> spherePts;
-        for (size_t i = 0; i < m_sphereCenters.size(); ++i)
-            generateSpherePoints(sphereResolution, spherePts, m_sphereRadii[i], m_sphereCenters[i]);
+        for (size_t i = 0; i < m_sphereCenters.size(); ++i) {
+            Point3<double> center(m_sphereCenters[i].template cast<double>());
+            generateSpherePoints(sphereResolution, spherePts,
+                    stripAutoDiff(m_sphereRadii[i]), center);
+        }
 
         std::vector<MeshIO::IOVertex > hullVertices;
         std::vector<MeshIO::IOElement> hullTriangles;

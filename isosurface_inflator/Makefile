@@ -36,13 +36,13 @@ DEPFLAGS=-MT $@ -MMD -MP -MF $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).Td
 
 all: $(TARGETS)
 
-isosurface_cli: isosurface_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/GlobalBenchmark.o IsosurfaceInflator.o  MidplaneMesher.o MeshingOptions.o BoxIntersectionMesher.o CGALClippedVolumeMesher.o VCGSurfaceMesher.o
+isosurface_cli: isosurface_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/GlobalBenchmark.o IsosurfaceInflator.o  MidplaneMesher.o MeshingOptions.o BoxIntersectionMesher.o CGALClippedVolumeMesher.o VCGSurfaceMesher.o ConvexHullTriangulation.o
 	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
 
-OffsetBoundsToTranslationBounds: OffsetBoundsToTranslationBounds.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/GlobalBenchmark.o IsosurfaceInflator.o  MidplaneMesher.o MeshingOptions.o BoxIntersectionMesher.o CGALClippedVolumeMesher.o VCGSurfaceMesher.o ../pattern_optimization/PatternOptimizationJob.o $(MeshFEM)/Materials.o
+OffsetBoundsToTranslationBounds: OffsetBoundsToTranslationBounds.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/GlobalBenchmark.o IsosurfaceInflator.o  MidplaneMesher.o MeshingOptions.o BoxIntersectionMesher.o CGALClippedVolumeMesher.o VCGSurfaceMesher.o ../pattern_optimization/PatternOptimizationJob.o $(MeshFEM)/Materials.o ConvexHullTriangulation.o
 	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
 
-SignedDistance_cli: SignedDistance_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o
+SignedDistance_cli: SignedDistance_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o ConvexHullTriangulation.o
 	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
 
 TestWireMesh: tests/TestWireMesh.o

@@ -123,8 +123,8 @@ void convexHullFromTriangulation(const PointCollection &points,
 ////////////////////////////////////////////////////////////////////////////////
 #include <Eigen/Dense>
 template
-void convexHullFromTriangulation<Eigen::Vector3d>(
-    const std::vector<Eigen::Vector3d> &points,
+void convexHullFromTriangulation<std::vector<Eigen::Matrix<double, 3, 1, 0, 3, 1>>>(
+    const std::vector<Eigen::Matrix<double, 3, 1, 0, 3, 1>> &points,
     std::vector<MeshIO::IOVertex > &hullVertices,
     std::vector<MeshIO::IOElement> &hullElements,
     std::vector<size_t>            &originatingVertexIndices);

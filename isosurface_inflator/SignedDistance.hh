@@ -75,7 +75,7 @@ template<typename Real>
 Real exp_smin_reparam_accurate(Real a, Real b, Real s = 1.0/32) {
     if (s == 0.0) return std::min(a, b);
     Real d_div_s = (a - b) / (2.0 * s);
-    constexpr Real maxDifference = 709.7827;
+    constexpr double maxDifference = 709.7827;
     if (d_div_s >  maxDifference) return b;
     if (d_div_s < -maxDifference) return a;
     return (a + b) / 2.0 - s * log(exp(d_div_s) + exp(-d_div_s));
@@ -115,7 +115,7 @@ Real exp_smin_reparam_accurate(const std::vector<Real> &values, Real s = 1.0/32)
     if (s == 0.0) return minVal;
     Real k = 1.0 / s;
 
-    constexpr Real maxDifference = 700;
+    constexpr double maxDifference = 700;
     if ((avg - minVal) * k > maxDifference) return minVal;
 
     Real res = 0;

@@ -45,10 +45,11 @@ public:
         m_M(0, 0) = m_M(1, 1) = m_M(2, 2) = 1.0;
     }
 
-
     template<typename Real2>
     Eigen::Matrix<Real2, 3, 1> pointAtBarycoords(const Eigen::Matrix<Real2, 3, 1> &lambda) const {
-        return m_p0 * lambda[0] + m_p1 * lambda[1] + m_p2 * lambda[2];
+        return m_p0.template cast<Real2>() * lambda[0] +
+               m_p1.template cast<Real2>() * lambda[1] +
+               m_p2.template cast<Real2>() * lambda[2];
     }
 
     // Closest triangle point to p
@@ -68,7 +69,7 @@ public:
     template<typename Real2>
     Eigen::Matrix<Real2, 3, 1>
     baryCoords(const Eigen::Matrix<Real2, 3, 1> &p) const {
-        Eigen::Matrix<Real2, 3, 1> lambda = m_jacobianLambda * (p - m_p0);
+        Eigen::Matrix<Real2, 3, 1> lambda = m_jacobianLambda.template cast<Real2>() * (p - m_p0.template cast<Real2>());
         lambda[0] += 1.0;
         return lambda;
     }
@@ -89,7 +90,8 @@ public:
             int j = (i == 2) ? 0 : i + 1;
             int k = (j == 2) ? 0 : j + 1;
 
-            BaryC lambdaSnap = lambda - m_M.col(i) * lambda[i];
+            BaryC lambdaSnap = lambda - m_M.col(i).template cast<Real2>() * lambda[i];
+
             if (lambdaSnap[j] >= 0) {
                 if (lambdaSnap[k] >= 0) return lambdaSnap; // snapped to closest pt in triangle
                 else {

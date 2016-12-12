@@ -21,6 +21,7 @@
 #include "WireMesh.hh"
 #include "AutomaticDifferentiation.hh"
 #include "SignedDistance.hh"
+#include "Joint.hh"
 
 template<typename _Real, class WMesh>
 class PatternSignedDistance {
@@ -57,6 +58,20 @@ public:
             m_adjEdges.at(e.second).push_back(ei);
         }
 
+        // Construct joints at each vertex
+        for (size_t u = 0; u < points.size(); ++u) {
+            std::vector<Point3<Real>> centers(1, points[u]);
+            std::vector<Real>         radii(1, thicknesses[u]);
+            for (size_t ei : m_adjEdges[u]) {
+                size_t v_other = edges[ei].first == u ? edges[ei].second
+                                                      : edges[ei].first;
+                centers.push_back(points[v_other]);
+                radii.push_back(thicknesses[v_other]);
+            }
+            m_vertexJoint.emplace_back(centers, radii, m_blendingParams[u]);
+        }
+
+#if 0
         // Compute vertex smoothness:
         // Vertices with intersecting edges are smoothed. This smoothing is
         // ramped up from 0.0 to 1.0 as the minimum incident angle, "theta"
@@ -153,6 +168,7 @@ public:
         //     std::cout << "vertex " << u << " (valence " << m_adjEdges[u].size()
         //          << ") smoothness: " << m_vertexSmoothness[u] << std::endl;
         // }
+#endif
     }
 
     // Additional Real type to support automatic differentiation wrt. p only
@@ -171,6 +187,17 @@ public:
         // Create smoothed union geometry around each vertex and then union
         // together
         Real2 dist = 1e5;
+        std::vector<Real2> jointEdgeDists;
+        for (size_t u = 0; u < numVertices(); ++u) {
+            const auto &joint = m_vertexJoint[u];
+            jointEdgeDists.clear(), jointEdgeDists.reserve(m_adjEdges[u].size());
+            for (size_t ei : m_adjEdges[u])
+                jointEdgeDists.push_back(edgeDists[ei]);
+            dist = std::min(dist,
+                    SD::exp_smin_reparam_accurate<Real2>(jointEdgeDists,
+                                                         joint.smoothingAmt(p)));
+        }
+#if 0
         for (size_t u = 0; u < numVertices(); ++u) {
             // Vertex smoothness is in [0, 1],
             //      1.0: full smoothness (m_blendingParams(u))
@@ -193,6 +220,7 @@ public:
                     dist = std::min<Real2>(dist, edgeDists.at(ei));
             }
         }
+#endif
 
         assert(!std::isnan(stripAutoDiff(dist)));
         assert(!std::isinf(stripAutoDiff(dist)));
@@ -205,7 +233,8 @@ public:
         p = WMesh::PatternSymmetry::mapToBaseUnit(p);
         std::vector<Real> edgeDists;
         edgeDists.reserve(m_edgeGeometry.size());
-        // Definitely inside if we're inside one of the edges.
+        // Definitely inside if we're inside one of the edges: assumes blending
+        // is additive.
         // Note: possibly could be sped up by implementing cheap isInside for
         // edge geometry and bailing early if inside?
         for (const auto &c : m_edgeGeometry) {
@@ -214,6 +243,17 @@ public:
         }
 
         // see signedDistance(p) above
+        for (size_t u = 0; u < numVertices(); ++u) {
+            const auto &joint = m_vertexJoint[u];
+            std::vector<Real> jointEdgeDists;
+            jointEdgeDists.clear(), jointEdgeDists.reserve(m_adjEdges[u].size());
+            for (size_t ei : m_adjEdges[u])
+                jointEdgeDists.push_back(edgeDists[ei]);
+            Real jsd = SD::exp_smin_reparam_accurate<Real>(jointEdgeDists,
+                                                           joint.smoothingAmt(p));
+            if (jsd < 0) return true;
+        }
+#if 0
         for (size_t u = 0; u < numVertices(); ++u) {
             Real smoothness = m_blendingParams[u] * (1/256.0 + (1.0 - 1/256.0) * m_vertexSmoothness[u]);
             if (smoothness > 1/256.0) {
@@ -225,6 +265,7 @@ public:
             }
             else { continue; } // Note: sharp joints only contain p if one of the edges does (can't happen)
         }
+#endif
 
         return false;
     }
@@ -288,6 +329,7 @@ private:
     // specifying this per-vertex makes sense.
     std::vector<Real>                m_vertexSmoothness;
     std::vector<Real>                m_blendingParams;
+    std::vector<Joint<Real>>         m_vertexJoint;
     // Edges adjacent to a particular vertex.
     std::vector<std::vector<size_t>> m_adjEdges;
 };
