@@ -40,6 +40,7 @@
 #include <array>
 #include <vector>
 #include <map>
+#include <set>
 #include <limits>
 
 namespace SD { namespace Primitives {
@@ -53,6 +54,7 @@ public:
                      const std::vector<Real> &radii)
         : m_sphereCenters(centers), m_sphereRadii(radii)
     {
+#ifdef SPHEREHULLL_VERBOSE
         {
             std::cout << "SphereConvexHull on centers, radii:" << std::endl;
             for (const auto &pt : centers) {
@@ -67,6 +69,7 @@ public:
                 std::cout << r << ", ";
             std::cout << "}" << std::endl;
         }
+#endif
 
         // Determine the objects making up the convex hull:
         //      First generate points on each sphere and compute their convex hull
@@ -76,13 +79,8 @@ public:
         // Note: the sphere corresponding to point index i is
         // floor(i / pointsPerSphere)
         for (size_t i = 0; i < m_sphereCenters.size(); ++i) {
-            Point3<double> center;
-            // Requires manual downcast since Eigen's autodiff doesn't provide
-            // conversion operators;
-            for (size_t c = 0; c < 3; ++c)
-                center[c] = stripAutoDiff(m_sphereCenters[i][c]);
             generateSpherePoints(pointsPerSphere, spherePts,
-                    stripAutoDiff(m_sphereRadii[i]), center);
+                    stripAutoDiff(m_sphereRadii[i]), stripAutoDiff(m_sphereCenters[i]));
         }
 
         std::vector<MeshIO::IOVertex > hullVertices;
@@ -116,20 +114,27 @@ public:
         for (const auto &st : sphereTris) {
             size_t dim = st.dimension();
             if (dim == 2) m_sphereTriangles.push_back(st);
-            if (dim == 1) m_sphereChainEdges.push_back(st.degenerateAsEdge());
+            // Note: even though (oriented) triangles are unique, a triangle
+            // that has degenerated into an edge can be repeated. E.g.:
+            // {{1, 1, 2}, {1, 2, 2}, {1, 2, 1}}
+            // Thus, we use a set to remove duplicates:
+            if (dim == 1) m_sphereChainEdges.insert(st.degenerateAsEdge());
             if (dim == 0) { degeneratedPt.push_back(st.corners[0]); }
         }
 
         // The edge chains consist only of the edges that do not belong to
         // non-degenerate triangles.
-        m_sphereChainEdges.erase(
-            std::remove_if(m_sphereChainEdges.begin(), m_sphereChainEdges.end(),
-                [&](const UnorderedPair &e) {
-                    for (const auto &st : m_sphereTriangles)
-                        if (st.containsEdge(e)) return true;
-                    return false;
-                }),
-            m_sphereChainEdges.end());
+        for (auto it = m_sphereChainEdges.begin(); it != m_sphereChainEdges.end(); /* advanced inside */) {
+            bool found = false;
+            for (const auto &st : m_sphereTriangles)
+                if (st.containsEdge(*it)) { found = true; break; }
+            if (found) it = m_sphereChainEdges.erase(it);
+            else     ++it;
+        }
+
+#ifdef SPHEREHULLL_VERBOSE
+        writeDebugInfo();
+#endif
 
         // Check if the convex hull consists of a single sphere.
         if ((m_sphereTriangles.size() == 0) && (m_sphereChainEdges.size() == 0)) {
@@ -148,6 +153,8 @@ public:
             }
         }
         for (const auto &e : m_sphereChainEdges) {
+            // Sphere chain edges are unique and should be distinct from those
+            // inflated previously.
             assert(m_inflatedEdges.count(e) == 0);
             auto result = m_inflatedEdges.emplace(e,
                 InflatedEdge<Real>(m_sphereCenters.at(e[0]), m_sphereCenters.at(e[1]),
@@ -394,7 +401,7 @@ private:
     // Triplets of spheres whose tangent triangles are the hull's supporting triangles.
     std::vector<OrientedTriplet> m_sphereTriangles;
     // Edges making up the edge chain(s) (edges that do not form triangles)
-    std::vector<UnorderedPair>   m_sphereChainEdges;
+    std::set<UnorderedPair> m_sphereChainEdges;
 
     // Signed distance function for all conical frustum (edge) geometry
     // appearing on the hull--including edges of the triangles.

@@ -23,6 +23,8 @@
 #include "SignedDistance.hh"
 #include "Joint.hh"
 
+#include <Future.hh>
+
 template<typename _Real, class WMesh>
 class PatternSignedDistance {
 public:
@@ -58,8 +60,15 @@ public:
             m_adjEdges.at(e.second).push_back(ei);
         }
 
-        // Construct joints at each vertex
+        // Construct joints at each vertex in the base unit.
         for (size_t u = 0; u < points.size(); ++u) {
+            if (m_adjEdges[u].size() < 2) {
+                if (WMesh::PatternSymmetry::inBaseUnit(stripAutoDiff(points[u])))
+                    throw std::runtime_error("Dangling edge inside base unit");
+                // Vertices outside the base unit cell with only one edge
+                // incident are not really joints.
+                continue;
+            }
             std::vector<Point3<Real>> centers(1, points[u]);
             std::vector<Real>         radii(1, thicknesses[u]);
             for (size_t ei : m_adjEdges[u]) {
@@ -68,7 +77,8 @@ public:
                 centers.push_back(points[v_other]);
                 radii.push_back(thicknesses[v_other]);
             }
-            m_vertexJoint.emplace_back(centers, radii, m_blendingParams[u]);
+            m_joints.emplace_back(u,
+                Future::make_unique<Joint<Real>>(centers, radii, m_blendingParams[u]));
         }
 
 #if 0
@@ -188,14 +198,14 @@ public:
         // together
         Real2 dist = 1e5;
         std::vector<Real2> jointEdgeDists;
-        for (size_t u = 0; u < numVertices(); ++u) {
-            const auto &joint = m_vertexJoint[u];
+        for (const auto &vjoint : m_joints) {
+            const size_t u = vjoint.first;
             jointEdgeDists.clear(), jointEdgeDists.reserve(m_adjEdges[u].size());
             for (size_t ei : m_adjEdges[u])
                 jointEdgeDists.push_back(edgeDists[ei]);
+            Real2 s = vjoint.second->smoothingAmt(p);
             dist = std::min(dist,
-                    SD::exp_smin_reparam_accurate<Real2>(jointEdgeDists,
-                                                         joint.smoothingAmt(p)));
+                    SD::exp_smin_reparam_accurate<Real2>(jointEdgeDists, s));
         }
 #if 0
         for (size_t u = 0; u < numVertices(); ++u) {
@@ -243,14 +253,14 @@ public:
         }
 
         // see signedDistance(p) above
-        for (size_t u = 0; u < numVertices(); ++u) {
-            const auto &joint = m_vertexJoint[u];
-            std::vector<Real> jointEdgeDists;
+        std::vector<Real> jointEdgeDists;
+        for (const auto &vjoint : m_joints) {
+            const size_t u = vjoint.first;
             jointEdgeDists.clear(), jointEdgeDists.reserve(m_adjEdges[u].size());
             for (size_t ei : m_adjEdges[u])
                 jointEdgeDists.push_back(edgeDists[ei]);
-            Real jsd = SD::exp_smin_reparam_accurate<Real>(jointEdgeDists,
-                                                           joint.smoothingAmt(p));
+            Real s = vjoint.second->smoothingAmt(p);
+            Real jsd = SD::exp_smin_reparam_accurate<Real>(jointEdgeDists, s);
             if (jsd < 0) return true;
         }
 #if 0
@@ -329,9 +339,14 @@ private:
     // specifying this per-vertex makes sense.
     std::vector<Real>                m_vertexSmoothness;
     std::vector<Real>                m_blendingParams;
-    std::vector<Joint<Real>>         m_vertexJoint;
     // Edges adjacent to a particular vertex.
     std::vector<std::vector<size_t>> m_adjEdges;
+
+    // Joint vertex indices and their geometry
+    // (Not every vertex is a joint; there are dangling edges extending outside
+    //  the base unit.)
+    using VertexJoint = std::pair<size_t, std::unique_ptr<Joint<Real>>>;
+    std::vector<VertexJoint> m_joints;
 };
 
 #endif /* end of include guard: PATTERNSIGNEDDISTANCE_HH */

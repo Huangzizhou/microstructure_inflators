@@ -40,6 +40,23 @@ struct StripAutoDiffImpl<Eigen::AutoDiffScalar<_DerType>> {
     static result_type run(const Eigen::AutoDiffScalar<_DerType> &v) { return v.value(); }
 };
 
+// Cast autodiff vectors/matrices to plain vectors/matrices.
+template<typename _DerType, int... I>
+struct StripAutoDiffImpl<Eigen::Matrix<Eigen::AutoDiffScalar<_DerType>, I...>> {
+    using autodiff_type = Eigen::Matrix<Eigen::AutoDiffScalar<_DerType>, I...>;
+    using scalar_type = typename Eigen::internal::traits<typename Eigen::internal::remove_all<_DerType>::type>::Scalar;
+    using result_type = Eigen::Matrix<scalar_type, I...>;
+
+    static result_type run(const autodiff_type &v) {
+        result_type r(v.rows(), v.cols());
+        for (size_t i = 0; i < v.rows(); ++i) {
+            for (size_t j = 0; j < v.cols(); ++j)
+                r(i, j) = v(i, j).value();
+        }
+        return r;
+    }
+};
+
 // template<>           struct StripAutoDiffImpl<adept::adouble> { static double run(const adept::adouble &v) { return v.value(); } };
 
 // Strip automatic differentiation wrapper from a scalar value type (does
