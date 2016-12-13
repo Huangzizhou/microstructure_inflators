@@ -113,6 +113,9 @@ public:
     // Derivative of signed distance function wrt each pattern parameter
     virtual vector<vector<Real>> signedDistanceParamPartials(const vector<Point> &evalPoints) const = 0;
 
+    // Determine the degree of smoothing at each evaluation point (for debugging purposes)
+    virtual vector<Real>         smoothnessAtPoints(const vector<Point> &evalPoints) const = 0;
+
     // Whether the inflator generates only the orthotropic symmetry base cell
     // (by default--reflectiveInflator will override this)
     virtual bool _mesherGeneratesOrthoCell() const = 0;
@@ -277,6 +280,15 @@ public:
         return partials;
     }
 
+    // Determine the degree of smoothing at each evaluation point (for debugging purposes)
+    virtual vector<Real>         smoothnessAtPoints(const vector<Point> &evalPoints) const override {
+        vector<Real> smoothness;
+        smoothness.reserve(evalPoints.size());
+        for (const auto &pt : evalPoints)
+            smoothness.push_back(pattern.smoothnessAtEvalPt(pt));
+        return smoothness;
+    }
+
     virtual ~IsosurfaceInflatorImpl() { }
 
     virtual vector<Real> defaultParameters() const override { return wmesh.defaultParameters(); }
@@ -416,7 +428,6 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
         if (N == 3) smartSnap3D(vertices, symBaseCellMesh, meshCell);
     }
     catch (std::exception &e) {
-        // For bad meshes caused, e.g, by self intersections, the feature 
         std::cerr << "WARNING: smartSnap3D failed--probably nonsmooth geometry at cell interface. Resorting to dumbSnap3D." << std::endl;
         std::cerr << "(" << e.what() << ")" << std::endl;
         dumbSnap3D(vertices, meshCell, opts.facetDistance);
@@ -525,6 +536,41 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     //     BENCHMARK_STOP_TIMER_SECTION("postProcess");
     //     throw;
     // }
+
+    {
+        // Debug the smoothing modulation field (is it causing bad signed
+        // distance partials?)
+        vector<Real> smoothness = inflator.smoothnessAtPoints(evaluationPoints);
+        assert(smoothness.size() == evaluationPoints.size());
+        {
+            Real avg = 0.0;
+            for (Real s : smoothness) avg += s;
+            avg /= smoothness.size();
+            std::cout << "Average smoothness: " << avg << std::endl;
+        }
+
+        ScalarField<Real> smoothnessField(symBaseCellMesh.numBoundaryVertices());
+        smoothnessField.clear();
+        for (auto bv : symBaseCellMesh.boundaryVertices()) {
+            size_t idx = evalPointIndex.at(bv.index());
+            if (idx > smoothness.size()) continue;
+            smoothnessField[bv.index()] = smoothness[idx];
+        }
+
+        // Extract boundary vertices/elements for output
+        std::vector<MeshIO::IOVertex > outVertices;
+        std::vector<MeshIO::IOElement> outElements;
+        for (auto bv : symBaseCellMesh.boundaryVertices())
+            outVertices.push_back(vertices.at(bv.volumeVertex().index()));
+        for (auto bs : symBaseCellMesh.boundarySimplices()) {
+            outElements.emplace_back(bs.vertex(0).index(),
+                                     bs.vertex(1).index(),
+                                     bs.vertex(2).index());
+        }
+        MSHFieldWriter writer("smoothness_debug.msh", outVertices, outElements);
+        writer.addField("smoothness", smoothnessField, DomainType::PER_NODE);
+    }
+
     vector<Real> sdGradNorms(evaluationPoints.size());
     for (size_t i = 0; i < evaluationPoints.size(); ++i) {
         sdGradNorms[i] = sdGradX[i].norm();

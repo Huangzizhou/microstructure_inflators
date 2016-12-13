@@ -106,18 +106,18 @@ Real exp_smin_reparam_accurate(const std::vector<Real> &values, Real s = 1.0/32)
     Real minVal = values[0];
     Real avg = 0;
     Real n = values.size();
-    for (auto val : values) {
+    for (Real val : values) {
         minVal = std::min(minVal, val);
         avg += val;
     }
     avg /= n;
 
     if (s == 0.0) return minVal;
-    Real k = 1.0 / s;
 
     constexpr double maxDifference = 700;
-    if ((avg - minVal) * k > maxDifference) return minVal;
+    if ((avg - minVal) > maxDifference * s) return minVal;
 
+    Real k = 1.0 / s;
     Real res = 0;
     for (auto val : values)
         res += exp((avg - val) * k);

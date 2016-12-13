@@ -110,26 +110,59 @@ public:
 
         // Determine the non-degenerate triangles and the edge- and
         // point-degenerated triangles.
-        std::vector<size_t> degeneratedPt;
+        std::set<size_t> degeneratedPt;
         for (const auto &st : sphereTris) {
+            // "Combinatorial dimension"
             size_t dim = st.dimension();
-            if (dim == 2) m_sphereTriangles.push_back(st);
+            if (dim == 2) {
+                // The true geometric/numeric dimension can still be 1 or 0
+                // depending on the sphere centers. This happens, e.g., for
+                // three collinear spheres of the same radius, when sample points
+                // for the middle sphere happen to lie on the convex hull.
+                Vector3<Real> e[3] = { m_sphereCenters[st.corners[2]] - m_sphereCenters[st.corners[1]],
+                                       m_sphereCenters[st.corners[0]] - m_sphereCenters[st.corners[2]],
+                                       m_sphereCenters[st.corners[1]] - m_sphereCenters[st.corners[0]] };
+                Real lSq[3] = { e[0].squaredNorm(),
+                                e[1].squaredNorm(),
+                                e[2].squaredNorm() };
+
+                Real sinSq = e[0].cross(e[1]).squaredNorm() / (lSq[0] * lSq[1]);
+                if (sinSq < 1e-10) {
+                    // Triangle degenerates to longest edge (opposite vtx i) or
+                    // to a point.
+                    int i = std::distance(lSq, std::max_element(lSq, lSq + 3));
+                    // Note: this can create numerically degenerate edges.
+                    if (lSq[i] > 1e-10)
+                        m_sphereChainEdges.emplace(st.corners[(i + 1) % 3],
+                                                   st.corners[(i + 2) % 3]);
+                }
+                else { m_sphereTriangles.push_back(st); }
+            }
             // Note: even though (oriented) triangles are unique, a triangle
             // that has degenerated into an edge can be repeated. E.g.:
             // {{1, 1, 2}, {1, 2, 2}, {1, 2, 1}}
-            // Thus, we use a set to remove duplicates:
+            // Thus, we use a set to remove duplicates.
+            // Also note that this can produce numerically degenerate edges.
             if (dim == 1) m_sphereChainEdges.insert(st.degenerateAsEdge());
-            if (dim == 0) { degeneratedPt.push_back(st.corners[0]); }
+            if (dim == 0) { degeneratedPt.insert(st.corners[0]); }
         }
 
         // The edge chains consist only of the edges that do not belong to
-        // non-degenerate triangles.
+        // non-degenerate triangles--remove the triangle edges.
+        // Also, detect and remove numerically degenerate edges.
         for (auto it = m_sphereChainEdges.begin(); it != m_sphereChainEdges.end(); /* advanced inside */) {
-            bool found = false;
+            bool isTriEdge = false;
             for (const auto &st : m_sphereTriangles)
-                if (st.containsEdge(*it)) { found = true; break; }
-            if (found) it = m_sphereChainEdges.erase(it);
-            else     ++it;
+                if (st.containsEdge(*it)) { isTriEdge = true; break; }
+
+            bool isDegenerate = (m_sphereCenters[(*it)[0]] - m_sphereCenters[(*it)[1]]).squaredNorm() < 1e-16;
+            if (isDegenerate) {
+                assert(std::abs(stripAutoDiff(m_sphereRadii[(*it)[0]] - m_sphereRadii[(*it)[1]])) < 1e-8);
+                degeneratedPt.insert((*it)[0]);
+            }
+            bool remove = isTriEdge || isDegenerate;
+            if (remove) it = m_sphereChainEdges.erase(it);
+            else      ++it;
         }
 
 #ifdef SPHEREHULLL_VERBOSE
@@ -138,8 +171,11 @@ public:
 
         // Check if the convex hull consists of a single sphere.
         if ((m_sphereTriangles.size() == 0) && (m_sphereChainEdges.size() == 0)) {
-            assert(degeneratedPt.size() == 1);
-            m_degenerateHullSphereIdx = degeneratedPt[0];
+            // We could have the case of combinatorially non-degenerate spheres but
+            // numerically degenerate.
+            // TODO: validate this is the case.
+            assert(degeneratedPt.size() > 0);
+            m_degenerateHullSphereIdx = *degeneratedPt.begin();
         }
 
         // Create inflated geometry for every edge on the hull.
@@ -248,29 +284,66 @@ public:
         Real2 sd = std::numeric_limits<Real>::max();
         if (m_supportingTriangles.size() > 0) {
             Real2 closestTriDist = std::numeric_limits<Real>::max();
+            Vector3<Real2> closestLambda, closestInternalLambda;
             size_t closestTri = 0;
             for (size_t i = 0; i < m_supportingTriangles.size(); ++i) {
-                Real2 dist = (m_supportingTriangles[i].closestPoint(p) - p).norm();
+                Vector3<Real2> lambda = m_supportingTriangles[i].baryCoords(p);
+                Vector3<Real2> internalLambda = m_supportingTriangles[i].closestInternalBarycoordsToBaryCoords(lambda);
+                Real2 dist = (m_supportingTriangles[i].pointAtBarycoords(internalLambda) - p).norm();
                 if (dist < closestTriDist) {
                     closestTriDist = dist;
+                    closestLambda = lambda;
+                    closestInternalLambda = internalLambda;
                     closestTri = i;
                 }
             }
 
+            // If the projection of the point onto the closest triangle's plane
+            // is extremely close to the triangle, treat the point as internal
+            // to the triangle. This fixes the corner case where > 3 coplanar
+            // spheres lead to a triangulated tangent plane with > 1 triangle,
+            // which in turn suffered from incorrect distance on the slice above
+            // the shared edge (the code assumed the closest points in this
+            // slice lie on a conical frustum patch between the two triangles,
+            // but none exists).
+            for (size_t i = 0; i < 3; ++i) {
+                if ((closestLambda[i] <= 0) && (closestLambda[i] > -1e-12))
+                    closestInternalLambda[i] = 1e-16; // perturb inside
+            }
+
             const auto &cst = m_supportingTriangles[closestTri];
-            Vector3<Real2> lambda = cst.closestBaryCoords(p);
             int numZero = 0;
             int zeroCoords[3];
-            if (lambda[0] == 0.0) { zeroCoords[numZero++] = 0; }
-            if (lambda[1] == 0.0) { zeroCoords[numZero++] = 1; }
-            if (lambda[2] == 0.0) { zeroCoords[numZero++] = 2; }
-            assert(numZero != 3);
+            if (closestInternalLambda[0] == 0.0) { zeroCoords[numZero++] = 0; }
+            if (closestInternalLambda[1] == 0.0) { zeroCoords[numZero++] = 1; }
+            if (closestInternalLambda[2] == 0.0) { zeroCoords[numZero++] = 2; }
+            if (numZero == 3) {
+                // this has actually triggered before!!!
+                std::cerr << std::setprecision(19) << std::endl;
+                std::cerr << "closestTri = " << closestTri << std::endl;
+                std::cerr << "closestInternalLambda = " << stripAutoDiff(closestInternalLambda).transpose() << std::endl;
+                std::cerr << "p = " << stripAutoDiff(p).transpose() << std::endl;
+                std::cerr << "closestTriDist = " << closestTriDist << std::endl;
+                std::cerr << "closest tri vertices:" << std::endl;
+                std::cerr << stripAutoDiff(m_supportingTriangles[closestTri].p0()).transpose() << std::endl;
+                std::cerr << stripAutoDiff(m_supportingTriangles[closestTri].p1()).transpose() << std::endl;
+                std::cerr << stripAutoDiff(m_supportingTriangles[closestTri].p2()).transpose() << std::endl;
+
+                std::cerr << "Sphere centers: " << std::endl;
+                for (auto &c : m_sphereCenters)
+                    std::cerr << "{" << c[0] << ", " << c[1] << ", " << c[2] << "}" << std::endl;
+                std::cerr << "Sphere radii: {" << std::endl;
+                for (Real r : m_sphereRadii)
+                    std::cerr << r << ", ";
+                std::cerr << "}" << std::endl;
+                assert(numZero != 3);
+            }
 
             // If closest point is in the triangle's interior, it's the closest
             // hull point.
             if (numZero == 0) {
-                Vector3<Real2> v = p - cst.pointAtBarycoords(lambda);
-                Real normalDist = stripAutoDiff(v.dot(cst.normal().template cast<Real2>()));
+                auto v = stripAutoDiff((p - cst.pointAtBarycoords(closestInternalLambda)).eval());
+                Real normalDist = v.dot(stripAutoDiff(cst.normal()));
 
                 if (normalDist >= 0) sd =  closestTriDist;
                 else                 sd = -closestTriDist;
@@ -392,6 +465,9 @@ public:
 
     size_t numTriangles()  const { return m_sphereTriangles.size(); }
     size_t numChainEdges() const { return m_sphereChainEdges.size(); }
+
+    const std::vector<Point3<Real>> &sphereCenters() const { return m_sphereCenters; }
+    const std::vector<Real>         &sphereRadii()   const { return   m_sphereRadii; }
 
 private:
     // position and radii of all spheres; the triangles/edges/points on the hull

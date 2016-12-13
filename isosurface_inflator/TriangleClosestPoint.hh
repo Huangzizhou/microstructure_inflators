@@ -74,13 +74,10 @@ public:
         return lambda;
     }
 
-    // Get barycentric coordinates of closest triangle point to p
     template<typename Real2>
     Eigen::Matrix<Real2, 3, 1>
-    closestBaryCoords(const Eigen::Matrix<Real2, 3, 1> &p) const {
+	closestInternalBarycoordsToBaryCoords(Eigen::Matrix<Real2, 3, 1> lambda) const {
         using BaryC = Eigen::Matrix<Real2, 3, 1>;
-        BaryC lambda = baryCoords(p);
-
         bool seenNegative = false;
         int prevNegIdx;
 
@@ -125,7 +122,18 @@ public:
         }
 
         return lambda;
+	}
+
+    // Get barycentric coordinates of closest triangle point to p
+    template<typename Real2>
+    Eigen::Matrix<Real2, 3, 1>
+    closestBaryCoords(const Eigen::Matrix<Real2, 3, 1> &p) const {
+        return closestInternalBarycoordsToBaryCoords(baryCoords(p));
     }
+
+    const Eigen::Matrix<Real, 3, 1> &p0() const { return m_p0; }
+    const Eigen::Matrix<Real, 3, 1> &p1() const { return m_p1; }
+    const Eigen::Matrix<Real, 3, 1> &p2() const { return m_p2; }
 
     Eigen::Matrix<Real, 3, 1> normal() const { return m_normal; }
 

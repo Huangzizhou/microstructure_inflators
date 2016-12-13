@@ -22,6 +22,7 @@
 #include "AutomaticDifferentiation.hh"
 #include "SignedDistance.hh"
 #include "Joint.hh"
+#include "TesselateSpheres.hh"
 
 #include <Future.hh>
 
@@ -38,15 +39,15 @@ public:
     size_t numThicknessParams() const { return m_wireMesh.numThicknessParams(); }
     size_t numPositionParams() const { return m_wireMesh.numPositionParams(); }
     size_t numBlendingParams() const { return m_wireMesh.numBlendingParams(); }
+
     void setParameters(const std::vector<Real> &params) {
         std::vector<Real> thicknesses;
         std::vector<Point3<Real>> points;
-        std::vector<typename WMesh::Edge> edges;
-        m_wireMesh.inflationGraph(params, points, edges, thicknesses, m_blendingParams);
+        m_wireMesh.inflationGraph(params, points, m_edges, thicknesses, m_blendingParams);
 
         // Vector of edge geometry uses same index as edges
         m_edgeGeometry.clear();
-        for (const auto &e : edges) {
+        for (const auto &e : m_edges) {
             m_edgeGeometry.emplace_back(
                     points[e.first],      points[e.second],
                     thicknesses[e.first], thicknesses[e.second]);
@@ -54,8 +55,8 @@ public:
 
         m_adjEdges.resize(points.size());
         for (auto &ae : m_adjEdges) ae.clear();
-        for (size_t ei = 0; ei < edges.size(); ++ei) {
-            const auto &e = edges[ei];
+        for (size_t ei = 0; ei < m_edges.size(); ++ei) {
+            const auto &e = m_edges[ei];
             m_adjEdges.at(e.first ).push_back(ei);
             m_adjEdges.at(e.second).push_back(ei);
         }
@@ -67,17 +68,18 @@ public:
                     throw std::runtime_error("Dangling edge inside base unit");
                 // Vertices outside the base unit cell with only one edge
                 // incident are not really joints.
+                m_jointForVertex.emplace_back(std::unique_ptr<Joint<Real>>());
                 continue;
             }
             std::vector<Point3<Real>> centers(1, points[u]);
             std::vector<Real>         radii(1, thicknesses[u]);
             for (size_t ei : m_adjEdges[u]) {
-                size_t v_other = edges[ei].first == u ? edges[ei].second
-                                                      : edges[ei].first;
+                size_t v_other = m_edges[ei].first == u ? m_edges[ei].second
+                                                        : m_edges[ei].first;
                 centers.push_back(points[v_other]);
                 radii.push_back(thicknesses[v_other]);
             }
-            m_joints.emplace_back(u,
+            m_jointForVertex.emplace_back(
                 Future::make_unique<Joint<Real>>(centers, radii, m_blendingParams[u]));
         }
 
@@ -97,10 +99,10 @@ public:
                 // Get other vertex of e1, and determine if it is that edge's
                 // "p1" or "p2" endpoint.
                 bool uIsP1OfE1 = false;
-                size_t v1 = edges[e1].first;
+                size_t v1 = m_edges[e1].first;
                 if (v1 == u) {
                     uIsP1OfE1 = true;
-                    v1 = edges[e1].second;
+                    v1 = m_edges[e1].second;
                 }
                 assert(v1 != u);
                 Real angleDeficit1 = uIsP1OfE1 ? m_edgeGeometry.at(e1).angleAtP1()
@@ -108,10 +110,10 @@ public:
                 for (size_t e2 : m_adjEdges[u]) {
                     if (e2 <= e1) continue;
                     bool uIsP1OfE2 = false;
-                    size_t v2 = edges[e2].first;
+                    size_t v2 = m_edges[e2].first;
                     if (v2 == u) {
                         uIsP1OfE2 = true;
-                        v2 = edges[e2].second;
+                        v2 = m_edges[e2].second;
                     }
                     assert(v2 != u);
 
@@ -179,6 +181,8 @@ public:
         //          << ") smoothness: " << m_vertexSmoothness[u] << std::endl;
         // }
 #endif
+        writeDebugSphereMesh("sphere_mesh.msh");
+        debugJointAtVertex(4);
     }
 
     // Additional Real type to support automatic differentiation wrt. p only
@@ -186,27 +190,41 @@ public:
     Real2 signedDistance(Point3<Real2> p) const {
         p = WMesh::PatternSymmetry::mapToBaseUnit(p);
         std::vector<Real2> edgeDists;
+        Real2 closestEdgeDist = 1e5;
+        size_t closestEdge = m_edgeGeometry.size();
         edgeDists.reserve(m_edgeGeometry.size());
-        for (const auto &c : m_edgeGeometry)
-            edgeDists.push_back(c.signedDistance(p));
+        for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
+            edgeDists.push_back(m_edgeGeometry[i].signedDistance(p));
+            if (edgeDists.back() < closestEdgeDist) {
+                closestEdgeDist = edgeDists.back();
+                closestEdge = i;
+            }
+        }
+        assert(closestEdge < m_edgeGeometry.size());
 
-        // for (Real2 ed : edgeDists) {
-        //     std::cout << "Edge distance: " << ed << std::endl;
-        // }
+        std::vector<Real2> jointEdgeDists;
+        auto distToVtxJoint = [&](size_t vtx) -> Real2 {
+            const auto &joint = m_jointForVertex[vtx];
+            if (!joint) {
+                // Joints are not created for valence 1 vertices.
+                assert(m_adjEdges[vtx].size() == 1);
+                return edgeDists[m_adjEdges[vtx][0]];
+            }
+            jointEdgeDists.clear(), jointEdgeDists.reserve(m_adjEdges[vtx].size());
+            for (size_t ei : m_adjEdges[vtx])
+                jointEdgeDists.push_back(edgeDists[ei]);
+            Real2 s = joint->smoothingAmt(p);
+            return SD::exp_smin_reparam_accurate<Real2>(jointEdgeDists, s);
+        };
+
+        // Real2 dist = std::min(distToVtxJoint(m_edges[closestEdge].first),
+        //                       distToVtxJoint(m_edges[closestEdge].second));
 
         // Create smoothed union geometry around each vertex and then union
         // together
         Real2 dist = 1e5;
-        std::vector<Real2> jointEdgeDists;
-        for (const auto &vjoint : m_joints) {
-            const size_t u = vjoint.first;
-            jointEdgeDists.clear(), jointEdgeDists.reserve(m_adjEdges[u].size());
-            for (size_t ei : m_adjEdges[u])
-                jointEdgeDists.push_back(edgeDists[ei]);
-            Real2 s = vjoint.second->smoothingAmt(p);
-            dist = std::min(dist,
-                    SD::exp_smin_reparam_accurate<Real2>(jointEdgeDists, s));
-        }
+        for (size_t u = 0; u < numVertices(); ++u)
+            dist = std::min(dist, distToVtxJoint(u));
 #if 0
         for (size_t u = 0; u < numVertices(); ++u) {
             // Vertex smoothness is in [0, 1],
@@ -247,22 +265,38 @@ public:
         // is additive.
         // Note: possibly could be sped up by implementing cheap isInside for
         // edge geometry and bailing early if inside?
-        for (const auto &c : m_edgeGeometry) {
-            edgeDists.push_back(c.signedDistance(p));
-            if (edgeDists.back() <= 0) return true;
+        Real closestEdgeDist = 1e5;
+        size_t closestEdge = m_edgeGeometry.size();
+        for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
+            edgeDists.push_back(m_edgeGeometry[i].signedDistance(p));
+            if (edgeDists.back() < closestEdgeDist) {
+                closestEdgeDist = edgeDists.back();
+                closestEdge = i;
+            }
         }
+        assert(closestEdge < m_edgeGeometry.size());
 
-        // see signedDistance(p) above
         std::vector<Real> jointEdgeDists;
-        for (const auto &vjoint : m_joints) {
-            const size_t u = vjoint.first;
-            jointEdgeDists.clear(), jointEdgeDists.reserve(m_adjEdges[u].size());
-            for (size_t ei : m_adjEdges[u])
+        auto distToVtxJoint = [&](size_t vtx) {
+            const auto &joint = m_jointForVertex[vtx];
+            if (!joint) {
+                // Joints are not created for valence 1 vertices.
+                assert(m_adjEdges[vtx].size() == 1);
+                return edgeDists[m_adjEdges[vtx][0]];
+            }
+            jointEdgeDists.clear(), jointEdgeDists.reserve(m_adjEdges[vtx].size());
+            for (size_t ei : m_adjEdges[vtx])
                 jointEdgeDists.push_back(edgeDists[ei]);
-            Real s = vjoint.second->smoothingAmt(p);
-            Real jsd = SD::exp_smin_reparam_accurate<Real>(jointEdgeDists, s);
-            if (jsd < 0) return true;
-        }
+            Real s = joint->smoothingAmt(p);
+            return SD::exp_smin_reparam_accurate<Real>(jointEdgeDists, s);
+        };
+
+        return std::min(distToVtxJoint(m_edges[closestEdge].first),
+                        distToVtxJoint(m_edges[closestEdge].second)) <= 0;
+
+        // // see signedDistance(p) above
+        // for (size_t u = 0; u < numVertices(); ++u)
+        //     if (distToVtxJoint(u) <= 0) return true;
 #if 0
         for (size_t u = 0; u < numVertices(); ++u) {
             Real smoothness = m_blendingParams[u] * (1/256.0 + (1.0 - 1/256.0) * m_vertexSmoothness[u]);
@@ -278,6 +312,54 @@ public:
 #endif
 
         return false;
+    }
+
+    // Debug smoothing modulation field/smoothing amount
+    template<typename Real2>
+    Real2 smoothnessAtEvalPt(Point3<Real2> p) const {
+        p = WMesh::PatternSymmetry::mapToBaseUnit(p);
+        std::vector<Real2> edgeDists;
+        Real2 closestEdgeDist = 1e5;
+        size_t closestEdge = m_edgeGeometry.size();
+        edgeDists.reserve(m_edgeGeometry.size());
+        for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
+            edgeDists.push_back(m_edgeGeometry[i].signedDistance(p));
+            if (edgeDists.back() < closestEdgeDist) {
+                closestEdgeDist = edgeDists.back();
+                closestEdge = i;
+            }
+        }
+        assert(closestEdge < m_edgeGeometry.size());
+
+        // Create smoothed union geometry around each vertex and then union
+        // together
+        Real2 dist = 1e5;
+        Real2 smoothness = -1.0;
+        std::vector<Real2> jointEdgeDists;
+        for (size_t u = 0; u < numVertices(); ++u) {
+            const auto &joint = m_jointForVertex[u];
+            Real2 jdist;
+            Real2 s;
+            if (!joint) {
+                // Joints are not created for valence 1 vertices.
+                assert(m_adjEdges[u].size() == 1);
+                jdist = edgeDists[m_adjEdges[u][0]]; 
+                s = m_blendingParams[u];
+            }
+            else {
+                jointEdgeDists.clear(), jointEdgeDists.reserve(m_adjEdges[u].size());
+                for (size_t ei : m_adjEdges[u])
+                    jointEdgeDists.push_back(edgeDists[ei]);
+                s = joint->smoothingAmt(p);
+                jdist = SD::exp_smin_reparam_accurate<Real2>(jointEdgeDists, s);
+            }
+            if (jdist < dist) {
+                dist = jdist;
+                smoothness = s;
+            }
+        }
+
+        return smoothness;
     }
 
     // Representative cell bounding box (region to be meshed)
@@ -322,7 +404,77 @@ public:
     }
 
     Real vertexSmoothness(size_t v) const { return m_vertexSmoothness.at(v); }
-    size_t numVertices() const { return m_vertexSmoothness.size(); }
+    size_t numVertices() const { return m_jointForVertex.size(); }
+
+    // Will differ from numVertices() since valence-1 vertices (outside the
+    // meshing cell) do not have joints.
+    size_t numJoints() const {
+        size_t count = 0;
+        for (auto &joint : m_jointForVertex)
+            if (joint) ++count;
+        return count;
+    }
+
+    // Write a mesh consisting of a sphere at each joint tagged with the joint's
+    // vertex index and its blending parameters.
+    void writeDebugSphereMesh(const std::string &path) {
+        const size_t numSpherePoints = 1000;
+
+        std::vector<Point3<double>> centers;
+        std::vector<double>         radii;
+        std::vector<size_t>         vertexForJoint;
+        for (size_t i = 0; i < m_jointForVertex.size(); ++i) {
+            auto &joint = m_jointForVertex[i];
+            if (joint) {
+                centers.push_back(stripAutoDiff(joint->c1()));
+                radii  .push_back(stripAutoDiff(joint->r1()));
+                vertexForJoint.push_back(i);
+            }
+        }
+
+        std::vector<MeshIO::IOVertex > outVertices;
+        std::vector<MeshIO::IOElement> outElements;
+        std::vector<size_t> sphereIdx;
+        tesselateSpheres(numSpherePoints, centers, radii, outVertices, outElements, sphereIdx);
+
+        ScalarField<double> vertexIndex(outVertices.size()),
+                            blendingParam(outVertices.size());
+        for (size_t i = 0; i < outVertices.size(); ++i) {
+            vertexIndex[i]   = vertexForJoint.at(sphereIdx[i]);
+            blendingParam[i] = stripAutoDiff(m_blendingParams[vertexForJoint.at(sphereIdx[i])]);
+        }
+
+        MSHFieldWriter writer(path, outVertices, outElements);
+        writer.addField("vtx_index",     vertexIndex, DomainType::PER_NODE);
+        writer.addField("blend_param", blendingParam, DomainType::PER_NODE);
+    }
+
+    void debugJointAtVertex(size_t vertexIndex) const {
+        const size_t numSpherePoints = 1000;
+        auto &joint = m_jointForVertex[vertexIndex];
+        if (!joint) throw std::runtime_error("No joint at vertex " + std::to_string(vertexIndex));
+
+        const auto &hull = joint->blendingHull();
+        std::vector<Point3<double>> centers;
+        std::vector<double>         radii;
+        for (auto &pt : hull.sphereCenters()) centers.push_back(stripAutoDiff(pt));
+        for (auto  &r : hull.sphereRadii  ()) radii.push_back(stripAutoDiff(r));
+
+        std::vector<MeshIO::IOVertex > outVertices;
+        std::vector<MeshIO::IOElement> outElements;
+        std::vector<size_t> sphereIdx;
+        tesselateSpheres(numSpherePoints, centers, radii, outVertices, outElements, sphereIdx);
+        std::string name = "joint" + std::to_string(vertexIndex);
+        MSHFieldWriter writer(name + ".msh", outVertices, outElements);
+
+        std::ofstream outFile(name + ".txt");
+        outFile << std::setprecision(19);
+        outFile << "Sphere centers:" << std::endl;
+        for (auto &pt : centers) outFile << "    {" << pt.transpose() << "}" << std::endl;
+        outFile << "Sphere radii:" << "{";
+        for (double r : radii) outFile << r << ", ";
+        outFile << "}" << std::endl;
+    }
 
 private:
     const WMesh &m_wireMesh;
@@ -332,6 +484,7 @@ private:
     // purposes.
     BBox<Point3<Real>> m_bbox = WMesh::PatternSymmetry::template representativeMeshCell<Real>();
 
+    std::vector<typename WMesh::Edge> m_edges; // vertex index pairs for each edge
     std::vector<SD::Primitives::InflatedEdge<Real>> m_edgeGeometry;
     // Quantity between 0 and 1 saying how much to smooth intersections between
     // edges incident on a particular vertex
@@ -345,8 +498,7 @@ private:
     // Joint vertex indices and their geometry
     // (Not every vertex is a joint; there are dangling edges extending outside
     //  the base unit.)
-    using VertexJoint = std::pair<size_t, std::unique_ptr<Joint<Real>>>;
-    std::vector<VertexJoint> m_joints;
+    std::vector<std::unique_ptr<Joint<Real>>> m_jointForVertex;
 };
 
 #endif /* end of include guard: PATTERNSIGNEDDISTANCE_HH */

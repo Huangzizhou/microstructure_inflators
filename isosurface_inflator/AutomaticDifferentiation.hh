@@ -63,8 +63,7 @@ struct StripAutoDiffImpl<Eigen::Matrix<Eigen::AutoDiffScalar<_DerType>, I...>> {
 // nothing when applied to a non-autodiff type).
 template<typename T>
 typename StripAutoDiffImpl<T>::result_type
-stripAutoDiff(const T &val)
-{
+stripAutoDiff(const T &val) {
     return StripAutoDiffImpl<T>::run(val);
 }
 
