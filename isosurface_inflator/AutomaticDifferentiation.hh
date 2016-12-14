@@ -67,6 +67,33 @@ stripAutoDiff(const T &val) {
     return StripAutoDiffImpl<T>::run(val);
 }
 
+template<typename T>
+constexpr bool isAutodiffType() {
+    return !std::is_same<typename StripAutoDiffImpl<T>::result_type, T>::value;
+}
+
+template<typename T>
+bool isAutodiffType(const T &val) { return isAutodiffType<T>(); }
+
+// For casting to non autodiff types, we must strip
+template<bool IsAutodiffTarget>
+struct AutodiffCastImpl {
+    template<typename TNew, typename TOrig>
+    static TNew run(const TOrig &val) { return TNew(stripAutoDiff(val)); }
+};
+
+// Casting to autodiff type just works
+template<>
+struct AutodiffCastImpl<true> {
+    template<typename TNew, typename TOrig>
+    static TNew run(const TOrig &val) { return TNew(val); }
+};
+
+template<typename TNew, typename TOrig>
+TNew autodiffCast(const TOrig &orig) {
+    return AutodiffCastImpl<isAutodiffType<TNew>()>::template run<TNew>(orig);
+}
+
 // Implement tanh for Eigen autodiff (argument dependent lookup)
 namespace Eigen {
 #define EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(FUNC,CODE) \

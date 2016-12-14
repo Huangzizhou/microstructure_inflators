@@ -276,14 +276,17 @@ public:
         // Fully degenerate case (hull is a single sphere)
         if (m_degenerateHullSphereIdx != NONE) {
             // Auto-diff compatible version:
-            return (p - m_sphereCenters[m_degenerateHullSphereIdx].template cast<Real2>()).norm() - 
+            return (p - m_sphereCenters[m_degenerateHullSphereIdx].template cast<Real2>()).norm() -
                     m_sphereRadii[m_degenerateHullSphereIdx];
         }
 
         // Find distance the non-degenerate (volume) regions (if any exist)
-        Real2 sd = std::numeric_limits<Real>::max();
+        using RealNonAD = typename StripAutoDiffImpl<Real>::result_type;
+        static_assert(std::is_floating_point<RealNonAD>::value,
+                      "std::numeric_limits is broken for autodiff types!");
+        Real2 sd = std::numeric_limits<RealNonAD>::max();
         if (m_supportingTriangles.size() > 0) {
-            Real2 closestTriDist = std::numeric_limits<Real>::max();
+            Real2 closestTriDist = std::numeric_limits<RealNonAD>::max();
             Vector3<Real2> closestLambda, closestInternalLambda;
             size_t closestTri = 0;
             for (size_t i = 0; i < m_supportingTriangles.size(); ++i) {

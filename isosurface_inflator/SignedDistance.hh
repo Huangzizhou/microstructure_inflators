@@ -102,11 +102,11 @@ Real exp_smin_reparam(const std::vector<Real> &values, Real s = 1.0/32) {
 // So, if we choose the cutoff for x at 700 (double precision), we should avoid
 // overflow for N = exp(9.7827...) ~= 17724.
 template<typename Real>
-Real exp_smin_reparam_accurate(const std::vector<Real> &values, Real s = 1.0/32) {
+Real exp_smin_reparam_accurate(const std::vector<Real> &values, Real s) {
     Real minVal = values[0];
     Real avg = 0;
     Real n = values.size();
-    for (Real val : values) {
+    for (const Real &val : values) {
         minVal = std::min(minVal, val);
         avg += val;
     }
@@ -114,7 +114,7 @@ Real exp_smin_reparam_accurate(const std::vector<Real> &values, Real s = 1.0/32)
 
     if (s == 0.0) return minVal;
 
-    constexpr double maxDifference = 700;
+    const double maxDifference = 700;
     if ((avg - minVal) > maxDifference * s) return minVal;
 
     Real k = 1.0 / s;

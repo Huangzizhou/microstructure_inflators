@@ -114,7 +114,7 @@ public:
     virtual vector<vector<Real>> signedDistanceParamPartials(const vector<Point> &evalPoints) const = 0;
 
     // Determine the degree of smoothing at each evaluation point (for debugging purposes)
-    virtual vector<Real>         smoothnessAtPoints(const vector<Point> &evalPoints) const = 0;
+    virtual std::pair<vector<Real>,vector<size_t>> smoothnessAtPoints(const vector<Point> &evalPoints) const = 0;
 
     // Whether the inflator generates only the orthotropic symmetry base cell
     // (by default--reflectiveInflator will override this)
@@ -256,6 +256,11 @@ public:
 
         auto evalAtPtIdx = [&](size_t e) {
             ADScalar sd = patternAutodiff.signedDistance(evalPoints[e].template cast<ADScalar>().eval());
+            Real sdOrig = pattern.signedDistance(evalPoints[e]);
+            if (std::abs(stripAutoDiff(sd) - sdOrig) > 1.25e-2) {
+                throw std::runtime_error("Incorrect signed distance computed by autodiff version: differ by " + std::to_string(std::abs(stripAutoDiff(sd) - sdOrig)));
+            }
+
             for (size_t p = 0; p < nParams; ++p) {
                 partials[p][e] = sd.derivatives()[p];
                 if (std::isnan(partials[p][e])) {
@@ -281,12 +286,18 @@ public:
     }
 
     // Determine the degree of smoothing at each evaluation point (for debugging purposes)
-    virtual vector<Real>         smoothnessAtPoints(const vector<Point> &evalPoints) const override {
+    virtual std::pair<vector<Real>,vector<size_t>> smoothnessAtPoints(const vector<Point> &evalPoints) const override {
         vector<Real> smoothness;
-        smoothness.reserve(evalPoints.size());
-        for (const auto &pt : evalPoints)
-            smoothness.push_back(pattern.smoothnessAtEvalPt(pt));
-        return smoothness;
+        vector<size_t> closestVtx;
+        smoothness.reserve(evalPoints.size()), closestVtx.reserve(evalPoints.size());
+        for (const auto &pt : evalPoints) {
+            Real s;
+            size_t vtx;
+            std::tie(s, vtx) = pattern.smoothnessAndClosestVtx(pt);
+            smoothness.push_back(s);
+            closestVtx.push_back(vtx);
+        }
+        return std::make_pair(smoothness, closestVtx);
     }
 
     virtual ~IsosurfaceInflatorImpl() { }
@@ -537,10 +548,13 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     //     throw;
     // }
 
+#if 0
     {
         // Debug the smoothing modulation field (is it causing bad signed
         // distance partials?)
-        vector<Real> smoothness = inflator.smoothnessAtPoints(evaluationPoints);
+        vector<Real> smoothness;
+        vector<size_t> closestVtx;
+        std::tie(smoothness, closestVtx) = inflator.smoothnessAtPoints(evaluationPoints);
         assert(smoothness.size() == evaluationPoints.size());
         {
             Real avg = 0.0;
@@ -549,12 +563,14 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
             std::cout << "Average smoothness: " << avg << std::endl;
         }
 
-        ScalarField<Real> smoothnessField(symBaseCellMesh.numBoundaryVertices());
-        smoothnessField.clear();
+        ScalarField<Real> smoothnessField(symBaseCellMesh.numBoundaryVertices()),
+                          closestVtxField(symBaseCellMesh.numBoundaryVertices());
+        smoothnessField.clear(), closestVtxField.clear();
         for (auto bv : symBaseCellMesh.boundaryVertices()) {
             size_t idx = evalPointIndex.at(bv.index());
             if (idx > smoothness.size()) continue;
             smoothnessField[bv.index()] = smoothness[idx];
+            closestVtxField[bv.index()] = closestVtx[idx];
         }
 
         // Extract boundary vertices/elements for output
@@ -569,7 +585,9 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
         }
         MSHFieldWriter writer("smoothness_debug.msh", outVertices, outElements);
         writer.addField("smoothness", smoothnessField, DomainType::PER_NODE);
+        writer.addField("closest_vtx", closestVtxField, DomainType::PER_NODE);
     }
+#endif
 
     vector<Real> sdGradNorms(evaluationPoints.size());
     for (size_t i = 0; i < evaluationPoints.size(); ++i) {

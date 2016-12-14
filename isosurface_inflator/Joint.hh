@@ -14,22 +14,25 @@
 
 #include "SphereConvexHull.hh"
 #include <Future.hh>
+#include "AutomaticDifferentiation.hh"
 
 #include <stdexcept>
 
+enum class JointBlendMode { FULL, HULL, HULL_HALF_EDGE };
 template<typename Real>
 class Joint {
 public:
-    enum class BlendMode { FULL, HULL, HULL_HALF_EDGE };
     Joint(const std::vector<Point3<Real>> &centers,
           const std::vector<Real>         &radii,
-          Real blendingAmt)
-    { setParameters(centers, radii, blendingAmt); }
+          Real blendingAmt, JointBlendMode mode)
+    { setParameters(centers, radii, blendingAmt, mode); }
 
     // Assumes the first (center, radius) specifies the joint sphere
     void setParameters(std::vector<Point3<Real>> centers, // modified inside
                        std::vector<Real>         radii,   // modified inside
-                       Real blendingAmt) {
+                       Real blendingAmt,
+                       JointBlendMode blendMode) {
+        m_mode = blendMode;
         assert(centers.size() == radii.size());
         if (centers.size() < 3) {
             {
@@ -50,7 +53,7 @@ public:
         }
         m_r1 = radii[0];
         m_c1 = centers[0];
-        if (m_mode == BlendMode::HULL_HALF_EDGE) {
+        if (m_mode == JointBlendMode::HULL_HALF_EDGE) {
             // In HULL_HALF_EDGE mode, shrink the hull region to extend only
             // halfway through each edge so that neighboring joint blending
             // regions do not overlap. This should prevent creases from forming
@@ -68,7 +71,7 @@ public:
 
     template<typename Real2>
     Real2 smoothingAmt(const Point3<Real2> &p) const {
-        if (m_mode == BlendMode::FULL) { return m_blendingAmt; }
+        if (m_mode == JointBlendMode::FULL) { return m_blendingAmt; }
 
         Real2 hullDist = m_blendingHull->signedDistance(p);
         Real2 z = 1.0 + (hullDist / m_r1); // from 0 at "center" to 1 at outside
@@ -77,6 +80,8 @@ public:
 
         return modulation * m_blendingAmt;
     }
+
+    Real blendParam() const { return m_blendingAmt; }
 
     Real         r1() const { return m_r1; }
     Point3<Real> c1() const { return m_c1; }
@@ -89,7 +94,7 @@ private:
     // Center and radius of the joint sphere.
     Point3<Real> m_c1;
     Real         m_r1;
-    BlendMode m_mode = BlendMode::HULL; 
+    JointBlendMode m_mode; 
 };
 
 #endif /* end of include guard: JOINT_HH */

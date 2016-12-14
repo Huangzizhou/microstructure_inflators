@@ -40,13 +40,17 @@ public:
     size_t numPositionParams() const { return m_wireMesh.numPositionParams(); }
     size_t numBlendingParams() const { return m_wireMesh.numBlendingParams(); }
 
-    void setParameters(const std::vector<Real> &params) {
+    void setParameters(const std::vector<Real> &params,
+                       JointBlendMode blendMode = JointBlendMode::HULL) {
+        // Clear all existing state.
+        m_edgeGeometry.clear(), m_jointForVertex.clear(),
+        m_vertexSmoothness.clear(), m_adjEdges.clear();
+
         std::vector<Real> thicknesses;
         std::vector<Point3<Real>> points;
         m_wireMesh.inflationGraph(params, points, m_edges, thicknesses, m_blendingParams);
 
         // Vector of edge geometry uses same index as edges
-        m_edgeGeometry.clear();
         for (const auto &e : m_edges) {
             m_edgeGeometry.emplace_back(
                     points[e.first],      points[e.second],
@@ -80,7 +84,7 @@ public:
                 radii.push_back(thicknesses[v_other]);
             }
             m_jointForVertex.emplace_back(
-                Future::make_unique<Joint<Real>>(centers, radii, m_blendingParams[u]));
+                Future::make_unique<Joint<Real>>(centers, radii, m_blendingParams[u], blendMode));
         }
 
 #if 0
@@ -91,7 +95,7 @@ public:
         // smoothness = 0             if theta >= Pi
         //              sin^2(theta)  if Pi/2 < theta < Pi
         //              1.0           if theta < Pi/2
-        m_vertexSmoothness.clear(), m_vertexSmoothness.reserve(points.size());
+        m_vertexSmoothness.reserve(points.size());
         for (size_t u = 0; u < points.size(); ++u) {
             // Min angle over all pairs of edges
             Real theta = 2 * M_PI;
@@ -181,8 +185,10 @@ public:
         //          << ") smoothness: " << m_vertexSmoothness[u] << std::endl;
         // }
 #endif
+#if 0
         writeDebugSphereMesh("sphere_mesh.msh");
         debugJointAtVertex(4);
+#endif
     }
 
     // Additional Real type to support automatic differentiation wrt. p only
@@ -217,14 +223,18 @@ public:
             return SD::exp_smin_reparam_accurate<Real2>(jointEdgeDists, s);
         };
 
-        // Real2 dist = std::min(distToVtxJoint(m_edges[closestEdge].first),
-        //                       distToVtxJoint(m_edges[closestEdge].second));
+        Real2 dist = std::min(distToVtxJoint(m_edges[closestEdge].first),
+                              distToVtxJoint(m_edges[closestEdge].second));
+        // TODO: compare distance to each joint against distance to the edge.
+        // The joint dist should always be <= edge dist since blending is
+        // additive. If both are < edge dist the blending regions overlap and an
+        // smin should be used to smooth creases.
 
-        // Create smoothed union geometry around each vertex and then union
-        // together
-        Real2 dist = 1e5;
-        for (size_t u = 0; u < numVertices(); ++u)
-            dist = std::min(dist, distToVtxJoint(u));
+        // // Create smoothed union geometry around each vertex and then union
+        // // together
+        // Real2 dist = 1e5;
+        // for (size_t u = 0; u < numVertices(); ++u)
+        //     dist = std::min(dist, distToVtxJoint(u));
 #if 0
         for (size_t u = 0; u < numVertices(); ++u) {
             // Vertex smoothness is in [0, 1],
@@ -316,25 +326,17 @@ public:
 
     // Debug smoothing modulation field/smoothing amount
     template<typename Real2>
-    Real2 smoothnessAtEvalPt(Point3<Real2> p) const {
+    std::pair<Real2, size_t> smoothnessAndClosestVtx(Point3<Real2> p) const {
         p = WMesh::PatternSymmetry::mapToBaseUnit(p);
         std::vector<Real2> edgeDists;
-        Real2 closestEdgeDist = 1e5;
-        size_t closestEdge = m_edgeGeometry.size();
         edgeDists.reserve(m_edgeGeometry.size());
-        for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
+        for (size_t i = 0; i < m_edgeGeometry.size(); ++i)
             edgeDists.push_back(m_edgeGeometry[i].signedDistance(p));
-            if (edgeDists.back() < closestEdgeDist) {
-                closestEdgeDist = edgeDists.back();
-                closestEdge = i;
-            }
-        }
-        assert(closestEdge < m_edgeGeometry.size());
-
         // Create smoothed union geometry around each vertex and then union
         // together
         Real2 dist = 1e5;
         Real2 smoothness = -1.0;
+        size_t vtx = 0;
         std::vector<Real2> jointEdgeDists;
         for (size_t u = 0; u < numVertices(); ++u) {
             const auto &joint = m_jointForVertex[u];
@@ -356,10 +358,11 @@ public:
             if (jdist < dist) {
                 dist = jdist;
                 smoothness = s;
+                vtx = u;
             }
         }
 
-        return smoothness;
+        return std::make_pair(smoothness, vtx);
     }
 
     // Representative cell bounding box (region to be meshed)
