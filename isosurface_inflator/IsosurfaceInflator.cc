@@ -593,7 +593,7 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     for (size_t i = 0; i < evaluationPoints.size(); ++i) {
         sdGradNorms[i] = sdGradX[i].norm();
         // We evaluate on the boundary--there should be a well-defined normal
-        if (std::abs(sdGradNorms[i]) < 1e-8) {
+        if (std::isnan(sdGradNorms[i]) || (std::abs(sdGradNorms[i]) < 1e-8)) {
             std::cerr << "Undefined normal at evaluation point "
                       << evaluationPoints[i] << std::endl;
             BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");

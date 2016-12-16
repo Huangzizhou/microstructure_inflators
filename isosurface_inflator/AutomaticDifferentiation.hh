@@ -13,7 +13,9 @@
 
 // #include <adept.h>
 #include <unsupported/Eigen/AutoDiff>
+#include <cmath>
 #include <algorithm>
+#include <limits>
 #include <type_traits>
 
 // using ADReal = adept::adouble;
@@ -106,7 +108,7 @@ namespace Eigen {
     CODE; \
   }
 
-    // Implement tanh for eigen
+    // Implement tanh for eigen autodiff
     EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(tanh,
       using std::tanh;
       using std::cosh;
@@ -115,7 +117,63 @@ namespace Eigen {
                         x.derivatives() * (Scalar(1)/abs2(cosh(x.value()))));
     )
 
-#undef EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY
+    // Implement log(cosh(x)) with derivative; useful for stable exp_smin computation
+    EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(log_cosh,
+      return ReturnType(std::log(std::cosh(x.value())),
+                        x.derivatives() * std::tanh(x.value()));
+    )
 
+#undef EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY
 }
+
+// Implement log_cosh for non-autodiff types.
+template<typename T>
+typename std::enable_if<!isAutodiffType<T>(), T>::type
+log_cosh(const T val) {
+    return log(cosh(val));
+}
+
+// std::numeric_limits is dangerous! If you use it on Eigen's autodiff types you
+// will get undefined behavior.
+template<typename T>
+struct safe_numeric_limits : public std::numeric_limits<typename StripAutoDiffImpl<T>::result_type>
+{
+    using NonADType = typename StripAutoDiffImpl<T>::result_type;
+    static_assert(std::is_arithmetic<NonADType>::value,
+                  "std::numeric_limits is broken for non-arithmetic types!");
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// Derivative debugging
+////////////////////////////////////////////////////////////////////////////////
+// Check for Inf/NaN in derivative fields
+template<typename T>
+typename std::enable_if<isAutodiffType<T>(), bool>::type
+hasInvalidDerivatives(const T &val) {
+    const auto &der = val.derivatives();
+    for (size_t i = 0; i < der.rows(); ++i)
+        if (std::isnan(der[i]) || std::isinf(der[i])) return true;
+    return false;
+}
+
+// Return false for non-autodiff types.
+template<typename T>
+typename std::enable_if<!isAutodiffType<T>(), bool>::type
+hasInvalidDerivatives(const T &val) { return false; }
+
+template<typename T>
+typename std::enable_if<isAutodiffType<T>(), void>::type
+reportDerivatives(std::ostream &os, const T &val) {
+    auto prec = os.precision(5);
+    const auto &der = val.derivatives();
+    for (size_t i = 0; i < der.rows(); ++i)
+        os << "\t" << der[i];
+    os.precision(prec);
+}
+
+// do nothing for non-autodiff types.
+template<typename T>
+typename std::enable_if<!isAutodiffType<T>(), void>::type
+reportDerivatives(std::ostream &os, const T &val) { }
+
 #endif /* end of include guard: AUTOMATICDIFFERENTIATION_HH */

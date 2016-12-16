@@ -14,6 +14,7 @@
 
 #include "InflatorTypes.hh"
 #include "TriangleClosestPoint.hh"
+#include "AutomaticDifferentiation.hh"
 #include <vector>
 
 
@@ -75,10 +76,12 @@ template<typename Real>
 Real exp_smin_reparam_accurate(Real a, Real b, Real s = 1.0/32) {
     if (s == 0.0) return std::min(a, b);
     Real d_div_s = (a - b) / (2.0 * s);
-    constexpr double maxDifference = 709.7827;
+    const double maxDifference = 709.7827;
     if (d_div_s >  maxDifference) return b;
     if (d_div_s < -maxDifference) return a;
-    return (a + b) / 2.0 - s * log(exp(d_div_s) + exp(-d_div_s));
+    // return (a + b) / 2.0 - s * log(exp(d_div_s) + exp(-d_div_s));
+    // Note: the following sidesteps an overflow issue with the derivative wrt s:
+    return (a + b) / 2.0 - s * (log_cosh(d_div_s) + log(2.0));
 }
 
 // exponential smooth min one or more values (s = 1/32);
@@ -114,7 +117,10 @@ Real exp_smin_reparam_accurate(const std::vector<Real> &values, Real s) {
 
     if (s == 0.0) return minVal;
 
-    const double maxDifference = 700;
+    // TODO: make this computation more stable for autodiff partial derivatives
+    // with small s (like the log_cosh version for 2 value). For now, we use a
+    // more conservative threshold: const double maxDifference = 700;
+    const double maxDifference = 600;
     if ((avg - minVal) > maxDifference * s) return minVal;
 
     Real k = 1.0 / s;

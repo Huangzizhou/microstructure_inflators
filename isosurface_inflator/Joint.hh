@@ -75,8 +75,11 @@ public:
 
         Real2 hullDist = m_blendingHull->signedDistance(p);
         Real2 z = 1.0 + (hullDist / m_r1); // from 0 at "center" to 1 at outside
-        z = 1.05 * std::max<Real2>(z, 0.0);
+        z = std::max<Real2>(z, 0.0);
         Real2 modulation = 1.0 - tanh(pow(z, 8.0));
+
+        // Try p = 10, z *= 1.03 ==> 1/10th smoothing at hull, falling quickly
+        // to zero
 
         return modulation * m_blendingAmt;
     }
