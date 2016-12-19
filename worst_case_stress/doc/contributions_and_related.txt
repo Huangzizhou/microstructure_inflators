@@ -1,0 +1,89 @@
+Contributions:
+  - An efficient worst-case local stress analysis for microstructures supporting
+    multiple failure criteria
+  - A more accurate method to compute shape derivatives for localized (high Lp
+    norm) stress objectives
+  - A new, signed-distance based approach for modeling organic
+    microstructures and computing their shape sensitivities. Enables adaptive
+    meshing of curved geometry.
+  - A solution to the bulging problem that localizes blending to concave
+    regions (not possible with gradient-based blending) in a way that's
+    guaranteed to preserve printability.
+  - A homogenization procedure exploiting orthotropic symmetry to make 3D
+    stress optimization tractable.
+
+Related work
+Closest work: stress minimization in the homogenization framework
+    "Topology Optimization for Minimum Stress Design with the Homogenization
+    Method" Allaire, Jouve 2003
+    - Discusses "Stress amplification factor", P, which seems equivalent to
+      my macro-to-micro stress tensor "F"
+    - Optimizes under fixed load (no worst-case analysis)
+    - Optimizes sequential laminates only.
+Minimum stress design in level-set topology optimization
+    "Minimum stress optimal design with the level set method"
+    Allaire, Jouve 2008
+    - Topology optimization minimizing the Lp norm of stress; ends up with
+      similar designs to min compliance topology optimization.
+    - Only low p-norm; shape derivatives are probably inaccurate
+    "A level set solution to the stress-based structural shape and topology
+    optimization"
+    Qi Xia, Tielin Shi, Shiyuan Liu, Michael Wang 2011
+    - Topology optimization of a combination of Lp norm of von Mises stress
+      and penalty only on stresses exceeding a given value
+    - Motivates this strange objective by discussing the problem of using high
+      p in the Lp norm ("convergence oscillation")--I suspect these problems
+      are due to inaccurate gradients! They use the traditional formulas that
+      I found inaccurate)
+Fillet optimization
+    - "Optimal shape design of shoulder fillets for flat and round bars under
+      various loadings" F O Sonmez
+    - "Stress concentration minimization of 2D filets using X-FEM and level set
+      description" Miegroet, Duysinx
+Stress minimization in graphics
+    - Stava et al.
+    - "Stress constrained thickness optimization for shell object
+      fabrication"
+      Haiming Zhao et al.
+      Minimize von Mises stress under fixed loads using shell model (where
+      thickness variables appear directly in stretching and bending
+      stiffness matrices).
+    - "Direct Shape Optimization for Strengthening 3D Printable Objects"
+        Yahan Zhou and Evangelos Kalogerakis and Rui Wang and Ian R. Grosse
+        Pacific Graphics 2016
+      Minimizes von Mises stress under specified force.  
+      Uses linear shape functions, coarse meshes, no remeshing/robustness
+      guarantees/element quality control.
+Stress aware interactive design
+    - "Example-based Subspace Stress Analysis for Interactive Shape Design"
+        Xiang Chen, Changxi Zheng, and Kun Zhou
+        TVCG 2016
+Worst-case analysis
+    - Zhou, Panetta, Zorin 2013
+    - "Stochastic Structural Analysis for Context-Aware Design and
+      Fabrication"
+      Timothy Langlois, Ariel Shamir, Daniel Dror, Wojciech Matusik, David Levin 2016
+Microstructures in graphics
+    - Schumacher et al., Panetta et al., Dumas et al.
+Fabrication constraints in topology optimization
+    Minimum length scale
+    Self-supporting constraint
+        "Undercut and Overhang Control.." Xiaoping Qian
+        "An additive manufacturing filter for topology optimization" Langelaar
+        "Toplogy optimization considering overhang constraints" Gaynor, Guest
+      - Are only approximate, require parameter tuning, and often exhibit poor
+        convergence.
+Implicit surface modeling
+    SCALIS: Convolutional surfaces
+      - Introduces more intuitive variable radius control for convolutional
+        surfaces.
+      - Still have a bulging problem at the n-ary joints that would hinder
+        printability
+      - Limited control over the joint geometry
+    Gradient-based implicit blend:
+      - No strict control over printability
+    Implicit blending revisited:
+      - Blending volumes around intersection curves (related to the idea I
+        use to enforce printability, but I use convex hull)
+    Name of my smooth minimum blending function:
+        Kreisselmeier-Steinhauser (1983)

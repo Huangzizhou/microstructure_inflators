@@ -1,0 +1,57 @@
+Parametric geometry model:
+    Joint spheres, sharp geometry, smoothed geometry, blending hull,
+        constrained smoothing. (Pov-ray)
+
+    Demonstrate bulging problem of gradient-based implicit blend
+        Compare to Fig 4, 6 of Gradient-based Implicit Blend
+            (T junction, A example)
+
+Worst case stress  formulation
+    Worst-case stress field (2D, 3D) (show von Mises + max stress? these are very similar)
+    Worst-case load         (2D, 3D)
+
+    Difference in largest 2 eigenvalues (2D): demonstrates differentiability of
+        max eigenvalue where we care about it.
+
+    Orthotropic microstructure base cell (for ortho homogenization description)
+
+Shape Differentiation
+    Parameter shape velocities from signed distance + autodiff framework
+        Vectors in 2D, scalar normal velocity in 3D
+
+    Steepest descent shape velocity for elasticity tensor fit objective and
+    worst case stress objective.
+
+    Plot of derivative accuracies (for low p and high p Lp norm)
+      - Finite difference
+      - Traditional boundary integral shape derivative
+      - Volume differential w/o boundary velocity interpolation
+      - Boundary differential (adjoint interpolation)
+
+Optimized examples
+    Orig WCS, optimized WCS (2D, 3D)
+
+    Optimized designs for various p values (stress concentrations for p < 4...)
+        Plot max stress of p-optimal design vs p
+        Compare these against the derivative accuracy plots
+
+    2D + maybe 3D:
+         Plot of WCS reduction over (E, nu) isotropic plane
+
+    Photo of printed 3D microstructure
+    Photo of lab test + broken microstructure
+    Lab test plots: force/displacement until break
+
+    Table of microstructures along side their optimized counterparts for a
+    range of elastic properties
+
+    Interesting topology (from Brad?)
+
+Lp max stress minimization under fixed load (non-periodic) examples:
+    Optimized on cantilever
+        2D parametric model: spline curve?
+    Dome truss
+      - Inflated dome-shaped graph structure clipped with ground plane.
+      - Downward forces on (fixed) top sphere and Dirichlet constraints on the
+        "feet" at the ground. Feet spheres are constrained to stay on a circle
+        in the ground plane.
