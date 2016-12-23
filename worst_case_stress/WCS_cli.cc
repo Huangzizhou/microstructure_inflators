@@ -24,6 +24,7 @@
 #include <string>
 
 #include <boost/program_options.hpp>
+#include <boost/algorithm/string.hpp>
 
 namespace po = boost::program_options;
 using namespace std;
@@ -47,6 +48,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     visible_opts.add_options()("help", "Produce this help message")
         ("material,m",               po::value<string>(),                 "base material")
         ("degree,d",                 po::value<int>()->default_value(2),  "degree of finite elements")
+        ("wcsMeasure,w",             po::value<string>()->default_value("frobenius"), "Which worst-case stress measure to analyze ('frobenius', 'vonMises', 'maxnorm', 'trace')")
         ("fieldOutput,o",            po::value<string>(),                 "Dump fluctation stress and strain fields to specified msh file")
         ("orthotropicCell,O",                                             "Analyze the orthotropic symmetry base cell only")
         ;
@@ -74,6 +76,13 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     int d = vm["degree"].as<int>();
     if (d < 1 || d > 2) {
         cout << "Error: FEM Degree must be 1 or 2" << endl;
+        fail = true;
+    }
+
+    string measure = vm["wcsMeasure"].as<string>();
+    boost::algorithm::to_lower(measure);
+    if ((measure != "frobenius") && (measure != "vonmises") && (measure != "maxnorm") && (measure != "trace")) {
+        cout << "Unrecognized worst-case measure: " << vm["wcsMeasure"].as<string>() << std::endl;
         fail = true;
     }
 
@@ -114,11 +123,19 @@ void execute(const po::variables_map &args,
     }
 
     ETensor Sh = Eh.inverse();
+    ETensor CBase = mat.getTensor();
 
     // Pointwise worst-case stress quantities are all computed the same way for
     // orthotropic and triply periodic cells
-    auto m2m = PH::macroStrainToMicroStrainTensors(w, sim);
-    auto wcs = worstCaseFrobeniusStress(mat.getTensor(), Sh, m2m);
+    auto G = PH::macroStrainToMicroStrainTensors(w, sim);
+
+    string measure = args["wcsMeasure"].as<string>();
+    boost::algorithm::to_lower(measure);
+    WorstCaseStress<_N> wcs;
+    if (measure == "frobenius") wcs = worstCaseFrobeniusStress(CBase, Sh, G);
+    if (measure == "vonmises")  wcs = worstCaseVonMisesStress(CBase, Sh, G);
+    if (measure == "maxnorm")   wcs = worstCaseMaxStress(CBase, Sh, G);
+    if (measure == "trace")     wcs = worstCaseStressTrace(CBase, Sh, G);
     // WCSObjective wcsObjective(mesh, wcs);
     auto wcsValues = wcs.sqrtStressMeasure();
 
@@ -142,9 +159,18 @@ void execute(const po::variables_map &args,
 
     if (args.count("fieldOutput")) {
         MSHFieldWriter writer(args["fieldOutput"].as<string>(), sim.mesh());
+
+        const size_t nelems = sim.mesh().numElements();
+        SymmetricMatrixField<Real, _N> microStress(nelems);
+        for (size_t i = 0; i < nelems; ++i) {
+            microStress(i) = CBase.doubleContract(
+                               G[i].doubleContract(
+                                   Sh.doubleContract(
+                                       wcs.wcMacroStress(i))));
+        }
         
         writer.addField("WC Macro Stress", wcs.wcMacroStress);
-        writer.addField("WC Micro Stress", wcs.wcMicroStress());
+        writer.addField("WC Micro Stress", microStress);
         writer.addField("Pointwise WCS",   wcsValues);
     }
 }

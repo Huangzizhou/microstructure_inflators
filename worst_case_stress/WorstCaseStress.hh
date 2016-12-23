@@ -25,6 +25,7 @@
 #include <PeriodicHomogenization.hh>
 #include <tuple>
 #include <GlobalBenchmark.hh>
+#include <VonMises.hh>
 #include <Parallelism.hh>
 
 #include "../pattern_optimization/SDConversions.hh"
@@ -48,6 +49,7 @@ using MinorSymmetricRank4TensorField = std::vector<MinorSymmetricRank4Tensor<N>>
 //      1) Frobenius norm
 //      2) von Mises
 //      3) Max stress
+//      4) Stress trace
 // (1) and (2) are identical except (2) measures deviatoric micro stress.
 // This means that for (2) F maps macro stress to appropriately (scaled)
 // deviatoric micro stress, and Cbase is really V : Cbase, where V is the
@@ -64,7 +66,7 @@ struct WorstCaseStress {
     using SMF = SymmetricMatrixField<Real, N>;
 
     // d(wc stress)/d(kl^th cell problem strain) on element e
-    SymmetricMatrixValue<Real, N> sensitvityToCellStrain(size_t kl, size_t e) const {
+    SymmetricMatrixValue<Real, N> sensitivityToCellStrain(size_t kl, size_t e) const {
         assert(kl < flatLen(N));
         auto result = Cbase.doubleContract(F.at(e).doubleContract(wcMacroStress(e)));
         result *= 2 * (Sh.doubleContract(wcMacroStress(e)))[kl];
@@ -72,7 +74,7 @@ struct WorstCaseStress {
     }
 
     // d(wc stress)/d(kl^th cell problem strain) rank 2 tensor field
-    void sensitvityToCellStrain(size_t kl, SMF &result) const {
+    void sensitivityToCellStrain(size_t kl, SMF &result) const {
         assert(kl < flatLen(N));
         result.resizeDomain(size());
         for (size_t e = 0; e < size(); ++e) {
@@ -105,13 +107,14 @@ struct WorstCaseStress {
         return result;
     }
 
-    // Note: micro deviatoric stress in von Mises case.
+#if 0 // Disabled since it doesn't compute the actual micro stress in the von Mises case...
     SMF wcMicroStress() const {
         SMF result(wcMacroStress.domainSize());
         for (size_t i = 0; i < F.size(); ++i)
             result(i) = F[i].doubleContract(wcMacroStress(i));
         return result;
     }
+#endif
 
     size_t size() const {
         assert(F.size() == wcMacroStress.domainSize());
@@ -152,8 +155,9 @@ struct WorstCaseStress {
     ////////////////////////////////////////////////////////////////////////////
     ElasticityTensor<Real, N> Sh;
     // For the worst-case von Mises analysis, Cbase maps strain to "von Mises
-    // stress." I.e. "Cbase = C
-    ElasticityTensor<Real, N> Cbase;
+    // stress." I.e. "Cbase = VonMises : C" where C is the actual printing
+    // base material. This tensor is *not* major symmetric.
+    MinorSymmetricRank4Tensor<N> Cbase;
     // Per-element macro->micro {stress, deviatoric stress} map.
     // See Worst Case Microstructure writeup for details.
     MinorSymmetricRank4TensorField<N> F, G;
@@ -162,14 +166,14 @@ struct WorstCaseStress {
     std::vector<Real> eigPrincipal, eigSecondary;
 };
 
-template<size_t N>
+template<size_t N, bool _majorSymmCBase>
 WorstCaseStress<N> worstCaseFrobeniusStress(
-        ElasticityTensor<Real, N> Cbase,
-        ElasticityTensor<Real, N> Sh,
+        const ElasticityTensor<Real, N, _majorSymmCBase> &Cbase, // Allow non major-symmetric to handle the von Mises case
+        const ElasticityTensor<Real, N> &Sh,
         const MinorSymmetricRank4TensorField<N> &m2mStrain)
 {
     WorstCaseStress<N> result;
-    result.Cbase = Cbase;
+    result.Cbase = MinorSymmetricRank4Tensor<N>(Cbase);
     result.Sh = Sh;
     result.G = m2mStrain;
 
@@ -203,15 +207,8 @@ WorstCaseStress<N> worstCaseVonMisesStress(
         ElasticityTensor<Real, N> Sh,
         const MinorSymmetricRank4TensorField<N> &m2mStrain)
 {
-    WorstCaseStress<N> result;
-    result.Cbase = Cbase;
-    result.Sh = Sh;
-    result.G = m2mStrain;
-
-    // TODO
-    throw std::runtime_error("Deviatoric stress extractor unimplemented");
-    return worstCaseFrobeniusStress(/* DeviatoricExtractor.doubleContract( */ Cbase /* ) */,
-                                    Sh, m2mStrain);
+    auto V = vonMisesExtractor<N>();
+    return worstCaseFrobeniusStress(V.doubleContract(Cbase), Sh, m2mStrain);
 }
 
 template<size_t N>
@@ -227,30 +224,69 @@ WorstCaseStress<N> worstCaseMaxStress(
 
     size_t numElems = m2mStrain.size();
 
-    // macro -> micro stress tensor map
+    // TODO: transpose and then correct the shape derivative terms.
+    // ALTERNATIVE: transpose all the things (swap Sh, Cbase, transpose G)
     result.F.reserve(numElems);
     for (size_t i = 0; i < numElems; ++i)
         result.F.emplace_back(Cbase.doubleContract(m2mStrain[i].doubleContract(Sh)));
 
     // worst-case macro stress
     result.wcMacroStress.resizeDomain(numElems);
+    MinorSymmetricRank4TensorField<N> T(numElems);
     for (size_t e = 0; e < numElems; ++e) {
         // Actually major symmetric, but conversion is not yet supported
-        MinorSymmetricRank4Tensor<N> T = result.F[e].transpose().doubleContract(result.F[e]);
-
-        throw std::runtime_error("Rank 4 Tensor Eigenvectors Unimplemented");
-        // TODO
-        // SymmetricMatrixValue<Real, N> sigma;
-        // Real lambda;
-        VectorND<N> n(VectorND<N>::Zero());
-        // tie(n, lambda) = T[e].maxEigenvector();
-
-        // Worst-case stress is outer product of max eigenvalue's eigenvector.
-        for (size_t i = 0; i < N; ++i) {
-            for (size_t j = i; j < N; ++j)
-                result.wcMacroStress(e)(i, j) = n[i] * n[j];
-        }
+        T[e] = result.F[e].doubleContract(result.F[e].transpose());
     }
+
+    std::ofstream tensorOut("tensors.txt");
+    if (!tensorOut.is_open()) throw std::runtime_error("Couldn't open 'tensors.txt' for writing");
+    for (size_t e = 0; e < numElems; ++e) {
+        // Actually major symmetric, but conversion is not yet supported
+        tensorOut << T[e] << std::endl;
+    }
+
+    throw std::runtime_error("Rank 4 Tensor Eigenvectors Unimplemented; tensors dumped to 'tensors.txt'");
+
+    return result;
+}
+
+template<size_t N>
+WorstCaseStress<N> worstCaseStressTrace(
+        ElasticityTensor<Real, N> Cbase,
+        ElasticityTensor<Real, N> Sh,
+        const MinorSymmetricRank4TensorField<N> &m2mStrain)
+{
+    WorstCaseStress<N> result;
+    result.Cbase = Cbase;
+    result.Sh = Sh;
+    result.G = m2mStrain;
+
+    size_t numElems = m2mStrain.size();
+
+    // Analog to the macro -> micro stress tensor map for the trace objective:
+    // we must actually transpose it!
+    // TODO: correct the shape derivative terms.
+    // ALTERNATIVE: transpose all the things (swap Sh, Cbase, transpose G)
+    std::cerr << "WARNING: shape derivative for worstCaseStressTrace must be corrected (apply transposes)" << std::endl;
+    result.F.reserve(numElems);
+    for (size_t i = 0; i < numElems; ++i) {
+        result.F.emplace_back(Cbase.doubleContract(m2mStrain[i].doubleContract(Sh)));
+        result.F.back() = result.F.back().transpose();
+    }
+
+    result.wcMacroStress.resizeDomain(numElems);
+    SymmetricMatrixValue<Real, N> identity;
+    identity.clear();
+    for (size_t i = 0; i < N; ++i)
+        identity(i, i) = 1;
+
+    for (size_t e = 0; e < numElems; ++e) {
+        // worst-case "macro stress" for the trace objective is the identity,
+        // though it doesn't actually correspond to a macro stress scenario due
+        // to the transposition of F (compare to Frobenius/von Mises case).
+        result.wcMacroStress(e) = identity;
+    }
+
     return result;
 }
 
@@ -286,7 +322,7 @@ struct IntegratedWorstCaseObjective {
     // NOTE: this is *NOT* scaled to account for possible reflected base cell
     // copies (computes just the pointwise value).
     void tau_kl(size_t kl, SMF &result) const {
-        wcStress.sensitvityToCellStrain(kl, result);
+        wcStress.sensitivityToCellStrain(kl, result);
         for (size_t e = 0; e < wcStress.size(); ++e)
             result(e) *= integrand.j_prime(wcStress(e), e);
     }

@@ -44,7 +44,8 @@ ISOINFLATOR_OBS=../isosurface_inflator/IsosurfaceInflator.o \
 				../isosurface_inflator/BoxIntersectionMesher.o \
 				../isosurface_inflator/MidplaneMesher.o \
 				../isosurface_inflator/CGALClippedVolumeMesher.o \
-				../isosurface_inflator/VCGSurfaceMesher.o
+				../isosurface_inflator/VCGSurfaceMesher.o \
+				../isosurface_inflator/ConvexHullTriangulation.o
 
 INFLATOR_OBJS=../pattern_optimization/MakeInflator.o \
 				../pattern_optimization/inflators/EqualityConstrainedInflator.o \

@@ -32,9 +32,11 @@ Minimum stress design in level-set topology optimization
     - Topology optimization of a combination of Lp norm of von Mises stress
       and penalty only on stresses exceeding a given value
     - Motivates this strange objective by discussing the problem of using high
-      p in the Lp norm ("convergence oscillation")--I suspect these problems
-      are due to inaccurate gradients! They use the traditional formulas that
-      I found inaccurate)
+      p in the Lp norm ("convergence oscillation", overflow)--I suspect these
+      problems are due to inaccurate gradients! They use the traditional
+      formulas that I found inaccurate). Overflow shouldn't happen in double
+      precision (unless stress exceeds (10^308)^(1/p) = 10^(308/p)
+      (can still choose p very high)
 Fillet optimization
     - "Optimal shape design of shoulder fillets for flat and round bars under
       various loadings" F O Sonmez

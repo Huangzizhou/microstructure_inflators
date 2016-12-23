@@ -50,10 +50,11 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description visible_opts;
     visible_opts.add_options()("help", "Produce this help message")
-        ("material,m",               po::value<string>(),                 "base material")
-        ("degree,d",                 po::value<int>()->default_value(2),  "degree of finite elements")
-        ("fieldOutput,o",            po::value<string>(),                 "Dump fluctation stress and strain fields to specified msh file")
-        ("macroStrain,s",            po::value<string>(),                 "macroscopic strain tensor")
+        ("material,m",               po::value<string>(),                             "base material")
+        ("degree,d",                 po::value<int>()->default_value(2),              "degree of finite elements")
+        ("wcsMeasure,w",             po::value<string>()->default_value("frobenius"), "Which worst-case stress measure to analyze ('frobenius', 'vonMises')")
+        ("fieldOutput,o",            po::value<string>(),                             "Dump fluctation stress and strain fields to specified msh file")
+        ("macroStrain,s",            po::value<string>(),                             "macroscopic strain tensor")
         ;
 
     po::options_description cli_opts;
@@ -87,6 +88,13 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         fail = true;
     }
 
+    string measure = vm["wcsMeasure"].as<string>();
+    boost::algorithm::to_lower(measure);
+    if ((measure != "frobenius") && (measure != "vonmises") && (measure != "maxnorm")) {
+        cout << "Unrecognized worst-case measure: " << vm["wcsMeasure"].as<string>() << std::endl;
+        fail = true;
+    }
+
     if (fail || vm.count("help"))
         usage(fail, visible_opts);
 
@@ -109,6 +117,8 @@ void execute(const po::variables_map &args,
     typedef typename Simulator::ETensor ETensor;
     typedef typename Simulator::VField  VField;
 
+    const size_t nelems = sim.mesh().numElements();
+
     std::vector<VField> w_ij;
     solveCellProblems(w_ij, sim);
 
@@ -119,6 +129,11 @@ void execute(const po::variables_map &args,
     const auto &mesh = sim.mesh();
     MSHFieldWriter writer(args["fieldOutput"].as<string>(), sim.mesh(),
                           linearSubsampleFields);
+
+    auto G = macroStrainToMicroStrainTensors(w_ij, sim);
+    MinorSymmetricRank4TensorField<_N> m2mStress(G.size());
+    for (size_t i = 0; i < G.size(); ++i)
+        m2mStress[i] = mat.getTensor().doubleContract(G[i].doubleContract(Sh));
 
     // Optional debugging of macro->micro stress tensor
     if (args.count("macroStrain")) {
@@ -134,25 +149,36 @@ void execute(const po::variables_map &args,
         for (size_t i = 0; i < stressComponents.size(); ++i)
             macroStrain[i] = stod(stressComponents[i]);
         auto macroStress = Eh.doubleContract(macroStrain);
-        // Compute average stress on each element corresponding to cstress
+        // Compute average stress on each element corresponding to macroStress
         SymmetricMatrixField<Real, _N> smf(mesh.numElements());
-        auto G = macroStrainToMicroStrainTensors(w_ij, sim);
-        MinorSymmetricRank4TensorField<_N> m2mStress(G.size());
-        for (size_t i = 0; i < G.size(); ++i)
-            m2mStress[i] = mat.getTensor().doubleContract(G[i].doubleContract(Sh));
         assert(m2mStress.size() == mesh.numElements());
         for (size_t ei = 0; ei < mesh.numElements(); ++ei)
             smf(ei) = m2mStress[ei].doubleContract(macroStress);
         writer.addField("stress", smf);
     }
 
-    BENCHMARK_START_TIMER("Worst Case Frobenius Norm");
-    auto wcs = worstCaseFrobeniusStress(mat.getTensor(), Sh,
-                                        macroStrainToMicroStrainTensors(w_ij, sim));
-    BENCHMARK_STOP_TIMER("Worst Case Frobenius Norm");
+    BENCHMARK_START_TIMER("Worst Case Analysis");
+    string measure = args["wcsMeasure"].as<string>();
+    boost::algorithm::to_lower(measure);
+    WorstCaseStress<_N> wcs;
+    if (measure == "frobenius") {
+        wcs = worstCaseFrobeniusStress(mat.getTensor(), Sh, G);
+    }
+    if (measure == "vonmises") {
+        wcs = worstCaseVonMisesStress(mat.getTensor(), Sh, G);
+    }
+    if (measure == "maxnorm") {
+        wcs = worstCaseMaxStress(mat.getTensor(), Sh, G);
+    }
+    BENCHMARK_STOP_TIMER("Worst Case Analysis");
 
     writer.addField("wc macro stress", wcs.wcMacroStress);
-    writer.addField("wc micro stress", wcs.wcMicroStress());
+
+    SymmetricMatrixField<Real, _N> microStress(nelems);
+    for (size_t i = 0; i < nelems; ++i)
+        microStress(i) = m2mStress[i].doubleContract(wcs.wcMacroStress(i));
+
+    writer.addField("wc micro stress", microStress);
     writer.addField("wc micro stress frobenius norm Sq", wcs.stressMeasure());
     writer.addField("wc micro stress frobenius norm", wcs.sqrtStressMeasure());
 

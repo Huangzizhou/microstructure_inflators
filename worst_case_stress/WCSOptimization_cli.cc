@@ -129,6 +129,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("pnorm,P",      po::value<double>()->default_value(1.0),         "pnorm used in the Lp global worst case stress measure")
         ("usePthRoot,R",                                                  "Use the true Lp norm for global worst case stress measure (applying pth root)")
         ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
+        ("WCSMeasure,w", po::value<string>()->default_value("frobenius"), "Which worst-case stress measure to analyze ('frobenius', 'vonMises')")
         ("JSWeight",     po::value<double>(),                             "Use the NLLS tensor fitting term with specified weight.")
         ("proximityRegularizationWeight", po::value<double>(),            "Use a quadratic proximity regularization term with the specified weight.")
         ("proximityRegularizationTarget", po::value<string>(),            "The target parameter values for the proximity regularization term (defaults to initial parameters.)")
@@ -289,6 +290,11 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     Real pnorm = args["pnorm"].as<double>();
     ifactory->WCSTermConfig::globalObjectivePNorm = pnorm;
     ifactory->WCSTermConfig::globalObjectiveRoot  = args.count("usePthRoot") ? 2.0 * pnorm : 1.0;
+
+    // Configure the pointwise worst-case stress measure
+    auto measure = args["WCSMeasure"].as<string>();
+    boost::algorithm::to_lower(measure);
+    ifactory->WCSTermConfig::measure = measure;
 
     if (args.count("JSWeight")) {
         ifactory->TensorFitTermConfig::weight  = args["JSWeight"].as<double>();

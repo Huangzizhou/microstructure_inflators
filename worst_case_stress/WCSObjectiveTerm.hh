@@ -20,7 +20,8 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
     using VField = typename _Sim::VField;
     template<class _Iterate>
     WorstCaseStress(const _Iterate &it,
-                    Real globalObjectivePNorm, Real globalObjectiveRoot) : m_baseCellOps(it.baseCellOps()) {
+                    Real globalObjectivePNorm, Real globalObjectiveRoot,
+                    const std::string &measure) : m_baseCellOps(it.baseCellOps()) {
         // Configure objective
         m_wcs_objective.integrand.p        = globalObjectivePNorm;
         m_wcs_objective.p                  = globalObjectiveRoot;
@@ -30,9 +31,18 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
 
         // Worst case stress currently assumes that the base material is
         // constant, so we can read it off a single element.
-        m_wcs_objective.setPointwiseWCS(mesh,
-            worstCaseFrobeniusStress(mesh.element(0)->E(), it.complianceTensor(),
-                m_baseCellOps.macroStrainToMicroStrainTensors()));
+        auto CBase = mesh.element(0)->E();
+        if (measure == "frobenius") {
+            m_wcs_objective.setPointwiseWCS(mesh,
+                worstCaseFrobeniusStress(CBase, it.complianceTensor(),
+                    m_baseCellOps.macroStrainToMicroStrainTensors()));
+        }
+        else if (measure == "vonmises") {
+            m_wcs_objective.setPointwiseWCS(mesh,
+                worstCaseVonMisesStress(CBase, it.complianceTensor(),
+                    m_baseCellOps.macroStrainToMicroStrainTensors()));
+        }
+        else throw std::runtime_error("Unknown worst-case measure: " + measure);
 
         // Compute and store WCS's boundary differential one-form
         m_diff_vol = m_wcs_objective.adjointDeltaJ(m_baseCellOps);
@@ -103,7 +113,7 @@ struct IFConfigWorstCaseStress : public IFConfig {
         static_assert(_Iterate::_N == N, "Mismatch in problem dimensions.");
         BENCHMARK_START_TIMER_SECTION("WCS Term");
         auto wcs = Future::make_unique<WorstCaseStress<_Sim, _WCSObjectiveType>>(
-                *it, globalObjectivePNorm, globalObjectiveRoot);
+                *it, globalObjectivePNorm, globalObjectiveRoot, measure);
         wcs->setWeight(weight);
 
         // WCS normalization is the initial worst case stress
@@ -118,6 +128,7 @@ struct IFConfigWorstCaseStress : public IFConfig {
     Real weight = 1.0;
     Real globalObjectivePNorm = 1.0;
     Real globalObjectiveRoot = 1.0;
+    std::string measure = "frobenius";
 };
 
 }}
