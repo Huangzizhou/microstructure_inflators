@@ -283,15 +283,15 @@ public:
         // Find distance the non-degenerate (volume) regions (if any exist)
         Real2 sd = safe_numeric_limits<Real2>::max();
         if (m_supportingTriangles.size() > 0) {
-            Real2 closestTriDist = safe_numeric_limits<Real2>::max();
+            Real2 closestTriDistSq = safe_numeric_limits<Real2>::max();
             Vector3<Real2> closestLambda, closestInternalLambda;
             size_t closestTri = 0;
             for (size_t i = 0; i < m_supportingTriangles.size(); ++i) {
                 Vector3<Real2> lambda = m_supportingTriangles[i].baryCoords(p);
                 Vector3<Real2> internalLambda = m_supportingTriangles[i].closestInternalBarycoordsToBaryCoords(lambda);
-                Real2 dist = (m_supportingTriangles[i].pointAtBarycoords(internalLambda) - p).norm();
-                if (dist < closestTriDist) {
-                    closestTriDist = dist;
+                Real2 distSq = (m_supportingTriangles[i].pointAtBarycoords(internalLambda) - p).squaredNorm();
+                if (distSq < closestTriDistSq) {
+                    closestTriDistSq = distSq;
                     closestLambda = lambda;
                     closestInternalLambda = internalLambda;
                     closestTri = i;
@@ -323,7 +323,7 @@ public:
                 std::cerr << "closestTri = " << closestTri << std::endl;
                 std::cerr << "closestInternalLambda = " << stripAutoDiff(closestInternalLambda).transpose() << std::endl;
                 std::cerr << "p = " << stripAutoDiff(p).transpose() << std::endl;
-                std::cerr << "closestTriDist = " << closestTriDist << std::endl;
+                std::cerr << "closestTriDist = " << sqrt(closestTriDistSq) << std::endl;
                 std::cerr << "closest tri vertices:" << std::endl;
                 std::cerr << stripAutoDiff(m_supportingTriangles[closestTri].p0()).transpose() << std::endl;
                 std::cerr << stripAutoDiff(m_supportingTriangles[closestTri].p1()).transpose() << std::endl;
@@ -342,11 +342,14 @@ public:
             // If closest point is in the triangle's interior, it's the closest
             // hull point.
             if (numZero == 0) {
-                auto v = stripAutoDiff((p - cst.pointAtBarycoords(closestInternalLambda)).eval());
-                Real normalDist = v.dot(stripAutoDiff(cst.normal()));
+                // TODO: faster way to determine which side of triangle we're
+                // on?
+                auto v = (stripAutoDiff(p) -
+                          stripAutoDiff(cst.pointAtBarycoords(closestInternalLambda))).eval();
+                double normalDist = v.dot(stripAutoDiff(cst.normal()));
 
-                if (normalDist >= 0) sd =  closestTriDist;
-                else                 sd = -closestTriDist;
+                if (normalDist >= 0) sd =  sqrt(closestTriDistSq);
+                else                 sd = -sqrt(closestTriDistSq);
             }
 
             if (numZero == 1) {

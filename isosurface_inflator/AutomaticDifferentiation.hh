@@ -51,8 +51,8 @@ struct StripAutoDiffImpl<Eigen::Matrix<Eigen::AutoDiffScalar<_DerType>, I...>> {
 
     static result_type run(const autodiff_type &v) {
         result_type r(v.rows(), v.cols());
-        for (size_t i = 0; i < v.rows(); ++i) {
-            for (size_t j = 0; j < v.cols(); ++j)
+        for (int i = 0; i < v.rows(); ++i) {
+            for (int j = 0; j < v.cols(); ++j)
                 r(i, j) = v(i, j).value();
         }
         return r;
@@ -75,7 +75,7 @@ constexpr bool isAutodiffType() {
 }
 
 template<typename T>
-bool isAutodiffType(const T &val) { return isAutodiffType<T>(); }
+bool isAutodiffType(const T &/* val */) { return isAutodiffType<T>(); }
 
 // For casting to non autodiff types, we must strip
 template<bool IsAutodiffTarget>
@@ -136,7 +136,8 @@ log_cosh(const T val) {
 // std::numeric_limits is dangerous! If you use it on Eigen's autodiff types you
 // will get undefined behavior.
 template<typename T>
-struct safe_numeric_limits : public std::numeric_limits<typename StripAutoDiffImpl<T>::result_type>
+struct safe_numeric_limits
+    : public std::numeric_limits<typename StripAutoDiffImpl<T>::result_type>
 {
     using NonADType = typename StripAutoDiffImpl<T>::result_type;
     static_assert(std::is_arithmetic<NonADType>::value,
@@ -151,7 +152,7 @@ template<typename T>
 typename std::enable_if<isAutodiffType<T>(), bool>::type
 hasInvalidDerivatives(const T &val) {
     const auto &der = val.derivatives();
-    for (size_t i = 0; i < der.rows(); ++i)
+    for (int i = 0; i < der.rows(); ++i)
         if (std::isnan(der[i]) || std::isinf(der[i])) return true;
     return false;
 }
@@ -159,14 +160,14 @@ hasInvalidDerivatives(const T &val) {
 // Return false for non-autodiff types.
 template<typename T>
 typename std::enable_if<!isAutodiffType<T>(), bool>::type
-hasInvalidDerivatives(const T &val) { return false; }
+hasInvalidDerivatives(const T &/* val */) { return false; }
 
 template<typename T>
 typename std::enable_if<isAutodiffType<T>(), void>::type
 reportDerivatives(std::ostream &os, const T &val) {
     auto prec = os.precision(5);
     const auto &der = val.derivatives();
-    for (size_t i = 0; i < der.rows(); ++i)
+    for (int i = 0; i < der.rows(); ++i)
         os << "\t" << der[i];
     os.precision(prec);
 }
@@ -174,6 +175,6 @@ reportDerivatives(std::ostream &os, const T &val) {
 // do nothing for non-autodiff types.
 template<typename T>
 typename std::enable_if<!isAutodiffType<T>(), void>::type
-reportDerivatives(std::ostream &os, const T &val) { }
+reportDerivatives(std::ostream &/* os */, const T &/* val */) { }
 
 #endif /* end of include guard: AUTOMATICDIFFERENTIATION_HH */

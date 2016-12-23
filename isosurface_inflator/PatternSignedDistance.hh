@@ -217,6 +217,7 @@ public:
                    const std::vector<Real2> &edgeDists,
                    std::vector<Real2> &jointEdgeDists) const {
         const auto &joint = m_jointForVertex[vtx];
+
         if (!joint) {
             // Joints are not created for valence 1 vertices.
             assert(m_adjEdges[vtx].size() == 1);
@@ -237,27 +238,124 @@ public:
                                  hardUnionedDist};
     }
 
-    template<typename Real2>
+    // InsideOutsideAccelerate: do we just need an inside/outside query? If so,
+    // we can implement some optimizations
+    template<typename Real2, bool InsideOutsideAccelerate = false>
     Real2
     combinedJointDistances(const Point3<Real2> &p,
-                           const std::vector<Real2> &edgeDists, size_t closestEdge) const {
+                           const std::vector<Real2> &edgeDists, size_t /* closestEdge */) const {
         std::vector<Real2> jointEdgeDists;
+        const double maxOverlapSmoothingAmt = 0.02;
 #if 1
+        // Note: this computation is made slow by needing to compute signed
+        // distances to the blending region for each joint considered. To
+        // accelerate things, we reduce the number of joints we smooth.
+        // We just need to make sure the two closest joints to p, in terms of
+        // smoothed signed distance, are considered. It is difficult to
+        // predict which two joints these are from edge distances alone as
+        // the smoothing can change which joint is closest.
+        //
+        // For now, we make the assumption that only the closest N of the joints
+        // in terms of hard-unioned distance are candidates for the closest two
+        // smoothed joints.
+
+        // Compute hard-unioned distance to each joint and determine Nth closest
+        std::vector<double> hard_distance(numVertices(), safe_numeric_limits<double>::max());
+        for (size_t vtx = 0; vtx < numVertices(); ++vtx) {
+            for (size_t ei : m_adjEdges[vtx])
+                hard_distance[vtx] = std::min<double>(hard_distance[vtx],
+                                                      stripAutoDiff(edgeDists[ei]));
+        }
+
+        double candidateDistThreshold;
+        {
+            size_t nCandidates = std::min<size_t>(5, hard_distance.size());
+            std::vector<double> hd_copy(hard_distance);
+            std::nth_element(hd_copy.begin(), hd_copy.begin() + nCandidates,
+                             hd_copy.end());
+            candidateDistThreshold = hd_copy[nCandidates];
+        }
+
+        static_assert(!(InsideOutsideAccelerate && isAutodiffType<Real2>()),
+                      "The inside-outside test is non-differentiable");
+        if (InsideOutsideAccelerate) {
+            double conservativeSMin = 0.0;
+            for (size_t vtx = 0; vtx < numVertices(); ++vtx) {
+                if (hard_distance[vtx] > candidateDistThreshold) continue; // prune far joints
+                double joint_smin = 0;
+                // m_vertexSmoothness[vtx] could scale down smoothing--but for
+                // robustness (to avoid small smoothing params) we
+                // conservatively assume m_vertexSmoothness == 1.
+                double s = stripAutoDiff(m_blendingParams[vtx]);
+                double k = 1.0 / s;
+                for (size_t ei : m_adjEdges[vtx])
+                    joint_smin += exp(-k * stripAutoDiff(edgeDists[ei]));
+                // joint_smin = -s * log(joint_smin);
+                //
+                // Individual joint_smin values are then smin-ed together with
+                // smoothing maxOverlapSmoothingAmt:
+                // exp(-(-s * log(joint_smin)) / maxOverlapSmoothingAmt)
+                // = exp(log(joint_smin))^(s/maxOverlapSmoothingAmt)
+                // = joint_smin^(s/maxOverlapSmoothingAmt)
+                conservativeSMin += pow(joint_smin,
+                                        s / maxOverlapSmoothingAmt);
+                // conservativeSMin += exp(-joint_smin / maxOverlapSmoothingAmt);
+            }
+            // conservatively inside if
+            // -maxOverlapSmoothingAmt * log(conservativeSMin) <= 0
+            // <==> log(conservativeSMin) >= 0
+            // <==> conservativeSMin >= 1
+            //  ==> we are definitely outside if conservativeSMin < 1
+            if (conservativeSMin < 1)
+                return 1.0;
+        }
+
         // Compute both smoothed and hard-unioned distances to the two closest
         // smoothed joints. These are the joints that could possibly overlap to
         // form a hard crease.
         JointDists<Real2> closestJDist, secondClosestJDist;
         closestJDist = secondClosestJDist = JointDists<Real2>::largest();
-        for (size_t u = 0; u < numVertices(); ++u) {
-            auto d = distToVtxJoint(u, p, edgeDists, jointEdgeDists);
+        size_t c_idx, sc_idx;
+        for (size_t vtx = 0; vtx < numVertices(); ++vtx) {
+            if (hard_distance[vtx] > candidateDistThreshold) continue; // prune out the far joints
+            auto d = distToVtxJoint(vtx, p, edgeDists, jointEdgeDists);
             if (d < secondClosestJDist) {
                 if (d < closestJDist) {
                     secondClosestJDist = closestJDist;
                     closestJDist = d;
+                    sc_idx = c_idx;
+                    c_idx = vtx;
                 }
-                else { secondClosestJDist = d; }
+                else { secondClosestJDist = d; sc_idx = vtx; }
             }
         }
+
+#if 0
+        if ((closestJDistApprox.smooth != closestJDist.smooth)
+                || (secondClosestJDistApprox.smooth != secondClosestJDist.smooth))
+        {
+            std::cerr.precision(19);
+            std::cerr << "closestJDist.hard:"      ; std::cerr <<       closestJDist.hard << std::endl;
+            std::cerr << "secondClosestJDist.hard:"; std::cerr << secondClosestJDist.hard << std::endl;
+            std::cerr << "closestJDist.smooth:"      ; std::cerr <<       closestJDist.smooth << std::endl;
+            std::cerr << "secondClosestJDist.smooth:"; std::cerr << secondClosestJDist.smooth << std::endl;
+            std::cerr << std::endl;
+            std::cerr << "closestJDistApprox.hard:"      ; std::cerr <<       closestJDistApprox.hard << std::endl;
+            std::cerr << "secondClosestJDistApprox.hard:"; std::cerr << secondClosestJDistApprox.hard << std::endl;
+            std::cerr << "closestJDistApprox.smooth:"      ; std::cerr <<       closestJDistApprox.smooth << std::endl;
+            std::cerr << "secondClosestJDistApprox.smooth:"; std::cerr << secondClosestJDistApprox.smooth << std::endl;
+            std::cerr << std::endl;
+            std::cerr << "sc_idx, c_idx: " << sc_idx << ", " << c_idx << std::endl;
+            std::cerr << std::endl;
+
+            std::cerr << "medianDist:" << medianDist << std::endl;
+            for (size_t vtx = 0; vtx < numVertices(); ++vtx)
+                std::cerr << hard_distance[vtx] << "\t";
+            std::cerr << std::endl;
+            exit(-1);
+        }
+#endif
+
 
         Real2 smoothEffect1 = (      closestJDist.hard -       closestJDist.smooth);
         Real2 smoothEffect2 = (secondClosestJDist.hard - secondClosestJDist.smooth);
@@ -270,14 +368,10 @@ public:
         // distances to smooth and hard goemetry.
         Real2 meanSmoothEffectSq = smoothEffect1 * smoothEffect2;
 
-        Real2 maxOverlapSmoothingAmt = 0.02;
         // Want to interpolate smoothly from 0 when meanSmoothEffect = 0 to ~.01
         Real2 overlapSmoothAmt = maxOverlapSmoothingAmt * tanh(1000.0 * meanSmoothEffectSq);
         Real2 dist = SD::exp_smin_reparam_accurate(closestJDist.smooth,
                                              secondClosestJDist.smooth, overlapSmoothAmt);
-
-        // TODO: only apply smoothing to adjacent joints? Check if we ever have
-        // bad behavior when topology changes due to bar collision.
 
         // dist = closestJDist.smooth;
         if (hasInvalidDerivatives(dist)) {
@@ -369,19 +463,14 @@ public:
         // Definitely inside if we're inside one of the edges: assumes blending
         // is additive.
         // Note: possibly could be sped up by implementing cheap isInside for
-        // edge geometry and bailing early if inside?
-        Real closestEdgeDist = 1e5;
-        size_t closestEdge = m_edgeGeometry.size();
+        // edge geometry.
         for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
             edgeDists.push_back(m_edgeGeometry[i].signedDistance(p));
-            if (edgeDists.back() < closestEdgeDist) {
-                closestEdgeDist = edgeDists.back();
-                closestEdge = i;
-            }
+            if (edgeDists.back() <= 0)
+                return true; // blending is additive
         }
-        assert(closestEdge < m_edgeGeometry.size());
 
-        return combinedJointDistances(p, edgeDists, closestEdge) <= 0;
+        return combinedJointDistances<Real, true /* accelerated version*/>(p, edgeDists, 0 /* closestEdge */) <= 0;
 
         // // see signedDistance(p) above
         // for (size_t u = 0; u < numVertices(); ++u)
@@ -574,10 +663,9 @@ private:
 
     std::vector<typename WMesh::Edge> m_edges; // vertex index pairs for each edge
     std::vector<SD::Primitives::InflatedEdge<Real>> m_edgeGeometry;
-    // Quantity between 0 and 1 saying how much to smooth intersections between
-    // edges incident on a particular vertex
-    // Since a given edge pair only has (at most) one vertex in common,
-    // specifying this per-vertex makes sense.
+    // Quantity between 0 and 1 saying how much to modulate the smoothing of a
+    // particular joint (multiplier for m_blendingParams). This is used to
+    // prevent bulging of nearly straight joints.
     std::vector<Real>                m_vertexSmoothness;
     std::vector<Real>                m_blendingParams;
     // Edges adjacent to a particular vertex.
