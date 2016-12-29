@@ -6,7 +6,7 @@
 //      Handles assignment of degrees of freedom to the graph structure based on
 //      the requested symmetry and thickness parameter type (both configured by
 //      template parameter)
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  06/26/2015 17:54:27
@@ -18,6 +18,8 @@
 #include <string>
 #include <cassert>
 #include <stdexcept>
+#include <limits>
+#include <set>
 
 #include <MeshIO.hh>
 #include "InflatorTypes.hh"
@@ -199,6 +201,124 @@ public:
             blendingParams.push_back(params.at(pOffset + i));
         for (size_t i = 0; i < m_adjacentVertices.size(); ++i)
             blendingParams.push_back(params.at(pOffset + m_adjacentVertices[i].first));
+    }
+
+    // Extract the replicated graph needed to validate printability (i.e. self
+    // supporting check) and to determine the self supporting constraints for
+    // the optimizer.
+    // For general periodic patterns, this is the full cell.
+    // For cubic/orthotropic patterns, this is one full "column" of the period
+    // cell (x, y in positive quadrant, z in [-1, 1]).
+    //
+    // Assumes ThicknessType::Vertex for now.
+    // The thickness and position of each vertex is decoded from the "params"
+    // vector into "points" and "thickness vars" for the printability check.
+    //
+    // For determining the self-supporting constraints, the linear map from
+    // pattern parameters to vertex positions is encoded in the "positionMap" and
+    // "thicknessMap" matrices.
+    // These matrices will actually be sparse, but using a dense representation
+    // shouldn't be a bottleneck.
+    // The last column of these maps is a constant offset (like in homogeneous
+    // coordinates)
+    void printabilityGraph(const std::vector<Real> &params,
+                           std::vector<Point3<Real>> &points,
+                           std::vector<Edge> &edges,
+                           std::vector<size_t> &thicknessVars,
+                           std::vector<Eigen::Matrix3Xd> &positionMaps)
+    {
+        if (params.size() != numParams())
+            throw std::runtime_error("Invalid number of params.");
+        const size_t nparams = params.size();
+
+        // Reflect base graph into the "printability column." This is done by
+        // applying all permutation isometries, but no translation and only the
+        // z-axis reflection
+        auto symmetryGroup = PatternSymmetry::symmetryGroup();
+        struct ReflectedVertex {
+            ReflectedVertex(const Point &p, size_t tv, const Eigen::MatrixXd &pm)
+                : pt(p), thicknessVar(tv), posMap(pm) { }
+            Point pt;
+            size_t thicknessVar;
+            Eigen::Matrix3Xd posMap;
+            Real sqDistTo(const Point &b) { return (pt - b).squaredNorm(); }
+        };
+        std::vector<ReflectedVertex> reflectedVertices;
+        std::set<Edge> reflectedEdges;
+
+        // Determine the index of the first position parameter for each vertex
+        std::vector<size_t> vtxPosParamOffset;
+        size_t posParams = 0;
+        for (const auto &bvp : m_baseVertexPositioners) {
+            vtxPosParamOffset.push_back(posParams);
+            posParams += bvp.numDoFs();
+        }
+
+        for (size_t ei = 0; ei < m_baseEdges.size(); ++ei) {
+            const auto &e = m_baseEdges[ei];
+            size_t u = e.first, v = e.second;
+
+            auto pu = m_baseVertexPositioners.at(u).template getPosition<Real>(&params[vtxPosParamOffset.at(u)]),
+                 pv = m_baseVertexPositioners.at(v).template getPosition<Real>(&params[vtxPosParamOffset.at(v)]);
+
+            Eigen::Matrix3Xd uPosMap = m_baseVertexPositioners.at(u).getPositionMap(nparams, vtxPosParamOffset.at(u));
+            Eigen::Matrix3Xd vPosMap = m_baseVertexPositioners.at(v).getPositionMap(nparams, vtxPosParamOffset.at(v));
+
+            // Thickness vars (one per vertex) come after the position vars
+            static_assert(thicknessType_ == ThicknessType::Vertex, "Only Per-Vertex Thickness Supported");
+            size_t uThickVar = posParams + u,
+                   vThickVar = posParams + v;
+
+            for (const auto &isometry : symmetryGroup) {
+                if (isometry.hasTranslation() ||
+                    isometry.hasReflection(Symmetry::Axis::X) ||
+                    isometry.hasReflection(Symmetry::Axis::Y)) {
+                    continue;
+                }
+                auto mappedPu = isometry.apply(pu);
+                auto mappedPv = isometry.apply(pv);
+
+                size_t mappedUIdx = std::numeric_limits<size_t>::max(),
+                       mappedVIdx = std::numeric_limits<size_t>::max();
+                // Search for repeated vertices.
+                for (size_t i = 0; i < reflectedVertices.size(); ++i) {
+                    if (reflectedVertices[i].sqDistTo(mappedPu) < PatternSymmetry::tolerance) {
+                        assert((reflectedVertices[i].posMap - isometry.xformMap(uPosMap)).squaredNorm() < 1e-8);
+                        mappedUIdx = i;
+                    }
+                    if (reflectedVertices[i].sqDistTo(mappedPv) < PatternSymmetry::tolerance) {
+                        assert((reflectedVertices[i].posMap - isometry.xformMap(vPosMap)).squaredNorm() < 1e-8);
+                        mappedVIdx = i;
+                    }
+                }
+                // Add the mapped vertices if they are distinct from the
+                // existing ones.
+                if (mappedUIdx > reflectedVertices.size()) {
+                    mappedUIdx = reflectedVertices.size();
+                    reflectedVertices.emplace_back(mappedPu, uThickVar, isometry.xformMap(uPosMap));
+                }
+                if (mappedVIdx > reflectedVertices.size()) {
+                    mappedVIdx = reflectedVertices.size();
+                    reflectedVertices.emplace_back(mappedPv, vThickVar, isometry.xformMap(vPosMap));
+                }
+
+                reflectedEdges.insert({mappedUIdx, mappedVIdx});
+            }
+        }
+
+        points.clear(); points.reserve(reflectedVertices.size());
+        edges.clear(); edges.reserve(reflectedEdges.size());
+        thicknessVars.clear(); thicknessVars.reserve(reflectedVertices.size());
+        positionMaps.clear(); positionMaps.reserve(reflectedVertices.size());
+
+        for (const auto &rv : reflectedVertices) {
+            points.emplace_back(rv.pt);
+            positionMaps.emplace_back(rv.posMap);
+            thicknessVars.push_back(rv.thicknessVar);
+        }
+
+        for (const auto &e : reflectedEdges)
+            edges.push_back(e);
     }
 
 private:

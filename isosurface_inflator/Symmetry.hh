@@ -109,7 +109,7 @@ struct TriplyPeriodic : SymmetryCRTP<TriplyPeriodic<TOL>> {
             // Quickly reduce to [-2, 2] for plain scalar types to accelerate
             // far point sampling.
             // This integer conversion-based reduction will not work with
-            // autodiff types, but the subsequent brute-force redution to
+            // autodiff types, but the subsequent brute-force reduction to
             // [-1, 1] should be fast since we should never be querying outside
             // the base cell when using autodiff to compute shape
             // velocities/normals).

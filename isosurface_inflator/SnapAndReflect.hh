@@ -285,7 +285,7 @@ void reflectXYZ(size_t Dim, // Dimensions to reflect in (length of [x, y, z] pre
 
                 // Link reflected vertex back to its original in the base cell.
                 vertexOrigin.push_back(vertexOrigin.at(vi));
-                vertexIsometry.push_back(vertexIsometry.at(vi).compose(refl));
+                vertexIsometry.push_back(vertexIsometry.at(vi).compose(refl.get()));
 
                 // Update the onReflectionPlane info for future reflections
                 for (size_t d2 = d + 1; d2 < 3; ++d2) {

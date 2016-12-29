@@ -16,15 +16,17 @@
 #include <iostream>
 #include <cassert>
 #include <string>
+#include <Future.hh>
 #include "InflatorTypes.hh"
 
 namespace Symmetry {
-    enum class Axis : unsigned int { X = 0, Y = 1, Z = 2 };
+    enum class Axis : unsigned int { X = 0, Y = 1, Z = 2, ANY = 255 };
     inline std::string axisName(Axis a) {
         switch(a) {
             case Axis::X: return "X";
             case Axis::Y: return "Y";
             case Axis::Z: return "Z";
+            case Axis::ANY: return "ANY";
         }
         return "Unknown";
     }
@@ -36,16 +38,55 @@ struct Isometry {
 
     // Default constructor: identity isometry
     Isometry() { }
-    Isometry(std::shared_ptr<const Operation> op) : operations(1, op) { }
+    Isometry(std::unique_ptr<const Operation> &&op) { operations.emplace_back(std::move(op)); }
+
+    Isometry(Isometry &&b) : operations(std::move(b.operations)) { }
+    Isometry(const Isometry &b) {
+        operations.reserve(b.operations.size());
+        for (auto &op : b.operations)
+            operations.emplace_back(op->clone());
+    }
+
+    Isometry &operator=(Isometry &&b) { operations = std::move(b.operations); return *this; }
+    Isometry &operator=(const Isometry &b) {
+        operations.clear();
+        operations.reserve(b.operations.size());
+        for (auto &op : b.operations)
+            operations.emplace_back(op->clone());
+        return *this;
+    }
 
     bool isIdentity() const { return operations.empty(); }
+    bool hasTranslation() const {
+        for (const auto &op : operations)
+            if (op->isTranslation()) return true;
+        return false;
+    }
+    bool hasPermutation() const {
+        for (const auto &op : operations)
+            if (op->isPermutation()) return true;
+        return false;
+    }
+    bool hasReflection() const {
+        for (const auto &op : operations)
+            if (op->isReflection()) return true;
+        return false;
+    }
+    bool hasReflection(const Symmetry::Axis axis = Symmetry::Axis::ANY) const {
+        for (const auto &op : operations)
+            if (op->isReflection(axis)) return true;
+        return false;
+    }
 
     // Compose "op" on the right (op will be performed before operations[]).
-    Isometry compose(std::shared_ptr<const Operation> op) const {
+    Isometry compose(std::unique_ptr<const Operation> &&op) const {
         Isometry result(*this);
-        result.operations.push_back(op);
+        result.operations.emplace_back(std::move(op));
         return result;
     }
+
+    Isometry compose(const std::unique_ptr<const Operation> &op) const { return compose(op->clone()); }
+    Isometry compose(const Operation *op) const { return compose(op->clone()); }
 
     // Performed in right-to-left: operations[n - 1], ..., operations[0]
     template<typename Real>
@@ -54,6 +95,16 @@ struct Isometry {
             operations[i - 1]->apply(p);
         }
         return p;
+    }
+
+    // Compose the isometry with the map from pattern parameters to a point.
+    // posMap is assumed to have nParams + 1 columns, where the last column
+    // holds a constant translation.
+    // @return  transformed copy of posMap
+    Eigen::Matrix3Xd xformMap(Eigen::Matrix3Xd posMap) const {
+        for (const auto &op : operations)
+            op->xformMap(posMap);
+        return posMap;
     }
 
     void print(std::ostream &os) const {
@@ -70,27 +121,50 @@ struct Isometry {
         template<typename Real>
         void apply(Point3<Real> &p) const { return applyOperation(this, p); }
         virtual void print(std::ostream &os) const = 0;
+        virtual std::unique_ptr<Operation> clone() const = 0;
+        virtual bool isTranslation() const { return false; }
+        virtual bool isReflection(const Symmetry::Axis axis = Symmetry::Axis::ANY) const { return false; }
+        virtual bool isPermutation() const { return false; }
+        virtual void xformMap(Eigen::Matrix3Xd &posMap) const = 0;
         virtual ~Operation() { }
     };
 
     struct Translation : public Operation {
         Translation(double x, double y, double z) : t(x, y, z) { }
         virtual ~Translation() { }
-        virtual void print(std::ostream &os) const { os << "t(" << t[0] << ", " << t[1] << ", " << t[2] << ")"; }
+        virtual void print(std::ostream &os) const override { os << "t(" << t[0] << ", " << t[1] << ", " << t[2] << ")"; }
+        virtual std::unique_ptr<Operation> clone() const override { return Future::make_unique<Translation>(*this); }
+        virtual bool isTranslation() const override { return true; }
+        virtual void xformMap(Eigen::Matrix3Xd &posMap) const override {
+            assert(posMap.cols() > 1);
+            posMap.col(posMap.cols() - 1) += t;
+        }
         Vector3<double> t;
     };
 
     struct Reflection : public Operation {
         Reflection(Symmetry::Axis a) : a(a) { }
         virtual ~Reflection() { }
-        virtual void print(std::ostream &os) const { os << "r(" << axisName(a) << ")"; }
+        virtual void print(std::ostream &os) const override { os << "r(" << axisName(a) << ")"; }
+        virtual std::unique_ptr<Operation> clone() const override { return Future::make_unique<Reflection>(*this); }
+        virtual bool isReflection(const Symmetry::Axis axis = Symmetry::Axis::ANY) const override {
+            return (axis == Symmetry::Axis::ANY) || (axis == a);
+        }
+        virtual void xformMap(Eigen::Matrix3Xd &posMap) const override {
+            posMap.row(static_cast<unsigned int>(a)) *= -1.0;
+        }
         Symmetry::Axis a;
     };
 
     struct Permutation : public Operation {
         Permutation(Symmetry::Axis a1, Symmetry::Axis a2) : a1(a1), a2(a2) { }
         virtual ~Permutation() { }
-        virtual void print(std::ostream &os) const { os << "p(" << axisName(a1) << ", " << axisName(a2) << ")"; }
+        virtual void print(std::ostream &os) const override { os << "p(" << axisName(a1) << ", " << axisName(a2) << ")"; }
+        virtual std::unique_ptr<Operation> clone() const override { return Future::make_unique<Permutation>(*this); }
+        virtual bool isPermutation() const override { return true; }
+        virtual void xformMap(Eigen::Matrix3Xd &posMap) const override {
+            posMap.row(static_cast<unsigned int>(a1)).swap(posMap.row(static_cast<unsigned int>(a2)));
+        }
         Symmetry::Axis a1, a2;
     };
 
@@ -111,11 +185,11 @@ struct Isometry {
         else { assert("Unrecognized operation!"); } // Impossible
     }
 
-    static std::shared_ptr<Translation> translation(double x, double y, double z)         { return std::make_shared<Translation>(x, y, z); }
-    static std::shared_ptr< Reflection>  reflection(Symmetry::Axis a)                     { return std::make_shared< Reflection>(a); }
-    static std::shared_ptr<Permutation> permutation(Symmetry::Axis a1, Symmetry::Axis a2) { return std::make_shared<Permutation>(a1, a2); }
+    static std::unique_ptr<Translation> translation(double x, double y, double z)         { return Future::make_unique<Translation>(x, y, z); }
+    static std::unique_ptr< Reflection>  reflection(Symmetry::Axis a)                     { return Future::make_unique< Reflection>(a); }
+    static std::unique_ptr<Permutation> permutation(Symmetry::Axis a1, Symmetry::Axis a2) { return Future::make_unique<Permutation>(a1, a2); }
 
-    std::vector<std::shared_ptr<const Operation>> operations;
+    std::vector<std::unique_ptr<const Operation>> operations;
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Isometry &i) {

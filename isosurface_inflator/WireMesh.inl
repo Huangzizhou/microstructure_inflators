@@ -68,6 +68,7 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     for (size_t ei = 0; ei < m_baseEdges.size(); ++ei) {
         const auto &e = m_baseEdges[ei];
 
+        // TODO: add constraints for the periodic case
         size_t u = e.first, v = e.second;
         auto pu = m_baseVertices.at(u), pv = m_baseVertices.at(v);
         for (const auto &isometry : symmetryGroup) {
@@ -83,6 +84,7 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
                     // Interior nodes should never stay inside!
                     assert(PatternSymmetry::nodeType(pu) != Symmetry::NodeType::Interior);
                     insideBaseIndex = m_findBaseVertex(mappedPu);
+                    assert(insideBaseIndex == u); // will fail in TriplyPeriodic case
                     outsideBaseIndex = v;
                     outsideBasePoint = mappedPv;
                 }
@@ -90,6 +92,7 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
                     // Interior nodes should never stay inside!
                     assert(PatternSymmetry::nodeType(pv) != Symmetry::NodeType::Interior);
                     insideBaseIndex = m_findBaseVertex(mappedPv);
+                    assert(insideBaseIndex == v); // will fail in TriplyPeriodic case
                     outsideBaseIndex = u;
                     outsideBasePoint = mappedPu;
                 }

@@ -57,6 +57,27 @@ struct BoxNodePositioner {
         return pos;
     }
 
+    // Get the map from [params 1] to (x, y, z) position (the last column is an
+    // constant translation).
+    // "paramOffset" is the index of the first position parameter for this
+    // node.
+    Eigen::Matrix3Xd
+    getPositionMap(const size_t paramsSize, const size_t paramOffset) const {
+        assert(paramOffset + numDoFs() <= paramsSize);
+        Eigen::Matrix3Xd posMap(3, paramsSize + 1);
+        const size_t constTransCol = paramsSize;
+        posMap.setZero();
+        posMap.col(constTransCol) = m_minCorner;
+        size_t d = paramOffset;
+        for (size_t i = 0; i < 3; ++i) {
+            if (m_ctype[i] == ComponentType::   Free) posMap(i,           d++) += m_dimensions[i];
+            if (m_ctype[i] == ComponentType::MaxFace) posMap(i, constTransCol) += m_dimensions[i];
+        }
+        assert(d == numDoFs() + paramOffset);
+
+        return posMap;
+    }
+
     // Get the degrees of freedom corresponding to a 3D position. Assumes that
     // the position lies within the space spanned by this positioner.
     template<typename Real2>
@@ -140,6 +161,35 @@ struct TetNodePositioner {
         pos[1] += lastCoordinate * baseTetCornerPosition(corner, 1);
         pos[2] += lastCoordinate * baseTetCornerPosition(corner, 2);
         return pos;
+    }
+
+    // Get the map from [params 1] to (x, y, z) position (the last column is an
+    // constant translation).
+    // "paramOffset" is the index of the first position parameter for this
+    // node.
+    // Parameters are the nonzero barycentric coordinates (except for the last,
+    // redundant one.)
+    Eigen::Matrix3Xd
+    getPositionMap(const size_t paramsSize, const size_t paramOffset) const {
+        assert(paramOffset + numDoFs() <= paramsSize);
+
+        Eigen::Matrix3Xd posMap(3, paramsSize + 1);
+        const size_t constTransCol = paramsSize;
+        posMap.setZero();
+
+        size_t lastCorner = m_affectedBaryCoordIndices[m_numAffectedBarycoords - 1];
+        // last nonzero barycentric coordinate is 1.0 - sum(previous)
+        posMap(0, constTransCol) = baseTetCornerPosition(lastCorner, 0);
+        posMap(1, constTransCol) = baseTetCornerPosition(lastCorner, 1);
+        posMap(2, constTransCol) = baseTetCornerPosition(lastCorner, 2);
+
+        for (size_t d = 0; d < numDoFs(); ++d) {
+            size_t corner = m_affectedBaryCoordIndices[d];
+            posMap(0, paramOffset + d) = baseTetCornerPosition(corner, 0) - baseTetCornerPosition(lastCorner, 0);
+            posMap(1, paramOffset + d) = baseTetCornerPosition(corner, 1) - baseTetCornerPosition(lastCorner, 1);
+            posMap(2, paramOffset + d) = baseTetCornerPosition(corner, 2) - baseTetCornerPosition(lastCorner, 2);
+        }
+        return posMap;
     }
 
     // Get the degrees of freedom corresponding to a 3D position. Assumes that
