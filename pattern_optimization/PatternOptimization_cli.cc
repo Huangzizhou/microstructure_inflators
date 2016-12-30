@@ -105,7 +105,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, slsqp, levenberg_marquardt")
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient descent step size")
         ("nIters,n",     po::value<size_t>(),                                    "number of iterations (infinite by default)")
-        ("tensor_fit_tolerance", po::value<double>(),                            "tolerance for tensor fitting (not intended for use with other objectives or constraints, only works for slsqp)")
+        ("tensor_fit_tolerance", po::value<double>(),                            "tolerance for tensor fitting (stops the moment tensor is reached regardless of other objective terms, works only for slsqp)")
         ("ignoreShear",                                                          "Ignore the shear components in the isotropic tensor fitting")
         ;
 

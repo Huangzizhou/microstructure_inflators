@@ -41,11 +41,15 @@ struct NLOptState {
         return true;
     }
 
-    void manualTerminationCheck(Real costVal) const {
+    void manualTerminationCheck(const PatternOptimization::IterateBase &it, Real /* costVal */) const {
         if (tensor_fit_tolerance) {
-            if (costVal < *tensor_fit_tolerance) {
-                opt.force_stop();
+            double relFrobDistSq = std::numeric_limits<double>::max();
+            try {
+                relFrobDistSq = it.evaluateNormalized("JS");
             }
+            catch(...) { std::cerr << "ERROR: no tensor_fit_tolerance requires a JS objective term" << std::endl; }
+            if (relFrobDistSq < *tensor_fit_tolerance)
+                opt.force_stop();
         }
     }
 
@@ -91,7 +95,7 @@ double costFunc(const std::vector<double> &x, std::vector<double> &grad, void *o
             it.writeMeshAndFields(optState->outPath + "_" + std::to_string(optState->niters));
     }
 
-    optState->manualTerminationCheck(val);
+    optState->manualTerminationCheck(it, val);
 
     return it.evaluate();
 }

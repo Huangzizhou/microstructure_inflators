@@ -79,7 +79,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         BENCHMARK_STOP_TIMER_SECTION("Convert");
     }
 
-    virtual Real evaluate() const override { return 0.5 * m_diffS.quadrupleContract(m_diffS); }
+    virtual Real evaluate() const override { return 0.5 * m_diffS.frobeniusNormSq(); }
 
     bool ignoringShear() const { return m_ignoreShear; }
     void setIgnoreShear(bool ignore) { m_ignoreShear = ignore; }
@@ -184,9 +184,10 @@ struct IFConfigTensorFit : public IFConfig {
         auto tf = Future::make_unique<TensorFit<_Sim>>(targetS, *it);
         tf->setWeight(weight);
 
-        // Default JS normalization is target tensor's squared Frobenius norm
+        // Default JS normalization is (half) target tensor's squared Frobenius norm
+        // This means the normalized term is the relative squared frobenius distance.
         if (!normalizations.isSet("JS"))
-            normalizations.set("JS", 1.0 / targetS.frobeniusNormSq());
+            normalizations.set("JS", 0.5 / targetS.frobeniusNormSq());
 
         tf->setNormalization(normalizations["JS"]);
         tf->setIgnoreShear(ignoreShear);

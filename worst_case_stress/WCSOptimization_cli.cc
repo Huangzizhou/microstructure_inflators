@@ -119,6 +119,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description optimizerOptions;
     optimizerOptions.add_options()
         ("nIters,n",     po::value<size_t>()->default_value(20),                 "number of iterations")
+        ("tensor_fit_tolerance", po::value<double>(),                            "tolerance for tensor fitting (stops the moment tensor is reached regardless of other objective terms, works only for slsqp)")
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient step size")
         ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, slsqp, bfgs, lbfgs")
         ;
@@ -394,6 +395,9 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     if (args.count("nIters")) oconfig.niters = args["nIters"].as<size_t>();
     oconfig.gd_step = args["step"].as<double>();
 
+    if (args.count("tensor_fit_tolerance"))
+        oconfig.tensor_fit_tolerance = args["tensor_fit_tolerance"].as<double>();
+
     if (solver == "lbfgs") oconfig.lbfgs_memory = 10;
     optimizers.at(solver)(params, bdcs, *imanager, oconfig, output);
 
@@ -411,7 +415,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
         cout << endl;
     }
 
-    BENCHMARK_REPORT();
+    BENCHMARK_REPORT_NO_MESSAGES();
 }
 
 int main(int argc, const char *argv[]) {
