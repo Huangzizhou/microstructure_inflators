@@ -4,7 +4,7 @@
 /*! @file
 //      Evolves the microstructure parameters to bring the structure's
 //      homogenized elasticity tensor closer to a target tensor.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  09/12/2014 01:15:28
@@ -49,6 +49,7 @@
 #include "PatternOptimizationConfig.hh"
 #include "objective_terms/TensorFit.hh"
 #include "objective_terms/ProximityRegularization.hh"
+#include "constraints/TensorFit.hh"
 
 namespace po = boost::program_options;
 using namespace std;
@@ -91,11 +92,21 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("cell_size,c",  po::value<double>(),                                    "Inflation cell size (James' inflator only. Default: 5mm)")
         ("isotropicParameters,I",                                                "Use isotropic DoFs (3D only)")
         ("vertexThickness,V",                                                    "Use vertex thickness instead of edge thickness (3D only)")
+        ("proximityRegularizationWeight", po::value<double>(),                   "Use a quadratic proximity regularization term with the specified weight.")
+        ;
+
+    po::options_description constraintOptions;
+    constraintOptions.add_options()
+        ("TensorFitConstraint,C", "Enforce homogenized tensor fitting as a nonlinear equality constraint (for optimizers that support this)")
+        ;
+
+    po::options_description optimizer_options;
+    optimizer_options.add_options()
         ("solver",       po::value<string>()->default_value("gradient_descent"), "solver to use: none, gradient_descent, bfgs, lbfgs, slsqp, levenberg_marquardt")
         ("step,s",       po::value<double>()->default_value(0.0001),             "gradient descent step size")
         ("nIters,n",     po::value<size_t>(),                                    "number of iterations (infinite by default)")
+        ("tensor_fit_tolerance", po::value<double>(),                            "tolerance for tensor fitting (not intended for use with other objectives or constraints, only works for slsqp)")
         ("ignoreShear",                                                          "Ignore the shear components in the isotropic tensor fitting")
-        ("proximityRegularizationWeight", po::value<double>(),                   "Use a quadratic proximity regularization term with the specified weight.")
         ;
 
     po::options_description meshingOptions;
@@ -109,7 +120,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ;
 
     po::options_description visible_opts;
-    visible_opts.add(misc_opts).add(meshingOptions);
+    visible_opts.add(misc_opts).add(constraintOptions).add(meshingOptions).add(optimizer_options);
 
     po::options_description cli_opts;
     cli_opts.add(visible_opts).add(hidden_opts);
@@ -187,20 +198,31 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
+    using TFConstraintConfig  = Constraints::IFConfigTensorFit<Simulator>;
+    using TensorFitTermConfig = ObjectiveTerms::IFConfigTensorFit<Simulator>;
     using Iterate = Iterate<Simulator>;
     auto ifactory = make_iterate_factory<Iterate,
-                                         ObjectiveTerms::IFConfigTensorFit<Simulator>,
-                                         ObjectiveTerms::IFConfigProximityRegularization>(inflator);
+                                         TensorFitTermConfig,
+                                         ObjectiveTerms::IFConfigProximityRegularization,
+                                         TFConstraintConfig>(inflator);
 
-    ifactory->ignoreShear = args.count("ignoreShear");
-    if (ifactory->ignoreShear) cout << "Ignoring shear components" << endl;
+    bool ignoreShear = args.count("ignoreShear");
+    ifactory->TensorFitTermConfig::ignoreShear = ignoreShear;
+    if (ignoreShear) cout << "Ignoring shear components" << endl;
     ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled = false;
     if (args.count("proximityRegularizationWeight")) {
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled      = true;
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::targetParams = job->initialParams;
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::weight       = args["proximityRegularizationWeight"].as<double>();
     }
-    ifactory->targetS = targetS;
+    ifactory->TensorFitTermConfig::targetS = targetS;
+
+    ifactory->TFConstraintConfig ::enabled = false;
+    if (args.count("TensorFitConstraint")) {
+        ifactory->TFConstraintConfig::enabled     = true;
+        ifactory->TFConstraintConfig::targetS     = targetS;
+        ifactory->TFConstraintConfig::ignoreShear = args.count("ignoreShear");
+    }
 
     auto imanager = make_iterate_manager(std::move(ifactory));
     BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
@@ -211,6 +233,9 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     OptimizerConfig oconfig;
     if (args.count("nIters")) oconfig.niters = args["nIters"].as<size_t>();
     oconfig.gd_step = args["step"].as<double>();
+
+    if (args.count("tensor_fit_tolerance"))
+        oconfig.tensor_fit_tolerance = args["tensor_fit_tolerance"].as<double>();
 
     if (solver == "lbfgs") oconfig.lbfgs_memory = 10;
     optimizers.at(solver)(params, bdcs, *imanager, oconfig, output);

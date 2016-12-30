@@ -3,6 +3,7 @@
 #include "../../isosurface_inflator/IsosurfaceInflator.hh"
 #include "../../isosurface_inflator/IsosurfaceInflatorConfig.hh"
 #include <Future.hh>
+#include <MSHFieldWriter.hh>
 
 #include <iostream>
 #include <iomanip>
@@ -55,14 +56,56 @@ IsoinflatorWrapper<N>::volumeShapeVelocities() const
     assert(nv == nsv.at(0).size());
 
     std::vector<VectorField<Real, N>> result(np);
-    for (size_t p = 0; p < np; ++p) {
-        result[p].resizeDomain(nv);
-        for (size_t vi = 0; vi < nv; ++vi) {
-            result[p](vi)  = truncateFrom3D<VectorND<N>>(n[vi]);
-            result[p](vi) *= nsv[p][vi];
-            // assert(!std::isnan(result[p](vi)));
-            // assert(!std::isnan(result[p](vi)));
+    try {
+        double maxZMag = 0;
+        for (size_t p = 0; p < np; ++p) {
+            result[p].resizeDomain(nv);
+            for (size_t vi = 0; vi < nv; ++vi) {
+                maxZMag = std::max(maxZMag, std::abs(n[vi][2]));
+                // With the sphere convex hull blending region, the signed
+                // distance function is often spatially nondifferentiable at
+                // the midplane in the z direction (the signed distance function
+                // is only C0 on the medial axis). This causes us to get
+                // incorrect normal components in the z direction.
+                if (N == 2) n[vi][2] = 0;
+                result[p](vi)  = truncateFrom3D<VectorND<N>>(n[vi]);
+                result[p](vi) *= nsv[p][vi];
+                // assert(!std::isnan(result[p](vi)));
+                // assert(!std::isnan(result[p](vi)));
+            }
         }
+
+        if ((N == 2) && (maxZMag > 1e-1)) {
+            std::cerr << "Large normal z component: "
+                      << maxZMag << " (probably ok)"
+                      << std::endl;
+        }
+    }
+    catch (...) {
+        double maxZMag = 0;
+        for (size_t p = 0; p < np; ++p)
+            for (size_t vi = 0; vi < nv; ++vi)
+                maxZMag = std::max(maxZMag, std::abs(n[vi][2]));
+
+        std::cerr << "Nonzero z magnitude: " << maxZMag << std::endl;
+
+        MSHFieldWriter writer("debug_velocities.msh", vertices(), elements());
+        {
+            VectorField<double, 3> n_out(n.size());
+            ScalarField<double> normal_z(n.size());
+            for (size_t i = 0; i < n.size(); ++i) {
+                n_out(i) = n[i];
+                normal_z[i] = n[i][2];
+            }
+            writer.addField("normals", n_out);
+            writer.addField("normal_zcomp", normal_z);
+        }
+        size_t i = 0;
+        for (const auto &nsv_p : nsv) {
+            ScalarField<double> nsv_out(nsv_p);
+            writer.addField("nsv " + std::to_string(i++), nsv_out);
+        }
+        throw;
     }
     return result;
 }

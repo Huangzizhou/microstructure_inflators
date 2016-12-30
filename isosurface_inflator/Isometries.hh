@@ -123,7 +123,7 @@ struct Isometry {
         virtual void print(std::ostream &os) const = 0;
         virtual std::unique_ptr<Operation> clone() const = 0;
         virtual bool isTranslation() const { return false; }
-        virtual bool isReflection(const Symmetry::Axis axis = Symmetry::Axis::ANY) const { return false; }
+        virtual bool isReflection(const Symmetry::Axis /*axis*/ = Symmetry::Axis::ANY) const { return false; }
         virtual bool isPermutation() const { return false; }
         virtual void xformMap(Eigen::Matrix3Xd &posMap) const = 0;
         virtual ~Operation() { }

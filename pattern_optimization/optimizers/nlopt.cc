@@ -6,12 +6,12 @@
 #include <vector>
 #include <cassert>
 
-#include "../pattern_optimization/Constraint.hh"
+#include "../Constraint.hh"
 
 using namespace PatternOptimization;
 
 struct NLOptState {
-    NLOptState(IterateManagerBase &im) : im(im), best(std::numeric_limits<Real>::max()) { }
+    NLOptState(IterateManagerBase &im, nlopt::opt &opt) : im(im), best(std::numeric_limits<Real>::max()), opt(opt) { }
 
     // TODO: When constraints are involved, the iterate can be an improvement if
     // either infeasibility decreases or objective decreases.
@@ -41,12 +41,24 @@ struct NLOptState {
         return true;
     }
 
+    void manualTerminationCheck(Real costVal) const {
+        if (tensor_fit_tolerance) {
+            if (costVal < *tensor_fit_tolerance) {
+                opt.force_stop();
+            }
+        }
+    }
+
     std::vector<Real> prevParams;
+
+    boost::optional<double> tensor_fit_tolerance;
 
     size_t niters = 0;
     IterateManagerBase &im;
     Real best;
     std::string outPath;
+
+    nlopt::opt &opt;
 };
 
 struct NLOptConstraintEvaluator {
@@ -79,6 +91,7 @@ double costFunc(const std::vector<double> &x, std::vector<double> &grad, void *o
             it.writeMeshAndFields(optState->outPath + "_" + std::to_string(optState->niters));
     }
 
+    optState->manualTerminationCheck(val);
 
     return it.evaluate();
 }
@@ -120,8 +133,10 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
     opt.set_lower_bounds(bds.lowerBound);
     opt.set_upper_bounds(bds.upperBound);
 
-    NLOptState state(im);
+    NLOptState state(im, opt);
     state.outPath = outPath;
+    state.tensor_fit_tolerance = oconfig.tensor_fit_tolerance;
+
     opt.set_min_objective(costFunc, (void *) &state);
 
     // Must create iterate to query the constraints.
@@ -151,7 +166,8 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
         x[p] = params[p];
 
     double minf = 0;
-    /* nlopt::result result = */ opt.optimize(x, minf);
+    nlopt::result result = opt.optimize(x, minf);
+    std::cout << "NLOpt terminated with result " << result << std::endl;
 
     // Convert the solution back.
     for (size_t p = 0; p < nParams; ++p)
