@@ -314,7 +314,10 @@ public:
         Real2 x = m_cosTheta * v_parallelComponent - m_sinTheta * v_perpComponent;
 
         // Closest surface is sphere 1
-        if (x < 0) return sqrt(v_normSq) - m_r1;
+        if (x < 0) {
+            Real2 result = sqrt(v_normSq); // work around make_coherent bug in Eigen autodiff
+            return result - m_r1;
+        }
 
         // Closest surface is the conical frustum part (the closest edge of
         // which is horizontal in rotated (x, y) coordinates).
@@ -324,7 +327,7 @@ public:
         }
 
         // Closest surface is sphere 2
-        return sqrt((p - m_c2.template cast<Real2>()).squaredNorm()) - m_r2;
+        return (p - m_c2.template cast<Real2>()).norm() - m_r2;
     }
 
     Point3<Real> closestMedialAxisPoint(const Point3<Real> &p) const {
