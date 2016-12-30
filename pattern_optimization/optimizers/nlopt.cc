@@ -166,8 +166,13 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
         x[p] = params[p];
 
     double minf = 0;
-    nlopt::result result = opt.optimize(x, minf);
-    std::cout << "NLOpt terminated with result " << result << std::endl;
+    try {
+        nlopt::result result = opt.optimize(x, minf);
+        std::cout << "NLOpt terminated with result " << result << std::endl;
+    }
+    catch (std::exception &e) {
+        std::cout << "NLOpt threw exception: " << e.what() << std::endl;
+    }
 
     // Convert the solution back.
     for (size_t p = 0; p < nParams; ++p)

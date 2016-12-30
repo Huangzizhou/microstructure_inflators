@@ -250,7 +250,7 @@ void execute(const po::variables_map &args, const Job<_N> *job)
         cout << endl;
     }
 
-    BENCHMARK_REPORT();
+    BENCHMARK_REPORT_NO_MESSAGES();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

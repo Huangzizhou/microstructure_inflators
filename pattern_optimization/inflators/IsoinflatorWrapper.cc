@@ -65,9 +65,15 @@ IsoinflatorWrapper<N>::volumeShapeVelocities() const
                 // With the sphere convex hull blending region, the signed
                 // distance function is often spatially nondifferentiable at
                 // the midplane in the z direction (the signed distance function
-                // is only C0 on the medial axis). This causes us to get
+                // is only C0 on the medial axis). This causes us to get slighly
                 // incorrect normal components in the z direction.
-                if (N == 2) n[vi][2] = 0;
+                // This cannot be fixed easily in 3D, but the error is hopefully
+                // small.
+                if (N == 2) {
+                    n[vi][2] = 0;
+                    n[vi] /= n[vi].norm();
+                }
+
                 result[p](vi)  = truncateFrom3D<VectorND<N>>(n[vi]);
                 result[p](vi) *= nsv[p][vi];
                 // assert(!std::isnan(result[p](vi)));
