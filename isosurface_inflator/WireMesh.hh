@@ -26,6 +26,32 @@
 #include "InflatorTypes.hh"
 #include "Symmetry.hh"
 
+// Whether to keep the base cell-adjacent joints in the inflation graph. These
+// are needed when their blending regions extend into the base cell.
+// Note: slows down meshing/velocity computations.
+#define KEEP_BC_ADJ_JOINTS 1
+
+struct TransformedVertex {
+    using Point = Point3<double>;
+    TransformedVertex(const Point &p, size_t vtx, const Isometry &iso, const Eigen::MatrixXd &pm)
+        : pt(p), origVertex(vtx), iso(iso), posMap(pm) { }
+    Point pt;
+    size_t origVertex;
+    Isometry iso;
+    Eigen::Matrix3Xd posMap;
+    Real sqDistTo(const Point &b) { return (pt - b).squaredNorm(); }
+};
+
+struct TransformedEdge {
+    using Edge = std::pair<size_t, size_t>;
+    TransformedEdge(size_t u, size_t v, size_t oe)
+        : e(u, v), origEdge(oe) { }
+    UnorderedPair e;
+    size_t origEdge;
+    // Allow std::map
+    bool operator<(const TransformedEdge &b) const { return e < b.e; }
+};
+
 enum class ThicknessType { Vertex, Edge };
 
 template<ThicknessType thicknessType_ = ThicknessType::Vertex,
@@ -151,57 +177,113 @@ public:
         if (params.size() != numParams())
             throw std::runtime_error("Invalid number of params.");
 
-        // Copy over the base graph, setting positions using params
-        edges.clear(), points.clear();
-        edges.reserve(m_baseEdges.size() + m_adjacentEdges.size());
-        points.reserve(m_baseVertices.size() + m_adjacentVertices.size());
-        edges = m_baseEdges;
-        size_t pOffset = 0;
-        for (size_t i = 0; i < m_baseVertices.size(); ++i) {
+        edges = m_inflEdge;
+
+        // Set the base graph positions using params
+        std::vector<Point3<Real>> baseGraphPos;
+        baseGraphPos.reserve(m_baseVertices.size());
+        for (size_t i = 0, pOffset = 0; i < m_baseVertices.size(); ++i) {
             const auto &pos = m_baseVertexPositioners[i];
-            points.push_back(pos.template getPosition<Real>(&params[pOffset]));
+            baseGraphPos.push_back(pos.template getPosition<Real>(&params[pOffset]));
             pOffset += pos.numDoFs();
         }
 
-        // Copy over the adjacent graph, transforming adjacent vertices
-        // (Note that the params-repositioned vertices are transformed)
-        size_t adjVertexOffset = m_baseVertices.size();
-        for (const auto &ae : m_adjacentEdges)
-            edges.push_back({ae.first, adjVertexOffset + ae.second});
-        for (const auto &av : m_adjacentVertices)
-            points.push_back(av.second.apply(points.at(av.first)));
+        points.clear(), points.reserve(m_inflVtx.size());
+        // Determine the inflation graph positions from the base positions.
+        for (const TransformedVertex &iv : m_inflVtx)
+            points.push_back(iv.iso.apply(baseGraphPos.at(iv.origVertex)));
 
-        // Decode per-vertex or per-edge thickness parameters
-        thicknesses.clear();
-        // params[numPositionParams()...] are thickness parameters
-        assert(pOffset == numPositionParams());
-        if (thicknessType == ThicknessType::Vertex) {
-            // Decode into one thickness per inflation graph vertex
-            thicknesses.reserve(m_baseVertices.size() + m_adjacentVertices.size());
-            for (size_t i = 0; i < m_baseVertices.size(); ++i)
-                thicknesses.push_back(params.at(pOffset + i));
-            for (size_t i = 0; i < m_adjacentVertices.size(); ++i)
-                thicknesses.push_back(params.at(pOffset + m_adjacentVertices[i].first));
+        // Determine thicknesses and blending parameters
+        if (thicknessType == ThicknessType::Edge)
+            throw std::runtime_error("Edge thickness currently unimplemented"); // will be easy to implement with m_inflEdgeOrigin
+
+        thicknesses   .clear(), thicknesses   .reserve(m_inflVtx.size());
+        blendingParams.clear(), blendingParams.reserve(m_inflVtx.size());
+
+        const size_t thicknessVarOffsets = numPositionParams();
+        const size_t blendingVarOffsets = thicknessVarOffsets + numThicknessParams();
+        for (const TransformedVertex &iv : m_inflVtx) {
+            thicknesses   .push_back(params.at(thicknessVarOffsets + iv.origVertex));
+            blendingParams.push_back(params.at( blendingVarOffsets + iv.origVertex));
         }
-        if (thicknessType == ThicknessType::Edge) {
-            // Decode into one thickness per inflation graph edge
-            thicknesses.reserve(m_baseEdges.size() + m_adjacentEdges.size());
-            for (size_t i = 0; i < m_baseEdges.size(); ++i)
-                thicknesses.push_back(params.at(pOffset + i));
-            for (size_t i = 0; i < m_adjacentEdges.size(); ++i)
-                thicknesses.push_back(params.at(pOffset + m_adjacentEdgeOrigin[i]));
+    }
+
+    // Construct (stitched) replicated graph along with the maps from parameters
+    // to vertex positions/thicknesses/blending parameters
+    // Note: these maps operate on "homogenous parameters" (i.e. the vector of
+    // parameters with 1 appended).
+    // TODO: make sure we have all parameters set up before this is called from
+    // the constructor (to create inflation graph)
+    void replicatedGraph(const std::vector<Isometry> &isometries,
+                         std::vector<TransformedVertex> &outVertices,
+                         std::vector<TransformedEdge  > &outEdges) {
+        std::vector<TransformedVertex> rVertices;
+        std::set<TransformedEdge>      rEdges;
+
+        // Determine the index of the first position parameter for each vertex
+        std::vector<size_t> vtxPosParamOffset;
+        size_t posParams = 0;
+        const size_t nparams = numParams();
+        for (const auto &bvp : m_baseVertexPositioners) {
+            vtxPosParamOffset.push_back(posParams);
+            posParams += bvp.numDoFs();
         }
 
-        // Decode per-vertex blending parameters
-        blendingParams.clear();
-        blendingParams.reserve(m_baseVertices.size() + m_adjacentVertices.size());
-        // params[numPositionParams() + numThicknessParams()...] are blending
-        // parameters
-        pOffset = numPositionParams() + numThicknessParams();
-        for (size_t i = 0; i < m_baseVertices.size(); ++i)
-            blendingParams.push_back(params.at(pOffset + i));
-        for (size_t i = 0; i < m_adjacentVertices.size(); ++i)
-            blendingParams.push_back(params.at(pOffset + m_adjacentVertices[i].first));
+        for (size_t ei = 0; ei < m_baseEdges.size(); ++ei) {
+            const auto &e = m_baseEdges[ei];
+            const size_t u = e.first, v = e.second;
+
+            auto pu = m_baseVertices.at(u),
+                 pv = m_baseVertices.at(v);
+
+            Eigen::Matrix3Xd uPosMap = m_baseVertexPositioners.at(u).getPositionMap(nparams, vtxPosParamOffset.at(u));
+            Eigen::Matrix3Xd vPosMap = m_baseVertexPositioners.at(v).getPositionMap(nparams, vtxPosParamOffset.at(v));
+
+            for (const auto &isometry : isometries) {
+                auto mappedPu = isometry.apply(pu);
+                auto mappedPv = isometry.apply(pv);
+
+                const bool hasTranslation = isometry.hasTranslation();
+
+                size_t mappedUIdx = std::numeric_limits<size_t>::max(),
+                       mappedVIdx = std::numeric_limits<size_t>::max();
+                // Search for repeated vertices.
+                for (size_t i = 0; i < rVertices.size(); ++i) {
+                    if (rVertices[i].sqDistTo(mappedPu) < PatternSymmetry::tolerance) {
+                        if (!hasTranslation) // Translations will give different position maps, but this should be fine for orthotropic patterns
+                            assert((rVertices[i].posMap - isometry.xformMap(uPosMap)).squaredNorm() < 1e-8);
+                        assert(rVertices[i].origVertex == u); // Note: will fail on triply periodic; need constraints
+                        mappedUIdx = i;
+                    }
+                    if (rVertices[i].sqDistTo(mappedPv) < PatternSymmetry::tolerance) {
+                        if (!hasTranslation)
+                            assert((rVertices[i].posMap - isometry.xformMap(vPosMap)).squaredNorm() < 1e-8);
+                        assert(rVertices[i].origVertex == v); // Note: will fail on triply periodic; need constraints
+                        mappedVIdx = i;
+                    }
+                }
+                // Add the mapped vertices if they are distinct from the
+                // existing ones.
+                if (mappedUIdx > rVertices.size()) {
+                    mappedUIdx = rVertices.size();
+                    rVertices.emplace_back(mappedPu, u, isometry, isometry.xformMap(uPosMap));
+                }
+                if (mappedVIdx > rVertices.size()) {
+                    mappedVIdx = rVertices.size();
+                    rVertices.emplace_back(mappedPv, v, isometry, isometry.xformMap(vPosMap));
+                }
+
+                TransformedEdge xfEdge(mappedUIdx, mappedVIdx, ei);
+                auto ret = rEdges.insert(xfEdge);
+                if (ret.second == false) // reflected already exists; verify it's from the same base edge
+                    assert(ret.first->origEdge == ei); // Note: will fail on triply periodic
+            }
+        }
+
+        outVertices = rVertices;
+        outEdges.clear(), outEdges.reserve(rEdges.size());
+        for (const auto &re : rEdges)
+            outEdges.push_back(re);
     }
 
     // Extract the replicated graph needed to validate printability (i.e. self
@@ -230,96 +312,46 @@ public:
     {
         if (params.size() != numParams())
             throw std::runtime_error("Invalid number of params.");
-        const size_t nparams = params.size();
 
         // Reflect base graph into the "printability column." This is done by
         // applying all permutation isometries, but no translation and only the
         // z-axis reflection
-        auto symmetryGroup = PatternSymmetry::symmetryGroup();
-        struct ReflectedVertex {
-            ReflectedVertex(const Point &p, size_t tv, const Eigen::MatrixXd &pm)
-                : pt(p), thicknessVar(tv), posMap(pm) { }
-            Point pt;
-            size_t thicknessVar;
-            Eigen::Matrix3Xd posMap;
-            Real sqDistTo(const Point &b) { return (pt - b).squaredNorm(); }
-        };
-        std::vector<ReflectedVertex> reflectedVertices;
-        std::set<Edge> reflectedEdges;
-
-        // Determine the index of the first position parameter for each vertex
-        std::vector<size_t> vtxPosParamOffset;
-        size_t posParams = 0;
-        for (const auto &bvp : m_baseVertexPositioners) {
-            vtxPosParamOffset.push_back(posParams);
-            posParams += bvp.numDoFs();
-        }
-
-        for (size_t ei = 0; ei < m_baseEdges.size(); ++ei) {
-            const auto &e = m_baseEdges[ei];
-            size_t u = e.first, v = e.second;
-
-            auto pu = m_baseVertexPositioners.at(u).template getPosition<Real>(&params[vtxPosParamOffset.at(u)]),
-                 pv = m_baseVertexPositioners.at(v).template getPosition<Real>(&params[vtxPosParamOffset.at(v)]);
-
-            Eigen::Matrix3Xd uPosMap = m_baseVertexPositioners.at(u).getPositionMap(nparams, vtxPosParamOffset.at(u));
-            Eigen::Matrix3Xd vPosMap = m_baseVertexPositioners.at(v).getPositionMap(nparams, vtxPosParamOffset.at(v));
-
-            // Thickness vars (one per vertex) come after the position vars
-            static_assert(thicknessType_ == ThicknessType::Vertex, "Only Per-Vertex Thickness Supported");
-            size_t uThickVar = posParams + u,
-                   vThickVar = posParams + v;
-
-            for (const auto &isometry : symmetryGroup) {
-                if (isometry.hasTranslation() ||
-                    isometry.hasReflection(Symmetry::Axis::X) ||
-                    isometry.hasReflection(Symmetry::Axis::Y)) {
-                    continue;
-                }
-                auto mappedPu = isometry.apply(pu);
-                auto mappedPv = isometry.apply(pv);
-
-                size_t mappedUIdx = std::numeric_limits<size_t>::max(),
-                       mappedVIdx = std::numeric_limits<size_t>::max();
-                // Search for repeated vertices.
-                for (size_t i = 0; i < reflectedVertices.size(); ++i) {
-                    if (reflectedVertices[i].sqDistTo(mappedPu) < PatternSymmetry::tolerance) {
-                        assert((reflectedVertices[i].posMap - isometry.xformMap(uPosMap)).squaredNorm() < 1e-8);
-                        mappedUIdx = i;
-                    }
-                    if (reflectedVertices[i].sqDistTo(mappedPv) < PatternSymmetry::tolerance) {
-                        assert((reflectedVertices[i].posMap - isometry.xformMap(vPosMap)).squaredNorm() < 1e-8);
-                        mappedVIdx = i;
-                    }
-                }
-                // Add the mapped vertices if they are distinct from the
-                // existing ones.
-                if (mappedUIdx > reflectedVertices.size()) {
-                    mappedUIdx = reflectedVertices.size();
-                    reflectedVertices.emplace_back(mappedPu, uThickVar, isometry.xformMap(uPosMap));
-                }
-                if (mappedVIdx > reflectedVertices.size()) {
-                    mappedVIdx = reflectedVertices.size();
-                    reflectedVertices.emplace_back(mappedPv, vThickVar, isometry.xformMap(vPosMap));
-                }
-
-                reflectedEdges.insert({mappedUIdx, mappedVIdx});
+        std::vector<Isometry> printabiltyIsometries;
+        for (const auto &iso : PatternSymmetry::symmetryGroup()) {
+            if (iso.hasTranslation() ||
+                iso.hasReflection(Symmetry::Axis::X) ||
+                iso.hasReflection(Symmetry::Axis::Y)) {
+                continue;
             }
+            printabiltyIsometries.push_back(iso);
         }
 
-        points.clear(); points.reserve(reflectedVertices.size());
-        edges.clear(); edges.reserve(reflectedEdges.size());
-        thicknessVars.clear(); thicknessVars.reserve(reflectedVertices.size());
-        positionMaps.clear(); positionMaps.reserve(reflectedVertices.size());
+        std::vector<TransformedVertex> rVertices;
+        std::vector<TransformedEdge>   rEdges;
+        replicatedGraph(printabiltyIsometries,
+                        rVertices, rEdges);
 
-        for (const auto &rv : reflectedVertices) {
-            points.emplace_back(rv.pt);
+        points       .clear(); points       .reserve(rVertices.size());
+        edges        .clear(); edges        .reserve(   rEdges.size());
+        thicknessVars.clear(); thicknessVars.reserve(rVertices.size());
+        positionMaps .clear(); positionMaps .reserve(rVertices.size());
+
+        // Use position map to place points; we need to construct homogenous
+        // param vector.
+        Eigen::VectorXd paramVec(params.size() + 1);
+        for (size_t i = 0; i < params.size(); ++i) paramVec[i] = params[i];
+        paramVec[params.size()] = 1.0;
+
+        static_assert(thicknessType_ == ThicknessType::Vertex, "Only Per-Vertex Thickness Supported");
+        const size_t tvOffset = numPositionParams();
+        for (const auto &rv : rVertices) {
+            points.emplace_back(rv.posMap * paramVec);
+            thicknessVars.emplace_back(tvOffset + rv.origVertex);
             positionMaps.emplace_back(rv.posMap);
-            thicknessVars.push_back(rv.thicknessVar);
         }
 
-        for (const auto &e : reflectedEdges)
-            edges.push_back(e);
+        for (const auto &re : rEdges)
+            edges.push_back({re.e[0], re.e[1]});
     }
 
     bool isPrintable(const std::vector<Real> &params) const {
@@ -499,6 +531,7 @@ public:
     }
 
 private:
+
     // All vertex/edges of the pattern
     std::vector<Point>  m_fullVertices;
     std::vector<Edge>   m_fullEdges;
@@ -508,13 +541,16 @@ private:
 
     std::vector<decltype(PatternSymmetry::nodePositioner(Point()))> m_baseVertexPositioners;
 
-    // Edges incident on one vertex in the base unit and one vertex outside.
-    // The edge.first is the inside vertex, and edge.second is outside.
-    // The edge.second field indexes into m_adjacentVertices
-    std::vector<Edge>           m_adjacentEdges;
-    std::vector<AdjacentVertex> m_adjacentVertices;
-    // Which base edge originated each adjacent edge (via transformation)
-    std::vector<size_t>         m_adjacentEdgeOrigin;
+    // The inflation graph, with each vertex/edge linked back to the
+    // corresponding originating vertex/edge in the base cell.
+    // This graph consists of only the edges needed to properly define the
+    // geometry inside the base cell (i.e. all base cell edges, edges incident
+    // the base cell. For cases where blending regions for joints outside the
+    // base cell can extend inside, we also include edges adjacent to the
+    // base-cell-incident edges).
+    std::vector<Edge>              m_inflEdge;
+    std::vector<size_t>            m_inflEdgeOrigin;
+    std::vector<TransformedVertex> m_inflVtx;
 
     // Find the base vertex within symmetry tolerance of p
     // (or throw an exception if none exists).

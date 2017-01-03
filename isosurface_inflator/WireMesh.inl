@@ -14,8 +14,6 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     m_fullVertices.clear(), m_fullEdges.clear();
     m_baseVertices.clear(), m_baseEdges.clear();
     m_baseVertexPositioners.clear();
-    m_adjacentVertices.clear(), m_adjacentEdges.clear();
-    m_adjacentEdgeOrigin.clear();
 
     m_fullVertices.reserve(inVertices.size());
     m_fullEdges.reserve(inElements.size());
@@ -58,91 +56,75 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
             m_baseEdges.push_back({u, v});
     }
 
-    // Determine tiled vertices/edges adjacent to the base unit subgraph:
-    // All non-identity isometries in the symmetry group can map some edges
-    // outside the base unit while keeping them incident on the base unit. In
-    // other words, one endpoint is mapped outside, while the other is mapped to
-    // coincide with a base unit vertex).
-    auto symmetryGroup = PatternSymmetry::symmetryGroup();
-    std::vector<Point> adjacentMappedPoints;
-    for (size_t ei = 0; ei < m_baseEdges.size(); ++ei) {
-        const auto &e = m_baseEdges[ei];
-
-        // TODO: add constraints for the periodic case
-        size_t u = e.first, v = e.second;
-        auto pu = m_baseVertices.at(u), pv = m_baseVertices.at(v);
-        for (const auto &isometry : symmetryGroup) {
-            if (isometry.isIdentity()) continue;
-            auto mappedPu = isometry.apply(pu), mappedPv = isometry.apply(pv);
-            bool puMappedInside = PatternSymmetry::inBaseUnit(mappedPu),
-                 pvMappedInside = PatternSymmetry::inBaseUnit(mappedPv);
-            Point outsideBasePoint;
-            // Only care about edges where exactly one endpoint remains inside.
-            if (puMappedInside != pvMappedInside) {
-                size_t insideBaseIndex, outsideBaseIndex;
-                if (puMappedInside) {
-                    // Interior nodes should never stay inside!
-                    assert(PatternSymmetry::nodeType(pu) != Symmetry::NodeType::Interior);
-                    insideBaseIndex = m_findBaseVertex(mappedPu);
-                    assert(insideBaseIndex == u); // will fail in TriplyPeriodic case
-                    outsideBaseIndex = v;
-                    outsideBasePoint = mappedPv;
-                }
-                if (pvMappedInside) {
-                    // Interior nodes should never stay inside!
-                    assert(PatternSymmetry::nodeType(pv) != Symmetry::NodeType::Interior);
-                    insideBaseIndex = m_findBaseVertex(mappedPv);
-                    assert(insideBaseIndex == v); // will fail in TriplyPeriodic case
-                    outsideBaseIndex = u;
-                    outsideBasePoint = mappedPu;
-                }
-
-                // Vertices and edges may be mapped to the same adjacent
-                // vertex/edge multiple times by different isometries. For
-                // example, if the z coordinate is zero, z reflection has no
-                // effect. We detect these duplicates before they are created...
-                // Determine if the point mapped outside is a duplicate.
-                size_t adjacentPointIndex;
-                auto api = std::find_if(adjacentMappedPoints.begin(), adjacentMappedPoints.end(),
-                        [&](const Point &p) { return (p - outsideBasePoint).norm() < PatternSymmetry::tolerance; });
-                if (api != adjacentMappedPoints.end()) {
-                    adjacentPointIndex = std::distance(adjacentMappedPoints.begin(), api);
-                    // std::cout << "Base points " << outsideBaseIndex  << ", "
-                    //           << m_adjacentVertices[adjacentPointIndex].first
-                    //           << " mapped to coincide under isometries "
-                    //           << isometry << ", "
-                    //           << m_adjacentVertices[adjacentPointIndex].second
-                    //           << std::endl;
-                }
-                else {
-                    adjacentPointIndex = m_adjacentVertices.size();
-                    m_adjacentVertices.push_back({outsideBaseIndex, isometry});
-                    adjacentMappedPoints.push_back(outsideBasePoint);
-                }
-                // Determine if the edge is a duplicate
-                Edge e{insideBaseIndex, adjacentPointIndex};
-                auto it = std::find(m_adjacentEdges.begin(), m_adjacentEdges.end(), e);
-                if (it == m_adjacentEdges.end()) {
-                    m_adjacentEdgeOrigin.push_back(ei);
-                    m_adjacentEdges.push_back({insideBaseIndex, adjacentPointIndex});
-                }
-                else {
-                    // size_t orig = std::distance(m_adjacentEdges.begin(), it);
-                    // std::cout << "Edge " << e.first << ", "
-                    //           << e.second << " is a duplicate "
-                    //           << "(orig: " << m_adjacentEdgeOrigin[orig]
-                    //           << ", current: " << ei << ")" << std::endl;
-                }
-            }
-        }
-    }
-
     // Enumerate position parameters:
     // Position parameters for each base vertex are determined using the
     // NodePositioner.
     m_baseVertexPositioners.reserve(m_baseVertices.size());
     for (const auto &p : m_baseVertices)
         m_baseVertexPositioners.push_back(PatternSymmetry::nodePositioner(p));
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Construct inflation graph
+    ////////////////////////////////////////////////////////////////////////////
+    // Determine vertices/edges in the inflation graph
+    std::vector<TransformedVertex> rVertices;
+    std::vector<TransformedEdge>   rEdges;
+    replicatedGraph(PatternSymmetry::symmetryGroup(), rVertices, rEdges);
+
+    // Detect edges inside or incident base cell.
+    std::vector<bool> touchingBaseCell;
+    for (const auto &re : rEdges) {
+        touchingBaseCell.push_back(PatternSymmetry::inBaseUnit(rVertices[re.e[0]].pt) ||
+                                   PatternSymmetry::inBaseUnit(rVertices[re.e[1]].pt));
+    }
+
+    // Keep edges inside or incident base cell
+    std::vector<bool> keepEdge = touchingBaseCell;
+
+    if (KEEP_BC_ADJ_JOINTS) {
+        // Also keep the edges for joints incident these edges.
+        std::vector<bool> keepJoint(rVertices.size(), false);
+        for (size_t ei = 0; ei < rEdges.size(); ++ei) {
+            if (!keepEdge[ei]) continue;
+            const auto &re = rEdges[ei];
+            keepJoint.at(re.e[0]) = keepJoint.at(re.e[1]) = true;
+        }
+
+        for (size_t ei = 0; ei < rEdges.size(); ++ei) {
+            const auto &re = rEdges[ei];
+            if (keepJoint.at(re.e[0]) || keepJoint.at(re.e[1]))
+                keepEdge[ei] = true;
+        }
+    }
+
+    // Copy over kept edges.
+    m_inflEdge.clear(), m_inflEdgeOrigin.clear();
+    std::vector<bool> vtxSeen(rVertices.size(), false);
+    for (size_t ei = 0; ei < rEdges.size(); ++ei) {
+        const auto &re = rEdges[ei];
+        if (!keepEdge[ei]) continue;
+        size_t u = re.e[0],
+               v = re.e[1];
+        m_inflEdge.push_back({u, v});
+        m_inflEdgeOrigin.push_back(re.origEdge);
+        vtxSeen.at(u) = vtxSeen.at(v) = true;
+    }
+
+    // Only keep vertices belonging to kept edges.
+    m_inflVtx.clear();
+    std::vector<size_t> vertexRenumber(rVertices.size(), std::numeric_limits<size_t>::max());
+    for (size_t i = 0; i < rVertices.size(); ++i) {
+        if (!vtxSeen[i]) continue;
+        vertexRenumber[i] = m_inflVtx.size();
+        m_inflVtx.push_back(rVertices[i]);
+    }
+
+    // Reindex kept edges.
+    for (auto &e : m_inflEdge) {
+        e.first = vertexRenumber.at(e.first);
+        e.second = vertexRenumber.at(e.second);
+        assert((e.first < m_inflVtx.size()) && (e.second < m_inflVtx.size()));
+    }
 }
 
 // Set from embedded graph stored in obj/msh format.
