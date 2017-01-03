@@ -46,6 +46,7 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
                               ("ortho_cell,O",                               " Generate the ortho cell only (for ortho-cell meshers)")
                               ("dumpShapeVelocities,S", po::value<string>(), " Dump the shape velocities for debugging")
                               ("loadMesh,M",            po::value<string>(), " Skip meshing process, loading existing mesh instead (for debugging)")
+                              ("assertPlanarNormals",                        " Verify that normals have a zero z component (relevant in 2D)")
                               ;
 
     po::options_description cli_opts;
@@ -116,6 +117,25 @@ int main(int argc, char *argv[])
     inflator.inflate(params);
 
     MeshIO::save(args["outMSH"].as<string>(), inflator.vertices(), inflator.elements());
+
+    if (args.count("assertPlanarNormals")) {
+        const auto &n = inflator.vertexNormals();
+        double maxZMag = 0;
+        size_t maxZMagVtx = 0;
+        for (size_t vi = 0; vi < n.size(); ++vi) {
+            Real zmag = std::abs(n[vi][2]);
+            if (zmag > maxZMag) {
+                maxZMag = zmag;
+                maxZMagVtx = vi;
+            }
+        }
+
+        if (maxZMag > 0.1) {
+            std::cerr << "Large normal z component: " << maxZMag << std::endl;
+            auto n = inflator.trackSignedDistanceGradient(inflator.vertices().at(maxZMagVtx).point);
+            std::cout << "normal: " << n.transpose() << std::endl;
+        }
+    }
 
     BENCHMARK_REPORT();
 }

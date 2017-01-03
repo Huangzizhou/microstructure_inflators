@@ -1,9 +1,11 @@
-import LookupTable, sys
-import numpy as np
-import json
-from autocover_tools import materialSpaceGrid
+import sys, os
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+
+import numpy as np, json, math
 from numpy.linalg import norm
-import math
+
+import LookupTable
+from autocover_tools import materialSpaceGrid
 
 lutPath, configPath, outPath = sys.argv[1:]
 

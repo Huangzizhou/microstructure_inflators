@@ -5,6 +5,7 @@ Parametric geometry model:
     Demonstrate bulging problem of gradient-based implicit blend
         Compare to Fig 4, 6 of Gradient-based Implicit Blend
             (T junction, A example)
+        Ask them for a mesh of their model.
 
 Worst case stress  formulation
     Worst-case stress field (2D, 3D) (show von Mises + max stress? these are very similar)
@@ -22,8 +23,8 @@ Shape Differentiation
     Steepest descent shape velocity for elasticity tensor fit objective and
     worst case stress objective.
 
-    Plot of derivative accuracies (for low p and high p Lp norm)
-      - Finite difference
+    Plot of derivative accuracies (for low p and high p Lp norm) (histogram?)
+      - Fine centered finite difference for ground truth
       - Traditional boundary integral shape derivative
       - Volume differential w/o boundary velocity interpolation
       - Boundary differential (adjoint interpolation)

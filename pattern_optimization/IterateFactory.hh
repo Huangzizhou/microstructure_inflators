@@ -112,7 +112,7 @@ struct IterateFactory : public IFConfigs... {
             if (success) break;
         }
         if (!success) {
-            std::cerr << "3 INFLATION ATTEMPTS FAILED." << std::endl;
+            std::cerr << "ALL INFLATION ATTEMPTS FAILED." << std::endl;
             if (!m_allowEstimation) throw std::runtime_error("Inflation failure with estimation disabled");
             if (!oldIterate) throw std::runtime_error("Inflation failure on first iterate");
             // Extrapolate the old iterate to the new evaluation point.

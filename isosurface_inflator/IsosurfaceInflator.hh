@@ -60,6 +60,10 @@ public:
     const std::vector<Point>             &vertexNormals() const;
     const std::vector<Real>              &inflatedParams() const;
 
+
+    // For debugging
+    Point trackSignedDistanceGradient(const Point &evalPt) const;
+
     size_t numParams() const;
 
     bool isThicknessParam(size_t p) const;

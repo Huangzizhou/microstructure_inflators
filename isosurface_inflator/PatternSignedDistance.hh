@@ -11,7 +11,7 @@
 //      This function is chosen such that the maximum normal shape velocity is
 //      unit to match the shape velocity magnitude of the thickness and
 //      positional parameters.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  09/23/2015 14:58:31
@@ -135,7 +135,7 @@ public:
                     // Subtlety: prevent singularity (nan) in derivative
                     // computation. Inverse trig functions acos and asin aren't
                     // differentiable at +/- 1.0.
-                    // We want to use asin when the angle is [0, pi/4), 
+                    // We want to use asin when the angle is [0, pi/4),
                     // acos when the angle is in [pi/4, 3pi/4) and pi + asin
                     // when the angle is in [3pi/4, pi].
                     //
@@ -196,6 +196,8 @@ public:
     // Distance to both the smoothed and hard-unioned versions of a joint.
     template<typename Real2>
     struct JointDists {
+        JointDists(Real2 sd, Real2 hd) : smooth(sd), hard(hd) { }
+        JointDists() { } // Uninitialized!
         Real2 smooth, hard;
         static JointDists largest() {
             return JointDists{safe_numeric_limits<Real2>::max(), safe_numeric_limits<Real2>::max()};
@@ -211,7 +213,7 @@ public:
     // Returns
     //      distance to smoothed joint (first)
     //      distance to hard-unioned joint (second)
-    template<typename Real2>
+    template<typename Real2, bool DebugOutput = false>
     JointDists<Real2>
     distToVtxJoint(size_t vtx, const Point3<Real2> &p,
                    const std::vector<Real2> &edgeDists,
@@ -221,26 +223,34 @@ public:
         if (!joint) {
             // Joints are not created for valence 1 vertices.
             assert(m_adjEdges[vtx].size() == 1);
-            return JointDists<Real2>{edgeDists[m_adjEdges[vtx][0]],
-                                  edgeDists[m_adjEdges[vtx][0]]};
+            return JointDists<Real2>(edgeDists[m_adjEdges[vtx][0]],
+                                     edgeDists[m_adjEdges[vtx][0]]);
         }
         jointEdgeDists.clear(), jointEdgeDists.reserve(m_adjEdges[vtx].size());
         Real2 hardUnionedDist = safe_numeric_limits<Real2>::max();
         for (size_t ei : m_adjEdges[vtx]) {
             jointEdgeDists.push_back(edgeDists[ei]);
-            hardUnionedDist = std::min(hardUnionedDist, edgeDists[ei]);
+            hardUnionedDist = std::min<Real2>(hardUnionedDist, edgeDists[ei]);
         }
-        Real2 s = joint->smoothingAmt(p);
-#if VERTEX_SMOOTHNESS_MODULATION
-        s *= m_vertexSmoothness[vtx];
-#endif
-        return JointDists<Real2>{SD::exp_smin_reparam_accurate<Real2>(jointEdgeDists, s),
-                                 hardUnionedDist};
+        if (DebugOutput) {
+            std::cerr << "hardUnionedDist derivatives:";
+            reportDerivatives(std::cerr, hardUnionedDist);
+            std::cerr << std::endl;
+        }
+        Real2 s = joint->template smoothingAmt<Real2, DebugOutput>(p);
+        if (VERTEX_SMOOTHNESS_MODULATION)
+            s *= m_vertexSmoothness[vtx];
+        if (DebugOutput) {
+            std::cerr << "js derivatives:"; reportDerivatives(std::cerr,  joint->smoothingAmt(p)); std::cerr << std::endl;
+            std::cerr << "vs derivatives:"; reportDerivatives(std::cerr, m_vertexSmoothness[vtx]); std::cerr << std::endl;
+        }
+        return JointDists<Real2>(SD::exp_smin_reparam_accurate<Real2>(jointEdgeDists, s),
+                                 hardUnionedDist);
     }
 
     // InsideOutsideAccelerate: do we just need an inside/outside query? If so,
     // we can implement some optimizations
-    template<typename Real2, bool InsideOutsideAccelerate = false>
+    template<typename Real2, bool InsideOutsideAccelerate = false, bool DebugDerivatives = false>
     Real2
     combinedJointDistances(const Point3<Real2> &p,
                            const std::vector<Real2> &edgeDists, size_t /* closestEdge */) const {
@@ -268,13 +278,18 @@ public:
         }
 
         double candidateDistThreshold;
+        const size_t MAX_CANDIDATES = 20; // conservative upper bound for array allocation.
+        size_t numCandidates = 0;
         {
-            size_t nCandidates = std::min<size_t>(5, hard_distance.size());
+            size_t requestedCandidates = std::min<size_t>(5, hard_distance.size());
             std::vector<double> hd_copy(hard_distance);
-            std::nth_element(hd_copy.begin(), hd_copy.begin() + nCandidates,
+            std::nth_element(hd_copy.begin(), hd_copy.begin() + requestedCandidates,
                              hd_copy.end());
-            candidateDistThreshold = hd_copy[nCandidates];
+            candidateDistThreshold = hd_copy[requestedCandidates];
+            for (double hd : hard_distance)
+                if (hd <= candidateDistThreshold) ++numCandidates;
         }
+        assert(numCandidates <= MAX_CANDIDATES);
 
         static_assert(!(InsideOutsideAccelerate && isAutodiffType<Real2>()),
                       "The inside-outside test is non-differentiable");
@@ -313,12 +328,18 @@ public:
         // Compute both smoothed and hard-unioned distances to the two closest
         // smoothed joints. These are the joints that could possibly overlap to
         // form a hard crease.
+        std::array<JointDists<Real2>, MAX_CANDIDATES> candidateJDists;
+        for (size_t vtx = 0, i = 0; vtx < numVertices(); ++vtx) {
+            if (hard_distance[vtx] > candidateDistThreshold) continue; // prune out the far joints
+            candidateJDists[i++] = distToVtxJoint(vtx, p, edgeDists, jointEdgeDists);
+        }
+
         JointDists<Real2> closestJDist, secondClosestJDist;
         closestJDist = secondClosestJDist = JointDists<Real2>::largest();
         size_t c_idx, sc_idx;
-        for (size_t vtx = 0; vtx < numVertices(); ++vtx) {
+        for (size_t vtx = 0, i = 0; vtx < numVertices(); ++vtx) {
             if (hard_distance[vtx] > candidateDistThreshold) continue; // prune out the far joints
-            auto d = distToVtxJoint(vtx, p, edgeDists, jointEdgeDists);
+            const JointDists<Real2> &d = candidateJDists[i++];
             if (d < secondClosestJDist) {
                 if (d < closestJDist) {
                     secondClosestJDist = closestJDist;
@@ -329,7 +350,6 @@ public:
                 else { secondClosestJDist = d; sc_idx = vtx; }
             }
         }
-
 #if 0
         if ((closestJDistApprox.smooth != closestJDist.smooth)
                 || (secondClosestJDistApprox.smooth != secondClosestJDist.smooth))
@@ -356,37 +376,91 @@ public:
         }
 #endif
 
+        // Creases can form in the hard-union of all joint geometries when the
+        // blending regions of the two joints incident an edge overlap. We avoid
+        // this by detecting such region overlaps and applying a smooth union.
 
-        Real2 smoothEffect1 = (      closestJDist.hard -       closestJDist.smooth);
-        Real2 smoothEffect2 = (secondClosestJDist.hard - secondClosestJDist.smooth);
-        // Smoothing is additive--hard union signed distance should always be greater
-        assert(smoothEffect1 >= -1e-9);
-        assert(smoothEffect2 >= -1e-9);
-        smoothEffect1 = std::max<Real2>(smoothEffect1, 0.0);
-        smoothEffect2 = std::max<Real2>(smoothEffect2, 0.0);
-        // Base smoothing on the geometric mean of the differences between
-        // distances to smooth and hard goemetry.
-        Real2 meanSmoothEffectSq = smoothEffect1 * smoothEffect2;
+        // A point is in the overlap of the blending regions when the two
+        // closest joints each has a smooth-union distance differing from its
+        // hard-union distance. We thus we smooth to a degree determined by
+        // the geometric mean of these differences.
 
-        // Want to interpolate smoothly from 0 when meanSmoothEffect = 0 to ~.01
-        Real2 overlapSmoothAmt = maxOverlapSmoothingAmt * tanh(1000.0 * meanSmoothEffectSq);
+        // Note: if we only consider the two closest joints in computing this
+        // smoothing amount, the amount can change abruptly in degenerate cases
+        // where many joints are roughly the same distance from the evaluation
+        // point. This will case a bad surface discontinuity.
+
+        // To avoid this problem, we take a weighted geometric mean of all
+        // differences instead of just the two closest joints' differences.
+        // We choose the weighting based on the distance and have it fall off
+        // rapidly after the first two closest.
+        std::array<Real2, MAX_CANDIDATES> smoothEffects, weights; // Large enough not to matter
+        for (size_t i = 0; i < numCandidates; ++i) {
+            // Interpolate from 1.0 to 0
+            Real2 dist = candidateJDists[i].smooth - secondClosestJDist.smooth;
+            // Real2 posDist = std::max<Real2>(dist, 0);
+            // weights[i] = 0.5 * (1.0 - tanh(posDist * 100 - 3.0));
+            weights[i] = 0.5 * (1.0 - tanh(dist * 50 - 1.0));
+            smoothEffects[i] = candidateJDists[i].hard - candidateJDists[i].smooth;
+            assert(smoothEffects[i] >= -1e-9);
+            smoothEffects[i] = std::max<Real2>(smoothEffects[i], 0.0);
+        }
+        Real2 weightedAvgOfGeometricMeanSq = 0;
+        Real2 totalWeight = 0;
+        for (size_t i = 0; i < numCandidates; ++i) {
+            for (size_t j = i + 1; j < numCandidates; ++j) {
+                weightedAvgOfGeometricMeanSq += weights[i] * weights[j] * smoothEffects[i] * smoothEffects[j];
+                totalWeight += weights[i] * weights[j];
+            }
+        }
+        weightedAvgOfGeometricMeanSq /= totalWeight;
+        Real2 overlapSmoothAmt = maxOverlapSmoothingAmt * tanh(1000.0 * weightedAvgOfGeometricMeanSq);
+
         Real2 dist = SD::exp_smin_reparam_accurate(closestJDist.smooth,
                                              secondClosestJDist.smooth, overlapSmoothAmt);
 
         // dist = closestJDist.smooth;
-        if (hasInvalidDerivatives(dist)) {
-            std::cerr << "dist:"                     ; std::cerr <<                      dist << std::endl;
-            std::cerr << "closestJDist.smooth:"      ; std::cerr <<       closestJDist.smooth << std::endl;
+        if (hasInvalidDerivatives(dist) || DebugDerivatives) {
+            std::cerr << "                     dist:"; std::cerr <<                      dist << std::endl;
+            std::cerr << "      closestJDist.smooth:"; std::cerr <<       closestJDist.smooth << std::endl;
             std::cerr << "secondClosestJDist.smooth:"; std::cerr << secondClosestJDist.smooth << std::endl;
-            std::cerr << "overlapSmoothAmt:"         ; std::cerr <<          overlapSmoothAmt << std::endl;
+            std::cerr << "         overlapSmoothAmt:"; std::cerr <<          overlapSmoothAmt << std::endl;
 
-            std::cerr << "Invalid derivatives computed in combinedJointDistances evaluation" << std::endl;
+            const auto & cJoint = m_jointForVertex[c_idx];
+            const auto &scJoint = m_jointForVertex[sc_idx];
+            Real2  cSmoothness =  cJoint->smoothingAmt(p);
+            Real2 scSmoothness = scJoint->smoothingAmt(p);
+            if (VERTEX_SMOOTHNESS_MODULATION) {
+                 cSmoothness *= m_vertexSmoothness[ c_idx];
+                scSmoothness *= m_vertexSmoothness[sc_idx];
+            }
+            std::cerr << "      closestJDist smoothing amt:"; std::cerr <<  cSmoothness << std::endl;
+            std::cerr << "secondClosestJDist smoothing amt:"; std::cerr << scSmoothness << std::endl;
+
+            if (hasInvalidDerivatives(dist))
+                std::cerr << "Invalid derivatives computed in combinedJointDistances evaluation" << std::endl;
             std::cerr << "dist:"                     ; reportDerivatives(std::cerr,                      dist); std::cerr << std::endl; std::cerr << std::endl;
             std::cerr << "closestJDist.smooth:"      ; reportDerivatives(std::cerr,       closestJDist.smooth); std::cerr << std::endl; std::cerr << std::endl;
             std::cerr << "secondClosestJDist.smooth:"; reportDerivatives(std::cerr, secondClosestJDist.smooth); std::cerr << std::endl; std::cerr << std::endl;
             std::cerr << "overlapSmoothAmt:"         ; reportDerivatives(std::cerr,          overlapSmoothAmt); std::cerr << std::endl; std::cerr << std::endl;
 
-            throw std::runtime_error("Invalid derivatives computed in combinedJointDistances evaluation");
+            std::cerr << "Hard derivatives:" << std::endl;
+            std::cerr << "closestJDist.hard:"        ; reportDerivatives(std::cerr,       closestJDist.hard); std::cerr << std::endl;
+            std::cerr << "secondClosestJDist.hard:"  ; reportDerivatives(std::cerr, secondClosestJDist.hard); std::cerr << std::endl;
+            std::cerr << std::endl;
+
+            for (size_t ei : m_adjEdges[c_idx]) {
+                size_t a = m_edges[ei].first, b = m_edges[ei].second;
+                std::cerr << "Edge (" << a << ", " << b << ") dist " << edgeDists[ei] << " derivatives:";
+                reportDerivatives(std::cerr, edgeDists[ei]);
+                std::cerr << std::endl;
+            }
+            std::cerr << std::endl;
+
+            distToVtxJoint<Real2, true>(c_idx, p, edgeDists, jointEdgeDists);
+
+            if (hasInvalidDerivatives(dist))
+                throw std::runtime_error("Invalid derivatives computed in combinedJointDistances evaluation");
         }
 #else
         Real2 dist = std::min(distToVtxJoint(m_edges[closestEdge].first, p, edgeDists, jointEdgeDists).smooth,
@@ -396,7 +470,7 @@ public:
     }
 
     // Additional Real type to support automatic differentiation wrt. p only
-    template<typename Real2>
+    template<typename Real2, bool DebugDerivatives = false>
     Real2 signedDistance(Point3<Real2> p) const {
         p = WMesh::PatternSymmetry::mapToBaseUnit(p);
         std::vector<Real2> edgeDists;
@@ -412,7 +486,7 @@ public:
         }
 
         assert(closestEdge < m_edgeGeometry.size());
-        Real2 dist = combinedJointDistances(p, edgeDists, closestEdge);
+        Real2 dist = combinedJointDistances<Real2, false, DebugDerivatives>(p, edgeDists, closestEdge);
 
         // TODO: compare distance to each joint against distance to the edge.
         // The joint dist should always be <= edge dist since blending is
@@ -470,7 +544,7 @@ public:
                 return true; // blending is additive
         }
 
-        return combinedJointDistances<Real, true /* accelerated version*/>(p, edgeDists, 0 /* closestEdge */) <= 0;
+        return combinedJointDistances<Real, true/* accelerated version*/>(p, edgeDists, 0 /* closestEdge */) <= 0;
 
         // // see signedDistance(p) above
         // for (size_t u = 0; u < numVertices(); ++u)
@@ -513,7 +587,7 @@ public:
             if (!joint) {
                 // Joints are not created for valence 1 vertices.
                 assert(m_adjEdges[u].size() == 1);
-                jdist = edgeDists[m_adjEdges[u][0]]; 
+                jdist = edgeDists[m_adjEdges[u][0]];
                 s = m_blendingParams[u];
 #if VERTEX_SMOOTHNESS_MODULATION
                 s *= m_vertexSmoothness[u];

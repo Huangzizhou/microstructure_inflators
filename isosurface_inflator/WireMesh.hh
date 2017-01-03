@@ -20,6 +20,7 @@
 #include <stdexcept>
 #include <limits>
 #include <set>
+#include <queue>
 
 #include <MeshIO.hh>
 #include "InflatorTypes.hh"
@@ -319,6 +320,182 @@ public:
 
         for (const auto &e : reflectedEdges)
             edges.push_back(e);
+    }
+
+    bool isPrintable(const std::vector<Real> &params) const {
+        if (thicknessType_ != ThicknessType::Vertex)
+            throw std::runtime_error("Only per-vertex thickness printability implemented currently.");
+
+        std::vector<Point3<Real>> points;
+        std::vector<Edge> edges;
+        std::vector<size_t> thicknessVars;
+        std::vector<Eigen::Matrix3Xd> positionMaps;
+        printabilityGraph(params, points, edges, thicknessVars, positionMaps);
+
+        assert(thicknessVars.size() == points.size());
+
+        std::vector<Real> thicknesses;
+        for (size_t tv : thicknessVars)
+            thicknesses.push_back(params.at(tv));
+
+        std::vector<Real> zCoords;
+        for (const auto &pt : points)
+            zCoords.push_back(pt[2]);
+
+        // Build adjacency list
+        std::vector<std::vector<size_t>> adj(points.size());
+        for (const auto &e : edges) {
+            adj[e.first].push_back(e.second);
+            adj[e.second].push_back(e.first);
+        }
+
+        std::vector<bool> supported(points.size(), false);
+        double tol = PatternSymmetry::tolerance;
+
+        // Should actually be the orthotropic base cell bottom
+        Real minZ = *std::min_element(zCoords.begin(), zCoords.end());
+
+        // Subtract radius from each vertex to get height of vertex sphere's
+        // bottom
+        for (size_t i = 0; i < points.size(); ++i)
+            zCoords[i] -= thicknesses[i];
+
+        std::queue<size_t> bfsQueue;
+        for (size_t i = 0; i < zCoords.size(); ++i) {
+            if (zCoords[i] - minZ < tol) {
+                bfsQueue.push(i);
+                supported[i] = true;
+            }
+        }
+
+        while (!bfsQueue.empty()) {
+            size_t u = bfsQueue.front();
+            bfsQueue.pop();
+            for (size_t v : adj[u]) {
+                if (!supported[v] && (zCoords[v] - zCoords[u] >= -tol)) {
+                    supported[v] = true;
+                    bfsQueue.push(v);
+                }
+            }
+        }
+
+        bool result = true;
+        for (bool s : supported) result &= s;
+        return result;
+    }
+
+    // The self-supporting printability constraints for per-vertex thickness
+    // patterns take the form of inequality constraints on the position and
+    // thickness parameters. These inequalities are linear apart from a min()
+    // operation on the supporting candidates' z coordinates (all vertices are
+    // supported if each is above the minimum of its neighbors.)
+    // This min() is applied based on "params" so that a set of linear
+    // inequality constraints is returned.
+    // TODO: look up if these are actually "affine" constraints; is that a
+    // thing?
+    // The constraints are in the form:
+    //      C [p] >= 0
+    //        [1]
+    // where p is the parameter vector and C is the constraint matrix returned.
+    //
+    // Perfectly horizontal features are forbidden because they make
+    // printability a global condition. Thus each vertex is required to be
+    // at least "epsilon" above its neighbors.
+    // Note: this should always be possible in the per-vertex-thickness model,
+    // but the per-edge-thickness model does require truly horizontal edges in
+    // the orthotropic symmetry.
+    Eigen::MatrixXd selfSupportingConstraints(
+            const std::vector<Real> &params,
+            Real epsilon) const
+    {
+        if (thicknessType_ != ThicknessType::Vertex)
+            throw std::runtime_error("Only per-vertex thickness printability implemented currently.");
+
+        std::vector<Point3<Real>> points;
+        std::vector<Edge> edges;
+        std::vector<size_t> thicknessVars;
+        std::vector<Eigen::Matrix3Xd> positionMaps;
+        printabilityGraph(params, points, edges, thicknessVars, positionMaps);
+
+        assert(positionMaps.size() == thicknessVars.size());
+
+        std::vector<Real> zCoords;
+        for (const auto &pt : points)
+            zCoords.push_back(pt[2]);
+
+        Real minZ = *std::min_element(zCoords.begin(), zCoords.end());
+
+        // Subtract the radius from each vertex position to get the sphere
+        // bottom point; now positionMaps map pattern parameters to the sphere's
+        // lowest point.
+        for (size_t i = 0; i < positionMaps.size(); ++i) {
+            positionMaps[i](2, thicknessVars[i]) -= 1.0;
+            zCoords[i] -= params.at(thicknessVars[i]);
+        }
+
+        // Build adjacency list
+        std::vector<std::vector<size_t>> adj(points.size());
+        for (const auto &e : edges) {
+            adj[e.first].push_back(e.second);
+            adj[e.second].push_back(e.first);
+        }
+
+        double tol = PatternSymmetry::tolerance;
+        // Create a constraint for every vertex
+        std::vector<Eigen::VectorXd> constraints;
+        for (size_t u = 0; u < points.size(); ++u) {
+            // ... except those on the build platform
+            if (zCoords[u] - minZ < tol)
+                continue;
+
+            // Find lowest neighbor
+            Real minHeight = safe_numeric_limits<  Real>::max();
+            size_t lowestNeighbor  = safe_numeric_limits<size_t>::max();
+            for (size_t v : adj[u]) {
+                if (zCoords[v] < minHeight) {
+                    minHeight = zCoords[v];
+                    lowestNeighbor = v;
+                }
+            }
+
+            // Don't allow perfectly horizontal features since these require
+            // global printability conditions.
+            // u - lowestNeighbor           >= epsilon  <==>
+            // u - lowestNeighbor - epsilon >= 0
+            constraints.push_back(positionMaps[u].row(2) -
+                                  positionMaps[lowestNeighbor].row(2));
+            assert(constraints.back().cols() == params.size() + 1);
+            constraints.back()[params.size()] -= epsilon;
+        }
+
+        // Detect and remove "constant" constraints not acting on variables;
+        // these must be satisfied
+        std::vector<Eigen::VectorXd> prunedConstraints;
+        for (const auto &c : constraints) {
+            bool hasVar = false;
+            for (size_t p = 0; p < params.size(); ++p) {
+                if (std::abs(c[p]) > tol) {
+                    hasVar = true;
+                    break;
+                }
+            }
+            if (hasVar) {
+                prunedConstraints.emplace_back(c);
+            }
+            else {
+                // Constraints c [p] >= 0 not acting on vars must be satisfied.
+                //               [1]
+                if (c[params.size()] < -tol)
+                    throw std::runtime_error("Infeasible: constant constraint unsatisfied");
+            }
+        }
+
+        // TODO: think about reducing the constraint system
+
+        Eigen::MatrixXd C(prunedConstraints.size(), params.size() + 1);
+        for (size_t i = 0; i < prunedConstraints.size(); ++i)
+            C.row(i) = prunedConstraints[i];
+        return C;
     }
 
 private:

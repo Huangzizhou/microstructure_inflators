@@ -295,7 +295,7 @@ public:
 
     // Additional real type to support automatic differentiation wrt. p
     // even when the class's real type doesn't support autodiff.
-    template<typename Real2>
+    template<typename Real2, bool DebugOutput = false>
     Real2 signedDistance(const Point3<Real2> &p) const {
         // Note: we must cast the vector-type member variables to Real2 types
         // for the automatic differentation case. There's a chance this will
@@ -308,10 +308,24 @@ public:
         // Max is to avoid numerical issues... (should be fine since we never
         // need to auto-diff where v_perpComponent = 0, i.e. deep inside
         // object).
-        Real2 v_perpComponent = sqrt(std::max(Real2(v_normSq - v_parallelComponent * v_parallelComponent), Real2(0.0)));
+        // Note: With the sphere hull joint blending, we *do* sometimes care
+        // about derivatives at the midline; this max should set the derivative
+        // to 0 rather than NaN, which should be fine: the blending modulation
+        // function should be design so that the blending derivative is zero at
+        // the hull medial axis. We just need to keep NaNs from propagating.
+        Real2 v_perpComponent = sqrt(std::max(Real2(v_normSq - v_parallelComponent * v_parallelComponent), Real2(1e-16)));
 
         // Rotate so that conical frustum surface is horizontal
         Real2 x = m_cosTheta * v_parallelComponent - m_sinTheta * v_perpComponent;
+
+        if (DebugOutput) {
+            std::cerr << "InflatedEdge::signedDistance derivative info:" << std::endl;
+            std::cerr << "v_normSq ( " << v_normSq << "):"; reportDerivatives(std::cerr, v_normSq); std::cerr << std::endl;
+            std::cerr << "v_parallelComponent ( " << v_parallelComponent << "):"; reportDerivatives(std::cerr, v_parallelComponent); std::cerr << std::endl;
+            std::cerr << "v_perpComponent ( " << v_perpComponent << "):"; reportDerivatives(std::cerr, v_perpComponent); std::cerr << std::endl;
+            std::cerr << "x ( " << x << "):"; reportDerivatives(std::cerr, x); std::cerr << std::endl;
+            std::cerr << std::endl;
+        }
 
         // Closest surface is sphere 1
         if (x < 0) {

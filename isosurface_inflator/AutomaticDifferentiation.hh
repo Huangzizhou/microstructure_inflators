@@ -96,6 +96,20 @@ TNew autodiffCast(const TOrig &orig) {
     return AutodiffCastImpl<isAutodiffType<TNew>()>::template run<TNew>(orig);
 }
 
+// std::numeric_limits is dangerous! If you use it on Eigen's autodiff types you
+// will get undefined behavior.
+template<typename T>
+struct safe_numeric_limits
+    : public std::numeric_limits<typename StripAutoDiffImpl<T>::result_type>
+{
+    using NonADType = typename StripAutoDiffImpl<T>::result_type;
+    static_assert(std::is_arithmetic<NonADType>::value,
+                  "std::numeric_limits is broken for non-arithmetic types!");
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// Extra autodiff math functions
+////////////////////////////////////////////////////////////////////////////////
 // Implement tanh for Eigen autodiff (argument dependent lookup)
 namespace Eigen {
 #define EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(FUNC,CODE) \
@@ -124,6 +138,36 @@ namespace Eigen {
     )
 
 #undef EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY
+
+    // Eigen doesn't provide pow for autodiff-typed power.
+    template<typename _DerType1, typename _DerType2>
+    Eigen::AutoDiffScalar<typename Eigen::internal::remove_all<_DerType1>::type>
+    pow(const Eigen::AutoDiffScalar<_DerType1> &x,
+        const Eigen::AutoDiffScalar<_DerType2> &p)
+    {
+        using DerType1 = typename Eigen::internal::remove_all<_DerType1>::type;
+        using DerType2 = typename Eigen::internal::remove_all<_DerType2>::type;
+        using Scalar  = typename Eigen::internal::traits<DerType1>::Scalar;
+        using Scalar2 = typename Eigen::internal::traits<DerType2>::Scalar;
+        static_assert(std::is_same<Scalar, Scalar2>::value, "Scalar types must be same for base and exponent");
+
+        if (x.value() < 0) throw std::runtime_error("Pow called with negative base");
+        // Avoid numerical issues with zero base: derivative wrt p should be
+        // zero but will be NaN.
+        Scalar safe_logx = std::log(
+                std::max(x.value(),
+                         safe_numeric_limits<Scalar>::min() // minimum positive normalized value
+        ));
+
+        // Note: make_coherent const-casts the derivatives.
+        internal::make_coherent(x.derivatives(), p.derivatives());
+
+        return AutoDiffScalar<DerType1>(std::pow(x.value(), p.value()),
+                std::pow(x.value(), p.value() - 1.0) * (
+                    x.derivatives() * p.value() +
+                    p.derivatives() * x.value() * safe_logx
+                ));
+    }
 }
 
 // Implement log_cosh for non-autodiff types.
@@ -132,17 +176,6 @@ typename std::enable_if<!isAutodiffType<T>(), T>::type
 log_cosh(const T val) {
     return log(cosh(val));
 }
-
-// std::numeric_limits is dangerous! If you use it on Eigen's autodiff types you
-// will get undefined behavior.
-template<typename T>
-struct safe_numeric_limits
-    : public std::numeric_limits<typename StripAutoDiffImpl<T>::result_type>
-{
-    using NonADType = typename StripAutoDiffImpl<T>::result_type;
-    static_assert(std::is_arithmetic<NonADType>::value,
-                  "std::numeric_limits is broken for non-arithmetic types!");
-};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Derivative debugging

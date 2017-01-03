@@ -154,9 +154,17 @@ struct WorstCaseStress {
     // Public data members
     ////////////////////////////////////////////////////////////////////////////
     ElasticityTensor<Real, N> Sh;
-    // For the worst-case von Mises analysis, Cbase maps strain to "von Mises
-    // stress." I.e. "Cbase = VonMises : C" where C is the actual printing
-    // base material. This tensor is *not* major symmetric.
+    // Minor symmetry:
+    //  For the worst-case von Mises analysis, Cbase maps strain to "von Mises
+    //  stress." I.e. "Cbase = VonMises : C" where C is the actual printing
+    //  base material. In this case, the tensor is *not* major symmetric.
+    // TODO: make per-element field:
+    //  We store a per-element tensor field rather than a single, homogenous
+    //  tensor despite only considering solid/void structures. This is because
+    //  the fixed macro load principal stress objective case can be implemented
+    //  with a hack of modifying Cbase on each element using the principal
+    //  stress direction
+    // MinorSymmetricRank4TensorField<N> Cbase;
     MinorSymmetricRank4Tensor<N> Cbase;
     // Per-element macro->micro {stress, deviatoric stress} map.
     // See Worst Case Microstructure writeup for details.
@@ -190,8 +198,7 @@ WorstCaseStress<N> worstCaseFrobeniusStress(
     result.eigPrincipal.resize(numElems);
     result.eigSecondary.resize(numElems);
     for (size_t i = 0; i < numElems; ++i) {
-        // Actually major symmetric, but conversion is not yet supported
-        MinorSymmetricRank4Tensor<N> T = result.F[i].transpose().doubleContract(result.F[i]);
+        ElasticityTensor<Real, N> T = result.F[i].transpose().doubleContract(result.F[i]);
         SymmetricMatrixValue<Real, N> sigma;
         std::tie(sigma, result.eigPrincipal[i],
                  result.eigAlgebraicMult[i],
@@ -210,6 +217,50 @@ WorstCaseStress<N> worstCaseVonMisesStress(
     auto V = vonMisesExtractor<N>();
     return worstCaseFrobeniusStress(V.doubleContract(Cbase), Sh, m2mStrain);
 }
+
+template<size_t N, bool _majorSymmCBase>
+WorstCaseStress<N> fixedLoadFrobeniusStress(
+        ElasticityTensor<Real, N, _majorSymmCBase> Cbase,
+        ElasticityTensor<Real, N> Sh,
+        const MinorSymmetricRank4TensorField<N> &m2mStrain,
+        const SymmetricMatrixValue<Real, N> &macroStress)
+{
+    // Initialize with worst-case macro load
+    WorstCaseStress<N> result =
+        worstCaseFrobeniusStress(Cbase, Sh, m2mStrain);
+    const size_t numElems = result.size();
+
+    // Replace macro stress on each element with the fixed macro load
+    for (size_t i = 0; i < numElems; ++i)
+        result.wcMacroStress(i) = macroStress;
+    return result;
+}
+
+template<size_t N, bool _majorSymmCBase>
+WorstCaseStress<N> fixedLoadVonMisesStress(
+        ElasticityTensor<Real, N, _majorSymmCBase> Cbase,
+        ElasticityTensor<Real, N> Sh,
+        const MinorSymmetricRank4TensorField<N> &m2mStrain,
+        const SymmetricMatrixValue<Real, N> &macroStress)
+{
+    auto V = vonMisesExtractor<N>();
+    return fixedLoadFrobeniusStress(V.doubleContract(Cbase), Sh, m2mStrain,
+                                    macroStress);
+}
+
+template<size_t N>
+WorstCaseStress<N> fixedLoadPrincipalStress(
+        ElasticityTensor<Real, N> /* Cbase */,
+        ElasticityTensor<Real, N> /* Sh */,
+        const MinorSymmetricRank4TensorField<N> &/* m2mStrain */,
+        const SymmetricMatrixValue<Real, N> &/* macroStress */)
+{
+    // Make WorstCaseStress::Cbase a per-element tensor field, replacing it with
+    // (n x n x n x n) : Cbase, where n is the element's principal stress
+    // direction.
+    throw std::runtime_error("unimplemented");
+}
+
 
 template<size_t N>
 WorstCaseStress<N> worstCaseMaxStress(
@@ -675,7 +726,7 @@ using Base = SubObjective;
     template<class Sim>
     ScalarOneForm<Sim::N>
     adjointDeltaJ(const BaseCellOperations<Sim> &baseCellOps) const {
-        ScalarOneForm<Sim::N> pder = SubObjective::adjointDeltaJ(baseCellOps); 
+        ScalarOneForm<Sim::N> pder = SubObjective::adjointDeltaJ(baseCellOps);
         if (p == 1) return pder;
         pder *= m_gradientScale();
         return pder;

@@ -150,6 +150,12 @@ public:
         // The edge chains consist only of the edges that do not belong to
         // non-degenerate triangles--remove the triangle edges.
         // Also, detect and remove numerically degenerate edges.
+        // TODO: Detect and remove double-triangle edge created at the top in the
+        // following configuration (this erroneously becomes a chain edge):
+        //           +--+--+
+        //            \ | /
+        //             \|/
+        //              *
         for (auto it = m_sphereChainEdges.begin(); it != m_sphereChainEdges.end(); /* advanced inside */) {
             bool isTriEdge = false;
             for (const auto &st : m_sphereTriangles)
@@ -271,8 +277,27 @@ public:
         }
     }
 
-    template<typename Real2>
+    template<typename Real2, bool DebugOutput = false>
     Real2 signedDistance(const Point3<Real2> &p) const {
+        if (DebugOutput)  {
+            std::cerr.precision(19);
+            std::cerr << "querying distance at point " << stripAutoDiff(p).transpose() << std::endl;
+            {
+                std::cout << "to SphereConvexHull of centers, radii:" << std::endl;
+                for (const auto &pt : m_sphereCenters) {
+                    std::cout << "{"
+                        << stripAutoDiff(pt[0]) << ", "
+                        << stripAutoDiff(pt[1]) << ", "
+                        << stripAutoDiff(pt[2]) << "}, ";
+                }
+                std::cout << std::endl;
+                std::cout << "{";
+                for (const Real &r : m_sphereRadii)
+                    std::cout << stripAutoDiff(r) << ", ";
+                std::cout << "}" << std::endl;
+            }
+        }
+
         // Fully degenerate case (hull is a single sphere)
         if (m_degenerateHullSphereIdx != NONE) {
             // Auto-diff compatible version:
@@ -343,6 +368,7 @@ public:
             // If closest point is in the triangle's interior, it's the closest
             // hull point.
             if (numZero == 0) {
+                if (DebugOutput) { std::cerr << "Closest hull point in triangle interior" << std::endl; }
                 // TODO: faster way to determine which side of triangle we're
                 // on?
                 auto v = (stripAutoDiff(p) -
@@ -354,12 +380,14 @@ public:
             }
 
             if (numZero == 1) {
+                if (DebugOutput) { std::cerr << "Closest hull point on triangle edge" << std::endl; }
                 // If exactly one barycentric coordinate is zero (i.e. we're on
                 // the supporting triangle's edge), the closest surface point to
                 // p lies on the convex hull of the two endpoint spheres.
                 sd = m_edgeOppositeTriangleCorner[3 * closestTri + zeroCoords[0]]->signedDistance(p);
             }
             if (numZero == 2) {
+                if (DebugOutput) { std::cerr << "Closest hull point on triangle edge pair" << std::endl; }
                 // If two barycentric coordinates are zero (we're on a vertex),
                 // the closest surface point p lies on the union of the two
                 // incident inflated edges. These edges are the ones across from
@@ -387,14 +415,21 @@ public:
             }
         }
 
+        if (DebugOutput) { std::cerr << "Pre-chain sd " << sd << " derivatives:"; reportDerivatives(std::cerr, sd); std::cerr << std::endl; }
+
         // Union in the edge chain geometry.
         // Inflated edge chains must always union into convex geometry and
         // thus the signed distance can be computed accurately with
         // std::min (see numZero == 2 discussion). Further, the edge chains attach to the non-degenerate
         // regions in a convex way, so std::min can be used to union
         // everything together.
-        for (const auto edge_ptr : m_sphereChainInflatedEdges)
-            sd = std::min(sd, edge_ptr->signedDistance(p));
+        for (const auto edge_ptr : m_sphereChainInflatedEdges) {
+            Real2 edge_sd = edge_ptr->template signedDistance<Real2, DebugOutput>(p);
+            if (DebugOutput) { std::cerr << "edge_sd " << edge_sd << " derivatives:"; reportDerivatives(std::cerr, edge_sd); std::cerr << std::endl; }
+            sd = std::min<Real2>(sd, edge_sd);
+        }
+
+        if (DebugOutput) { std::cerr << "Post-chain sd " << sd << " derivatives:"; reportDerivatives(std::cerr, sd); std::cerr << std::endl; }
 
         return sd;
     }

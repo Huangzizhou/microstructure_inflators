@@ -186,7 +186,7 @@ mesh(const SignedDistanceFunction &sdf,
 ////////////////////////////////////////////////////////////////////////////////
 // Explicit instantiations
 ////////////////////////////////////////////////////////////////////////////////
-template class CGALClippedVolumeMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>>>;
+// template class CGALClippedVolumeMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>>>;
 // Enable for slower builds...
 template class CGALClippedVolumeMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>>>;
-template class CGALClippedVolumeMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>>;
+// template class CGALClippedVolumeMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>>;
