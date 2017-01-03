@@ -173,7 +173,7 @@ private:
     Real m_CDist, m_CNormSq;
 };
 
-// Configuration to be applyed by iterate factory
+// Configuration to be applied by iterate factory
 template<class _Sim>
 struct IFConfigTensorFit : public IFConfig {
     static constexpr size_t N = _Sim::N;

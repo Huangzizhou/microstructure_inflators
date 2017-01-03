@@ -86,14 +86,18 @@ IsoinflatorWrapper<N>::volumeShapeVelocities() const
                       << maxZMag << " (probably ok)"
                       << std::endl;
         }
+        if ((N == 2) && (maxZMag > 0.4)) {
+            std::cerr << "Extremely large z component in 2D normal: " << maxZMag
+                      << "; throwing error" << std::endl;
+            throw std::runtime_error("Extremely large z component in 2D normal.");
+        }
     }
     catch (...) {
-        double maxZMag = 0;
-        for (size_t p = 0; p < np; ++p)
-            for (size_t vi = 0; vi < nv; ++vi)
-                maxZMag = std::max(maxZMag, std::abs(n[vi][2]));
-
-        std::cerr << "Nonzero z magnitude: " << maxZMag << std::endl;
+        std::cerr.precision(19);
+        std::cerr << "Error for pattern parameters: " << std::endl;
+        for (Real pval : m_inflator->inflatedParams())
+            std::cerr << pval << "\t";
+        std::cerr << std::endl;
 
         MSHFieldWriter writer("debug_velocities.msh", vertices(), elements());
         {

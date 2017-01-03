@@ -7,13 +7,15 @@
 # Also, for intermediate sub-rounds (which only launch new jobs and don't
 # actually depend on the previous jobs' results), we release dependent jobs
 # into the queue when all of their dependencies are already running and fewer
-# than 50 remain. This avoids the situation where a few slow jobs hold up
+# than <DEP_MIN> remain. This avoids the situation where a few slow jobs hold up
 # future batches. There's a small chance of starting the next round (analyzing
 # job output) before all jobs from previous subrounds have finished,
 # but that's fine--this next round will try for the missing gridpoints again.
 import subprocess, re, time
 from getpass import getuser
 user = getuser()
+
+DEP_MIN=10
 
 def releaseStuckDependents():
     qstatOut = subprocess.check_output(['qstat', '-t', '-u', user])
@@ -52,7 +54,7 @@ def releaseStuckDependents():
         for rj in running:
             if baseJobId(rj) == depJobId: runningDepCount += 1
         intermediateJob = len(fullName.split(':')) == 3
-        if (intermediateJob and (queuedDepCount == 0) and runningDepCount < 50):
+        if (intermediateJob and (queuedDepCount == 0) and (runningDepCount < DEP_MIN)):
             print "%s (%s) depends on %i queued and %i running jobs... " % (h, fullName, queuedDepCount, runningDepCount)
             qaCommand = ['qalter', '-W', 'depend=%s' % depType, h]
             print " ".join(qaCommand)
@@ -61,4 +63,4 @@ def releaseStuckDependents():
 while True:
     try: releaseStuckDependents()
     except Exception as e: print "EXCEPTION: ", e
-    time.sleep(20)
+    time.sleep(300)

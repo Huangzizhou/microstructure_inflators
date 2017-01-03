@@ -8,7 +8,9 @@ class PatternOptimization:
         self.dim = config['dim']
         self.pattern = config['pattern']
         self.material = paths.material(config['material'])
-        self.patoptArgs = config.get('args', ['-I', '--solver', 'levenberg_marquardt', '-n50'])
+        self.patoptArgs = config.get('args', ['-I', '--solver', 'slsqp',
+                                              '--TensorFitConstraint',
+                                              '--tensor_fit_tolerance=1e-5', '-n50'])
 
         self.jobTemplate = None
         if 'jobTemplate' in config:
@@ -22,8 +24,8 @@ class PatternOptimization:
             self.translationBounds = config.get('translationBounds', [-0.14, 0.14])
             self.blendingBounds    = config.get('blendingBounds', [0.0078125, 0.2])
         elif (self.dim == 3):
-            self.radiusBounds      = config.get(     'radiusBounds', [0.3, 0.8])
-            self.translationBounds = config.get('translationBounds', [-0.3, 0.3])
+            self.radiusBounds      = config.get(     'radiusBounds', [0.02, 0.2])
+            self.translationBounds = config.get('translationBounds', [-0.2, 0.2])
             self.blendingBounds    = config.get('blendingBounds', [0.0078125, 0.2])
         else: raise Exception("Invalid dimension")
 

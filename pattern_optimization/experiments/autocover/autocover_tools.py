@@ -69,6 +69,8 @@ def coverageExpansionOptimizer(config, lut, grid, constraints):
         startLUTIndices = np.unique([order[0],
                                      order[min(math.ceil(0.05 * len(order)), len(order) - 1)],
                                      order[min(math.ceil(0.10 * len(order)), len(order) - 1)]])
+        if (config.get('singleClosestInit', False)):
+            startLUTIndices = [order[0]]
         for i in startLUTIndices: opt.enqueueJob(targetE, targetNu, lut.params[i])
     return opt
 
@@ -102,7 +104,7 @@ def autocoverRoundOptimizer(num, config):
 
     dim = config['dim']
     pat = config['pattern']
-    printableOnly = config.get('printable', True)
+    printableOnly = config.get('printable', False)
 
     grid = materialSpaceGrid(config)
     constraints = pattern_constraints.lookup(pat, dim)

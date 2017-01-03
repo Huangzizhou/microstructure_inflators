@@ -104,7 +104,7 @@ private:
     _WCSObjectiveType m_wcs_objective;
 };
 
-// Configuration to be applyed by iterate factory
+// Configuration to be applied by iterate factory
 template<class _Sim, class _WCSObjectiveType = PthRootObjective<IntegratedWorstCaseObjective<_Sim::N, WCStressIntegrandLp>>>
 struct IFConfigWorstCaseStress : public IFConfig {
     static constexpr size_t N = _Sim::N;

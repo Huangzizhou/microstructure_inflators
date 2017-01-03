@@ -1,5 +1,6 @@
 #!/usr/bin/env zsh
 mkdir -p init_jobs autocover_configs
+ijobs=$(readlink -f init_jobs)
 TDIR=$MICRO_DIR/patterns/2D/topologies
 ACDir=$MICRO_DIR/pattern_optimization/experiments/autocover/2D
 for i in $TDIR/*.obj; do
@@ -10,21 +11,25 @@ for i in $TDIR/*.obj; do
     "dim": 2,
     "pattern": $(($pat + 0)),
     "material": "B9Creator",
-    "jobTemplate": "$ACDir/init_jobs/$pat.opt",
+    "jobTemplate": "$ijobs/$pat.opt",
 
     "targetERange": [0.15, 200],
     "targetNuRange": [-1.0, 1.0],
     "targetNSubdiv": 30,
 
-    "numIters": 15,
-    "maxSimultaneousJobs": 200,
+    "numIters": 20,
+    "maxSimultaneousJobs": 50,
+    "singleClosestInit": true,
 
     "mem": "2GB",
-    "walltime": "0:15:00",
+    "walltime": "0:10:00",
 
-    "args": ["--solver", "levenberg_marquardt", "-V",
+    "args": ["--solver", "slsqp", "-V", "-O", "--TensorFitConstraint",
+             "--tensor_fit_tolerance=1e-5",
              "-M", "$ACDir/meshing_opts_adaptive.json",
-             "--WCSWeight", "0", "--JSWeight", "1"]
+             "--WCSWeight=0.0",
+             "--JSWeight=0.0",
+             "--proximityRegularizationWeight=1.0"]
 }
 END
 done
@@ -34,10 +39,11 @@ for i in init_jobs/*.opt; do
     pat=$(basename $i .opt)
     roundDir=rounds/$pat
     mkdir -p $roundDir
-    ../../../PatternOptimization_cli -m $MICRO_DIR/materials/B9Creator.material $i -p $TDIR/$pat.obj -V --solver=levenberg_marquardt -M meshing_opts.json -n0 > stdout_0.txt
+    echo "$MICRO_DIR/pattern_optimization/PatternOptimization_cli -m $MICRO_DIR/materials/B9Creator.material $i -p $TDIR/$pat.obj -V --solver=levenberg_marquardt -M $ACDir/meshing_opts.json -n0 > stdout_0.txt"
+    $MICRO_DIR/pattern_optimization/PatternOptimization_cli -m $MICRO_DIR/materials/B9Creator.material $i -p $TDIR/$pat.obj -V --solver=levenberg_marquardt -M $ACDir/meshing_opts.json -n0 > stdout_0.txt
     if [ $? -ne 0 ]; then
         echo "Optimization failed for pattern $pat"
     fi
-    python init_lut.py $pat $roundDir/round_0000.txt
+    python $ACDir/init_lut.py $pat $roundDir/round_0000.txt
     rm stdout_0.txt
 done
