@@ -79,7 +79,7 @@ public:
 	closestInternalBarycoordsToBaryCoords(Eigen::Matrix<Real2, 3, 1> lambda) const {
         using BaryC = Eigen::Matrix<Real2, 3, 1>;
         bool seenNegative = false;
-        int prevNegIdx;
+        int prevNegIdx = -1;
 
         for (size_t i = 0; i < 3; ++i) {
             if (lambda[i] >= 0) continue;

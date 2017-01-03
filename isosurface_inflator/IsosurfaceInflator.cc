@@ -336,6 +336,7 @@ BaseCellType IsosurfaceInflator::baseCellType() const {
 const vector<MeshIO::IOVertex > &IsosurfaceInflator::vertices()              const { return m_imp->vertices; }
 const vector<MeshIO::IOElement> &IsosurfaceInflator::elements()              const { return m_imp->elements; }
 const vector<vector<Real>>      &IsosurfaceInflator::normalShapeVelocities() const { return m_imp->normalShapeVelocities; }
+const vector<Real>              &IsosurfaceInflator::inflatedParams()        const { return m_imp->inflatedParams; }
 
 void                             IsosurfaceInflator::clear()                       { m_imp->clear(); }
 

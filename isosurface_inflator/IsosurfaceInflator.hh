@@ -58,6 +58,7 @@ public:
     void clear();
     const std::vector<std::vector<Real>> &normalShapeVelocities() const;
     const std::vector<Point>             &vertexNormals() const;
+    const std::vector<Real>              &inflatedParams() const;
 
     size_t numParams() const;
 

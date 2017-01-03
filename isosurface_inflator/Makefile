@@ -48,9 +48,10 @@ SignedDistance_cli: SignedDistance_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o 
 TestWireMesh: tests/TestWireMesh.o
 	g++ -L/usr/local/lib $^ -o $@
 
-INCLUDES+=-isystem /opt/local/include -I$(MeshFEM) -I$(CSGFEM) -isystem /opt/local/include/eigen3 -isystem $(VCGLIB_PATH) 
+INCLUDES+=-isystem /opt/local/include -I$(MeshFEM) -I$(CSGFEM) -isystem /opt/local/include/eigen3 -isystem $(VCGLIB_INC) 
 INCLUDES+=$(TBB_IFLAGS)
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DBENCHMARK
+CPPFLAGS+=$(WARNING_FLAGS)
 
 # Delete built-in rule, forcing ours to run
 %.o: %.cc

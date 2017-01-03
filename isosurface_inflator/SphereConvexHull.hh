@@ -285,6 +285,7 @@ public:
         if (m_supportingTriangles.size() > 0) {
             Real2 closestTriDistSq = safe_numeric_limits<Real2>::max();
             Vector3<Real2> closestLambda, closestInternalLambda;
+            closestLambda.setZero(); closestInternalLambda.setZero(); // silence GCC's warnings
             size_t closestTri = 0;
             for (size_t i = 0; i < m_supportingTriangles.size(); ++i) {
                 Vector3<Real2> lambda = m_supportingTriangles[i].baryCoords(p);
