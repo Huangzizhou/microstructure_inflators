@@ -236,7 +236,8 @@ public:
             Vector3<Real> e1perp = midplaneNormal.cross(e1);
             // Hopefully the triangles detected from the discrete convex hull
             // approximation are never degenerate...
-            assert(std::abs(stripAutoDiff(e1perp.norm() - 1.0)) < 1e-10);
+            if (std::abs(stripAutoDiff(e1perp.norm() - 1.0)) > 1e-10)
+                report_error("Degenerate convex hull triangle (e1perp)", __LINE__);
 
             // Determine the (positive) tangent plane for the three spheres.
             // We compute the tangent plane's normal in terms of its components
@@ -254,9 +255,28 @@ public:
                                                    (p3 + r3 * n).eval());
             }
             else {
-                assert(false); // degenerate case
+                report_error("Degenerate sphere triangle configuration.", __LINE__);
             }
         }
+    }
+
+    void report_error(const std::string &msg, size_t line) const {
+        std::cout << "Error in SphereConvexHull for centers, radii:" << std::endl;
+        for (const auto &pt : m_sphereCenters) {
+            std::cout << "{"
+                << pt[0] << ", "
+                << pt[1] << ", "
+                << pt[2] << "}, ";
+        }
+        std::cout << std::endl;
+        std::cout << "{";
+        for (const Real &r : m_sphereRadii)
+            std::cout << r << ", ";
+        std::cout << "}" << std::endl;
+
+        writeDebugInfo();
+
+        throw std::runtime_error(msg + " at SphereConvexHull.hh:" + std::to_string(line));
     }
 
     bool hullIsSingleSphere() const { return m_degenerateHullSphereIdx == NONE; }
@@ -362,7 +382,7 @@ public:
                 for (Real r : m_sphereRadii)
                     std::cerr << r << ", ";
                 std::cerr << "}" << std::endl;
-                assert(numZero != 3);
+                report_error("numZero == 3", __LINE__);
             }
 
             // If closest point is in the triangle's interior, it's the closest

@@ -67,33 +67,50 @@ public:
             }
         }
         m_blendingAmt = blendingAmt;
-        m_blendingHull = Future::make_unique<SD::Primitives::SphereConvexHull<Real>>(centers, radii);
+        try {
+            m_blendingHull = Future::make_unique<SD::Primitives::SphereConvexHull<Real>>(centers, radii);
+        }
+        catch (std::exception &e) {
+            // Don't let robustness issues in the sphere convex hull crash
+            // optimization. Simply disable blending in those cases.
+            std::cerr << "Caught error while constructing joint hull: " << e.what() << std::endl;
+            std::cerr << "Disabling joint blending" << std::endl;
+            m_blendingHull = nullptr;
+        }
     }
 
     template<typename Real2, bool DebugOutput = false>
     Real2 smoothingAmt(const Point3<Real2> &p) const {
         if (m_mode == JointBlendMode::FULL) { return m_blendingAmt; }
+        if (!m_blendingHull) { return m_blendingAmt; }
 
-        Real2 hullDist = m_blendingHull->template signedDistance<Real2, DebugOutput>(p);
-        // Real2 z = 1.0 + (hullDist / m_r1); // from 0 at "center" to 1 at outside
-        // Note: hullDist is non-differentiable at the blending hull medial
-        // axis, so we must scale the modulation region so that essentially no
-        // modulation is done at the medial axis.
-        Real2 z = 1.0 + (hullDist / m_minRadius); // from 0 at "center" to 1 at outside
-        z = std::max<Real2>(z, 0.0);
-        // Real2 modulation = 1.0 - tanh(pow(z, 8.0));
-        z *= 1.025;
-        Real2 modulation = 1.0 - tanh(pow(z, 10.0));
+        Real2 modulation = 1.0;
+        try {
+            Real2 hullDist = m_blendingHull->template signedDistance<Real2, DebugOutput>(p);
+            // Real2 z = 1.0 + (hullDist / m_r1); // from 0 at "center" to 1 at outside
+            // Note: hullDist is non-differentiable at the blending hull medial
+            // axis, so we must scale the modulation region so that essentially no
+            // modulation is done at the medial axis.
+            Real2 z = 1.0 + (hullDist / m_minRadius); // from 0 at "center" to 1 at outside
+            z = std::max<Real2>(z, 0.0);
+            // Real2 modulation = 1.0 - tanh(pow(z, 8.0));
+            z *= 1.025;
+            modulation = 1.0 - tanh(pow(z, 10.0));
 
-        if (DebugOutput) {
-            std::cerr << "smoothingAmt derivatives:" << std::endl;
-            std::cerr << "     hullDist (" <<      hullDist << "):"; reportDerivatives(std::cerr,      hullDist); std::cerr << std::endl;
-            std::cerr << "            z (" <<             z << "):"; reportDerivatives(std::cerr,             z); std::cerr << std::endl;
-            std::cerr << "   modulation (" <<    modulation << "):"; reportDerivatives(std::cerr,    modulation); std::cerr << std::endl;
-            std::cerr << "m_blendingAmt (" << m_blendingAmt << "):"; reportDerivatives(std::cerr, m_blendingAmt); std::cerr << std::endl;
-            std::cerr << std::endl << std::endl;
+            if (DebugOutput) {
+                std::cerr << "smoothingAmt derivatives:" << std::endl;
+                std::cerr << "     hullDist (" <<      hullDist << "):"; reportDerivatives(std::cerr,      hullDist); std::cerr << std::endl;
+                std::cerr << "            z (" <<             z << "):"; reportDerivatives(std::cerr,             z); std::cerr << std::endl;
+                std::cerr << "   modulation (" <<    modulation << "):"; reportDerivatives(std::cerr,    modulation); std::cerr << std::endl;
+                std::cerr << "m_blendingAmt (" << m_blendingAmt << "):"; reportDerivatives(std::cerr, m_blendingAmt); std::cerr << std::endl;
+                std::cerr << std::endl << std::endl;
 
-            std::cerr << "m_r1, m_minRadius values: " << m_r1 << ", " << m_minRadius << std::endl;
+                std::cerr << "m_r1, m_minRadius values: " << m_r1 << ", " << m_minRadius << std::endl;
+            }
+        }
+        catch (std::exception &e) {
+            std::cerr << "Caught error while evaluating joint hull: " << e.what() << std::endl;
+            std::cerr << "Disabling joint blendig for eval pt" << std::endl;
         }
 
         // Original: p = 8, z *= 1.0;

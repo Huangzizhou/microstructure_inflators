@@ -27,6 +27,7 @@
 #include <Future.hh>
 
 #define VERTEX_SMOOTHNESS_MODULATION 1
+#define DISCONTINUITY_AVOIDING_CREASE_AVOIDANCE 1
 
 template<typename _Real, class WMesh>
 class PatternSignedDistance {
@@ -329,17 +330,13 @@ public:
         // smoothed joints. These are the joints that could possibly overlap to
         // form a hard crease.
         std::array<JointDists<Real2>, MAX_CANDIDATES> candidateJDists;
-        for (size_t vtx = 0, i = 0; vtx < numVertices(); ++vtx) {
-            if (hard_distance[vtx] > candidateDistThreshold) continue; // prune out the far joints
-            candidateJDists[i++] = distToVtxJoint(vtx, p, edgeDists, jointEdgeDists);
-        }
-
         JointDists<Real2> closestJDist, secondClosestJDist;
         closestJDist = secondClosestJDist = JointDists<Real2>::largest();
         size_t c_idx, sc_idx;
         for (size_t vtx = 0, i = 0; vtx < numVertices(); ++vtx) {
             if (hard_distance[vtx] > candidateDistThreshold) continue; // prune out the far joints
-            const JointDists<Real2> &d = candidateJDists[i++];
+            candidateJDists[i] = distToVtxJoint(vtx, p, edgeDists, jointEdgeDists);
+            const JointDists<Real2> &d = candidateJDists[i];
             if (d < secondClosestJDist) {
                 if (d < closestJDist) {
                     secondClosestJDist = closestJDist;
@@ -349,33 +346,10 @@ public:
                 }
                 else { secondClosestJDist = d; sc_idx = vtx; }
             }
+            ++i;
         }
-#if 0
-        if ((closestJDistApprox.smooth != closestJDist.smooth)
-                || (secondClosestJDistApprox.smooth != secondClosestJDist.smooth))
-        {
-            std::cerr.precision(19);
-            std::cerr << "closestJDist.hard:"      ; std::cerr <<       closestJDist.hard << std::endl;
-            std::cerr << "secondClosestJDist.hard:"; std::cerr << secondClosestJDist.hard << std::endl;
-            std::cerr << "closestJDist.smooth:"      ; std::cerr <<       closestJDist.smooth << std::endl;
-            std::cerr << "secondClosestJDist.smooth:"; std::cerr << secondClosestJDist.smooth << std::endl;
-            std::cerr << std::endl;
-            std::cerr << "closestJDistApprox.hard:"      ; std::cerr <<       closestJDistApprox.hard << std::endl;
-            std::cerr << "secondClosestJDistApprox.hard:"; std::cerr << secondClosestJDistApprox.hard << std::endl;
-            std::cerr << "closestJDistApprox.smooth:"      ; std::cerr <<       closestJDistApprox.smooth << std::endl;
-            std::cerr << "secondClosestJDistApprox.smooth:"; std::cerr << secondClosestJDistApprox.smooth << std::endl;
-            std::cerr << std::endl;
-            std::cerr << "sc_idx, c_idx: " << sc_idx << ", " << c_idx << std::endl;
-            std::cerr << std::endl;
 
-            std::cerr << "medianDist:" << medianDist << std::endl;
-            for (size_t vtx = 0; vtx < numVertices(); ++vtx)
-                std::cerr << hard_distance[vtx] << "\t";
-            std::cerr << std::endl;
-            exit(-1);
-        }
-#endif
-
+#if DISCONTINUITY_AVOIDING_CREASE_AVOIDANCE
         // Creases can form in the hard-union of all joint geometries when the
         // blending regions of the two joints incident an edge overlap. We avoid
         // this by detecting such region overlaps and applying a smooth union.
@@ -415,6 +389,21 @@ public:
         }
         weightedAvgOfGeometricMeanSq /= totalWeight;
         Real2 overlapSmoothAmt = maxOverlapSmoothingAmt * tanh(1000.0 * weightedAvgOfGeometricMeanSq);
+#else
+        Real2 smoothEffect1 =       closestJDist.hard -       closestJDist.smooth;
+        Real2 smoothEffect2 = secondClosestJDist.hard - secondClosestJDist.smooth;
+        // Smoothing is additive
+        assert(smoothEffect1 >= -1e-9);
+        assert(smoothEffect2 >= -1e-9);
+        smoothEffect1 = std::max<Real2>(smoothEffect1, 0.0);
+        smoothEffect2 = std::max<Real2>(smoothEffect2, 0.0);
+        // Choose smoothing based on the gemoetric mean of the differences
+        // between distances to smooth and hard-unioned geometry.
+        Real2 meanSmoothEffectSq = smoothEffect1 * smoothEffect2;
+
+        // We want to interpolate smoothly from 0 when meanSmoothEffectSq = 0 to ~0.1
+        Real2 overlapSmoothAmt = maxOverlapSmoothingAmt * tanh(1000.0 * meanSmoothEffectSq);
+#endif
 
         Real2 dist = SD::exp_smin_reparam_accurate(closestJDist.smooth,
                                              secondClosestJDist.smooth, overlapSmoothAmt);
