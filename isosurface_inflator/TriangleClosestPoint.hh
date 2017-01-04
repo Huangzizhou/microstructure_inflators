@@ -135,7 +135,7 @@ public:
     const Eigen::Matrix<Real, 3, 1> &p1() const { return m_p1; }
     const Eigen::Matrix<Real, 3, 1> &p2() const { return m_p2; }
 
-    Eigen::Matrix<Real, 3, 1> normal() const { return m_normal; }
+    const Eigen::Matrix<Real, 3, 1> &normal() const { return m_normal; }
 
 private:
     Eigen::Matrix<Real, 3, 1> m_p0, m_p1, m_p2;

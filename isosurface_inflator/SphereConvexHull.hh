@@ -388,15 +388,20 @@ public:
             // If closest point is in the triangle's interior, it's the closest
             // hull point.
             if (numZero == 0) {
-                if (DebugOutput) { std::cerr << "Closest hull point in triangle interior" << std::endl; }
-                // TODO: faster way to determine which side of triangle we're
-                // on?
-                auto v = (stripAutoDiff(p) -
-                          stripAutoDiff(cst.pointAtBarycoords(closestInternalLambda))).eval();
-                double normalDist = v.dot(stripAutoDiff(cst.normal()));
+                // Compute signed distance in a way that's differentiable on the
+                // triangle. (sqrt(closestTriDistSq) is not!)
+                auto v = (p - cst.pointAtBarycoords(closestInternalLambda)).eval();
+                const auto &n = cst.normal();
+                // dot() isn't working on autodiff types.
+                sd = v[0] * n[0] + v[1] * n[1] + v[2] * n[2];
+                // assert(std::abs(std::abs(stripAutoDiff(sd)) - sqrt(stripAutoDiff(closestTriDistSq))) < 1e-9);
 
-                if (normalDist >= 0) sd =  sqrt(closestTriDistSq);
-                else                 sd = -sqrt(closestTriDistSq);
+                // if (normalDist >= 0) sd =  sqrt(closestTriDistSq);
+                // else                 sd = -sqrt(closestTriDistSq);
+                if (DebugOutput) {
+                    std::cerr << "Closest hull point in triangle interior" << std::endl;
+                    std::cerr << " closestTriDistSq ( " << closestTriDistSq << "):"; reportDerivatives(std::cerr, closestTriDistSq); std::cerr << std::endl;
+                }
             }
 
             if (numZero == 1) {
