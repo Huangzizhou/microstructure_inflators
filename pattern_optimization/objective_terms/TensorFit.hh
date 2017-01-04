@@ -184,10 +184,10 @@ struct IFConfigTensorFit : public IFConfig {
         auto tf = Future::make_unique<TensorFit<_Sim>>(targetS, *it);
         tf->setWeight(weight);
 
-        // Default JS normalization is (half) target tensor's squared Frobenius norm
+        // Default JS normalization is (twice) target tensor's squared Frobenius norm
         // This means the normalized term is the relative squared frobenius distance.
         if (!normalizations.isSet("JS"))
-            normalizations.set("JS", 0.5 / targetS.frobeniusNormSq());
+            normalizations.set("JS", 2.0 / targetS.frobeniusNormSq());
 
         tf->setNormalization(normalizations["JS"]);
         tf->setIgnoreShear(ignoreShear);

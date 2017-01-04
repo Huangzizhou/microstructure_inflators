@@ -56,6 +56,8 @@
 #include <OptimizerConfig.hh>
 #include <PatternOptimizationConfig.hh>
 #include <objective_terms/TensorFit.hh>
+#include <objective_terms/IsotropicFit.hh>
+#include <objective_terms/IsotropicFitRel.hh>
 #include <objective_terms/ProximityRegularization.hh>
 #include <constraints/TensorFit.hh>
 #include "WCSObjectiveTerm.hh"
@@ -132,9 +134,12 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
         ("WCSMeasure,w", po::value<string>()->default_value("frobenius"), "Which worst-case stress measure to analyze ('frobenius', 'vonMises')")
         ("JSWeight",     po::value<double>(),                             "Use the NLLS tensor fitting term with specified weight.")
+        ("JIsoWeight",   po::value<double>(),                             "Use the NLLS isotropy fitting term with specified weight (shrinkage side effect).")
+        ("JIsoRelWeight",po::value<double>(),                             "Use the relative isotropy fitting term with specified weight.")
         ("proximityRegularizationWeight", po::value<double>(),            "Use a quadratic proximity regularization term with the specified weight.")
         ("proximityRegularizationTarget", po::value<string>(),            "The target parameter values for the proximity regularization term (defaults to initial parameters.)")
         ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
+        ("JIsoFixedTarget",                                               "Make JIso just fit to the closest isotropic tensor to the *original* tensor.")
         ;
 
     po::options_description constraintOptions;
@@ -266,12 +271,16 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
 
     using WCSTermConfig       = PO::ObjectiveTerms::IFConfigWorstCaseStress<Simulator>;
     using TensorFitTermConfig = PO::ObjectiveTerms::IFConfigTensorFit<Simulator>;
+    using IsotropyFitConfig   = PO::ObjectiveTerms::IFConfigIsotropyFit<Simulator>;
+    using IsoFitRelConfig     = PO::ObjectiveTerms::IFConfigIsotropyFitRel<Simulator>;
     using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
     using TFConstraintConfig  = PO::   Constraints::IFConfigTensorFit<Simulator>;
 
     auto ifactory = PO::make_iterate_factory<PO::Iterate<Simulator>,
                                              WCSTermConfig,
                                              TensorFitTermConfig,
+                                             IsotropyFitConfig,
+                                             IsoFitRelConfig,
                                              PRegTermConfig,
                                              TFConstraintConfig>(inflator);
 
@@ -280,6 +289,8 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     ////////////////////////////////////////////////////////////////////////////
     ifactory->WCSTermConfig      ::enabled = args["WCSWeight"].as<double>() != 0;
     ifactory->TensorFitTermConfig::enabled = args.count("JSWeight");
+    ifactory->IsotropyFitConfig  ::enabled = args.count("JIsoWeight");
+    ifactory->IsoFitRelConfig    ::enabled = args.count("JIsoRelWeight");
     ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
     ifactory->TFConstraintConfig ::enabled = false;
 
@@ -304,6 +315,15 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
         if (ifactory->TensorFitTermConfig::ignoreShear) cout << "Ignoring shear components" << endl;
     }
 
+    if (args.count("JIsoRelWeight")) {
+        ifactory->IsoFitRelConfig::weight = args["JIsoRelWeight"].as<double>();
+    }
+
+    if (args.count("JIsoWeight")) {
+        ifactory->IsotropyFitConfig::weight = args["JIsoWeight"].as<double>();
+        ifactory->IsotropyFitConfig::useFixedTarget = args.count("JIsoFixedTarget");
+    }
+
     if (args.count("TensorFitConstraint")) {
         ifactory->TFConstraintConfig::enabled     = true;
         ifactory->TFConstraintConfig::targetS     = targetS;
@@ -311,6 +331,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     }
 
     if (args.count("proximityRegularizationWeight")) {
+        ifactory->PRegTermConfig::enabled = true;
         ifactory->PRegTermConfig::weight = args["proximityRegularizationWeight"].as<double>();
         ifactory->PRegTermConfig::targetParams = job->initialParams;
         if (args.count("proximityRegularizationTarget")) {
