@@ -101,7 +101,7 @@ class PatternOptimization:
     # Submit an array job for jobs numbered firstJobIndex..lastJobIndex
     # Return the array job's id.
     def submitArrayJob(self, directory, firstJobIndex, lastJobIndex, nprocs, walltime, mem):
-        if (lastJobIndex <= firstJobIndex): raise Exception("Invalid job index range")
+        if (lastJobIndex < firstJobIndex): raise Exception("Invalid job index range")
         cmd = [paths.optimizer(self.dim), directory + '/${PBS_ARRAYID}.job',
             '-p', paths.pattern(self.pattern, self.dim), '-m', self.material] + self.patoptArgs
         # We need to kill our job a couple minutes before the walltime expires so
@@ -141,7 +141,7 @@ class PatternOptimization:
         mv $STDOUT_FILE {directory}/stdout_${{PBS_ARRAYID}}.txt
         """
         pbsScript = dedent(pbsScript).format(
-                name="ac_%i_%s" % (self.pattern, directory),
+                name="ac_%s_%s" % (str(self.pattern), directory),
                 firstIndex=firstJobIndex, lastIndex=lastJobIndex,
                 command = " ".join(cmd), directory=directory,
                 nprocs=nprocs, walltime=walltime, mem=mem,

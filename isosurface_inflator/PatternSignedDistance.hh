@@ -279,7 +279,7 @@ public:
         }
 
         double candidateDistThreshold;
-        const size_t MAX_CANDIDATES = 20; // conservative upper bound for array allocation.
+        const size_t MAX_CANDIDATES = 100; // conservative upper bound for array allocation.
         size_t numCandidates = 0;
         {
             size_t requestedCandidates = std::min<size_t>(5, hard_distance.size());
@@ -332,7 +332,8 @@ public:
         std::array<JointDists<Real2>, MAX_CANDIDATES> candidateJDists;
         JointDists<Real2> closestJDist, secondClosestJDist;
         closestJDist = secondClosestJDist = JointDists<Real2>::largest();
-        size_t c_idx, sc_idx;
+        size_t  c_idx = safe_numeric_limits<size_t>::max(),
+               sc_idx = safe_numeric_limits<size_t>::max();
         for (size_t vtx = 0, i = 0; vtx < numVertices(); ++vtx) {
             if (hard_distance[vtx] > candidateDistThreshold) continue; // prune out the far joints
             candidateJDists[i] = distToVtxJoint(vtx, p, edgeDists, jointEdgeDists);

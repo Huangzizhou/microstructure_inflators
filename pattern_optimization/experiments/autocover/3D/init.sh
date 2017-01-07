@@ -6,7 +6,7 @@ ACDir=$MICRO_DIR/pattern_optimization/experiments/autocover/3D
 for pat in {1053,1065,0746,0646,0077,0024}; do
     patnum=$(($pat + 0))
     i=$TDIR/pattern$pat.wire
-    $MICRO_DIR/pattern_optimization/GenIsosurfaceJob $i -e'1,0' -o'-0.2,0.2' > init_jobs/$pat.opt;
+    $MICRO_DIR/pattern_optimization/GenIsosurfaceJob $i -e'1,0' -r'0.04,0.2' -o'-0.3,0.3' > init_jobs/$pat.opt;
     cat > autocover_configs/$pat.config <<END
 {
     "dim": 3,
@@ -14,12 +14,13 @@ for pat in {1053,1065,0746,0646,0077,0024}; do
     "material": "B9Creator",
     "jobTemplate": "$ijobs/$pat.opt",
 
-    "targetERange": [0.15, 200],
+    "targetERange": [0.01, 200],
     "targetNuRange": [-1.0, 0.5],
     "targetNSubdiv": 30,
 
     "numIters": 20,
-    "maxSimultaneousJobs": 30,
+    "maxSimultaneousJobs": 80,
+    "singleClosestInit": true,
 
     "mem": "16GB",
     "nprocs": 4,
@@ -29,7 +30,7 @@ for pat in {1053,1065,0746,0646,0077,0024}; do
              "--tensor_fit_tolerance=1e-5",
              "-M", "$ACDir/coarser_3d_meshing_opts.opt",
              "--WCSWeight=0.0",
-             "--JSWeight=0.0",
+             "--JSWeight=1.0",
              "--proximityRegularizationWeight=1.0"]
 }
 END

@@ -9,6 +9,7 @@ def homogenizer(dim = 3):
 
 def pattern(pat, dim = 3):
     if (dim == 3):
+        if (pat == 'truncated_octahedron'): return os.environ['MICRO_DIR'] + "/patterns/3D/truncated_octahedron.wire"
         return os.environ['MICRO_DIR'] + ("/patterns/3D/reference_wires/pattern%04i.wire" % pat)
     if (dim == 2):
         if (pat > 0):

@@ -5,7 +5,8 @@ TDIR=$MICRO_DIR/patterns/2D/topologies
 ACDir=$MICRO_DIR/pattern_optimization/experiments/autocover/2D
 for i in $TDIR/*.obj; do
     pat=$(basename $i .obj)
-    $MICRO_DIR/pattern_optimization/GenIsosurfaceJob $i -e'1,0' -o'-0.3,0.3' > init_jobs/$pat.opt;
+    $MICRO_DIR/pattern_optimization/GenIsosurfaceJob $i -e'1,0' -r'0.02,0.2' -o'-0.3,0.3' > init_jobs/$pat.opt;
+    # $MICRO_DIR/pattern_optimization/GenIsosurfaceJob $i -e'1,0' -r'0.04,0.2' -o'-0.3,0.3' > init_jobs/$pat.opt;
     cat > autocover_configs/$pat.config <<END
 {
     "dim": 2,

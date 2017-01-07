@@ -261,18 +261,19 @@ public:
     }
 
     void report_error(const std::string &msg, size_t line) const {
-        std::cout << "Error in SphereConvexHull for centers, radii:" << std::endl;
+        std::cerr.precision(19);
+        std::cerr << "Error in SphereConvexHull for centers, radii:" << std::endl;
         for (const auto &pt : m_sphereCenters) {
-            std::cout << "{"
+            std::cerr << "{"
                 << pt[0] << ", "
                 << pt[1] << ", "
                 << pt[2] << "}, ";
         }
-        std::cout << std::endl;
-        std::cout << "{";
+        std::cerr << std::endl;
+        std::cerr << "{";
         for (const Real &r : m_sphereRadii)
-            std::cout << r << ", ";
-        std::cout << "}" << std::endl;
+            std::cerr << r << ", ";
+        std::cerr << "}" << std::endl;
 
         writeDebugInfo();
 

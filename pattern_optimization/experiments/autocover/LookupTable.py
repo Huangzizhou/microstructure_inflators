@@ -19,7 +19,10 @@ class LUT:
         if db:
             for line in file(db):
                 fields = line.split();
-                self.pattern.append(int(fields[0]))
+                patname = fields[0]
+                try: patname = int(patname)
+                except: pass
+                self.pattern.append(patname)
                 self.youngPoissonAnisotropy.append(map(float, fields[1:4]))
                 variableWidthParams.append(map(float, fields[5:]))
         elif patternData:

@@ -89,7 +89,7 @@ pbsScript = """\
 cd ${{PBS_O_WORKDIR}}
 {autocover} {roundString} {config}
 """
-pbsScript = pbsScript.format(name="ac_%i_r%s" % (config['pattern'], nextRoundString),
+pbsScript = pbsScript.format(name="ac_%s_r%s" % (str(config['pattern']), nextRoundString),
         autocover=os.path.realpath(__file__),
         pat=config['pattern'],
         roundString=nextRoundString, config=os.path.realpath(configPath),

@@ -15,7 +15,7 @@ import subprocess, re, time
 from getpass import getuser
 user = getuser()
 
-DEP_MIN=10
+DEP_MIN=1
 
 def releaseStuckDependents():
     qstatOut = subprocess.check_output(['qstat', '-t', '-u', user])
