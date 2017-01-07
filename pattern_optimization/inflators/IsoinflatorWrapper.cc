@@ -138,7 +138,9 @@ IsoinflatorWrapper<N>::parameterType(size_t p) const
 }
 
 template<size_t N>
-bool IsoinflatorWrapper<N>::isPrintable(const std::vector<Real> &params) { return m_inflator->isPrintable(params); }
+bool IsoinflatorWrapper<N>::isPrintable(const std::vector<Real> &params) {
+    if (N == 2) return true; // 2D patterns are always printable.
+    return m_inflator->isPrintable(params); }
 
 template<size_t N>
 Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>

@@ -43,6 +43,13 @@ struct NLOptState {
 
     void manualTerminationCheck(const PatternOptimization::IterateBase &it, Real /* costVal */) const {
         if (tensor_fit_tolerance) {
+            // When printability constraints are present, don't allow early
+            // termination unless they are satisfied (maximum violation is small)
+            if (it.hasConstraint("Printability")) {
+                const auto &pconstraint = it.evaluatedConstraint("Printability");
+                if (pconstraint.values.max() > 1e-16) return;
+            }
+
             double relFrobDistSq = std::numeric_limits<double>::max();
             try {
                 relFrobDistSq = it.evaluateNormalized("JS");

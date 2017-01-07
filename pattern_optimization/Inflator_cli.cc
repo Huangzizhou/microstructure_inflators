@@ -223,7 +223,7 @@ int main(int argc, const char *argv[])
         cout << endl;
     }
     
-    // Check if the inflator paramters printable.
+    // Check if the inflator parameters printable.
     if (args.count("checkPrintability")) {
         cout << "Printable:\t" << inflator.isPrintable(params) << endl;
     }

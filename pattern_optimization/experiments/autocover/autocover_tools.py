@@ -67,8 +67,8 @@ def coverageExpansionOptimizer(config, lut, grid, constraints):
 
         # TODO: take N closest points that are within some minimal distance of each other.
         startLUTIndices = np.unique([order[0],
-                                     order[min(math.ceil(0.05 * len(order)), len(order) - 1)],
-                                     order[min(math.ceil(0.10 * len(order)), len(order) - 1)]])
+                                     order[min(int(math.ceil(0.05 * len(order))), len(order) - 1)],
+                                     order[min(int(math.ceil(0.10 * len(order))), len(order) - 1)]])
         if (config.get('singleClosestInit', False)):
             startLUTIndices = [order[0]]
         for i in startLUTIndices: opt.enqueueJob(targetE, targetNu, lut.params[i])

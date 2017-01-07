@@ -182,6 +182,10 @@ struct Iterate : public IterateBase {
         return names;
     }
 
+    virtual bool hasConstraint(const std::string &name) const override {
+        return m_constraints.count(name);
+    }
+
     void addObjectiveTerm(const std::string &name, std::unique_ptr<ObjectiveTerm<_N>> t) {
         if (m_objectiveTerms.count(name))
             throw std::runtime_error("Objective term '" + name + "'already added.");
