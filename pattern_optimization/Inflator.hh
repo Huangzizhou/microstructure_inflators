@@ -85,6 +85,12 @@ public:
     // James' inflator's printability check modifies state :(
     virtual bool isPrintable(const std::vector<Real> &params) = 0;
 
+    // Self-supporting constraints evaluated at the current parameters.
+    virtual Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
+    selfSupportingConstraints(const std::vector<double> &/* params */) const {
+        throw std::runtime_error("This inflator doesn't implement self-supporting constraints.");
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     // Configuration
     ////////////////////////////////////////////////////////////////////////////

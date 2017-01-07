@@ -47,6 +47,9 @@ public:
     virtual size_t numParameters() const override;
     virtual ParameterType parameterType(size_t p) const override;
     virtual bool isPrintable(const std::vector<Real> &params) override;
+    virtual Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
+        selfSupportingConstraints(const std::vector<double> &params) const override;
+
 
     ////////////////////////////////////////////////////////////////////////////
     // Configuration

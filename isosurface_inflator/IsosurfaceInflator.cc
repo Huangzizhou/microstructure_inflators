@@ -59,7 +59,8 @@ public:
     virtual bool    isPositionParam(size_t p) const = 0;
     virtual bool    isBlendingParam(size_t p) const = 0;
 
-    virtual MeshingOptions &meshingOptions() = 0;
+    virtual       MeshingOptions &meshingOptions()       = 0;
+    virtual const MeshingOptions &meshingOptions() const = 0;
 
     // Delegates to derived IsosurfaceInflatorImpl for WMesh-dependent stuff
     // (via the virtual functions below).
@@ -120,6 +121,12 @@ public:
     // of 2D normals
     virtual Point trackSignedDistanceGradient(const Point &pt) const = 0;
 
+
+    // Printability checks/constraints
+    virtual bool isPrintable(const std::vector<Real> &params) const = 0;
+    virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
+        selfSupportingConstraints(const std::vector<Real> &params) const = 0;
+
     // Whether the inflator generates only the orthotropic symmetry base cell
     // (by default--reflectiveInflator will override this)
     virtual bool _mesherGeneratesOrthoCell() const = 0;
@@ -158,7 +165,7 @@ public:
     vector<Real> inflatedParams;
 protected:
     // Manually set the parameters in PatternSignedDistance instance
-    // (usefull if bypassing meshing for debugging).
+    // (useful if bypassing meshing for debugging).
     virtual void m_setParameters(const vector<Real> &params) = 0;
 };
 
@@ -187,7 +194,7 @@ public:
         if (config.dumpReplicatedGraph()) { wmesh.saveReplicatedBaseUnit(config.replicatedGraphPath); }
         if (config.dumpBaseUnitGraph())   { wmesh.saveBaseUnit(          config.baseUnitGraphPath); }
 
-        pattern.setParameters(params);
+        pattern.setParameters(params, meshingOptions().jointBlendingMode);
 
         // Change the pattern's meshing domain if we're forcing meshing of the
         // full TriplyPeriodic base cell.
@@ -267,7 +274,7 @@ public:
         params.reserve(params.size());
         for (size_t p = 0; p < nParams; ++p)
             params.emplace_back(inflatedParams[p], nParams, p);
-        patternAutodiff.setParameters(params);
+        patternAutodiff.setParameters(params, meshingOptions().jointBlendingMode);
 
         auto evalAtPtIdx = [&](size_t e) {
             ADScalar sd = patternAutodiff.signedDistance(evalPoints[e].template cast<ADScalar>().eval());
@@ -323,13 +330,24 @@ public:
     virtual bool   isPositionParam(size_t p) const override { return wmesh.isPositionParam(p); }
     virtual bool   isBlendingParam(size_t p) const override { return wmesh.isBlendingParam(p); }
 
-    virtual MeshingOptions &meshingOptions() override { return mesher.meshingOptions; }
+    virtual       MeshingOptions &meshingOptions()       override { return mesher.meshingOptions; }
+    virtual const MeshingOptions &meshingOptions() const override { return mesher.meshingOptions; }
+
+    // Printability checks/constraints
+    virtual bool isPrintable(const std::vector<Real> &params) const override {
+        return wmesh.isPrintable(params);
+    }
+
+    virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
+        selfSupportingConstraints(const std::vector<Real> &params) const override {
+        return wmesh.selfSupportingConstraints(params);
+    }
 
     WMesh wmesh;
     PSD pattern;
     Mesher<PSD> mesher;
 protected:
-    virtual void m_setParameters(const vector<Real> &params) override { pattern.setParameters(params); }
+    virtual void m_setParameters(const vector<Real> &params) override { pattern.setParameters(params, meshingOptions().jointBlendingMode); }
 };
 
 void IsosurfaceInflator::inflate(const vector<Real> &params) { m_imp->inflate(params); }
@@ -365,72 +383,14 @@ IsosurfaceInflator::trackSignedDistanceGradient(const IsosurfaceInflator::Point 
 void IsosurfaceInflator::disablePostprocess() { m_imp->m_noPostprocess = true; }
 void IsosurfaceInflator:: enablePostprocess() { m_imp->m_noPostprocess = false; }
 
-MeshingOptions &IsosurfaceInflator::meshingOptions() { return m_imp->meshingOptions(); }
-
-IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness, const string &wireMeshPath) {
-    if (!vertexThickness) throw runtime_error("Only per-vertex thickness is currently supported.");
-    if (type == "cubic") {
-        throw std::runtime_error("Disabled");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, CGALClippedVolumeMesher>(wireMeshPath);
-    }
-    else if (type == "orthotropic") {
-#if 0
-        throw std::runtime_error("Disabled");
-#else
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, CGALClippedVolumeMesher>(wireMeshPath);
-#endif
-    }
-    else if (type == "triply_periodic") {
-        throw std::runtime_error("Disabled");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, CGALClippedVolumeMesher>(wireMeshPath);
-    }
-    else if (type == "cubic_preview")   {
-        throw std::runtime_error("Disabled");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, VCGSurfaceMesher>(wireMeshPath);
-        // Triangle mesh doesn't support our post-processing
-        disablePostprocess();
-    }
-    else if (type == "cubic_features")   {
-        // Output the sharp 1D features created by bounding box intersection.
-        throw std::runtime_error("Disabled");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, BoxIntersectionMesher>(wireMeshPath);
-        // Line mesh doesn't support our post-processing
-        disablePostprocess();
-    }
-    else if (type == "orthotropic_features")   {
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, BoxIntersectionMesher>(wireMeshPath);
-        disablePostprocess();
-    }
-    else if (type == "triply_periodic_features")   {
-        throw std::runtime_error("Disabled");
-        // Output the sharp 1D features created by bounding box intersection.
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, BoxIntersectionMesher>(wireMeshPath);
-        // Line mesh doesn't support our post-processing
-        disablePostprocess();
-    }
-    else if (type == "triply_periodic_preview")   {
-        throw std::runtime_error("Disabled");
-        // Output the sharp 1D features created by bounding box intersection.
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, VCGSurfaceMesher>(wireMeshPath);
-        // Line mesh doesn't support our post-processing
-        disablePostprocess();
-    }
-    else if (type == "2D_square") {
-        throw std::runtime_error("2D square symmetry unimplemented.");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(wireMeshPath);
-        // Line mesh doesn't support our post-processing
-        // disablePostprocess();
-    }
-    else if (type == "2D_orthotropic") {
-        // throw std::runtime_error("Disabled.");
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(wireMeshPath);
-    }
-    else if (type == "2D_orthotropic_thick") {
-        // throw std::runtime_error("Disabled.");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, VCGSurfaceMesher>(wireMeshPath);
-    }
-    else throw runtime_error("Unknown inflator type: " + type);
+// Printability checks/constraints
+bool IsosurfaceInflator::isPrintable(const std::vector<Real> &params) const { return m_imp->isPrintable(params); }
+Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
+IsosurfaceInflator::selfSupportingConstraints(const std::vector<Real> &params) const {
+    return m_imp->selfSupportingConstraints(params);
 }
+
+MeshingOptions &IsosurfaceInflator::meshingOptions() { return m_imp->meshingOptions(); }
 
 IsosurfaceInflator::~IsosurfaceInflator() {
     delete m_imp;
@@ -721,3 +681,72 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     // MeshIO::save("debug_" + std::to_string(_run_num++) + ".msh", vertices, elements);
     BENCHMARK_STOP_TIMER_SECTION("postProcess");
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Factory/instantiations
+////////////////////////////////////////////////////////////////////////////////
+IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness, const string &wireMeshPath) {
+    if (!vertexThickness) throw runtime_error("Only per-vertex thickness is currently supported.");
+    if (type == "cubic") {
+        throw std::runtime_error("Disabled");
+        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, CGALClippedVolumeMesher>(wireMeshPath);
+    }
+    else if (type == "orthotropic") {
+#if 0
+        throw std::runtime_error("Disabled");
+#else
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, CGALClippedVolumeMesher>(wireMeshPath);
+#endif
+    }
+    else if (type == "triply_periodic") {
+        throw std::runtime_error("Disabled");
+        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, CGALClippedVolumeMesher>(wireMeshPath);
+    }
+    else if (type == "cubic_preview")   {
+        throw std::runtime_error("Disabled");
+        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, VCGSurfaceMesher>(wireMeshPath);
+        // Triangle mesh doesn't support our post-processing
+        disablePostprocess();
+    }
+    else if (type == "cubic_features")   {
+        // Output the sharp 1D features created by bounding box intersection.
+        throw std::runtime_error("Disabled");
+        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, BoxIntersectionMesher>(wireMeshPath);
+        // Line mesh doesn't support our post-processing
+        disablePostprocess();
+    }
+    else if (type == "orthotropic_features")   {
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, BoxIntersectionMesher>(wireMeshPath);
+        disablePostprocess();
+    }
+    else if (type == "triply_periodic_features")   {
+        throw std::runtime_error("Disabled");
+        // Output the sharp 1D features created by bounding box intersection.
+        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, BoxIntersectionMesher>(wireMeshPath);
+        // Line mesh doesn't support our post-processing
+        disablePostprocess();
+    }
+    else if (type == "triply_periodic_preview")   {
+        throw std::runtime_error("Disabled");
+        // Output the sharp 1D features created by bounding box intersection.
+        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, VCGSurfaceMesher>(wireMeshPath);
+        // Line mesh doesn't support our post-processing
+        disablePostprocess();
+    }
+    else if (type == "2D_square") {
+        throw std::runtime_error("2D square symmetry unimplemented.");
+        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(wireMeshPath);
+        // Line mesh doesn't support our post-processing
+        // disablePostprocess();
+    }
+    else if (type == "2D_orthotropic") {
+        // throw std::runtime_error("Disabled.");
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(wireMeshPath);
+    }
+    else if (type == "2D_orthotropic_thick") {
+        // throw std::runtime_error("Disabled.");
+        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, VCGSurfaceMesher>(wireMeshPath);
+    }
+    else throw runtime_error("Unknown inflator type: " + type);
+}
+

@@ -210,13 +210,14 @@ public:
 
     // Construct (stitched) replicated graph along with the maps from parameters
     // to vertex positions/thicknesses/blending parameters
-    // Note: these maps operate on "homogenous parameters" (i.e. the vector of
+    // Note: these maps operate on "homogeneous parameters" (i.e. the vector of
     // parameters with 1 appended).
     // TODO: make sure we have all parameters set up before this is called from
     // the constructor (to create inflation graph)
     void replicatedGraph(const std::vector<Isometry> &isometries,
                          std::vector<TransformedVertex> &outVertices,
-                         std::vector<TransformedEdge  > &outEdges) {
+                         std::vector<TransformedEdge  > &outEdges) const
+    {
         std::vector<TransformedVertex> rVertices;
         std::set<TransformedEdge>      rEdges;
 
@@ -294,8 +295,6 @@ public:
     // cell (x, y in positive quadrant, z in [-1, 1]).
     //
     // Assumes ThicknessType::Vertex for now.
-    // The thickness and position of each vertex is decoded from the "params"
-    // vector into "points" and "thickness vars" for the printability check.
     //
     // For determining the self-supporting constraints, the linear map from
     // pattern parameters to vertex positions is encoded in the "positionMap" and
@@ -304,115 +303,124 @@ public:
     // shouldn't be a bottleneck.
     // The last column of these maps is a constant offset (like in homogeneous
     // coordinates)
+    void printabilityGraph(std::vector<Edge> &edges,
+                           std::vector<size_t> &thicknessVars,
+                           std::vector<Eigen::Matrix3Xd> &positionMaps) const
+    {
+        static_assert(thicknessType_ == ThicknessType::Vertex,
+                      "Only Per-Vertex Thickness Supported");
+
+        // Decode from cached printabilty graph.
+        const size_t tvOffset = numPositionParams();
+        thicknessVars.clear(); thicknessVars.reserve(m_printGraphVtx.size());
+        positionMaps .clear(); positionMaps .reserve(m_printGraphVtx.size());
+        for (const auto &pv : m_printGraphVtx) {
+            thicknessVars.emplace_back(tvOffset + pv.origVertex);
+            positionMaps.emplace_back(pv.posMap);
+        }
+
+        edges = m_printGraphEdge;
+    }
+
+    // Same as above, but also get the position of each vertex according to
+    // "params"
     void printabilityGraph(const std::vector<Real> &params,
                            std::vector<Point3<Real>> &points,
                            std::vector<Edge> &edges,
                            std::vector<size_t> &thicknessVars,
-                           std::vector<Eigen::Matrix3Xd> &positionMaps)
+                           std::vector<Eigen::Matrix3Xd> &positionMaps) const
     {
         if (params.size() != numParams())
             throw std::runtime_error("Invalid number of params.");
 
-        // Reflect base graph into the "printability column." This is done by
-        // applying all permutation isometries, but no translation and only the
-        // z-axis reflection
-        std::vector<Isometry> printabiltyIsometries;
-        for (const auto &iso : PatternSymmetry::symmetryGroup()) {
-            if (iso.hasTranslation() ||
-                iso.hasReflection(Symmetry::Axis::X) ||
-                iso.hasReflection(Symmetry::Axis::Y)) {
-                continue;
-            }
-            printabiltyIsometries.push_back(iso);
-        }
+        printabilityGraph(edges, thicknessVars, positionMaps);
 
-        std::vector<TransformedVertex> rVertices;
-        std::vector<TransformedEdge>   rEdges;
-        replicatedGraph(printabiltyIsometries,
-                        rVertices, rEdges);
-
-        points       .clear(); points       .reserve(rVertices.size());
-        edges        .clear(); edges        .reserve(   rEdges.size());
-        thicknessVars.clear(); thicknessVars.reserve(rVertices.size());
-        positionMaps .clear(); positionMaps .reserve(rVertices.size());
-
-        // Use position map to place points; we need to construct homogenous
+        // Use position map to place points; we need to construct homogeneous
         // param vector.
         Eigen::VectorXd paramVec(params.size() + 1);
         for (size_t i = 0; i < params.size(); ++i) paramVec[i] = params[i];
         paramVec[params.size()] = 1.0;
 
-        static_assert(thicknessType_ == ThicknessType::Vertex, "Only Per-Vertex Thickness Supported");
-        const size_t tvOffset = numPositionParams();
-        for (const auto &rv : rVertices) {
-            points.emplace_back(rv.posMap * paramVec);
-            thicknessVars.emplace_back(tvOffset + rv.origVertex);
-            positionMaps.emplace_back(rv.posMap);
-        }
-
-        for (const auto &re : rEdges)
-            edges.push_back({re.e[0], re.e[1]});
+        points.clear(); points.reserve(positionMaps.size());
+        for (const auto &pm : positionMaps)
+            points.emplace_back(pm * paramVec);
     }
 
     bool isPrintable(const std::vector<Real> &params) const {
         if (thicknessType_ != ThicknessType::Vertex)
             throw std::runtime_error("Only per-vertex thickness printability implemented currently.");
 
-        std::vector<Point3<Real>> points;
         std::vector<Edge> edges;
         std::vector<size_t> thicknessVars;
         std::vector<Eigen::Matrix3Xd> positionMaps;
-        printabilityGraph(params, points, edges, thicknessVars, positionMaps);
+        printabilityGraph(edges, thicknessVars, positionMaps);
 
-        assert(thicknessVars.size() == points.size());
-
-        std::vector<Real> thicknesses;
-        for (size_t tv : thicknessVars)
-            thicknesses.push_back(params.at(tv));
-
-        std::vector<Real> zCoords;
-        for (const auto &pt : points)
-            zCoords.push_back(pt[2]);
+        const size_t numPoints = positionMaps.size();
 
         // Build adjacency list
-        std::vector<std::vector<size_t>> adj(points.size());
+        std::vector<std::vector<size_t>> adj(numPoints);
         for (const auto &e : edges) {
             adj[e.first].push_back(e.second);
             adj[e.second].push_back(e.first);
         }
 
-        std::vector<bool> supported(points.size(), false);
-        double tol = PatternSymmetry::tolerance;
+        std::vector<bool> supported(numPoints, false);
+        const double tol = PatternSymmetry::tolerance;
+
+        // Use position map to determine z coords; we need to construct
+        // homogeneous param vector.
+        Eigen::VectorXd paramVec(params.size() + 1);
+        for (size_t i = 0; i < params.size(); ++i) paramVec[i] = params[i];
+        paramVec[params.size()] = 1.0;
+
+        std::vector<Real> zCoords(numPoints);
+        for (size_t i = 0; i < numPoints; ++i)
+            zCoords[i] = positionMaps[i].row(2) * paramVec;
 
         // Should actually be the orthotropic base cell bottom
         Real minZ = *std::min_element(zCoords.begin(), zCoords.end());
 
         // Subtract radius from each vertex to get height of vertex sphere's
         // bottom
-        for (size_t i = 0; i < points.size(); ++i)
-            zCoords[i] -= thicknesses[i];
+        assert(thicknessVars.size() == numPoints);
+        for (size_t i = 0; i < numPoints; ++i)
+            zCoords[i] -= params.at(thicknessVars[i]);
 
         std::queue<size_t> bfsQueue;
-        for (size_t i = 0; i < zCoords.size(); ++i) {
-            if (zCoords[i] - minZ < tol) {
+        for (size_t i = 0; i < numPoints; ++i) {
+            if (zCoords[i] < minZ + tol) {
                 bfsQueue.push(i);
                 supported[i] = true;
             }
         }
 
+#if 0
+        std::cout << "Before propagation:" << std::endl;
+        for (size_t i = 0; i < numPoints; ++i) {
+            std::cout << zCoords[i] << ": " << supported[i] << std::endl;
+        }
+#endif
+
         while (!bfsQueue.empty()) {
             size_t u = bfsQueue.front();
             bfsQueue.pop();
             for (size_t v : adj[u]) {
-                if (!supported[v] && (zCoords[v] - zCoords[u] >= -tol)) {
+                if (!supported[v] && (zCoords[v] >= zCoords[u] - tol)) {
                     supported[v] = true;
                     bfsQueue.push(v);
                 }
             }
         }
 
+#if 0
+        std::cout << "After propagation:" << std::endl;
+        for (size_t i = 0; i < numPoints; ++i) {
+            std::cout << zCoords[i] << ": " << supported[i] << std::endl;
+        }
+#endif
+
         bool result = true;
-        for (bool s : supported) result &= s;
+        for (bool s : supported) result = result && s;
         return result;
     }
 
@@ -430,75 +438,250 @@ public:
     //        [1]
     // where p is the parameter vector and C is the constraint matrix returned.
     //
-    // Perfectly horizontal features are forbidden because they make
-    // printability a global condition. Thus each vertex is required to be
-    // at least "epsilon" above its neighbors.
-    // Note: this should always be possible in the per-vertex-thickness model,
-    // but the per-edge-thickness model does require truly horizontal edges in
-    // the orthotropic symmetry.
+    // For now, we assume all "dependency cycles" can be broken with a simple
+    // heursitic from the pattern's default positions. By dependency cycles, we
+    // mean we don't want both u to be a support candidate for v and v for u.
+    //
+    // The heuristic is as follows (**applied to default positions**)
+    //   1) Mark all vertices supported from below with candidate lists.
+    //   2) Mark vertices, v, unsupported from below with their neighbors that
+    //      are supported by some other node than v.
+    //      Assert there is only one for simpilicity.
+    //
+    // For regular vertices, only allow a supporting vertex from below. For all
+    // vertices that do not satisfy this constraint, allow a supporting vertex
+    // from the same height, but assert that they are all supported vertices.
     Eigen::MatrixXd selfSupportingConstraints(
-            const std::vector<Real> &params,
-            Real epsilon) const
+            const std::vector<Real> &params) const
     {
         if (thicknessType_ != ThicknessType::Vertex)
             throw std::runtime_error("Only per-vertex thickness printability implemented currently.");
+        const size_t numPoints = m_printGraphVtx.size();
 
-        std::vector<Point3<Real>> points;
-        std::vector<Edge> edges;
+        // Use position map to determine current z coords; we need to construct
+        // homogeneous param vector.
+        Eigen::VectorXd paramVec(params.size() + 1);
+        for (size_t i = 0; i < params.size(); ++i) paramVec[i] = params[i];
+        paramVec[params.size()] = 1.0;
+
+        // Get a copy of the position maps; they will later need to be modified
+        // to compute the joint bottom instead of the vertex center.
+        std::vector<Eigen::Matrix3Xd> posMaps;
+        posMaps.reserve(numPoints);
+
+        std::vector<Real> currentZCoords, defaultZCoords;
+        currentZCoords.reserve(numPoints), defaultZCoords.reserve(numPoints);
+        for (const auto &vtx : m_printGraphVtx) {
+            posMaps.push_back(vtx.posMap);
+            defaultZCoords.push_back(vtx.pt[2]);
+            currentZCoords.push_back(vtx.posMap.row(2) * paramVec);
+        }
+
+        // Determine build platform height
+        Real minZ = *std::min_element(defaultZCoords.begin(), defaultZCoords.end());
+
+        // Extract thickness vars
         std::vector<size_t> thicknessVars;
-        std::vector<Eigen::Matrix3Xd> positionMaps;
-        printabilityGraph(params, points, edges, thicknessVars, positionMaps);
-
-        assert(positionMaps.size() == thicknessVars.size());
-
-        std::vector<Real> zCoords;
-        for (const auto &pt : points)
-            zCoords.push_back(pt[2]);
-
-        Real minZ = *std::min_element(zCoords.begin(), zCoords.end());
+        thicknessVars.reserve(m_printGraphVtx.size());
+        const size_t tvOffset = numPositionParams();
+        for (const auto &pv : m_printGraphVtx)
+            thicknessVars.emplace_back(tvOffset + pv.origVertex);
 
         // Subtract the radius from each vertex position to get the sphere
-        // bottom point; now positionMaps map pattern parameters to the sphere's
+        // bottom point; now posMaps map pattern parameters to the sphere's
         // lowest point.
-        for (size_t i = 0; i < positionMaps.size(); ++i) {
-            positionMaps[i](2, thicknessVars[i]) -= 1.0;
-            zCoords[i] -= params.at(thicknessVars[i]);
+        for (size_t i = 0; i < numPoints; ++i) {
+            posMaps[i](2, thicknessVars[i]) -= 1.0;
+            currentZCoords[i] -= params.at(thicknessVars[i]);
         }
 
         // Build adjacency list
-        std::vector<std::vector<size_t>> adj(points.size());
-        for (const auto &e : edges) {
+        std::vector<std::vector<size_t>> adj(numPoints);
+        for (const auto &e : m_printGraphEdge) {
             adj[e.first].push_back(e.second);
             adj[e.second].push_back(e.first);
         }
 
+        // Brute-force collection of the candidates to support a vertex.
+        struct SupportCandidates {
+            bool hasCandidate(size_t u) const {
+                return std::find(candidates.begin(),
+                                 candidates.end(), u) != candidates.end();
+            }
+
+            void add(size_t u) {
+                if (!hasCandidate(u))
+                    candidates.push_back(u);
+            }
+
+            void remove(size_t u) {
+                auto it = std::find(candidates.begin(),
+                                 candidates.end(), u);
+                if (it == candidates.end()) throw std::runtime_error("Attempted to remove nonexistant support candidate: " + std::to_string(u));
+                candidates.erase(it);
+            }
+
+            bool   empty() const { return candidates.empty(); }
+            size_t count() const { return candidates.size(); }
+            std::vector<size_t> candidates;
+        };
+
+        // Determine the candidates for supporting each vertex
+        const double tol = PatternSymmetry::tolerance;
+        std::vector<SupportCandidates> supportCandidates(numPoints);
+        std::vector<bool> needsSupport(numPoints, true);
+        for (size_t u = 0; u < numPoints; ++u) {
+            // Mark vertices on the build platform as not needing support
+            if (defaultZCoords[u] < minZ + tol) {
+                needsSupport[u] = false; continue;
+            }
+            for (size_t v : adj[u]) {
+                // Must be definitively above, not horizontal.
+                if (defaultZCoords[u] > defaultZCoords[v] + tol)
+                    supportCandidates[u].add(v);
+            }
+        }
+
+        // For each vertex without a supporting candidate, determine one of its
+        // neighbors above that can be converted into a supporting candidate.
+        for (size_t u = 0; u < numPoints; ++u) {
+            if (!needsSupport[u]) continue;
+            if (supportCandidates[u].empty()) {
+                std::vector<size_t> options;
+                for (size_t v : adj[u]) {
+                    if (supportCandidates[v].hasCandidate(u)) {
+                        // If there are other vertices than u that can support v,
+                        // we can choose to make v support u.
+                        if (supportCandidates[v].count() > 1) options.push_back(v);
+                    }
+                    else options.push_back(v);
+                }
+                if (options.size() == 0) {
+                    std::cerr << u << " neighbors:";
+                    for (size_t v : adj[u]) std::cerr << "\t" << v;
+                    std::cerr << std::endl;
+                    throw std::runtime_error("No options remain to support " + std::to_string(u));
+                }
+
+                // Take all options at the lowest available height.
+                // TODO: check when this works in general.
+                Real minOptionHeight = safe_numeric_limits<Real>::max();
+                for (size_t v : options)
+                    minOptionHeight = std::min(minOptionHeight, defaultZCoords[v]);
+                for (size_t v : options) {
+                    if (defaultZCoords[v] < minOptionHeight + tol) {
+                        supportCandidates[u].add(v);
+                        if (supportCandidates[v].hasCandidate(u)) {
+                            // std::cerr << "removing " << u << " from " << v << std::endl;
+                            supportCandidates[v].remove(u);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Assert that we've found a valid set of support relationships.
+        for (size_t u = 0; u < numPoints; ++u)
+            assert(!(needsSupport[u] && supportCandidates[u].empty()));
+
+#if 0
+        for (size_t u = 0; u < numPoints; ++u) {
+            if (!needsSupport[u]) {
+                std::cerr << u + 1 << " doesn't need support" << std::endl;
+                continue;
+            }
+            else {
+                std::cerr << u + 1 << " supported by:";
+                for (size_t v : supportCandidates[u].candidates)
+                    std::cerr << "  " << v + 1;
+                std::cerr << std::endl;
+            }
+        }
+#endif
+        // Create a constraint for every vertex that needs support
+        std::vector<Eigen::Matrix<Real, 1, Eigen::Dynamic>> constraints;
+        for (size_t u = 0; u < numPoints; ++u) {
+            if (!needsSupport[u]) continue;
+            // The constraint is that we stay above the lowest neighbor. We
+            // apply the minimum operation here by looking at currentZCoords.
+            const auto &sc = supportCandidates[u];
+            const size_t NONE = std::numeric_limits<size_t>::max();
+            size_t lowestCandidate = NONE;
+            Real minHeight = safe_numeric_limits<Real>::max();
+            for (size_t c : sc.candidates) {
+                if (currentZCoords[c] < minHeight) {
+                    minHeight = currentZCoords[c];
+                    lowestCandidate = c;
+                }
+            }
+            assert(lowestCandidate != NONE);
+            // Constraint of the form c_i [p] >= 0
+            //                            [1]
+            constraints.push_back(posMaps[u].row(2) -
+                                  posMaps[lowestCandidate].row(2));
+            if (size_t(constraints.back().cols()) != params.size() + 1) {
+                std::cerr << constraints.back().cols() << " cols and "
+                          << params.size() << " parameters" << std::endl;
+                std::cerr << posMaps[u].row(2) << std::endl;
+                std::cerr << posMaps[lowestCandidate].row(2) << std::endl;
+            }
+            assert(size_t(constraints.back().cols()) == params.size() + 1);
+        }
+
+        // Detect and remove "constant" constraints not acting on variables;
+        // these must be satisfied
+        std::vector<Eigen::Matrix<Real, 1, Eigen::Dynamic>> prunedConstraints;
+        for (const auto &c : constraints) {
+            bool hasVar = false;
+            for (size_t p = 0; p < params.size(); ++p) {
+                if (std::abs(c[p]) > tol) {
+                    hasVar = true;
+                    break;
+                }
+            }
+            if (hasVar) {
+                prunedConstraints.emplace_back(c);
+            }
+            else {
+                // Constraints c [p] >= 0 not acting on vars must be satisfied.
+                //               [1]
+                std::cerr << "Detected constant constraint" << std::endl;
+                if (c[params.size()] < -tol)
+                    throw std::runtime_error("Infeasible: constant constraint unsatisfied");
+            }
+        }
+
+        // TODO: determine constraints that are always satisfied (i.e. that do
+        // not depend on the variables).
+
+        // TODO: determine constraints that are always redundant?
+#if 0
+        std::vector<bool> supportedFromBelow(points.size(), false);
         double tol = PatternSymmetry::tolerance;
         // Create a constraint for every vertex
         std::vector<Eigen::VectorXd> constraints;
         for (size_t u = 0; u < points.size(); ++u) {
             // ... except those on the build platform
-            if (zCoords[u] - minZ < tol)
+            if (zCoords[u] < minZ + tol) {
+                supportedFromBelow[u] = true;
                 continue;
+            }
 
-            // Find lowest neighbor
+            // Find lowest neighbor and use it as a support if it is below.
             Real minHeight = safe_numeric_limits<  Real>::max();
             size_t lowestNeighbor  = safe_numeric_limits<size_t>::max();
             for (size_t v : adj[u]) {
                 if (zCoords[v] < minHeight) {
                     minHeight = zCoords[v];
                     lowestNeighbor = v;
+
+                    constraints.push_back(positionMaps[u].row(2) -
+                                          positionMaps[lowestNeighbor].row(2));
+                    assert(constraints.back().cols() == params.size() + 1);
                 }
             }
-
-            // Don't allow perfectly horizontal features since these require
-            // global printability conditions.
-            // u - lowestNeighbor           >= epsilon  <==>
-            // u - lowestNeighbor - epsilon >= 0
-            constraints.push_back(positionMaps[u].row(2) -
-                                  positionMaps[lowestNeighbor].row(2));
-            assert(constraints.back().cols() == params.size() + 1);
-            constraints.back()[params.size()] -= epsilon;
         }
+
 
         // Detect and remove "constant" constraints not acting on variables;
         // these must be satisfied
@@ -522,8 +705,11 @@ public:
             }
         }
 
+
+#endif
         // TODO: think about reducing the constraint system
 
+        // Convert constraints into Eigen format.
         Eigen::MatrixXd C(prunedConstraints.size(), params.size() + 1);
         for (size_t i = 0; i < prunedConstraints.size(); ++i)
             C.row(i) = prunedConstraints[i];
@@ -551,6 +737,10 @@ private:
     std::vector<Edge>              m_inflEdge;
     std::vector<size_t>            m_inflEdgeOrigin;
     std::vector<TransformedVertex> m_inflVtx;
+
+    // The printability graph
+    std::vector<Edge>              m_printGraphEdge;
+    std::vector<TransformedVertex> m_printGraphVtx;
 
     // Find the base vertex within symmetry tolerance of p
     // (or throw an exception if none exists).

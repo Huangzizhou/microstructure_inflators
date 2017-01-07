@@ -10,9 +10,7 @@
 //      Both 2D and 3D isosurface inflators are implemented (and can be selected
 //      using the constructor's "type" argument, but the result is always
 //      embedded in 3D.
-//      
-//      This inflator remembers the inflated geometry 
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  09/29/2015 12:17:26
@@ -76,10 +74,10 @@ public:
 
     MeshingOptions &meshingOptions();
 
-    bool isPrintable(const std::vector<Real> &/* params */) const {
-        // TODO: implement!
-        return true;
-    }
+    bool isPrintable(const std::vector<Real> &params) const;
+
+    Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
+    selfSupportingConstraints(const std::vector<Real> &params) const;
 
     ~IsosurfaceInflator();
 

@@ -151,7 +151,11 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
     for (size_t i = 0; i < it.numConstraints(); ++i) {
         const auto &c = it.evaluatedConstraint(i);
         const size_t m = c.dimension();
-        std::vector<Real> tol(m, 1e-2);
+
+        // Use lower tolerance on equality constraints
+        Real tolVal = (c.type == ConstraintType::EQUALITY) ? 1e-2 : 1e-14;
+
+        std::vector<Real> tol(m, tolVal);
         cevals.push_back(Future::make_unique<NLOptConstraintEvaluator>(state, i));
         auto ceval = cevals.back().get();
         switch (c.type) {

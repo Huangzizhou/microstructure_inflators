@@ -290,7 +290,10 @@ public:
             for (double hd : hard_distance)
                 if (hd <= candidateDistThreshold) ++numCandidates;
         }
-        assert(numCandidates <= MAX_CANDIDATES);
+        if (numCandidates > MAX_CANDIDATES) {
+            std::cerr << "numCandidates: " << numCandidates << std::endl;
+            assert(numCandidates <= MAX_CANDIDATES);
+        }
 
         static_assert(!(InsideOutsideAccelerate && isAutodiffType<Real2>()),
                       "The inside-outside test is non-differentiable");

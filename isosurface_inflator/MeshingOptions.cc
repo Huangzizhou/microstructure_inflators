@@ -19,7 +19,8 @@ void MeshingOptions::load(const std::string &jsonPath) {
         "marchingSquaresGridSize", "marchingCubesGridSize",
         "maxArea", "featureAngleThreshold", "forceMSGridSize",
         "marchingSquaresCoarsening", "curvatureAdaptive",
-        "forceMaxBdryEdgeLen"
+        "forceMaxBdryEdgeLen",
+        "jointBlendingMode"
     };
     // Validate keys
     for (const auto &v : pt) {
@@ -54,4 +55,14 @@ void MeshingOptions::load(const std::string &jsonPath) {
         m_forcedMaxBdryEdgeLen = pt.get<double>("forceMaxBdryEdgeLen");
     }
 
+    if (pt.count("jointBlendingMode")) {
+        const std::string modeString = pt.get<std::string>("jointBlendingMode");
+        if (modeString == "HULL") {
+            jointBlendingMode = JointBlendMode::HULL;
+        }
+        else if (modeString == "FULL") {
+            jointBlendingMode = JointBlendMode::FULL;
+        }
+        else { throw std::runtime_error("Unrecognize blending mode: " + modeString); }
+    }
 }

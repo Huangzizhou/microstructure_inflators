@@ -59,8 +59,10 @@
 #include <objective_terms/IsotropicFit.hh>
 #include <objective_terms/IsotropicFitRel.hh>
 #include <objective_terms/ProximityRegularization.hh>
-#include <constraints/TensorFit.hh>
 #include "WCSObjectiveTerm.hh"
+
+#include <constraints/TensorFit.hh>
+#include <constraints/Printability.hh>
 
 #include <Parallelism.hh>
 
@@ -144,7 +146,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description constraintOptions;
     constraintOptions.add_options()
-        ("TensorFitConstraint,C", "Enforce homogenized tensor fitting as a nonlinear equality constraint (for optimizers that support this)")
+        ("TensorFitConstraint,C",  "Enforce homogenized tensor fitting as a nonlinear equality constraint (for optimizers that support this)")
+        ("PrintabilityConstraint", "Enforce self-supporting printability constraints as inequality constraints (for optimizers that support this)")
         ;
 
     po::options_description elasticityOptions;
@@ -275,14 +278,16 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     using IsoFitRelConfig     = PO::ObjectiveTerms::IFConfigIsotropyFitRel<Simulator>;
     using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
     using TFConstraintConfig  = PO::   Constraints::IFConfigTensorFit<Simulator>;
+    using  PConstraintConfig  = PO::   Constraints::IFConfigPrintability<Simulator>;
 
     auto ifactory = PO::make_iterate_factory<PO::Iterate<Simulator>,
-                                             WCSTermConfig,
-                                             TensorFitTermConfig,
-                                             IsotropyFitConfig,
-                                             IsoFitRelConfig,
-                                             PRegTermConfig,
-                                             TFConstraintConfig>(inflator);
+         WCSTermConfig,
+         TensorFitTermConfig,
+         IsotropyFitConfig,
+         IsoFitRelConfig,
+         PRegTermConfig,
+         TFConstraintConfig,
+          PConstraintConfig>(inflator);
 
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
@@ -293,6 +298,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     ifactory->IsoFitRelConfig    ::enabled = args.count("JIsoRelWeight");
     ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
     ifactory->TFConstraintConfig ::enabled = false;
+    ifactory-> PConstraintConfig ::enabled = false;
 
     // Configure WCS Objective
     // By default, an "Lp norm" objective is really the p^th power of the Lp norm.
@@ -328,6 +334,10 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
         ifactory->TFConstraintConfig::enabled     = true;
         ifactory->TFConstraintConfig::targetS     = targetS;
         ifactory->TFConstraintConfig::ignoreShear = args.count("ignoreShear");
+    }
+
+    if (args.count("PrintabilityConstraint")) {
+        ifactory->PConstraintConfig::enabled = true;
     }
 
     if (args.count("proximityRegularizationWeight")) {

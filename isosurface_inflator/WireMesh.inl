@@ -125,6 +125,29 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
         e.second = vertexRenumber.at(e.second);
         assert((e.first < m_inflVtx.size()) && (e.second < m_inflVtx.size()));
     }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Construct printability graph
+    ////////////////////////////////////////////////////////////////////////////
+    // Reflect base graph into the "printability column." This is done by
+    // applying all permutation isometries, but no translation and only the
+    // z-axis reflection
+    std::vector<Isometry> printabiltyIsometries;
+    for (const auto &iso : PatternSymmetry::symmetryGroup()) {
+        if (iso.hasTranslation() ||
+            iso.hasReflection(Symmetry::Axis::X) ||
+            iso.hasReflection(Symmetry::Axis::Y)) {
+            continue;
+        }
+        printabiltyIsometries.push_back(iso);
+    }
+
+    std::vector<TransformedEdge> pEdges;
+    replicatedGraph(printabiltyIsometries,
+                    m_printGraphVtx, pEdges);
+    m_printGraphEdge.clear(), m_printGraphEdge.reserve(pEdges.size());
+    for (const auto &pe : pEdges)
+        m_printGraphEdge.push_back({pe.e[0], pe.e[1]});
 }
 
 // Set from embedded graph stored in obj/msh format.

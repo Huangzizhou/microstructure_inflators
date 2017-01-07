@@ -2,12 +2,16 @@
 #define MESHINGOPTIONS_HH
 #include <string>
 #include <cmath>
+#include "Joint.hh"
 
 struct MeshingOptions {
     MeshingOptions() { }
     MeshingOptions(const std::string &jsonPath) {
         load(jsonPath);
     }
+
+    // Joint blending mode:
+    JointBlendMode jointBlendingMode = JointBlendMode::HULL;
 
     // CGAL volume mesher options
     double domainErrorBound          = 1e-5;

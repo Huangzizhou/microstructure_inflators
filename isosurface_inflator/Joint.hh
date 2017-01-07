@@ -134,7 +134,7 @@ private:
     Point3<Real> m_c1;
     Real         m_r1;
     Real         m_minRadius;
-    JointBlendMode m_mode; 
+    JointBlendMode m_mode;
 };
 
 #endif /* end of include guard: JOINT_HH */

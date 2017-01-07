@@ -63,7 +63,10 @@ struct Iterate : public IterateBase {
         m_params.resize(nParams);
         for (size_t i = 0; i < nParams; ++i)
             m_params[i] = params[i];
+
+        // Printability check and constraints
         m_printable = inflator.isPrintable(m_params);
+        m_selfSupportingConstraints = inflator.selfSupportingConstraints(m_params);
 
         // std::cout << "Inflating" << std::endl;
         BENCHMARK_START_TIMER_SECTION("Inflate");
@@ -77,6 +80,8 @@ struct Iterate : public IterateBase {
         }
         BENCHMARK_STOP_TIMER_SECTION("Inflate");
         // std::cout << "Inflated" << std::endl;
+
+        // MeshIO::save("mesh.msh", inflator.vertices(), inflator.elements());
 
         // std::cout << "Checking geometry" << std::endl;
         if ((inflator.elements().size() == 0) || (inflator.vertices().size() == 0)) {
@@ -355,13 +360,23 @@ struct Iterate : public IterateBase {
         os << std::endl;
     }
 
+    // Return the self-supporting inequality constraints in the form of a matrix
+    // acting on a homogenous parameter vector:
+    //      C [p] >= 0
+    //        [1]
+    Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> selfSupportingConstraints() const {
+        return m_selfSupportingConstraints;
+    }
+
     virtual ~Iterate() { }
 
 protected:
     std::unique_ptr<_Sim> m_sim;
     std::unique_ptr<BaseCellOperations<_Sim>> m_baseCellOps;
     _ETensor C, S ;
+
     bool m_printable;
+    Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> m_selfSupportingConstraints;
 
     ObjectiveTermMap m_objectiveTerms; 
     ConstraintMap    m_constraints; 

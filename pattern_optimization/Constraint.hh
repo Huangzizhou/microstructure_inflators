@@ -32,15 +32,15 @@ struct Constraint {
     using Jacobian = Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>;
     using  OForm = ScalarOneForm<N>;
 
-    // If type == INEQUALITY, the constraint is "evaluate() > 0"
-    // If type ==   EQUALITY, the constraint is "evaluate() = 0"
+    // If type == INEQUALITY, the constraint is "evaluate() >= 0"
+    // If type ==   EQUALITY, the constraint is "evaluate() == 0"
     ConstraintType type;
 
     Constraint(ConstraintType t) : type(t) { }
 
     virtual ScalarField<Real> evaluate() const = 0;
 
-    size_t dimension() const { return m_componentDifferentials.size(); }
+    virtual size_t dimension() const { return m_componentDifferentials.size(); }
 
     // Partial derivatives with respect to pattern parameters inducing boundary
     // shape velocities bdrySVels

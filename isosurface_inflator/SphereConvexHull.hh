@@ -79,9 +79,44 @@ public:
         // Note: the sphere corresponding to point index i is
         // floor(i / pointsPerSphere)
         for (size_t i = 0; i < m_sphereCenters.size(); ++i) {
-            generateSpherePoints(pointsPerSphere, spherePts,
+            generateSpherePointsWithExtremeVertices(pointsPerSphere, spherePts,
                     stripAutoDiff(m_sphereRadii[i]), stripAutoDiff(m_sphereCenters[i]));
+            assert(spherePts.size() == pointsPerSphere * (i + 1));
         }
+
+#ifdef WRITE_DEBUG_HULL_MESH
+        std::vector<MeshIO::IOVertex > allVertices;
+        std::vector<MeshIO::IOElement> allTriangles;
+
+        std::vector<size_t> sphereIdx;
+        for (size_t i = 0; i < centers.size(); ++i) {
+            std::vector<Eigen::Matrix<double, 3, 1, 0, 3, 1>> ptSubset;
+            const size_t offset = allVertices.size();
+
+            for (size_t j = offset; j < std::min(offset + pointsPerSphere, spherePts.size()); ++j)
+                ptSubset.push_back(spherePts[j]);
+
+            std::vector<MeshIO::IOVertex > sphereVertices;
+            std::vector<MeshIO::IOElement> sphereTriangles;
+            convexHullFromTriangulation(ptSubset, sphereVertices, sphereTriangles);
+
+            for (const auto &v : sphereVertices) {
+                allVertices.push_back(v);
+                sphereIdx.push_back(i);
+            }
+            for (auto e : sphereTriangles) {
+                for (size_t &c : e) c += offset;
+                allTriangles.emplace_back(e);
+            }
+        }
+
+        ScalarField<Real> sphereIdxField(allVertices.size());
+        for (size_t i = 0; i < allVertices.size(); ++i)
+            sphereIdxField[i] = sphereIdx[i];
+
+        MSHFieldWriter writer("sphere_debug.msh", allVertices, allTriangles);
+        writer.addField("sphereIdx", sphereIdxField, DomainType::PER_NODE);
+#endif
 
         std::vector<MeshIO::IOVertex > hullVertices;
         std::vector<MeshIO::IOElement> hullTriangles;
@@ -110,6 +145,9 @@ public:
 
         // Determine the non-degenerate triangles and the edge- and
         // point-degenerated triangles.
+        // Since degenerate sphere triangles whose centers are not degenerate
+        // are most easily detected by attempting to construct a tangent plane,
+        // we compute the tangent planes here.
         std::set<size_t> degeneratedPt;
         for (const auto &st : sphereTris) {
             // "Combinatorial dimension"
@@ -119,9 +157,14 @@ public:
                 // depending on the sphere centers. This happens, e.g., for
                 // three collinear spheres of the same radius, when sample points
                 // for the middle sphere happen to lie on the convex hull.
-                Vector3<Real> e[3] = { m_sphereCenters[st.corners[2]] - m_sphereCenters[st.corners[1]],
-                                       m_sphereCenters[st.corners[0]] - m_sphereCenters[st.corners[2]],
-                                       m_sphereCenters[st.corners[1]] - m_sphereCenters[st.corners[0]] };
+                const auto &p1 = m_sphereCenters[st.corners[0]],
+                           &p2 = m_sphereCenters[st.corners[1]],
+                           &p3 = m_sphereCenters[st.corners[2]];
+                //   3
+                // 1   2
+                Vector3<Real> e[3] = { p3 - p2,
+                                       p1 - p3,
+                                       p2 - p1 };
                 Real lSq[3] = { e[0].squaredNorm(),
                                 e[1].squaredNorm(),
                                 e[2].squaredNorm() };
@@ -135,8 +178,55 @@ public:
                     if (lSq[i] > 1e-10)
                         m_sphereChainEdges.emplace(st.corners[(i + 1) % 3],
                                                    st.corners[(i + 2) % 3]);
+                    continue;
                 }
-                else { m_sphereTriangles.push_back(st); }
+
+                // Now check for the degenerate cases where there is no plane
+                // tangent to the three spheres. (Ideally this triangle wouldn't
+                // be returned by CGAL, but it happens in practice).
+                // We do this by attempting to compute the spheres' tangent
+                // plane.
+                const Real &r1 = m_sphereRadii[st.corners[0]],
+                           &r2 = m_sphereRadii[st.corners[1]],
+                           &r3 = m_sphereRadii[st.corners[2]];
+                // Note: different edge numbering here from above;
+                // TODO: relabel consistently
+                //   3
+                // 1   2
+                Vector3<Real> e1 =  e[2], // p2 - p1 =  e[2]
+                              e2 = -e[1]; // p3 - p1 = -e[1]
+                Real l1 = sqrt(lSq[2]),
+                     l2 = sqrt(lSq[1]);
+                e1 /= l1;
+                e2 /= l2;
+
+                Vector3<Real> midplaneNormal = e1.cross(e2);
+                midplaneNormal /= midplaneNormal.norm();
+                Vector3<Real> e1perp = midplaneNormal.cross(e1);
+                // This degeneracy should already have been caught.
+                if (std::abs(stripAutoDiff(e1perp.norm() - 1.0)) > 1e-10)
+                    report_error("Degenerate convex hull triangle uncaught (e1perp)", __LINE__);
+
+                // Determine the (positive) tangent plane for the three spheres.
+                // We compute the tangent plane's normal in terms of its components
+                // along e1, e1^perp, and midplane normal n_mp:
+                //  n = alpha e1 + beta e1perp + gamma n_mp
+                // Here e1, e2, e1perp, and n_mp are unit vectors
+                Real alpha = (r1 - r2) / l1;
+                Real beta = ((r1 - r3) / l2 - alpha * e2.dot(e1)) / e2.dot(e1perp);
+                Real aSqbSq = alpha * alpha + beta * beta;
+                if (aSqbSq < 1) {
+                    Real gamma = sqrt(1 - aSqbSq);
+                    Vector3<Real> n = alpha * e1 + beta * e1perp + gamma * midplaneNormal;
+                    m_supportingTriangles.emplace_back((p1 + r1 * n).eval(),
+                                                       (p2 + r2 * n).eval(),
+                                                       (p3 + r3 * n).eval());
+                    m_sphereTriangles.push_back(st);
+                }
+                else {
+                    std::cerr << "aSqbSq: " << aSqbSq << std::endl;
+                    std::cerr << "Degenerate sphere triangle configuration; triangle ignored." << std::endl;
+                }
             }
             // Note: even though (oriented) triangles are unique, a triangle
             // that has degenerated into an edge can be repeated. E.g.:
@@ -213,49 +303,6 @@ public:
                 size_t prevVertex = st.corners[(i + 2) % 3];
                 UnorderedPair e_opp(nextVertex, prevVertex);
                 m_edgeOppositeTriangleCorner.push_back(&m_inflatedEdges.at(e_opp));
-            }
-        }
-
-        // Compute the external triangles tangent to each oriented sphere triangle.
-        for (const auto &st : m_sphereTriangles) {
-            const auto &p1 = m_sphereCenters[st.corners[0]],
-                       &p2 = m_sphereCenters[st.corners[1]],
-                       &p3 = m_sphereCenters[st.corners[2]];
-            const Real &r1 = m_sphereRadii[st.corners[0]],
-                       &r2 = m_sphereRadii[st.corners[1]],
-                       &r3 = m_sphereRadii[st.corners[2]];
-            Vector3<Real> e1 = p2 - p1,
-                          e2 = p3 - p1;
-            Real l1 = e1.norm(),
-                 l2 = e2.norm();
-            e1 /= l1;
-            e2 /= l2;
-
-            Vector3<Real> midplaneNormal = e1.cross(e2);
-            midplaneNormal /= midplaneNormal.norm();
-            Vector3<Real> e1perp = midplaneNormal.cross(e1);
-            // Hopefully the triangles detected from the discrete convex hull
-            // approximation are never degenerate...
-            if (std::abs(stripAutoDiff(e1perp.norm() - 1.0)) > 1e-10)
-                report_error("Degenerate convex hull triangle (e1perp)", __LINE__);
-
-            // Determine the (positive) tangent plane for the three spheres.
-            // We compute the tangent plane's normal in terms of its components
-            // along e1, e1^perp, and midplane normal n_mp:
-            //  n = alpha e1 + beta e1perp + gamma n_mp
-            // Here e1, e2, e1perp, and n_mp are unit vectors
-            Real alpha = (r1 - r2) / l1;
-            Real beta = ((r1 - r3) / l2 - alpha * e2.dot(e1)) / e2.dot(e1perp);
-            Real aSqbSq = alpha * alpha + beta * beta;
-            if (aSqbSq <= 1) {
-                Real gamma = sqrt(1 - aSqbSq);
-                Vector3<Real> n = alpha * e1 + beta * e1perp + gamma * midplaneNormal;
-                m_supportingTriangles.emplace_back((p1 + r1 * n).eval(),
-                                                   (p2 + r2 * n).eval(),
-                                                   (p3 + r3 * n).eval());
-            }
-            else {
-                report_error("Degenerate sphere triangle configuration.", __LINE__);
             }
         }
     }

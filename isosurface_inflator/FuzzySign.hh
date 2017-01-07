@@ -5,7 +5,7 @@
 //      Implements sign queries with tolerance.
 //      Note: with nonzero tolerance, isZero, isPositive, and isNegative all
 //      return true for val = 0.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  07/20/2015 11:50:08

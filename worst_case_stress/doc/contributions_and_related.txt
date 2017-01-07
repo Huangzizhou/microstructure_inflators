@@ -37,6 +37,12 @@ Minimum stress design in level-set topology optimization
       formulas that I found inaccurate). Overflow shouldn't happen in double
       precision (unless stress exceeds (10^308)^(1/p) = 10^(308/p)
       (can still choose p very high)
+    - Level-set optimization in general:
+        Design quantized to grid resolution--no continuous variation.
+        X-fem attempts to solve this, but has inaccurate stresses at the
+        boundary, which need to be handled and will break adjoint accuracy.
+        Accordingly, the papers just use finite finite differencing.
+        TODO: "move over stuff from "writeup + related work" email
 Fillet optimization
     - "Optimal shape design of shoulder fillets for flat and round bars under
       various loadings" F O Sonmez
@@ -67,8 +73,9 @@ Worst-case analysis
       Timothy Langlois, Ariel Shamir, Daniel Dror, Wojciech Matusik, David Levin 2016
 Microstructures in graphics
     - Schumacher et al., Panetta et al., Dumas et al.
-Fabrication constraints in topology optimization
-    Minimum length scale
+Fabrication constraints in topology optimization (see fabrication_constraint_related.txt for detail)
+    Minimum length scale:
+        Allaire, projection (TODO)
     Self-supporting constraint
         "Undercut and Overhang Control.." Xiaoping Qian
         "An additive manufacturing filter for topology optimization" Langelaar

@@ -44,4 +44,20 @@ void generateSpherePoints(size_t numPts, OutputCollection &pts, Real r, const Pt
     }
 }
 
+// Include the 6 vertices tounching the bounding box. This is is used to reduce
+// the liklihood of degeneracies in SphereConvexHull, or at least make them more
+// exact/detectable.
+template<class OutputCollection, typename Real, class Pt>
+void generateSpherePointsWithExtremeVertices(size_t numPts, OutputCollection
+        &pts, Real r, const Pt &c) {
+    generateSpherePoints(numPts - 6, pts, r, c);
+
+    for (size_t d = 0; d < 3; ++d) {
+        Pt offset = Pt::Zero();
+        offset[d] = r;
+        pts.emplace_back(c + offset);
+        pts.emplace_back(c - offset);
+    }
+}
+
 #endif /* end of include guard: SPHEREPOINTS_HH */

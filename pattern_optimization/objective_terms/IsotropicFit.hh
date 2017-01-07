@@ -145,6 +145,9 @@ struct IFConfigIsotropyFit : public IFConfig {
 
         if (useFixedTarget && !fixedTargetSet) {
             fixedTargetC = closestIsotropicTensor(it->elasticityTensor());
+            std::cout << "JIso fitting to fixed tensor:" << std::endl;
+            std::cout << fixedTargetC << std::endl;
+            std::cout << std::endl;
             fixedTargetSet = true;
         }
 
@@ -157,7 +160,6 @@ struct IFConfigIsotropyFit : public IFConfig {
         // Default JIso normalization is (twice) the initial tensor's squared Frobenius norm
         if (!normalizations.isSet("JIso")) {
             Real scale = 2 / it->elasticityTensor().frobeniusNormSq();
-            std::cout << "set normalization to " << scale << std::endl;
             normalizations.set("JIso", scale);
         }
 

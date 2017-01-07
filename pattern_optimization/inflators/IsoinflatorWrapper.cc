@@ -140,6 +140,12 @@ IsoinflatorWrapper<N>::parameterType(size_t p) const
 template<size_t N>
 bool IsoinflatorWrapper<N>::isPrintable(const std::vector<Real> &params) { return m_inflator->isPrintable(params); }
 
+template<size_t N>
+Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
+IsoinflatorWrapper<N>::selfSupportingConstraints(const std::vector<double> &params) const {
+    return m_inflator->selfSupportingConstraints(params);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Configuration
 ////////////////////////////////////////////////////////////////////////////////
@@ -157,7 +163,7 @@ void IsoinflatorWrapper<N>::setMaxElementVolume(Real maxElementVol)
 }
 
 template<size_t N> void IsoinflatorWrapper<N>::setOrthoBaseCell(bool ortho) { m_inflator->setGenerateFullPeriodCell(!ortho); }
-template<size_t N> BaseCellType IsoinflatorWrapper<N>::baseCellType() const { return m_inflator->baseCellType(); } 
+template<size_t N> BaseCellType IsoinflatorWrapper<N>::baseCellType() const { return m_inflator->baseCellType(); }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Destructor

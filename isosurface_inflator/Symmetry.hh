@@ -11,7 +11,7 @@
 //
 //      All symmetry queries are performed with a tolerance that is configurable
 //      by template parameter.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  06/26/2015 17:55:53
@@ -198,7 +198,7 @@ struct Orthotropic : public TriplyPeriodic<TOL>, SymmetryCRTP<Orthotropic<TOL>> 
             // Triple axis
             group.push_back(p.compose(Isometry::reflection(Axis::X)).compose(Isometry::reflection(Axis::Y)).compose(Isometry::reflection(Axis::Z)));
         }
-        
+
         return group;
     }
 };
