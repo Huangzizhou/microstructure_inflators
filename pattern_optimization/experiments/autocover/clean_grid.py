@@ -36,13 +36,14 @@ for EIdx in range(minIndices[0], maxIndices[0] + 1):
         targetE, targetNu = grid.pointAtIndices(EIdx, nuIdx)
         pt = np.array([EIdx, nuIdx])
         lutPointDists = norm(tableUnroundedIndices - pt, axis=1)
-        order = np.argsort(lutPointDists)
+        minIdx = np.argmin(lutPointDists)
+        # order = np.argsort(lutPointDists)
 
         # Skip gridpoints too far away from existing points
-        if (lutPointDists[order[0]] > 2):
+        if (lutPointDists[minIdx] > 2):
             continue
 
-        deletePattern[order[0]] = False
+        deletePattern[minIdx] = False
 
 lut.removeIndices(np.where(deletePattern))
 
