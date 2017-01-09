@@ -192,6 +192,15 @@ public:
         writeDebugSphereMesh("sphere_mesh.msh");
         debugJointAtVertex(4);
 #endif
+#if 0
+        // For debugging disconnected component in 0746:
+        if (!isAutodiffType(Real(0))) {
+            signedDistance<Real, true>(Point3<Real>(0.28516, 0.01, 0.998));
+            signedDistance<Real, true>(Point3<Real>(0.28516, 0.005, 0.998));
+            signedDistance<Real, true>(Point3<Real>(0.28516, 0.0025, 0.998));
+            signedDistance<Real, true>(Point3<Real>(0.28516, 0, 0.998));
+        }
+#endif
     }
 
     // Distance to both the smoothed and hard-unioned versions of a joint.

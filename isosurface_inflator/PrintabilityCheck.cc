@@ -90,7 +90,7 @@ int main(int argc, const char *argv[]) {
 
         Eigen::VectorXd cval = C * paramVec;
         bool satisfied = true;
-        for (size_t crow = 0; crow < C.rows(); ++crow) {
+        for (size_t crow = 0; crow < size_t(C.rows()); ++crow) {
             if (cval[crow] < -1e-12) satisfied = false;
         }
         if (satisfied != isPrintable[i]) {

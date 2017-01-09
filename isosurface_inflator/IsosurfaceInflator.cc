@@ -10,6 +10,7 @@
 #include <SimplicialMesh.hh>
 #include <Future.hh>
 #include <filters/remove_dangling_vertices.hh>
+#include <filters/remove_small_components.hh>
 #include <GlobalBenchmark.hh>
 #include <Parallelism.hh>
 
@@ -424,15 +425,28 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
 
     using SMesh = SimplicialMesh<N>;
     std::unique_ptr<SMesh> bcm;
-    try {
-        bcm = Future::make_unique<SMesh>(elements, vertices.size());
+    {
+        bool done = false;
+        while (!done) {
+            try {
+                bcm = Future::make_unique<SMesh>(elements, vertices.size());
+                done = true;
+            }
+            catch (...) {
+                std::cerr << "Exception while building mesh" << std::endl;
+                std::cerr << "Dumping debug.msh" << std::endl;
+                MeshIO::save("debug.msh", vertices, elements);
+                throw;
+            }
+            if (remove_small_components(*bcm, vertices, elements)) {
+                std::cout << "Removed " << bcm-> numVertices() - vertices.size() << " vertices"
+                          <<    " and " << bcm->numSimplices() - elements.size() << " elements"
+                          << " (small components)" << std::endl;
+                done = false; // Rebuild mesh and try again.
+            }
+        }
     }
-    catch (...) {
-        std::cerr << "Exception while building mesh" << std::endl;
-        std::cerr << "Dumping debug.msh" << std::endl;
-        MeshIO::save("debug.msh", vertices, elements);
-        throw;
-    }
+
     SMesh &symBaseCellMesh = *bcm;
 
     try {

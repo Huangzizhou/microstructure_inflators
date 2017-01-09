@@ -118,7 +118,8 @@ struct Iterate : public IterateBase {
                 for (size_t i = 0; i < m_params.size(); ++i) std::cerr << "\t" << m_params[i];
             }
             std::cerr << std::endl;
-            exit(-1);
+            BENCHMARK_STOP_TIMER_SECTION("Homogenize");
+            throw e;
         }
 
         BENCHMARK_START_TIMER("Compute tensor");
@@ -370,6 +371,16 @@ struct Iterate : public IterateBase {
     //        [1]
     Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> selfSupportingConstraints() const {
         return m_selfSupportingConstraints;
+    }
+
+    // Tell this iterate that it was inflated with a different set of paramters
+    // than it actually was (useful when a perturbation is applied to circumvent
+    // meshing problems, but we want paramsDiffer() to return false for the
+    // unperturbed params to allow the iterate to be reused).
+    void overwriteParams(size_t nParams, const Real *newParams) {
+        assert(m_params.size() == nParams);
+        for (size_t p = 0; p < nParams; ++p)
+            m_params[p] = newParams[p];
     }
 
     virtual ~Iterate() { }

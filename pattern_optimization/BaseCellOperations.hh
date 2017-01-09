@@ -183,9 +183,6 @@ protected:
 ////////////////////////////////////////////////////////////////////////////////
 // The different probing strains require different boundary conditions on the
 // orthotropic base cell, meaning we need to store several probe systems.
-//
-// needs to be built, which is just stored in the simulator for historic
-// reasons.
 template<class _Sim>
 class OrthotropicBaseCellOperations : public BaseCellOperations<_Sim> {
 public:

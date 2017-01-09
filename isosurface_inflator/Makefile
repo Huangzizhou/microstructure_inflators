@@ -26,7 +26,7 @@ LIBS+=$(TBB_LFLAGS)
 # CPPFLAGS=-O2 -DCGAL_MESH_3_VERBOSE
 # CPPFLAGS=-g -O0 # -DCGAL_MESH_3_VERBOSE -DCGAL_MESH_3_PROTECTION_DEBUG -ftemplate-backtrace-limit=0
 # CPPFLAGS += -DDEBUG_MARCHING_SQUARES
-TARGETS=isosurface_cli SignedDistance_cli OffsetBoundsToTranslationBounds
+TARGETS=isosurface_cli replicate PrintabilityCheck PrintabilityConstraints # SignedDistance_cli OffsetBoundsToTranslationBounds
 
 # DEPENDENCY STUFF
 DEPDIR:=.d
@@ -37,6 +37,15 @@ DEPFLAGS=-MT $@ -MMD -MP -MF $(DEPDIR)/$(subst .,$(COMMA),$(subst /,__,$*)).Td
 all: $(TARGETS)
 
 isosurface_cli: isosurface_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/GlobalBenchmark.o IsosurfaceInflator.o  MidplaneMesher.o MeshingOptions.o ConvexHullTriangulation.o BoxIntersectionMesher.o VCGSurfaceMesher.o CGALClippedVolumeMesher.o
+	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
+
+replicate: replicate.o $(MeshFEM)/MeshIO.o $(MeshFEM)/MSHFieldParser.o $(MeshFEM)/Types.o
+	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
+
+PrintabilityCheck: PrintabilityCheck.o $(MeshFEM)/MeshIO.o
+	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
+
+PrintabilityConstraints: PrintabilityConstraints.o $(MeshFEM)/MeshIO.o
 	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
 
 OffsetBoundsToTranslationBounds: OffsetBoundsToTranslationBounds.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFEM)/GlobalBenchmark.o IsosurfaceInflator.o  MidplaneMesher.o MeshingOptions.o BoxIntersectionMesher.o CGALClippedVolumeMesher.o VCGSurfaceMesher.o ../pattern_optimization/PatternOptimizationJob.o $(MeshFEM)/Materials.o ConvexHullTriangulation.o

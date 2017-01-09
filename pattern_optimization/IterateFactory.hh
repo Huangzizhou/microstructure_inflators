@@ -31,6 +31,8 @@
 #include "Inflator.hh"
 #include <Future.hh>
 
+#include <random>
+
 namespace PatternOptimization {
 
 // IterateFactory Configurations:
@@ -94,6 +96,14 @@ struct IterateFactory : public IFConfigs... {
             return oldIterate;
         }
 
+#if 0
+        std::cerr.precision(19);
+        std::cerr << "getIterate called on params:";
+        for (size_t p = 0; p < nParams; ++p)
+            std::cerr << "\t" << params[p];
+        std::cerr << std::endl;
+#endif
+
         // Free up memory by releasing the old iterate if we aren't going to
         // use it for estimation
         if (!m_allowEstimation) { oldIterate.reset(); }
@@ -103,7 +113,25 @@ struct IterateFactory : public IFConfigs... {
         for (size_t i = 0; i < m_numInflationAttempts; ++i) {
             success = true;
             try {
-                newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params);
+                if (i == 0)
+                    newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params);
+                else {
+                    // With the new isosurface inflator, failures are uncommon
+                    // but do happen sometimes with bad parameters.
+                    // To prevent optimization from halting, try a relative
+                    // perturbation of the params.
+                    std::cerr << "Trying perturbed parameters..." << std::endl;
+                    std::vector<double> perturbedParams(nParams);
+                    std::random_device rd;
+                    std::mt19937 gen(rd());
+                    for (size_t p = 0; p < nParams; ++p) {
+                        const double relMagnitude = 0.001;
+                        std::uniform_real_distribution<> dis(-relMagnitude * params[p], relMagnitude * params[p]);
+                        perturbedParams[p] = params[p] + dis(gen);
+                    }
+                    newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, &perturbedParams[0]);
+                    newIterate->overwriteParams(nParams, params);
+                }
             }
             catch (std::exception &e) {
                 std::cerr << "INFLATOR FAILED: " << e.what() << std::endl;
@@ -148,7 +176,7 @@ struct IterateFactory : public IFConfigs... {
 private:
     ObjectiveTermNormalizations m_normalizations;
     _Inflator &m_inflator;
-    size_t m_numInflationAttempts = 1;
+    size_t m_numInflationAttempts = 3;
     // TODO: it should be possible to clear all factored matrices and still
     // support estimation...
     bool m_allowEstimation        = false;
