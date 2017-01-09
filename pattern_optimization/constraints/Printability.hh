@@ -48,7 +48,7 @@ struct Printability : Constraint<N> {
 
     virtual void writeDescription(std::ostream &os, const std::string &name) const override {
         // Positive values mean violation
-        std::cerr << "max printability violation: " << (m_C * m_paramVec).maxCoeff() << std::endl;
+        os << "max printability violation: " << (m_C * m_paramVec).maxCoeff() << std::endl;
         Base::writeDescription(os, name);
     }
 
