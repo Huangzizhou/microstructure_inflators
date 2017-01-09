@@ -75,12 +75,17 @@ public:
 
         for (size_t p = 0; p < params.size(); ++p) {
             if (varLowerBounds.count(p)) {
-                 if ((params[p] < varLowerBounds.at(p)) ||
-                     (params[p] > varUpperBounds.at(p))) {
-                    throw std::runtime_error("Initial point infeasible");
-                 }
+                if (params[p] < varLowerBounds.at(p)) {
+                    std::cerr << "WARNING: param " << p << " clamped to lower bound." << std::endl;
+                    params[p] = varLowerBounds.at(p);
+                }
+                if (params[p] > varUpperBounds.at(p)) {
+                    std::cerr << "WARNING: param " << p << " clamped to upper bound." << std::endl;
+                    params[p] = varUpperBounds.at(p);
+                }
             }
         }
+
         return params;
     }
 
