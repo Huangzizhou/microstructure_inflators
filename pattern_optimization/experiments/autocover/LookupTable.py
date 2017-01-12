@@ -131,11 +131,11 @@ class LUT:
 def extract(dim, pat, directory, printableOnly = True, init = False):
     # TODO: try also extracting only the last point of each run
     # (this is the one we want if patterm optimization is truly working)
-    # Note: we mark patterns with significantly differing young's moduli on
-    # different axes as infinitely anisotropic (the anisotropy ratio doesn't
-    # account for this)
+    # Note: we mark patterns with significantly differing
+    # Young's/Poisson's/shear moduli on different axes as infinitely
+    # anisotropic (the anisotropy ratio doesn't account for this)
     moduli, aniso, params, printable = [], [], [], []
-    allYoung = []
+    allYoung, allPoisson, allShear = [], [], []
     for fname in glob(directory + '/stdout_*.txt'):
         for line in file(fname):
             # print(line)
@@ -147,7 +147,10 @@ def extract(dim, pat, directory, printableOnly = True, init = False):
                 if dim == 2: moduli.append(map(float, [m[1], m[3]]))
                 if dim == 3: moduli.append(map(float, [m[1], m[4]]))
                 if dim == 2: allYoung.append(map(float, m[1:3]))
-                if dim == 3: allYoung.append(map(float, m[1:4]))
+                if dim == 3:
+                    allYoung.append(map(float, m[1:4]))
+                    allPoisson.append(map(float, m[4:7]))
+                    allShear.append(map(float, m[7:10]))
             p = re.search('^p:\s*(.*)', line)
             if (p): params.append(map(float, p.group(1).split()))
             a = re.search('^anisotropy:\s*(.*)', line)
@@ -167,20 +170,36 @@ def extract(dim, pat, directory, printableOnly = True, init = False):
     # The first printed iterate is just the initial parameters
     # Ignore it unless we're initializing an autocover (init == True)
     if not init:
-        moduli   =   moduli[1:]
-        aniso    =    aniso[1:]
-        params   =   params[1:]
-        allYoung = allYoung[1:]
+        moduli     =     moduli[1:]
+        aniso      =      aniso[1:]
+        params     =     params[1:]
+        allYoung   = allYoung  [1:]
+        allPoisson = allPoisson[1:]
+        allShear   = allShear  [1:]
     # mark as infinitely anisotropic the patterns with > 4% difference in
     # Young moduli
     for i, y in enumerate(allYoung):
-        if abs((max(y) - min(y)) / min(y)) > 0.04:
+        if (min(y) < 1e-8): aniso[i] = float('inf') # prevent divide by zero
+        elif abs((max(y) - min(y)) / min(y)) > 0.04:
             aniso[i] = float('inf')
+    # mark as infinitely anisotropic patterns with > 0.02 difference in
+    # Poisson's ratio
+    for i, nu in enumerate(allPoisson):
+        if max(nu) - min(nu) > 0.02:
+            aniso[i] = float('inf')
+    # mark as infinitely anisotropic the patterns with > 4% difference in
+    # Shear moduli
+    for i, mu in enumerate(allShear):
+        if (min(mu) < 1e-8): aniso[i] = float('inf') # prevent divide by zero
+        elif abs((max(mu) - min(mu)) / min(mu)) > 0.04:
+            aniso[i] = float('inf')
+        
     if printableOnly:
         # printability filter
         moduli = [m for m,p in zip(moduli,printable) if p]
         aniso  = [a for a,p in zip(aniso, printable) if p]
         params = [x for x,p in zip(params,printable) if p]
+
     l = LUT(patternData=(pat, moduli, aniso, params))
     # NOTE: ceres appears to print the same iterate multiple times (at least
     # they appear to be the same to output precision)

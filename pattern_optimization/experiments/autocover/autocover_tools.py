@@ -86,7 +86,7 @@ def analyzeRuns(dim, prevLUT, num, pat, printableOnly, isotropicOnly):
     lut = extractLUT(dim, pat, rdir, printableOnly = printableOnly)
 
     # Archive the runs.
-    archive = tarfile.open(rdir + '.tgz', 'w')
+    archive = tarfile.open(rdir + '.tgz', 'w:gz')
     archive.add(rdir)
     archive.close()
     shutil.rmtree(rdir)
@@ -104,7 +104,7 @@ def autocoverRoundOptimizer(num, config):
 
     dim = config['dim']
     pat = config['pattern']
-    printableOnly = config.get('printable', False)
+    printableOnly = config.get('printable', True)
 
     grid = materialSpaceGrid(config)
     constraints = pattern_constraints.lookup(pat, dim)

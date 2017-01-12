@@ -63,4 +63,4 @@ def releaseStuckDependents():
 while True:
     try: releaseStuckDependents()
     except Exception as e: print "EXCEPTION: ", e
-    time.sleep(300)
+    time.sleep(1200) # every 20 minutes
