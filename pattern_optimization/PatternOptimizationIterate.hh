@@ -383,6 +383,9 @@ struct Iterate : public IterateBase {
             m_params[p] = newParams[p];
     }
 
+    virtual bool shouldReport() const override { return !m_dontReport; }
+    void setDontReport() { m_dontReport = true; }
+
     virtual ~Iterate() { }
 
 protected:
@@ -395,6 +398,7 @@ protected:
 
     ObjectiveTermMap m_objectiveTerms; 
     ConstraintMap    m_constraints; 
+    bool m_dontReport = false; // If this is an approximated iterate, don't have optimizer report its value.
 };
 
 }

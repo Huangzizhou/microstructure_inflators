@@ -95,14 +95,15 @@ double costFunc(const std::vector<double> &x, std::vector<double> &grad, void *o
     }
 
     Real val = it.evaluate();
-    if (optState->isImprovement(val, x)) {
+    if (optState->isImprovement(val, x) && it.shouldReport()) {
         it.writeDescription(std::cout);
         std::cout << std::endl;
         if (optState->outPath != "")
             it.writeMeshAndFields(optState->outPath + "_" + std::to_string(optState->niters));
     }
 
-    optState->manualTerminationCheck(it, val);
+    if (it.shouldReport()) // only run termination check if this is a valid iterate (not an estimate)
+        optState->manualTerminationCheck(it, val);
 
     return it.evaluate();
 }

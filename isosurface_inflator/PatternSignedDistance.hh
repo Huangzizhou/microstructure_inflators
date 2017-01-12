@@ -288,10 +288,10 @@ public:
         }
 
         double candidateDistThreshold;
-        const size_t MAX_CANDIDATES = 100; // conservative upper bound for array allocation.
+        const size_t MAX_CANDIDATES = 300; // conservative upper bound for array allocation.
         size_t numCandidates = 0;
         {
-            size_t requestedCandidates = std::min<size_t>(5, hard_distance.size());
+            size_t requestedCandidates = std::min<size_t>(20, hard_distance.size());
             std::vector<double> hd_copy(hard_distance);
             std::nth_element(hd_copy.begin(), hd_copy.begin() + requestedCandidates,
                              hd_copy.end());

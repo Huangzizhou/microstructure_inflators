@@ -2,8 +2,8 @@
 // SliceSupporter.cc
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
-//      Modifies a set of sliced images to remove the unprintable components and
-//      append support structure and foundation to the bottom.
+//      Creates a sequence of slices holding an "easy peel" foundation layer and
+//      support structure for a given first slice.
 //      Note: must be run from this directory since it accesses images stored
 //      here.
 */
@@ -18,6 +18,8 @@
 #include <sstream>
 #include <iomanip>
 #include <deque>
+
+#define SUPPORT_WIDTH_2X 1
 
 namespace ci = cimg_library;
 
@@ -71,8 +73,13 @@ int main(int argc, const char *argv[]) {
         supports.emplace_back(ss.str().c_str());
     }
 
+    if (SUPPORT_WIDTH_2X) {
+        for (auto &s : supports)
+            s.resize((s.width() * 3) / 2, (s.height() * 3) /2, 1, 1, 1 /* nearest neighbor interp */);
+    }
+
     const size_t nComponents = size_t(labels.max()) + 1;
-    std::cout << "Supporting " << nComponents << " components..." << std::endl;
+    std::cout << "Supporting " << nComponents - 1 << " components..." << std::endl;
 
     // Zeroth component should be black.
     assert((first_slice(0, 0) == 0) && (labels(0, 0) == 0));
@@ -114,6 +121,7 @@ int main(int argc, const char *argv[]) {
     // Optimize support placement
     ////////////////////////////////////////////////////////////////////////////
     const auto &supportSlice = supports.back();
+    
     // Determine optimal placement for the support for each component by brute force:
     //  trying all positions, maximizing the the distance from the support
     //  pixels to boundary (unprinted pixels)
@@ -129,7 +137,7 @@ int main(int argc, const char *argv[]) {
     for (size_t i = 1; i < componentBBox.size(); ++i) {
         const auto &cb = componentBBox[i];
 
-        int bestMargin = -1;
+        int bestMargin = std::numeric_limits<int>::min();
         Loc bestMarginLoc;
         // Loop over placements of the support in the full image (staying inside
         // the current component box.)
@@ -154,14 +162,14 @@ int main(int argc, const char *argv[]) {
             for (const Loc &l : supportPixelLocs) {
                 Loc ol(supportTopLeft.col + l.col, supportTopLeft.row + l.row);
                 if (first_slice(ol.col, ol.row) == 0) {
-                    bfsQueue.clear();
-                    dist = 0;
-                    goto hitBoundary;
+                    --dist;
                 }
                 assert(!va.isVisited(ol));
                 va.visit(ol);
                 bfsQueue.push_back(ol);
             }
+            if (dist < 0) goto hitBoundary; // negative distance measure support pixels outside object; we want to minimize this count.
+            dist = 0;
             while (!bfsQueue.empty()) {
                 ++dist;
                 std::deque<Loc> nextLocations;

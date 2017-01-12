@@ -110,6 +110,7 @@ struct IterateFactory : public IFConfigs... {
 
         std::unique_ptr<_Iterate> newIterate;
         bool success;
+        double relMagnitude = 0.01;
         for (size_t i = 0; i < m_numInflationAttempts; ++i) {
             success = true;
             try {
@@ -125,12 +126,12 @@ struct IterateFactory : public IFConfigs... {
                     std::random_device rd;
                     std::mt19937 gen(rd());
                     for (size_t p = 0; p < nParams; ++p) {
-                        const double relMagnitude = 0.001;
                         std::uniform_real_distribution<> dis(-relMagnitude * params[p], relMagnitude * params[p]);
                         perturbedParams[p] = params[p] + dis(gen);
                     }
                     newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, &perturbedParams[0]);
                     newIterate->overwriteParams(nParams, params);
+                    relMagnitude *= 5;
                 }
             }
             catch (std::exception &e) {
@@ -138,6 +139,25 @@ struct IterateFactory : public IFConfigs... {
                 success = false;
             }
             if (success) break;
+        }
+        if (!success) {
+            // The full-blending inflator is more robust; try to get an
+            // approximate iterate with it (probably not a great estimate, but
+            // at least prevent crashing).
+            if (m_inflator.meshingOptions().jointBlendingMode == JointBlendMode::HULL) {
+                std::cerr << "Attempting full-blend inflation" << std::endl;
+                m_inflator.meshingOptions().jointBlendingMode = JointBlendMode::FULL;
+                try {
+                    newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params);
+                    // This estimate shouldn't be reported.
+                    newIterate->setDontReport();
+                    success = true;
+                }
+                catch (std::exception &e) {
+                    std::cerr << "INFLATOR FAILED: " << e.what() << std::endl;
+                }
+                m_inflator.meshingOptions().jointBlendingMode = JointBlendMode::HULL;
+            }
         }
         if (!success) {
             std::cerr << "ALL INFLATION ATTEMPTS FAILED." << std::endl;
@@ -176,7 +196,7 @@ struct IterateFactory : public IFConfigs... {
 private:
     ObjectiveTermNormalizations m_normalizations;
     _Inflator &m_inflator;
-    size_t m_numInflationAttempts = 3;
+    size_t m_numInflationAttempts = 2;
     // TODO: it should be possible to clear all factored matrices and still
     // support estimation...
     bool m_allowEstimation        = false;

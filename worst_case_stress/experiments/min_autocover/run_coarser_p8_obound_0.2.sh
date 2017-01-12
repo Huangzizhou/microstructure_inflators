@@ -4,7 +4,7 @@ num=$2
 pattern=$MICRO_DIR/patterns/3D/reference_wires/pattern$pat.wire
 db=$MICRO_DIR/worst_case_stress/experiments/min_autocover/tables/$pat.txt
 
-line=$(head $db -n$num | tail -n1)
+line=$(head -n $num $db | tail -n1)
 young=$(echo "$line" | cut -f2)
 poisson=$(echo "$line" | cut -f3)
 params=$(echo "$line" | cut -f6-)

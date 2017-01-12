@@ -112,6 +112,8 @@ struct IterateBase {
 
     bool isParametric() const { return m_parametricOptimization; }
 
+    virtual bool shouldReport() const = 0;
+
     virtual ~IterateBase() { }
 
 protected:

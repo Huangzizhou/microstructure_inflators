@@ -31,6 +31,8 @@ int main(int argc, const char *argv[]) {
         if (prev) {
             assert(curr->width()  == prev->width());
             assert(curr->height() == prev->height());
+            auto origSlice = *curr;
+
             curr->label(true /* consider diagonal voxels supported */); // Overwrite image with connected component labels.
             const size_t nComponents = size_t(curr->max()) + 1;
             if (nComponents > 250) throw std::runtime_error("Too many components"); // make sure we're not near overflow
@@ -52,7 +54,10 @@ int main(int argc, const char *argv[]) {
                 for (size_t r = 0; r < curr->height(); ++r) {
                     unsigned char label = (*curr)(c, r);
                     (*curr)(c, r) = hasSupport.at(label) ? 255 : 0;
-                    if ((label > 0) != ((*curr)(c, r) > 0)) ++numRemoved;
+                    // Prevent enclosed voids (counted as separate components)
+                    // from filling in.
+                    if (origSlice(c, r) == 0) (*curr)(c, r) = 0;
+                    else if ((label > 0) != ((*curr)(c, r) > 0)) ++numRemoved;
                 }
             }
             if (numRemoved)
