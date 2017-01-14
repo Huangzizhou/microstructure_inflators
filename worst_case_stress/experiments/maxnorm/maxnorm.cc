@@ -17,7 +17,7 @@ void getSampleMesh(std::vector<MeshIO::IOVertex> &vertices,
     if (N == 3) { MeshIO::load("sphere.off", vertices, elements); }
 
     if (N == 2) {
-        constexpr size_t nsubdivs = 256;
+        constexpr size_t nsubdivs = 1024;
         theta1.clear(), theta2.clear();
         theta1.reserve(nsubdivs);
         for (size_t i = 0; i < nsubdivs; ++i) {

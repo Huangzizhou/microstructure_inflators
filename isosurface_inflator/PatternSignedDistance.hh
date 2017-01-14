@@ -291,7 +291,7 @@ public:
         const size_t MAX_CANDIDATES = 300; // conservative upper bound for array allocation.
         size_t numCandidates = 0;
         {
-            size_t requestedCandidates = std::min<size_t>(20, hard_distance.size());
+            size_t requestedCandidates = std::min<size_t>(20, hard_distance.size() - 1);
             std::vector<double> hd_copy(hard_distance);
             std::nth_element(hd_copy.begin(), hd_copy.begin() + requestedCandidates,
                              hd_copy.end());
@@ -420,6 +420,23 @@ public:
 
         Real2 dist = SD::exp_smin_reparam_accurate(closestJDist.smooth,
                                              secondClosestJDist.smooth, overlapSmoothAmt);
+        if (std::isnan(stripAutoDiff(dist)) || std::isinf(stripAutoDiff(dist))) {
+            std::cerr.precision(19);
+            std::cerr << "closestJDist.smooth: "       << closestJDist.smooth       << std::endl;
+            std::cerr << "secondClosestJDist.smooth: " << secondClosestJDist.smooth << std::endl;
+            std::cerr << "closestJDist.hard: "         << closestJDist.hard         << std::endl;
+            std::cerr << "secondClosestJDist.hard: "   << secondClosestJDist.hard   << std::endl;
+            std::cerr << "overlapSmoothAmt: "          << overlapSmoothAmt          << std::endl;
+            std::cerr << "numCandidates: " << numCandidates << std::endl;
+
+            std::cerr << std::endl;
+            std::cerr << "candidateDistThreshold: " << candidateDistThreshold << std::endl;
+            std::cerr << "hard_distance: ";
+            for (Real2 hd : hard_distance) {
+                std::cerr << "\t" << hd;
+            }
+            std::cerr << std::endl;
+        }
 
         // dist = closestJDist.smooth;
         if (hasInvalidDerivatives(dist) || DebugDerivatives) {
@@ -524,6 +541,15 @@ public:
             }
         }
 #endif
+
+        if (std::isnan(stripAutoDiff(dist)) || std::isinf(stripAutoDiff(dist))) {
+            std::cerr << "ERROR, invalid dist: " << dist << "at: " << stripAutoDiff(p).transpose() << std::endl;
+            std::cerr << "Edge dists:";
+            for (const Real2 &ed : edgeDists) {
+                std::cerr << '\t' << ed;
+            }
+            std::cerr << std::endl;
+        }
 
         assert(!std::isnan(stripAutoDiff(dist)));
         assert(!std::isinf(stripAutoDiff(dist)));

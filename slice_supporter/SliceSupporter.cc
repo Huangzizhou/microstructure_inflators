@@ -19,7 +19,7 @@
 #include <iomanip>
 #include <deque>
 
-#define SUPPORT_WIDTH_2X 1
+#define SUPPORT_WIDTH_2X 0
 
 namespace ci = cimg_library;
 
@@ -65,7 +65,7 @@ int main(int argc, const char *argv[]) {
 
     std::vector<ci::CImg<unsigned char>> supports;
     supports.reserve(100);
-    for (size_t i = 50; i < 100; ++i) {
+    for (size_t i = 1; i <= 29; ++i) {
         std::stringstream ss;
         ss << "support_"
            << std::setw(4) << std::setfill('0') << i
@@ -74,8 +74,10 @@ int main(int argc, const char *argv[]) {
     }
 
     if (SUPPORT_WIDTH_2X) {
+        // for (auto &s : supports)
+        //     s.resize((s.width() * 3) / 2, (s.height() * 3) /2, 1, 1, 1 /* nearest neighbor interp */);
         for (auto &s : supports)
-            s.resize((s.width() * 3) / 2, (s.height() * 3) /2, 1, 1, 1 /* nearest neighbor interp */);
+            s.resize_doubleXY();
     }
 
     const size_t nComponents = size_t(labels.max()) + 1;

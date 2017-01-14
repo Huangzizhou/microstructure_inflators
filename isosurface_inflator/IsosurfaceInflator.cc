@@ -702,25 +702,34 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
 IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness, const string &wireMeshPath) {
     if (!vertexThickness) throw runtime_error("Only per-vertex thickness is currently supported.");
     if (type == "cubic") {
+#if 0
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, CGALClippedVolumeMesher>(wireMeshPath);
+#else
         throw std::runtime_error("Disabled");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, CGALClippedVolumeMesher>(wireMeshPath);
+#endif
     }
     else if (type == "orthotropic") {
-#if 0
-        throw std::runtime_error("Disabled");
-#else
+#if 1
         m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, CGALClippedVolumeMesher>(wireMeshPath);
+#else
+        throw std::runtime_error("Disabled");
 #endif
     }
     else if (type == "triply_periodic") {
+#if 0
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, CGALClippedVolumeMesher>(wireMeshPath);
+#else
         throw std::runtime_error("Disabled");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, CGALClippedVolumeMesher>(wireMeshPath);
+#endif
     }
     else if (type == "cubic_preview")   {
+#if 1
         throw std::runtime_error("Disabled");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, VCGSurfaceMesher>(wireMeshPath);
+#else
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, VCGSurfaceMesher>(wireMeshPath);
         // Triangle mesh doesn't support our post-processing
         disablePostprocess();
+#endif
     }
     else if (type == "cubic_features")   {
         // Output the sharp 1D features created by bounding box intersection.

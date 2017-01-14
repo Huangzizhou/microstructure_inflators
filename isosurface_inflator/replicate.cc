@@ -72,7 +72,9 @@ template<typename F>
 void transferField(const F &field, const std::string &name, DomainType dtype,
                    MSHFieldWriter &writer,
                    const std::vector<size_t> &origVertex,
-                   const std::vector<size_t> &origElement) {
+                   const std::vector<size_t> &origElement,
+                   const std::vector<ComponentMask> &vtxRefl,
+                   const std::vector<ComponentMask> &elmRefl) {
     const size_t nv = writer.numVertices(),
                  ne = writer.numElements();
     if ((origVertex.size() != nv) || (origElement.size() != ne)) {
@@ -82,13 +84,25 @@ void transferField(const F &field, const std::string &name, DomainType dtype,
     F outField;
     if (dtype == DomainType::PER_NODE) {
         outField.resizeDomain(nv);
-        for (size_t i = 0; i < nv; ++i)
+        for (size_t i = 0; i < nv; ++i) {
             outField(i) = field(origVertex[i]);
+            if ((outField.dim() > 1) && (outField.dim() < 4)) {
+                // Reflect vectors
+                for (size_t d = 0; d < outField.dim(); ++d)
+                    outField(i)[d] *= vtxRefl.at(i).has(d) ? -1.0 : 1.0;
+            }
+        }
     }
     else if (dtype == DomainType::PER_ELEMENT) {
         outField.resizeDomain(ne);
-        for (size_t i = 0; i < ne; ++i)
+        for (size_t i = 0; i < ne; ++i) {
             outField(i) = field(origElement[i]);
+            if ((outField.dim() > 1) && (outField.dim() < 4)) {
+                // Reflect vectors
+                for (size_t d = 0; d < outField.dim(); ++d)
+                    outField(i)[d] *= elmRefl.at(i).has(d) ? -1.0 : 1.0;
+            }
+        }
     }
     else { throw std::runtime_error("Unsupported domain dtype"); }
 
@@ -127,6 +141,8 @@ int main(int argc, const char *argv[]) {
 
     // Track vertex and elements back to their originating entities.
     std::vector<size_t> origVertex(vertices.size()), origElement(elements.size());
+    std::vector<ComponentMask> vtxRefl, elmRefl;
+
     for (size_t i = 0; i < vertices.size(); ++i) { origVertex[i] = i; }
     for (size_t i = 0; i < elements.size(); ++i) { origElement[i] = i; }
 
@@ -141,7 +157,7 @@ int main(int argc, const char *argv[]) {
 
         std::vector<size_t> newOrigVertex, newOrigElement;
         reflect(3, vertices, elements, vertices, elements, mask,
-                &newOrigVertex, &newOrigElement);
+                &newOrigVertex, &newOrigElement, &vtxRefl, &elmRefl);
 
         // Propagate originating vertex/element info
         for (size_t &ov : newOrigVertex ) ov = origVertex .at(ov);
@@ -149,6 +165,9 @@ int main(int argc, const char *argv[]) {
 
         origVertex  = std::move(newOrigVertex);
         origElement = std::move(newOrigElement);
+
+        // TODO: propagate reflection info; for now we can only handle 1x1x1
+        // case.
     }
 
     MSHFieldWriter writer(args.at("output").as<string>(), vertices, elements);
@@ -159,19 +178,19 @@ int main(int argc, const char *argv[]) {
     DomainType type;
     for (const string &name: fnames) {
         const auto &vf = reader.vectorField(name, DomainType::ANY, type);
-        std::cerr << "WARNING: Vector transforms under reflection unimplemented for replication" << std::endl;
-        transferField(vf, name, type, writer, origVertex, origElement);
+        std::cerr << "WARNING: Vector transforms only implemented for 1x1x1 tiling" << std::endl;
+        transferField(vf, name, type, writer, origVertex, origElement, vtxRefl, elmRefl);
     }
     fnames = reader.scalarFieldNames();
     for (const string &name: fnames) {
         const auto &sf = reader.scalarField(name, DomainType::ANY, type);
-        transferField(sf, name, type, writer, origVertex, origElement);
+        transferField(sf, name, type, writer, origVertex, origElement, vtxRefl, elmRefl);
     }
     fnames = reader.symmetricMatrixFieldNames();
     for (const string &name: fnames) {
         const auto &smf = reader.symmetricMatrixField(name, DomainType::ANY, type);
         std::cerr << "WARNING: Tensor transforms under reflection unimplemented for replication" << std::endl;
-        transferField(smf, name, type, writer, origVertex, origElement);
+        transferField(smf, name, type, writer, origVertex, origElement, vtxRefl, elmRefl);
     }
 
     return 0;

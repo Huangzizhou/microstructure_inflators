@@ -1,17 +1,23 @@
 import re, sys
 from glob import glob
+import numpy as np
 
 relModulusThreshold, poissonThreshold = map(float, sys.argv[1:])
 
 def relDist(val, truth):
     return abs(val - truth) / truth
 
-print "\t".join(["path", "reduction", "initial", "optimized", "targetE", "targetNu"])
+print "\t".join(["path", "reduction", "initial", "optimized",
+                 "targetE", "targetNu",
+                 "minE", "minNu"])
+
 # Note: only works in 3D for now.
 for directory in glob('*_results'):
     for fname in glob(directory + '/stdout_*.txt'):
         targetM = None
-        printable, params, youngDist, shearDist, poissonDist, stress = [], [], [], [], [], []
+        # distantYoung and distantPoisson: the x/y/z modulus with greatest
+        # distance from the target.
+        printable, params, youngDist, shearDist, poissonDist, distantYoung, distantPoisson, stress = [], [], [], [], [], [], [], []
         for line in file(fname):
             if (line[0:14] == 'Target moduli:'):
                 m = line.strip().split('\t')[1:]
@@ -23,18 +29,27 @@ for directory in glob('*_results'):
                 m = m.group(0).strip().split('\t')[1:]
                 if (len(m) != 9): raise Exception("Invalid iterate moduli line " + line)
                 m = map(float, m)
+                youngXYZDists = [relDist(m[0],  targetM[0]),
+                                 relDist(m[1],  targetM[1]),
+                                 relDist(m[2],  targetM[2])]
+                poissonXYZDists = [  abs(m[3] - targetM[3]),
+                                     abs(m[4] - targetM[4]),
+                                     abs(m[5] - targetM[5])]
+                shearXYZDists = [relDist(m[6],  targetM[6]),
+                                 relDist(m[7],  targetM[7]),
+                                 relDist(m[8],  targetM[8])]
+                distantYoungIdx   = np.argmax(youngXYZDists)
+                distantPoissonIdx = np.argmax(poissonXYZDists)
+                distantShearIdx   = np.argmax(shearXYZDists)
 
                 if (targetM == None): raise Exception("Target moduli not set")
 
-                youngDist.append(max(relDist(m[0], targetM[0]),
-                                     relDist(m[1], targetM[1]),
-                                     relDist(m[2], targetM[2])))
-                poissonDist.append(max(abs(m[3] - targetM[3]),
-                                       abs(m[4] - targetM[4]),
-                                       abs(m[5] - targetM[5])));
-                shearDist.append(max(relDist(m[6], targetM[6]),
-                                     relDist(m[7], targetM[7]),
-                                     relDist(m[8], targetM[8])))
+                youngDist  .append(  youngXYZDists[distantYoungIdx])
+                poissonDist.append(poissonXYZDists[distantPoissonIdx])
+                shearDist  .append(  shearXYZDists[distantShearIdx])
+
+                distantYoung  .append(m[distantYoungIdx])
+                distantPoisson.append(m[3 + distantPoissonIdx])
 
             p = re.search('^p:\s*(.*)', line)
             if (p): params.append(map(float, p.group(1).split()))
@@ -58,20 +73,25 @@ for directory in glob('*_results'):
             stress      =      stress[:numIterates]
             continue
 
-        minStress = float('inf')
-        is_valid = lambda i: (printable[i]
-                            and (  youngDist[i] < relModulusThreshold)
-                            and (  shearDist[i] < relModulusThreshold)
-                            and (poissonDist[i] < poissonThreshold))
-        for i in range(numIterates):
-            if (is_valid(i)):
-                minStress = min(minStress, stress[i])
         try:
+            is_valid = lambda i: (  printable[i]
+                             and (  youngDist[i] < relModulusThreshold)
+                             and (  shearDist[i] < relModulusThreshold)
+                             and (poissonDist[i] < poissonThreshold))
+
+            # Get the minimum valid stress level
+            validIndices = filter(is_valid, range(numIterates))
+            minStressIdx = validIndices[np.array(stress)[validIndices].argmin()]
+
             if (not is_valid(0)):
                 # print printable[i], youngDist[i], shearDist[i], poissonDist[i]
                 raise Exception("First iterate invalid")
-            reduction = minStress / stress[0]
-            print "\t".join([fname, str(reduction), str(stress[0]), str(minStress), str(targetM[0]), str(targetM[3])])
+            reduction = stress[minStressIdx] / stress[0]
+            print "\t".join([fname, str(reduction), str(stress[0]), str(stress[minStressIdx]),
+                             str(targetM[0]), str(targetM[3]),
+                             str(distantYoung[minStressIdx]),
+                             str(distantPoisson[minStressIdx])
+                        ])
         except Exception as e:
             # print fname, "has no valid iterates (out of", numIterates,")"
             pass

@@ -1001,7 +1001,7 @@ void Display(void) {
         glEnd();
 
         glColor3f(0.55, 0.1, 0.55);
-        drawPlane(o, 4 * t, 4 * z);
+        // drawPlane(o, 4 * t, 4 * z);
         glEnable(GL_LIGHTING);
         // drawArrow(o, o + 0.08 * bjoint.iplaneNormal(), 0.02, RGBColorf(1.0, 0.0, 0.0));
 
@@ -1010,7 +1010,7 @@ void Display(void) {
         auto e1n = joint.edge1.normal(queryPt);
         auto e2n = joint.edge2.normal(queryPt);
 
-        raycastSmoothingEval<double, true>(queryPt, bjoint, joint.edge1, joint.edge2, g_geometryParams.smoothness);
+        // raycastSmoothingEval<double, true>(queryPt, bjoint, joint.edge1, joint.edge2, g_geometryParams.smoothness);
 
         glColor3f(1.0, 1.0, 1.0);
         glWindowPos2i(0, 0);

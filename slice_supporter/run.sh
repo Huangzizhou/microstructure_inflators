@@ -12,7 +12,7 @@ done
 
 # Copy over the modified object slices
 for i in $@; do
-     convert ${i%.bmp}.cleaned.png -set colorspace RGB -depth 8 $outDir/out_$((${$(basename $i .bmp)##*_}+49)).bmp
+     convert ${i%.bmp}.cleaned.png -set colorspace RGB -depth 8 $outDir/out_$((${$(basename $i .bmp)##*_}+28)).bmp
 done
 
 # Delete the original slices.
