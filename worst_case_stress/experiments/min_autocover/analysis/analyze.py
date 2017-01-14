@@ -87,11 +87,10 @@ for directory in glob('*_results'):
                 # print printable[i], youngDist[i], shearDist[i], poissonDist[i]
                 raise Exception("First iterate invalid")
             reduction = stress[minStressIdx] / stress[0]
-            print "\t".join([fname, str(reduction), str(stress[0]), str(stress[minStressIdx]),
-                             str(targetM[0]), str(targetM[3]),
-                             str(distantYoung[minStressIdx]),
-                             str(distantPoisson[minStressIdx])
-                        ])
+            print "\t".join(map(str, [fname, reduction, stress[0], stress[minStressIdx],
+                             targetM[0], targetM[3],
+                             distantYoung[minStressIdx],
+                             distantPoisson[minStressIdx]] + params[minStressIdx]))
         except Exception as e:
             # print fname, "has no valid iterates (out of", numIterates,")"
             pass
