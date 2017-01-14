@@ -9,7 +9,7 @@ def relDist(val, truth):
 
 print "\t".join(["path", "reduction", "initial", "optimized",
                  "targetE", "targetNu",
-                 "minE", "minNu"])
+                 "minE", "minNu", "params"])
 
 # Note: only works in 3D for now.
 for directory in glob('*_results'):
@@ -90,7 +90,7 @@ for directory in glob('*_results'):
             print "\t".join(map(str, [fname, reduction, stress[0], stress[minStressIdx],
                              targetM[0], targetM[3],
                              distantYoung[minStressIdx],
-                             distantPoisson[minStressIdx]] + params[minStressIdx]))
+                             distantPoisson[minStressIdx], '"' + " ".join(map(str, params[minStressIdx])) + '"']))
         except Exception as e:
             # print fname, "has no valid iterates (out of", numIterates,")"
             pass
