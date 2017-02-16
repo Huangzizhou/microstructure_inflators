@@ -1,0 +1,197 @@
+First, clone the three (mercurial) repositories used in the project. They are:
+    https://subversive.cims.nyu.edu/geonum/jpanetta/CSGFEM/
+    https://subversive.cims.nyu.edu/geonum/jpanetta/MeshFEM
+    https://subversive.cims.nyu.edu/geonum/3DPrint/microstructures/
+
+Here is a high level description of them (provided by Julian):
+"
+Nothing from "CSGFEM" needs to be compiled; only its headers are needed for the MeshFEM and
+microstructures repositories. These headers implement symmetric matrices (to represent stress and
+strain tensors), rank four tensors (to represent material properties, i.e. elasticity tensors),
+spatial fields of vectors and tensors, sparse matrices (to solve the linear systems arising from the
+Finite Element discretization), and other low-level data structures needed for linear elasticity.
+
+"MeshFEM" is my finite element library for triangle (in 2D or 3D) and tet (3D) meshes. It provides
+headers needed for the microstructures repository as well as standalone binaries for linear
+elasticity simulation, periodic homogenization, mesh conversion, etc.
+
+The "microstructures" repo holds the microstructure design code. The main subdirectories to care
+about are "pattern_optimization," "isosurface_inflator," and "worst_case_stress;" most of the rest
+is legacy code.
+
+"microstructures/pattern_optimization" holds the "PatternOptimization_cli" binary that designs a
+microstructure to achieve a desired tensor.
+
+"microstructures/isosurface_inflator" is used by the pattern_optimization code to generate meshed
+microstructure geometry from a graph labeled with vertex thickness, position, and smoothness
+variables. This synthesis approach is based on constructing a signed distance representation of the
+microstructure boundary and meshing with CGAL, and it is an improvement over the approach in our
+2015 paper. It also automatically determines the effect of changing the parameters (i.e. it gives
+you a velocity for each boundary vertex induced by the parameter change: the "shape velocity").
+
+"microstructures/worst_case_stress" implements the worst-case microstructure stress analysis and
+minimization from my SIGGRAPH submission this year. We can talk more about this after you have a
+better understanding of the Elastic Textures paper.
+"
+
+After downloading the project, it is important to install all dependencies that the project has. The
+list of dependecies is presented below. I used homebrew to install the following packages:
+- mercurial
+- homebrew/science/ceres-solver
+- homebrew/science/dlib
+- eigen@3.2 % a compiling error occurs with version 3.3.2
+- gd
+- homebrew/science/gmsh
+- homebrew/dupes/lapack
+- libmatheval
+- homebrew/science/nlopt
+- numpy
+- open-mpi
+- homebrew/science/tetgen
+- homebrew/science/triangle
+- gmp
+- mpfr
+
+Also, I downloaded and installed the following packages by myself:
+- CGAL-4.9
+- clipper_ver6.4
+- libf2c
+- tbb
+- Gmsh
+- cork
+- libigl
+- vcglib-1.0.1
+- PyMesh and tools (wires)
+- levmar-2.6
+- SuiteSparse
+
+Obs: Maybe some of these are not essential for compiling and running the code, but I had to installed
+them when first compiling the code.  Also, the list is not in order of dependencies. I will try to
+improve this document trying to install in a clean (virtual) machine again.
+
+#TODO: add compilation order
+
+Before start compiling the code, it is also important to set some environment variables used by the
+Makefiles. They are basically used for explicitly showing to the compiler where are the dependencies
+in the system. This can be easily done with a script as shown below. Notice that you will have to
+adjust the places according with your preferences and your machine.
+
+"
+/bin/bash 
+
+"Hello, configuring environment variables!"
+ 
+export CSGFEM_INC=$HOME/Desktop/NYU/Research/Repositories/CSGFEM
+export CSGFEM=$HOME/Desktop/NYU/Research/Repositories/CSGFEM
+
+export MESHFEM_PATH=$HOME/Desktop/NYU/Research/Repositories/MeshFEM
+
+export MICRO_DIR=$HOME/Desktop/NYU/Research/Repositories/microstructures
+export PATOPT=$MICRO_DIR/pattern_optimization
+
+
+export EIGEN_INC=/usr/local/opt/eigen@3.2/include/eigen3
+
+export SUITESPARSE_INC=/usr/local/include
+export SUITESPARSE_LIB=/usr/local/lib
+
+export BOOST_INC=/usr/local/include/boost
+export BOOST_LIB=/usr/local/lib
+
+export CERES_INC=/usr/local/Cellar/ceres-solver/1.12.0_2/inc
+export CERES_LIB=/usr/local/Cellar/ceres-solver/1.12.0_2/lib 
+
+export LIBMATHEVAL_INC=/usr/local/Cellar/libmatheval/1.1.11/inc
+export LIBMATHEVAL_LIB=/usr/local/Cellar/libmatheval/1.1.11/lib
+
+export VCGLIB_INC=$HOME/Desktop/NYU/Research/Apps/vcglib-1.0.1
+
+export DLIB_INC=/usr/local/include
+
+export CLIPPER_INC=%HOME/Desktop/NYU/Research/Apps/clipper_ver6.4/cpp
+export CLIPPER_LFLAGS=-L/usr/locarl/lib
+
+export LEVMAR_INC=$HOME/Desktop/NYU/Research/Apps/levmar-2.6
+export LEVMAR_LIB=$HOME/Desktop/NYU/Research/Apps/levmar-2.6
+
+export TRIANGLE_LIB=/usr/local/Cellar/triangle/1.6/lib
+export TRIANGLE_INC=/usr/local/Cellar/triangle/1.6/include
+
+export ADEPT_INC=/usr/local/include
+export ADEPT_LIB=/usr/local/lib
+ 
+export CGAL_INC=/usr/local/include
+export CGAL_LIB=/usr/local/lib 
+
+export GMP_INC=/usr/local/include
+export GMP_LIB=/usr/local/lib
+
+export MPFR_INC=/usr/local/include
+export MPFR_LIB=/usr/local/lib
+
+export PYMESH_PATH=$HOME/Desktop/NYU/Research/Apps/PyMesh-master
+
+export TBB_INC=/usr/local/include/tbb
+export TBB_LIB=/usr/local/lib
+
+export DYLD_FALLBACK_LIBRARY_PATH=$CGAL_LIB:$PYMESH_PATH/lib
+"
+
+So, before compiling, you should make sure that these variables are loaded correctly. One way of
+doing it is to run the script 'configure-environment.sh' above as shown below:
+> . ./configure-environment.sh
+
+Then, enter MeshFEM directory and compile using a simple 'make' command. If compilation is
+successfull, we can do some tests in the binaries to see if everything is working fine, as proposed
+by Julian:
+"
+cd MeshFEM
+cd examples/cantilever
+zsh gen.sh # Create meshed bar at various resolutions
+../../Simulate_cli -m $MICRO_DIR/materials/B9Creator.material  bar_tet_0.msh -b cantilever.bc -o
+sim.msh
+
+This simulates a bar clamped on one end and loaded with a downward force on the other (see
+cantilever.bc for the boundary conditions). To view the result, install Gmsh, create the symlink
+/usr/local/bin/gmsh -> /Applications/Gmsh.app/Contents/MacOS/gmsh and run:
+
+gmsh -n sim.msh
+
+(The -n prevents Gmsh from displaying all fields at once.)
+
+msh_processor is mainly intended to run on meshes with solution fields like "sim.msh." E.g., you can
+use it to extract the maximum principal stress on each element:
+
+msh_processor sim.msh -e "stress" --eigenvalues --maxMag # print to stdout
+msh_processor sim.msh -e "stress" --eigenvalues --maxMag -o stress_eigenvalues.msh # write to scalar
+field.
+
+You can also try the periodic homogenization code:
+
+./PeriodicHomogenization_cli examples/meshes/cube_cross.msh
+
+PeriodicHomogenization will fail on examples/meshes/cylinder_cross.msh since that mesh is not
+perfectly periodic.
+"
+
+After compiling the binaries at MeshFEM, enter the microstructes folder and call 'make' in three
+different folders:
+    - isosurface_inflator
+    - pattern_optimization
+    - worst_case_stress
+
+If the compilation works, we are all set! =)
+
+Common Problems during compilation:
+- SuiteSparse: the compilation of MeshFEM uses '-lsuitesparse' flag. However, it seems that new
+  versions of SuiteSparse are not producing any library called libsuitesparse.* and the compilation
+  may fail. I solved the issue by creating a symbolic link named libsuitesparse.dylib targetting
+  libsuitesparseconfig.dylib (in Mac's case).
+- There is a compilation error in microstructures package if you decide not to use TBB (or if you
+  don't have it installed). #TODO: reproduce the error.
+- levmar-2.6: I needed to get a different makefile than the one available in the package to install
+  in mac. See http://stackoverflow.com/questions/2539735/trying-to-build-the-levmar-math-library-on-a-mac-using-the-accelerate-framework 
+- PyMesh: in order for PyMesh cmake file to find CGAL libraries, it is necessary to export CGAL_PATH
+  and CGAL_DIR with the correct path of the libraries. Also, you should correctly set LIBIGL_PATH and
+  EIGEN_INC. Remember that it is necessary to compile also the tools, since we are interested in usin
+  the 'Wires' tool. 
