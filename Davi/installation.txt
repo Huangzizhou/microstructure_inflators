@@ -193,5 +193,7 @@ Common Problems during compilation:
   in mac. See http://stackoverflow.com/questions/2539735/trying-to-build-the-levmar-math-library-on-a-mac-using-the-accelerate-framework 
 - PyMesh: in order for PyMesh cmake file to find CGAL libraries, it is necessary to export CGAL_PATH
   and CGAL_DIR with the correct path of the libraries. Also, you should correctly set LIBIGL_PATH and
-  EIGEN_INC. Remember that it is necessary to compile also the tools, since we are interested in usin
-  the 'Wires' tool. 
+  EIGEN_INC. Remember that it is necessary to compile also the tools, since we are interested in using
+  the 'Wires' tool. Finally, make sure that your PYMESH_PATH env. variable set before contains a folder
+  'lib' containing libwires.dylib.
+- There is a small bug in GenIsosurfaceJob.cc (missing double quotes). 

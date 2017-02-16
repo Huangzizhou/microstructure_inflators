@@ -39,7 +39,7 @@ namespace po = boost::program_options;
 using namespace std;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: GenIsosurfaceJob [options] topology.wire << endl;
+    cout << "Usage: GenIsosurfaceJob [options] topology.wire" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
 }
