@@ -41,7 +41,6 @@ list of dependecies is presented below. I used homebrew to install the following
 - homebrew/science/dlib
 - eigen@3.2 % a compiling error occurs with version 3.3.2
 - gd
-- homebrew/science/gmsh
 - homebrew/dupes/lapack
 - libmatheval
 - homebrew/science/nlopt
