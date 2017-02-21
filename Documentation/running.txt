@@ -1,7 +1,66 @@
+%--------------------------------------------------------------------------------------------------%
+*** MeshFEM package:
+
+Here are some examples that could be run in order to make sure the package is working fine and which 
+also gives some intuition about the functions it can provide.
+
+Try the following:
+
+> cd MeshFEM
+> cd examples/cantilever
+> zsh gen.sh # Create meshed bar at various resolutions
+> ../../Simulate_cli -m $MICRO_DIR/materials/B9Creator.material  bar_tet_0.msh -b cantilever.bc -o 
+ sim.msh
+
+This simulates a bar clamped on one end and loaded with a downward force on the other (see
+cantilever.bc for the boundary conditions). To view the result, install Gmsh, create the symlink
+/usr/local/bin/gmsh -> /Applications/Gmsh.app/Contents/MacOS/gmsh and run:
+
+> gmsh -n sim.msh
+
+(The -n prevents Gmsh from displaying all fields at once.)
+
+msh_processor is mainly intended to run on meshes with solution fields like "sim.msh." E.g., you can
+use it to extract the maximum principal stress on each element:
+
+> msh_processor sim.msh -e "stress" --eigenvalues --maxMag # print to stdout
+> msh_processor sim.msh -e "stress" --eigenvalues --maxMag -o stress_eigenvalues.msh # write to
+  scalar field.
+
+One can also try the periodic homogenization code:
+
+> ./PeriodicHomogenization_cli examples/meshes/cube_cross.msh
+
+PeriodicHomogenization will fail on examples/meshes/cylinder_cross.msh since that mesh is not
+perfectly periodic.
+
+Another nice function presented in this package is the convertion between a planar graph structure 
+(normally used here with .wire or .obj extension) to the file type used in Gmsh (.msh). This let's
+you visualize the microstructure pattern that you have and which can be used later in microstructure
+package. This can be done through the simple command:
+
+> ./mesh_convert <input (.wire)> <output (.msh)>
+
+Now, run the following example:
+
+> ./mesh_convert $MICRO_DIR/patterns/3D/reference_wires/pattern0283.wire pattern0283.msh
+> gmsh pattern0283.msh
+(When in Gmsh, use keys alt+shift+P and alt+shift+L to show points and lines of the graph).
+
+
+
+%--------------------------------------------------------------------------------------------------%
+*** Microstructures package:
+
+Now, we present the package containing the main applications used for pattern optimization and
+minimization of worst case stress. 
+
 #TODO Describe Isosurface_cli
 
-WCSOptimization_cli (in microstructures/worst_case_stress)
-#TODO Describe WCSOptimization_cli
+** WCSOptimization_cli ($MICRO_DIR/worst_case_stress)
+
+This package implements the worst-case microstructure stress analysis and minimization, besides
+having also the same tools presented in the initial pattern optimization technique.
 
 Main parameters are explained below:
 - Choose target properties of material, like desired elasticity tensor C*, Young's module, Poisson
@@ -111,10 +170,11 @@ Main parameters are explained below:
 - Select the solver for the opt problem using --solver [parameter]. Usually, use slsqp.
 
 - Set prefix name for output of each iteration with -o [parameter]. The idea is that you should be
-  able to see the result of each iteration, for example, by running gmsh on the output. 
+  able to see the result of each iteration, for example, by running gmsh on the output. For each 
+  iteration, a file [parameter]_X (where X is the iteration number) is msh file is created. 
 
 Complete example:
-> ./WCSOptimization_cli -p $MICRO_DIR/Luigi/wireinflator2D/meshes/octa_cell.obj -m $MICRO_DIR/materials/B9Creator.material \
+> ./WCSOptimization_cli -p $MICRO_DIR/Documentation/examples/octa_cell.obj -m $MICRO_DIR/materials/B9Creator.material \
         target_tensor_job.opt  -M 2d_meshing_opts.opt --ortho_cell --vertexThickness \
         --WCSWeight 1e-300 --JSWeight 1.0 --TensorFitConstraint \
         --solver slsqp -o it
@@ -124,7 +184,7 @@ Use cases:
   tensor at 1.0. This means we are giving more importance to achieving the targetted elasticity 
   tensor than to reduce the worst case stress.
 - A different configuration would be the following:
-> ./WCSOptimization_cli -p $MICRO_DIR/Luigi/wireinflator2D/meshes/octa_cell.obj -m $MICRO_DIR/materials/B9Creator.material \    
+> ./WCSOptimization_cli -p $MICRO_DIR/Documentation/examples/octa_cell.obj -m $MICRO_DIR/materials/B9Creator.material \    
         target_tensor_job.opt  -M 2d_meshing_opts.opt \
         --ortho_cell --vertexThickness --WCSWeight 1.0 --JSWeight 0.0 --pnorm 8 --usePthRoot \
         --TensorFitConstraint  --solver slsqp -o itHighWCSWeight
