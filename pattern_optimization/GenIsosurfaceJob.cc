@@ -39,7 +39,7 @@ namespace po = boost::program_options;
 using namespace std;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: GenIsosurfaceJob [options] topology.wire << endl;
+    cout << "Usage: GenIsosurfaceJob [options] topology.wire" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
 }
@@ -55,10 +55,10 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 
     po::options_description visible_opts;
     visible_opts.add_options()("help",        "Produce this help message")
-        ("offsetBounds,o",      po::value<string>(),                             "offset bounds specifier (lower:upper)")
-        ("translationBounds,t", po::value<string>(),                             "translation bounds specifier (lower:upper)")
-        ("radiusBounds,r",      po::value<string>()->default_value("0.04,0.2"),  "radius bounds specifier (lower:upper)")
-        ("blendingBounds,b",    po::value<string>()->default_value("0.005,0.2"), "blending bounds specifier (lower:upper)")
+        ("offsetBounds,o",      po::value<string>(),                             "offset bounds specifier (lower,upper)")
+        ("translationBounds,t", po::value<string>(),                             "translation bounds specifier (lower,upper)")
+        ("radiusBounds,r",      po::value<string>()->default_value("0.04,0.2"),  "radius bounds specifier (lower,upper)")
+        ("blendingBounds,b",    po::value<string>()->default_value("0.005,0.2"), "blending bounds specifier (lower,upper)")
         ("elasticityTensor,e",  po::value<string>()->default_value("1,0"),       "target tensor specifier (Young,Poisson)")
         ("initialParams,p",     po::value<string>(),                             "initial parameters (optional)")
         ("parameterConstraints,c", po::value<string>(),                          "parameter constraint expressions (semicolon-separated, optional)")
