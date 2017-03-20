@@ -18,8 +18,6 @@
 #include "BoxIntersection1DFeatures.hh"
 #include "WireMesh.hh"
 
-#include "PaperVisualizationSDFunc.hh"
-
 #include <GlobalBenchmark.hh>
 
 // avoid verbose function and named parameters call

@@ -139,35 +139,52 @@ struct safe_numeric_limits
 
 ////////////////////////////////////////////////////////////////////////////////
 // Extra autodiff math functions
+// Note: Eigen 3.3 changes how functions are declared and now finally implements
+// tanh itself
 ////////////////////////////////////////////////////////////////////////////////
-// Implement tanh for Eigen autodiff (argument dependent lookup)
 namespace Eigen {
-#define EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(FUNC,CODE) \
-  template<typename DerType> \
-  inline const Eigen::AutoDiffScalar<Eigen::CwiseUnaryOp<Eigen::internal::scalar_multiple_op<typename Eigen::internal::traits<typename Eigen::internal::remove_all<DerType>::type>::Scalar>, const typename Eigen::internal::remove_all<DerType>::type> > \
-  FUNC(const Eigen::AutoDiffScalar<DerType>& x) { \
-    using namespace Eigen; \
-    typedef typename Eigen::internal::traits<typename Eigen::internal::remove_all<DerType>::type>::Scalar Scalar; \
-    typedef AutoDiffScalar<CwiseUnaryOp<Eigen::internal::scalar_multiple_op<Scalar>, const typename Eigen::internal::remove_all<DerType>::type> > ReturnType; \
-    CODE; \
-  }
+#if !EIGEN_VERSION_AT_LEAST(3,3,0)
+    template<typename NewDerType>
+    inline AutoDiffScalar<NewDerType> MakeAutoDiffScalar(const typename NewDerType::Scalar& value, const NewDerType &der) {
+      return AutoDiffScalar<NewDerType>(value,der);
+    }
+
+    #define EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(FUNC,CODE) \
+    template<typename DerType> \
+    inline const Eigen::AutoDiffScalar<Eigen::CwiseUnaryOp<Eigen::internal::scalar_multiple_op<typename Eigen::internal::traits<typename Eigen::internal::remove_all<DerType>::type>::Scalar>, const typename Eigen::internal::remove_all<DerType>::type> > \
+    FUNC(const Eigen::AutoDiffScalar<DerType>& x) { \
+        using namespace Eigen; \
+        typedef typename Eigen::internal::traits<typename Eigen::internal::remove_all<DerType>::type>::Scalar Scalar; \
+        typedef AutoDiffScalar<CwiseUnaryOp<Eigen::internal::scalar_multiple_op<Scalar>, const typename Eigen::internal::remove_all<DerType>::type> > ReturnType; \
+        CODE; \
+    }
 
     // Implement tanh for eigen autodiff
     EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(tanh,
       using std::tanh;
       using std::cosh;
       using numext::abs2;
-      return ReturnType(tanh(x.value()),
+      return MakeAutoDiffScalar(tanh(x.value()),
                         x.derivatives() * (Scalar(1)/abs2(cosh(x.value()))));
     )
+#else // EIGEN Version < 3.3
+    #define EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(FUNC,CODE) \
+    template<typename DerType> \
+    inline const Eigen::AutoDiffScalar< \
+    EIGEN_EXPR_BINARYOP_SCALAR_RETURN_TYPE(typename Eigen::internal::remove_all<DerType>::type, typename Eigen::internal::traits<typename Eigen::internal::remove_all<DerType>::type>::Scalar, product) > \
+    FUNC(const Eigen::AutoDiffScalar<DerType>& x) { \
+        using namespace Eigen; \
+        EIGEN_UNUSED typedef typename Eigen::internal::traits<typename Eigen::internal::remove_all<DerType>::type>::Scalar Scalar; \
+        CODE; \
+    }
+#endif // Eigen Version Check
 
     // Implement log(cosh(x)) with derivative; useful for stable exp_smin computation
     EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(log_cosh,
-      return ReturnType(std::log(std::cosh(x.value())),
+      return MakeAutoDiffScalar(std::log(std::cosh(x.value())),
                         x.derivatives() * std::tanh(x.value()));
     )
-
-#undef EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY
+    #undef EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY
 
     // Eigen doesn't provide pow for autodiff-typed power.
     template<typename _DerType1, typename _DerType2>
