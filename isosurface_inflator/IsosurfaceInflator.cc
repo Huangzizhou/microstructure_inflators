@@ -22,21 +22,25 @@
 
 #define DEBUG_EVALPTS 0
 
-#if 1
-#include "CGALClippedVolumeMesher.hh"
-#include "VCGSurfaceMesher.hh"
+// We can get faster builds for debugging/experimenting with the signed
+// distance function if we disable the autodiff sections.
+#ifndef SKIP_SVEL
+#define SKIP_SVEL 0
+#if SKIP_SVEL
+#warning "Skipping shape velocity/normal computation!"
+#endif
 #endif
 
+#include "CGALClippedVolumeMesher.hh"
+#include "VCGSurfaceMesher.hh"
 #include "BoxIntersectionMesher.hh"
 #include "MidplaneMesher.hh"
 
 #include "IsosurfaceInflatorConfig.hh"
 
-// #include "parallel_for.h"
-
 using namespace std;
 
-template<class WMesh, template<class> class Mesher>
+template<class WMesh, class Mesher>
 class IsosurfaceInflatorImpl;
 
 // Postprocess:
@@ -122,7 +126,6 @@ public:
     // of 2D normals
     virtual Point trackSignedDistanceGradient(const Point &pt) const = 0;
 
-
     // Printability checks/constraints
     virtual bool isPrintable(const std::vector<Real> &params) const = 0;
     virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
@@ -173,7 +176,7 @@ protected:
 // The WMesh-dependent implementation details.
 // E.g.: WMesh = WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>,
 //       Mesher = CGALClippedVolumeMesher
-template<class WMesh, template<class> class Mesher>
+template<class WMesh, class Mesher>
 class IsosurfaceInflatorImpl : public IsosurfaceInflator::Impl {
 public:
     using Point = IsosurfaceInflator::Point;
@@ -221,12 +224,13 @@ public:
     // Derivative of signed distance function with respect to evaluation point
     // (autodiff-based).
     virtual vector<Point> signedDistanceGradient(const vector<Point> &evalPoints) const override {
+        vector<Point> distGradX(evalPoints.size());
+#if !SKIP_SVEL
         // Scalar supporting 3D spatial gradient
         using ADScalar = Eigen::AutoDiffScalar<Vector3<Real>>;
         using Pt = Point3<ADScalar>;
         const size_t nEvals = evalPoints.size();
 
-        vector<Point> distGradX(evalPoints.size());
         auto evalAtPtIdx = [&](size_t p) {
             Pt x(ADScalar(evalPoints[p][0], 3, 0),
                  ADScalar(evalPoints[p][1], 3, 1),
@@ -244,10 +248,15 @@ public:
 #else
         for (size_t p = 0; p < nEvals; ++p) evalAtPtIdx(p);
 #endif
+#else   // SKIP_SVEL
+        for (auto &p : distGradX)
+            p = Point(1, 0, 0);
+#endif // !SKIP_SVEL
         return distGradX;
     }
 
     virtual Point trackSignedDistanceGradient(const Point &pt) const override {
+#if !SKIP_SVEL
         // Scalar supporting 3D spatial gradient
         using ADScalar = Eigen::AutoDiffScalar<Vector3<Real>>;
         using Pt = Point3<ADScalar>;
@@ -256,19 +265,23 @@ public:
              ADScalar(pt[2], 3, 2));
         ADScalar dist = pattern.template signedDistance<ADScalar, true>(x);
         return dist.derivatives();
+#else
+        return Point(1, 0, 0);
+#endif
     }
 
     // Derivative of signed distance function with respect to each pattern
     // parameter (autodiff-based).
     virtual vector<vector<Real>> signedDistanceParamPartials(const vector<Point> &evalPoints) const override {
+        const size_t nEvals = evalPoints.size(),
+                    nParams = pattern.numParams();
+        vector<vector<Real>> partials(nParams, vector<Real>(nEvals));
+#if !SKIP_SVEL
         // Scalar supporting derivatives with respect to each pattern parameter
         using PVec = Eigen::Matrix<Real, Eigen::Dynamic, 1>;
         using ADScalar = Eigen::AutoDiffScalar<PVec>;
 
-        const size_t nEvals = evalPoints.size(),
-                    nParams = pattern.numParams();
         assert(inflatedParams.size() == nParams);
-        vector<vector<Real>> partials(nParams, vector<Real>(nEvals));
 
         PatternSignedDistance<ADScalar, WMesh> patternAutodiff(wmesh);
         vector<ADScalar> params;
@@ -304,7 +317,7 @@ public:
 #else
         for (size_t e = 0; e < nEvals; ++e) evalAtPtIdx(e);
 #endif
-
+#endif // !SKIP_SVEL
         return partials;
     }
 
@@ -346,7 +359,7 @@ public:
 
     WMesh wmesh;
     PSD pattern;
-    Mesher<PSD> mesher;
+    Mesher mesher;
 protected:
     virtual void m_setParameters(const vector<Real> &params) override { pattern.setParameters(params, meshingOptions().jointBlendingMode); }
 };
@@ -723,24 +736,31 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
 #endif
     }
     else if (type == "cubic_preview")   {
-#if 1
-        throw std::runtime_error("Disabled");
-#else
+#if 0
         m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, VCGSurfaceMesher>(wireMeshPath);
         // Triangle mesh doesn't support our post-processing
         disablePostprocess();
+#else
+        throw std::runtime_error("Disabled");
 #endif
     }
     else if (type == "cubic_features")   {
-        // Output the sharp 1D features created by bounding box intersection.
-        throw std::runtime_error("Disabled");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, BoxIntersectionMesher>(wireMeshPath);
+#if 0
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, BoxIntersectionMesher>(wireMeshPath);
         // Line mesh doesn't support our post-processing
         disablePostprocess();
+#else
+        // Output the sharp 1D features created by bounding box intersection.
+        throw std::runtime_error("Disabled");
+#endif
     }
     else if (type == "orthotropic_features")   {
+#if 0
         m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, BoxIntersectionMesher>(wireMeshPath);
         disablePostprocess();
+#else
+        throw std::runtime_error("Disabled");
+#endif
     }
     else if (type == "triply_periodic_features")   {
         throw std::runtime_error("Disabled");
@@ -763,12 +783,11 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
         // disablePostprocess();
     }
     else if (type == "2D_orthotropic") {
-        // throw std::runtime_error("Disabled.");
+#if 1
         m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(wireMeshPath);
-    }
-    else if (type == "2D_orthotropic_thick") {
-        // throw std::runtime_error("Disabled.");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, VCGSurfaceMesher>(wireMeshPath);
+#else
+        throw std::runtime_error("Disabled.");
+#endif
     }
     else throw runtime_error("Unknown inflator type: " + type);
 }

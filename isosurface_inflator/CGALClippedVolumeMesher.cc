@@ -17,7 +17,8 @@
 
 #include "BoxIntersection1DFeatures.hh"
 #include "WireMesh.hh"
-#include "PatternSignedDistance.hh"
+
+#include "PaperVisualizationSDFunc.hh"
 
 #include <GlobalBenchmark.hh>
 
@@ -31,10 +32,9 @@ typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 typedef K::FT FT;
 typedef K::Point_3 Point;
 
-template<class SignedDistanceFunction>
-struct CGALClippedVolumeMesher<SignedDistanceFunction>::
+struct CGALClippedVolumeMesher::
 ClippedSignedDistanceFunction {
-    ClippedSignedDistanceFunction(const SignedDistanceFunction &sdf)
+    ClippedSignedDistanceFunction(const SignedDistanceRegion<3> &sdf)
         : m_sdf(sdf), m_meshingBox(sdf.boundingBox()) { }
 
     FT operator()(const Point &p) const {
@@ -46,13 +46,12 @@ ClippedSignedDistanceFunction {
         return m_sdf.isInside(Point3<Real>(p[0], p[1], p[2])) ? -1.0 : 1;
     }
 private:
-    const SignedDistanceFunction &m_sdf;
+    const SignedDistanceRegion<3> &m_sdf;
     SD::Primitives::Box<Real> m_meshingBox;
 };
 
-template<class SignedDistanceFunction>
-void CGALClippedVolumeMesher<SignedDistanceFunction>::
-mesh(const SignedDistanceFunction &sdf,
+void CGALClippedVolumeMesher::
+mesh(const SignedDistanceRegion<3> &sdf,
      std::vector<MeshIO::IOVertex> &vertices,
      std::vector<MeshIO::IOElement> &elements)
 {
@@ -182,11 +181,3 @@ mesh(const SignedDistanceFunction &sdf,
                               V[it->vertex(3)]);
     }
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Explicit instantiations
-////////////////////////////////////////////////////////////////////////////////
-// template class CGALClippedVolumeMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>>>;
-// Enable for slower builds...
-template class CGALClippedVolumeMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>>>;
-// template class CGALClippedVolumeMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>>;

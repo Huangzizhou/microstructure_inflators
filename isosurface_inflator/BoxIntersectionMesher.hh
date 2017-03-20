@@ -14,15 +14,15 @@
 
 #include "MeshingOptions.hh"
 #include <MeshIO.hh>
+#include "SignedDistanceRegion.hh"
 
-template<class SignedDistanceFunction>
 class BoxIntersectionMesher {
 public:
-    typedef typename SignedDistanceFunction::Real Real;
+    using Real = SignedDistanceRegion<3>::Real;
     BoxIntersectionMesher(const MeshingOptions &opts = MeshingOptions())
         : meshingOptions(opts) { }
 
-    void mesh(const SignedDistanceFunction &sdf,
+    void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
             std::vector<MeshIO::IOElement> &elements);
 

@@ -1,7 +1,7 @@
 MeshFEM ?= $(MESHFEM_PATH)
 include $(MeshFEM)/platform_defs.mk
 
-INCLUDES=-I$(MeshFEM) -I$(CSGFEM) -isystem $(EIGEN_INC) -isystem $(BOOST_INC) \
+INCLUDES=-I$(MeshFEM) -I$(CSGFEM) -isystem $(CGAL_INC) -isystem $(EIGEN_INC) -isystem $(BOOST_INC) \
 		 -isystem $(ADEPT_INC) -isystem $(VCGLIB_INC) \
 		 -isystem $(CGAL_INC) -isystem $(GMP_INC) -isystem $(MPFR_INC) \
 		 -isystem $(TRIANGLE_INC)
@@ -22,7 +22,7 @@ LIBS+=$(BOOST_LFLAGS)
 LIBS+=$(TRIANGLE_LFLAGS)
 LIBS+=$(TBB_LFLAGS)
 
-# CPPFLAGS += -DCGAL_MESH_3_VERBOSE -DCGAL_MESH_3_DEBUG
+# CPPFLAGS += -DCGAL_MESH_3_VERBOSE # -DCGAL_MESH_3_DEBUG
 # CPPFLAGS=-O2 -DCGAL_MESH_3_VERBOSE
 # CPPFLAGS=-g -O0 # -DCGAL_MESH_3_VERBOSE -DCGAL_MESH_3_PROTECTION_DEBUG -ftemplate-backtrace-limit=0
 # CPPFLAGS += -DDEBUG_MARCHING_SQUARES
@@ -42,6 +42,9 @@ isosurface_cli: isosurface_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o $(MeshFE
 replicate: replicate.o $(MeshFEM)/MeshIO.o $(MeshFEM)/MSHFieldParser.o $(MeshFEM)/Types.o
 	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
 
+VisualizeQuantities: VisualizeQuantities.o $(MeshFEM)/MeshIO.o $(MeshFEM)/MSHFieldParser.o $(MeshFEM)/Types.o ConvexHullTriangulation.o CGALClippedVolumeMesher.o $(MeshFEM)/GlobalBenchmark.o
+	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
+
 PrintabilityCheck: PrintabilityCheck.o $(MeshFEM)/MeshIO.o
 	g++ -L/usr/local/lib -L/opt/local/lib $(LIBS) $^ -o $@
 
@@ -57,7 +60,7 @@ SignedDistance_cli: SignedDistance_cli.o $(MeshFEM)/MeshIO.o $(MeshFEM)/Types.o 
 TestWireMesh: tests/TestWireMesh.o
 	g++ -L/usr/local/lib $^ -o $@
 
-INCLUDES+=-isystem /opt/local/include -I$(MeshFEM) -I$(CSGFEM) -isystem /opt/local/include/eigen3 -isystem $(VCGLIB_INC) 
+INCLUDES+=-isystem /opt/local/include -I$(MeshFEM) -I$(CSGFEM) -isystem /opt/local/include/eigen3 -isystem $(VCGLIB_INC) # -isystem $(LIBIGL_PATH)/include
 INCLUDES+=$(TBB_IFLAGS)
 CPPFLAGS+=-Wall -pedantic -std=c++11 $(INCLUDES) -DBENCHMARK
 CPPFLAGS+=$(WARNING_FLAGS)

@@ -184,6 +184,7 @@ int main(int argc, const char *argv[]) {
                     assert((l.row > 0) && (l.row < first_slice.height()));
                     for (int nco = -1; nco <= 1; ++nco) {
                     for (int nro = -1; nro <= 1; ++nro) {
+                        // TODO: what about other diagonal?!?
                         if ((nco == 0) == (nro == 0)) continue; // don't consider center or diagonals.
                         Loc nl(l.col + nco, l.row + nro);
                         if (first_slice(nl.col, nl.row) == 0) { // reached the boundary!

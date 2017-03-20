@@ -35,8 +35,8 @@ void drawArrow(const Point3D &tail,
 typedef enum {SMOOTH_NONE, SMOOTH_FULL, SMOOTH_ELLIPSECP, SMOOTH_RAYCAST, SMOOTH_HULL} SmoothingMode;
 
 struct GeometryParams {
-    float radius1 = 0.20, radius2 = 0.20, radius3 = 0.20;
-    float alpha = M_PI / 2;
+    float radius1 = 0.05, radius2 = 0.20, radius3 = 0.20;
+    float alpha = 0.85;
     float edgeLen1 = 0.75, edgeLen2 = 0.75;
 
     // float radius1 = 0.20, radius2 = 0.05, radius3 = 0.5;
@@ -590,10 +590,10 @@ bool g_showJoint = true;
 bool g_showConvexHull = false;
 bool g_showBlendingRegion = true;
 bool g_showHullPlanes = false;
-bool g_showIntersectionPlane = false;
+bool g_showIntersectionPlane = true;
 
-float g_queryPtEllipseAngle = 0.0;
-float g_queryPtDist = 0.25f;
+float g_queryPtEllipseAngle = 0.30;
+float g_queryPtDist = 0.23f;
 float g_queryPtPerpDist = 0.0f;
 
 
@@ -798,8 +798,8 @@ void drawQueryPointInfo(const Point3D &queryPt) {
     auto e1t = joint.edge1.frustumAxialTangent(e1p);
     auto e2t = joint.edge2.frustumAxialTangent(e2p);
 
-    drawArrow(e1p, e1p + 0.08 * e1n, 0.02, RGBColorf(1.0, 0.0, 0.0));
-    drawArrow(e2p, e2p + 0.08 * e2n, 0.02, RGBColorf(0.0, 0.0, 1.0));
+    drawArrow(e1p, e1p + 0.25 * e1n, 0.04, RGBColorf(1.0, 0.0, 0.0));
+    drawArrow(e2p, e2p + 0.25 * e2n, 0.04, RGBColorf(0.0, 0.0, 1.0));
 }
 
 void render(const TriMesh &m) {
@@ -838,7 +838,7 @@ void Display(void) {
     float mat[4*4]; // rotation matrix
 
     // Clear frame buffer
-    glClearColor(0, 0, 0, 1);
+    glClearColor(1, 1, 1, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glDisable(GL_CULL_FACE);
@@ -970,35 +970,35 @@ void Display(void) {
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         drawQueryPointInfo(queryPt);
 
-        glDisable(GL_LIGHTING);
-        glColor3f(1, 1, 1);
-        glPointSize(8.0);
-        glLineWidth(1.0);
-        glBegin(GL_POINTS);
-            glVertex3dv(cpp.data());
-            glVertex3dv(ccp.data());
-        glEnd();
-        glBegin(GL_LINES);
-            glVertex3dv(ccp.data());
-            glColor3f(0.2, 1.0, 0.0);
-            glVertex3dv(cpp.data());
+        // glDisable(GL_LIGHTING);
+        // glColor3f(1, 1, 1);
+        // glPointSize(8.0);
+        // glLineWidth(1.0);
+        // glBegin(GL_POINTS);
+        //     glVertex3dv(cpp.data());
+        //     glVertex3dv(ccp.data());
+        // glEnd();
+        // glBegin(GL_LINES);
+        //     glVertex3dv(ccp.data());
+        //     glColor3f(0.2, 1.0, 0.0);
+        //     glVertex3dv(cpp.data());
 
-            glVertex3dv(cpp.data());
-            glColor3f(0.2, 1.0, 0.0);
-            glVertex3dv(queryPt.data());
-        glEnd();
+        //     glVertex3dv(cpp.data());
+        //     glColor3f(0.2, 1.0, 0.0);
+        //     glVertex3dv(queryPt.data());
+        // glEnd();
 
-        // Draw the intersection curve (+/- z)
-        glColor3f(0.0, 0.2, 1.0);
-        glLineWidth(4);
-        glBegin(GL_LINE_STRIP);
-            for (const auto &pt : bjoint.intersectionCurvePoints(1000, 1.0))
-                glVertex3dv(pt.data());
-        glEnd();
-        glBegin(GL_LINE_STRIP);
-            for (const auto &pt : bjoint.intersectionCurvePoints(1000, -1.0))
-                glVertex3dv(pt.data());
-        glEnd();
+        // // Draw the intersection curve (+/- z)
+        // glColor3f(0.0, 0.2, 1.0);
+        // glLineWidth(4);
+        // glBegin(GL_LINE_STRIP);
+        //     for (const auto &pt : bjoint.intersectionCurvePoints(1000, 1.0))
+        //         glVertex3dv(pt.data());
+        // glEnd();
+        // glBegin(GL_LINE_STRIP);
+        //     for (const auto &pt : bjoint.intersectionCurvePoints(1000, -1.0))
+        //         glVertex3dv(pt.data());
+        // glEnd();
 
         glColor3f(0.55, 0.1, 0.55);
         // drawPlane(o, 4 * t, 4 * z);
@@ -1036,7 +1036,7 @@ void Display(void) {
 
     if (g_showBlendingRegion) {
         glEnable(GL_LIGHTING);
-        RGBColorf color(0.2, 1.0, 0.2);
+        RGBColorf color(0.5, 0.5, 0.5);
         float matAmbient1[] = {0.5f * color.r, 0.5f * color.g, 0.5f * color.b, 0.25f};
         float matDiffuse1[] = {1.0f * color.r, 1.0f * color.g, 1.0f * color.b, 0.25f};
         glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, matAmbient1);

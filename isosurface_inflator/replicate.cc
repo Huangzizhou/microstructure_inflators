@@ -193,5 +193,11 @@ int main(int argc, const char *argv[]) {
         transferField(smf, name, type, writer, origVertex, origElement, vtxRefl, elmRefl);
     }
 
+    ScalarField<double> highlightOrthoBase(vertices.size());
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        highlightOrthoBase[i] = (origVertex[i] == i) ? 1.0 : 0.0;
+    }
+    writer.addField("ortho_base_indicator", highlightOrthoBase);
+
     return 0;
 }

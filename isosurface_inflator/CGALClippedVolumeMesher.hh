@@ -25,14 +25,15 @@
 #include <MeshIO.hh>
 #include "MeshingOptions.hh"
 
-template<class SignedDistanceFunction>
+#include "SignedDistanceRegion.hh"
+
 class CGALClippedVolumeMesher {
 public:
-    typedef typename SignedDistanceFunction::Real Real;
+    using Real = typename SignedDistanceRegion<3>::Real;
     CGALClippedVolumeMesher(const MeshingOptions &opts = MeshingOptions())
         : meshingOptions(opts) { }
 
-    void mesh(const SignedDistanceFunction &sdf,
+    void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
             std::vector<MeshIO::IOElement> &elements);
 

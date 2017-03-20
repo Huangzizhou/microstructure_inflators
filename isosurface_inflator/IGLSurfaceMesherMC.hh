@@ -8,14 +8,13 @@
 
 #include <Parallelism.hh>
 
-template<class SignedDistanceFunction>
 class IGLSurfaceMesherMC {
 public:
-    typedef typename SignedDistanceFunction::Real Real;
+    using Real = SignedDistanceRegion<3>::Real;
     IGLSurfaceMesherMC(const MeshingOptions &opts = MeshingOptions())
         : meshingOptions(opts) { }
 
-    void mesh(const SignedDistanceFunction &sdf,
+    void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
             std::vector<MeshIO::IOElement> &elements,
             const double isolevel = 0.0);
@@ -23,9 +22,7 @@ public:
     MeshingOptions meshingOptions;
 };
 
-template<class SignedDistanceFunction>
-void IGLSurfaceMesherMC<SignedDistanceFunction>::
-mesh(const SignedDistanceFunction &sdf,
+mesh(const SignedDistanceRegion<3> &sdf,
      std::vector<MeshIO::IOVertex> &vertices,
      std::vector<MeshIO::IOElement> &elements, const double isolevel)
 {

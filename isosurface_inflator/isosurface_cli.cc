@@ -9,6 +9,8 @@
 
 #include <boost/program_options.hpp>
 #include <GlobalBenchmark.hh>
+#include <Parallelism.hh>
+
 namespace po = boost::program_options;
 using namespace std;
 
@@ -47,6 +49,9 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
                               ("dumpShapeVelocities,S", po::value<string>(), " Dump the shape velocities for debugging")
                               ("loadMesh,M",            po::value<string>(), " Skip meshing process, loading existing mesh instead (for debugging)")
                               ("assertPlanarNormals",                        " Verify that normals have a zero z component (relevant in 2D)")
+#if HAS_TBB
+                              ("numProcs",              po::value<size_t>(), "Number of threads to use for TBB parallelism (CGAL mesher, etc.)")
+#endif
                               ;
 
     po::options_description cli_opts;
@@ -78,6 +83,17 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
 int main(int argc, char *argv[])
 {
     auto args = parseCmdLine(argc, argv);
+
+#if HAS_TBB
+    size_t np = tbb::task_scheduler_init::default_num_threads();
+    if (args.count("numProcs")) {
+        size_t manualNP = args["numProcs"].as<size_t>();
+        if (manualNP > np)
+            std::cerr << "WARNING: specifying more than the default number of TBB threads." << std::endl;
+        np = manualNP;
+    }
+    tbb::task_scheduler_init init(np);
+#endif
 
     IsosurfaceInflator inflator(args["mesher"].as<string>(), true, args["wire"].as<string>());
 

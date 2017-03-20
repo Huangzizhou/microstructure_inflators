@@ -4,7 +4,6 @@
 #include <utility>
 
 #include "WireMesh.hh"
-#include "PatternSignedDistance.hh"
 #include "MarchingSquares/MarchingSquaresStitch.hh"
 #include <filters/CurveCleanup.hh>
 #include <Triangulate.h>
@@ -16,31 +15,25 @@
 
 using namespace std;
 
-template<class VolumeSDF>
-class MidplaneSlice {
-public:
-    typedef typename VolumeSDF::Real   Real;
-    MidplaneSlice(const VolumeSDF &vsdf)
-        : m_volumeSDF(vsdf)
-    {
-        auto bb = vsdf.boundingBox();
-        m_2DBBox = BBox<Point2<Real>>(Point2<Real>(bb.minCorner[0], bb.minCorner[1]),
-                                      Point2<Real>(bb.maxCorner[0], bb.maxCorner[1]));
+struct MidplaneSlice : public SignedDistanceRegion<2> {
+    MidplaneSlice(const SignedDistanceRegion<3> &volumeRegion)
+        : m_volRegion(volumeRegion) {
+        auto bb = volumeRegion.boundingBox();
+        m_2DBBox = BBox<Point2d>(Point2d(bb.minCorner[0], bb.minCorner[1]),
+                                 Point2d(bb.maxCorner[0], bb.maxCorner[1]));
     }
 
-    Point3<Real> volumePoint(const Point2<Real> &planePoint) const {
-        return Point3<Real>(planePoint[0], planePoint[1], 0.0);
+    Point3d volumePoint(const Point2d &planePoint) const {
+        return Point3d(planePoint[0], planePoint[1], 0.0);
     }
 
-    const BBox<Point2<Real>> &boundingBox()    const { return m_2DBBox; }
-    Real signedDistance(const Point2<Real> &p) const { return m_volumeSDF.signedDistance(volumePoint(p)); }
-    bool isInside(const Point2<Real> &p)       const { return signedDistance(p) <= 0; }
+    virtual const BBox<Point2d> &boundingBox()      const override { return m_2DBBox; }
+    virtual double signedDistance(const Point2d &p) const override { return m_volRegion.signedDistance(volumePoint(p)); }
 
 private:
-    const VolumeSDF &m_volumeSDF;
-    BBox<Point2<Real>> m_2DBBox;
+    const SignedDistanceRegion<3> &m_volRegion;
+    BBox<Point2d> m_2DBBox;
 };
-
 
 // Steps:
 //   1) Mesh Boundary (MS grid based on sqrt(max area) target)
@@ -51,20 +44,19 @@ private:
 //       SDF, but this prevents Triangle from running certain operations.)
 //  Potential future improvement: mesh full cell by reflecting and remeshing the
 //  interior.
-template<class SignedDistanceFunction>
-void MidplaneMesher<SignedDistanceFunction>::
-mesh(const SignedDistanceFunction &sdf,
+void MidplaneMesher::
+mesh(const SignedDistanceRegion<3> &sdf,
      std::vector<MeshIO::IOVertex> &vertices,
      std::vector<MeshIO::IOElement> &triangles)
 {
     auto bb = sdf.boundingBox();
     size_t gridSizeX = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[0]),
            gridSizeY = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[1]);
-    Real gridCellWidth = bb.dimensions()[0] / gridSizeX;
+    double gridCellWidth = bb.dimensions()[0] / gridSizeX;
     MarchingSquaresGrid msquares(gridSizeX, gridSizeY,
                                  meshingOptions.marchingSquaresCoarsening);
 
-    MidplaneSlice<SignedDistanceFunction> slice(sdf);
+    MidplaneSlice slice(sdf);
 
 #if SDF_DEBUG_OUT
     {
@@ -80,9 +72,9 @@ mesh(const SignedDistanceFunction &sdf,
     for (const auto &s : result.segments)
         edges.insert(edges.end(), s.second.begin(), s.second.end());
 
-    Real maxLen = meshingOptions.maxBdryEdgeLen();
-    Real domainLength = std::min(bb.dimensions()[0], bb.dimensions()[1]);
-    Real minLen = meshingOptions.minEdgeLenFromMaxArea(domainLength);
+    double maxLen = meshingOptions.maxBdryEdgeLen();
+    double domainLength = std::min(bb.dimensions()[0], bb.dimensions()[1]);
+    double minLen = meshingOptions.minEdgeLenFromMaxArea(domainLength);
     // std::cout << "Using maxLen " << maxLen << ", minLen " << minLen << "old maxLen: " << meshingOptions.maxEdgeLenFromMaxArea() << std::endl;
 
     // Organized polygon soup into ccw polygons
@@ -104,14 +96,14 @@ mesh(const SignedDistanceFunction &sdf,
 
     // Non-periodic polygon cleanup (we assume we're meshing a quarter-cell).
     // TODO: periodic cleanup if we're actually meshing the full period cell.
-    std::vector<std::vector<Real>> variableMinLens;
+    std::vector<std::vector<double>> variableMinLens;
     variableMinLens.reserve(polygons.size());
     bool periodic = false;
     if (meshingOptions.curvatureAdaptive) {
         for (const auto &poly : polygons) {
             std::vector<MeshIO::IOVertex> vertices;
             std::vector<MeshIO::IOElement> elements;
-            std::vector<Real> signedCurvatures;
+            std::vector<double> signedCurvatures;
 
             size_t offset = vertices.size();
             vertices.reserve(offset + poly.size());
@@ -145,21 +137,21 @@ mesh(const SignedDistanceFunction &sdf,
             Vector2D tangent = *segmentP1 - *segmentP0;
             tangent *= 1.0 / tangent.norm();
             Vector2D right(tangent[1], -tangent[0]);
-            Real eps = 1e-3;
+            double eps = 1e-3;
             // Positive if "right" is an outward normal
-            Real diff = slice.signedDistance(midpoint + eps * right) -
-                        slice.signedDistance(midpoint - eps * right);
-            Real sign = diff > 0;
+            double diff = slice.signedDistance(midpoint + eps * right) -
+                          slice.signedDistance(midpoint - eps * right);
+            double sign = diff > 0;
 
             // With this sign convention, convex geometry
             // (tangent turning ccw towards interior) has positive curvature and
             // concave geometry (tangent turning cw towards exterior) has
             // negative sign.
-            for (Real k : signedCurvature(poly))
+            for (double k : signedCurvature(poly))
                 signedCurvatures.push_back(sign * k);
 
             assert(signedCurvatures.size() == vertices.size());
-            ScalarField<Real> kappa(vertices.size());
+            ScalarField<double> kappa(vertices.size());
             for (size_t i = 0; i < vertices.size(); ++i)
                 kappa[i] = signedCurvatures[i];
 
@@ -176,12 +168,12 @@ mesh(const SignedDistanceFunction &sdf,
             // Chose adaptive edge length based on curvature: highly negative
             // curvature uses the fine marching squares-based edge length while the
             // zero and higher curvature uses maxLen / 4
-            ScalarField<Real> lengths(vertices.size()); // Actually per edge
+            ScalarField<double> lengths(vertices.size()); // Actually per edge
             for (size_t i = 0; i < vertices.size(); ++i) {
                 auto pt1 = truncateFrom3D<Point2D>(vertices[i]),
                      pt2 = truncateFrom3D<Point2D>(vertices[(i + 1) % vertices.size()]);
                 int numAverage = 0;
-                Real k = 0;
+                double k = 0;
                 if (!PeriodicBoundaryMatcher::FaceMembership<2>(pt1, slice.boundingBox()).onAnyFace()) {
                     ++numAverage; k += kappa[i];
                 }
@@ -192,23 +184,23 @@ mesh(const SignedDistanceFunction &sdf,
 
                 // Want to interpolate from upper at k >= c to lower at k = d
                 // using function a * 2^(k * b)
-                Real upper = maxLen / 4.0;
-                Real lower = minLen;
-                Real c = -1.0, d = -4;
+                double upper = maxLen / 4.0;
+                double lower = minLen;
+                double c = -1.0, d = -4;
                 // upper = a * 2^(cb)
                 // lower = a * 2^(db)
                 // upper / lower = 2^((c - d) b) ==> b = log2(u / l) / (c - d)
                 // a = upper / 2^(c * b)
-                Real b = log(upper / lower) / (log(2) * (c - d));
-                Real a = upper / pow(2, c * b);
+                double b = log(upper / lower) / (log(2) * (c - d));
+                double a = upper / pow(2, c * b);
                 lengths[i] = a * pow(2, b * k);
                 lengths[i] = std::min(lengths[i], upper);
                 lengths[i] = std::max(lengths[i], lower);
             }
 #if DEBUG_OUT
             writer.addField("min_lengths", lengths, DomainType::PER_ELEMENT);
-            ScalarField<Real> edgeLengths(vertices.size());
-            ScalarField<Real> isShort(vertices.size());
+            ScalarField<double> edgeLengths(vertices.size());
+            ScalarField<double> isShort(vertices.size());
             for (size_t i = 0; i < vertices.size(); ++i) {
                 auto pt1 = truncateFrom3D<Point2D>(vertices[i]),
                      pt2 = truncateFrom3D<Point2D>(vertices[(i + 1) % vertices.size()]);
@@ -220,7 +212,7 @@ mesh(const SignedDistanceFunction &sdf,
             writer.addField("is_short", isShort, DomainType::PER_ELEMENT);
 #endif
             variableMinLens.emplace_back(lengths.domainSize());
-            std::vector<Real> &vml = variableMinLens.back();
+            std::vector<double> &vml = variableMinLens.back();
             for (size_t i = 0; i < lengths.domainSize(); ++i)
                 vml[i] = lengths[i];
         }
@@ -242,14 +234,14 @@ mesh(const SignedDistanceFunction &sdf,
     {
         size_t i = 0;
         for (auto &poly : polygons) {
-            Real cellEpsilon = 0.0; // Marching squares guarantees cell boundary vertex coords are exact
+            double cellEpsilon = 0.0; // Marching squares guarantees cell boundary vertex coords are exact
             if (variableMinLens.size()) {
                 curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
                         meshingOptions.featureAngleThreshold, periodic, variableMinLens.at(i), cellEpsilon);
             }
             else {
                 curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
-                        meshingOptions.featureAngleThreshold, periodic, std::vector<Real>(), cellEpsilon);
+                        meshingOptions.featureAngleThreshold, periodic, std::vector<double>(), cellEpsilon);
             }
             ++i;
         }
@@ -300,7 +292,7 @@ mesh(const SignedDistanceFunction &sdf,
                 triangulatePSLC(holePolygons, std::vector<Point2D>(),
                                 holeVertices, holeTriangles, 1.0, "Q");
 
-                Real maxDist = std::numeric_limits<Real>::lowest();
+                double maxDist = std::numeric_limits<double>::lowest();
                 Point2D bestCandidate;
                 // Choose barycenter with greatest signed distance (furthest
                 // into hole) for robustness
@@ -309,14 +301,14 @@ mesh(const SignedDistanceFunction &sdf,
                             1.0 / 3.0 * (holeVertices[tri[0]].point +
                                          holeVertices[tri[1]].point +
                                          holeVertices[tri[2]].point));
-                    Real sd = slice.signedDistance(candidate);
+                    double sd = slice.signedDistance(candidate);
                     if (sd > maxDist) {
                         bestCandidate = candidate;
                         maxDist = sd;
                     }
                 }
 
-                if (maxDist == std::numeric_limits<Real>::lowest())
+                if (maxDist == std::numeric_limits<double>::lowest())
                     throw std::runtime_error("Couldn't find point inside hole " + std::to_string(i));
                 if (maxDist <= 0)
                     std::cerr << "WARNING: hole point inside object (nonpostive signed distance)" << std::endl;
@@ -340,10 +332,4 @@ mesh(const SignedDistanceFunction &sdf,
 #if DEBUG_OUT
     MeshIO::save("triangulated_polygon.msh", vertices, triangles);
 #endif
-
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Explicit instantiations
-////////////////////////////////////////////////////////////////////////////////
-template class MidplaneMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>>>;

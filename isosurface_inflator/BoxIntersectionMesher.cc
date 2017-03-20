@@ -4,14 +4,12 @@
 #include <utility>
 
 #include "WireMesh.hh"
-#include "PatternSignedDistance.hh"
 #include "BoxIntersection1DFeatures.hh"
 
 using namespace std;
 
-template<class SignedDistanceFunction>
-void BoxIntersectionMesher<SignedDistanceFunction>::
-mesh(const SignedDistanceFunction &sdf,
+void BoxIntersectionMesher::
+mesh(const SignedDistanceRegion<3> &sdf,
      std::vector<MeshIO::IOVertex> &vertices,
      std::vector<MeshIO::IOElement> &elements)
 {
@@ -25,10 +23,3 @@ mesh(const SignedDistanceFunction &sdf,
         for (const auto &e : p)
             elements.emplace_back(e.first, e.second);
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// Explicit instantiations
-////////////////////////////////////////////////////////////////////////////////
-template class BoxIntersectionMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>>>;
-template class BoxIntersectionMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>>>;
-template class BoxIntersectionMesher<PatternSignedDistance<double, WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>>;

@@ -24,6 +24,19 @@ template<typename T> struct IsAutoDiffType : public std::false_type { };
 template<typename T> struct IsAutoDiffType<Eigen::AutoDiffScalar<T>> : public std::true_type { };
 // template<>           struct IsAutoDiffType<          adept::adouble> : public std::true_type { };
 
+// GetADTypeOfPair<T1, T2>
+// Metafunction to return either T1 or T2 depending on which is an autodiff
+// type. If both or neither is an autodiff type, we return T1, which is assumed
+// to equal T2.
+template<typename T1, typename T2, bool T1AD, bool T2AD>
+struct GetADTypeOfPairImpl { using type = T1; static_assert(std::is_same<T1, T2>::value, "Types must equal if neither or both are autodiff."); };
+template<typename T1, typename T2> struct GetADTypeOfPairImpl<T1, T2,  true, false> { using type = T1; };
+template<typename T1, typename T2> struct GetADTypeOfPairImpl<T1, T2, false,  true> { using type = T2; };
+
+template<typename T1, typename T2>
+struct GetADTypeOfPair : public GetADTypeOfPairImpl<T1, T2, IsAutoDiffType<T1>::value, IsAutoDiffType<T2>::value> { };
+
+
 // A note on Eigen's norm() vs squaredNorm():
 // Adept's sqrt overload is not visible to Eigen, so we must use
 // sqrt(x.squaredNorm()) (or include Adept before Eigen).
@@ -84,11 +97,28 @@ struct AutodiffCastImpl {
     static TNew run(const TOrig &val) { return TNew(stripAutoDiff(val)); }
 };
 
-// Casting to autodiff type just works
 template<>
 struct AutodiffCastImpl<true> {
+    // Direct casting only works for scalar values.
     template<typename TNew, typename TOrig>
-    static TNew run(const TOrig &val) { return TNew(val); }
+    static typename std::enable_if<std::is_arithmetic<typename StripAutoDiffImpl<TOrig>::result_type>::value, TNew>::type
+    run(const TOrig &val) { return TNew(val); }
+
+
+    // The only other case we support is Eigen matrices, which must be cast
+    // componentwise.
+    template<typename TNew, typename OrigDerived>
+    static TNew run(const Eigen::MatrixBase<OrigDerived> &val) {
+        using Scalar = typename TNew::Scalar;
+        return val.template cast<Scalar>();
+        // TNew result(val.rows(), val.cols());
+        // for (int i = 0; i < val.rows(); ++i) {
+        //     for (int j = 0; j < val.cols(); ++j)
+        //         result(i, j) = val(i, j);
+        // }
+
+        // return result;
+    }
 };
 
 template<typename TNew, typename TOrig>

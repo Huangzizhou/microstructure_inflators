@@ -35,16 +35,16 @@
 #include "MarchingSquares/MarchingSquaresStitch.hh"
 #include <MSHFieldWriter.hh>
 #include <list>
+#include "SignedDistanceRegion.hh"
 
 // Axis-aligned 2D slice of the 3D signed distance function meant for running
 // marching squares on the bounding box faces.
 // +/- 1: X,    +/- 2: Y,    +/- 2: Z
 template<class VolumeSDF>
-class BoundaryFaceSlice {
+class BoundaryFaceSlice : public SignedDistanceRegion<2> {
 public:
-    typedef typename VolumeSDF::Real   Real;
     BoundaryFaceSlice(const VolumeSDF &vsdf, const int faceIdx)
-        : m_volumeSDF(vsdf)
+        : m_volRegion(vsdf)
     {
         assert((faceIdx != 0) && (faceIdx >= -3)  && (faceIdx <= 3));
         // Cylic ordering
@@ -53,21 +53,20 @@ public:
         m_secondIndex = (m_faceIdx + 2) % 3;
         auto bb = vsdf.boundingBox();
         m_faceCoordinate = (faceIdx < 0) ? bb.minCorner[m_faceIdx] : bb.maxCorner[m_faceIdx];
-        m_2DBBox = BBox<Point2<Real>>(Point2<Real>(bb.minCorner[m_firstIndex], bb.minCorner[m_secondIndex]),
-                                      Point2<Real>(bb.maxCorner[m_firstIndex], bb.maxCorner[m_secondIndex]));
+        m_2DBBox = BBox<Point2d>(Point2d(bb.minCorner[m_firstIndex], bb.minCorner[m_secondIndex]),
+                                 Point2d(bb.maxCorner[m_firstIndex], bb.maxCorner[m_secondIndex]));
     }
 
-    Point3<Real> volumePoint(const Point2<Real> &facePoint) const {
-        Point3<Real> p;
+    Point3d volumePoint(const Point2d &facePoint) const {
+        Point3d p;
         p[m_faceIdx]     = m_faceCoordinate;
         p[m_firstIndex]  = facePoint[0];
         p[m_secondIndex] = facePoint[1];
         return p;
     }
 
-    const BBox<Point2<Real>> &boundingBox()    const { return m_2DBBox; }
-    Real signedDistance(const Point2<Real> &p) const { return m_volumeSDF.signedDistance(volumePoint(p)); }
-    bool isInside(const Point2<Real> &p)       const { return signedDistance(p) <= 0; }
+    virtual const BBox<Point2d> &boundingBox()      const override { return m_2DBBox; }
+    virtual double signedDistance(const Point2d &p) const override { return m_volRegion.signedDistance(volumePoint(p)); }
 
     // There are two copies of each boundary segment: one for each incident box
     // face. We assign unique "ownership" of boundary segments to box faces to
@@ -122,10 +121,10 @@ public:
     }
 
 private:
-    const VolumeSDF &m_volumeSDF;
-    BBox<Point2<Real>> m_2DBBox;
+    const SignedDistanceRegion<3> &m_volRegion;
+    BBox<Point2d> m_2DBBox;
     size_t m_faceIdx, m_firstIndex, m_secondIndex;
-    Real m_faceCoordinate;
+    double m_faceCoordinate;
 };
 
 // Extract the (de-duplicated) 1D sharp features in an obj-like edge-soup

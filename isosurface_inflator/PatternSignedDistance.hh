@@ -24,24 +24,38 @@
 #include "Joint.hh"
 #include "TesselateSpheres.hh"
 
+#include "SignedDistanceRegion.hh"
+
 #include <Future.hh>
 
 #define VERTEX_SMOOTHNESS_MODULATION 1
 #define DISCONTINUITY_AVOIDING_CREASE_AVOIDANCE 1
 
 template<typename _Real, class WMesh>
-class PatternSignedDistance {
+class PatternSignedDistance : public SignedDistanceRegion<3> {
 public:
-    typedef _Real Real;
+    using Real = _Real;
     PatternSignedDistance(const WMesh &wireMesh) : m_wireMesh(wireMesh) {
         static_assert(WMesh::thicknessType == ThicknessType::Vertex,
                 "Only per-vertex thicknesses are currently supported");
     }
 
+    // Always support double type for compatibility with SignedDistanceRegion
+    virtual double signedDistance(const Point3D &p) const override { return stripAutoDiff(m_signedDistanceImpl(autodiffCast<Point3<Real>>(p))); }
+
+    // Also support automatic differentiation types
+    template<typename Real2, bool DebugDerivatives = false>
+    Real2 signedDistance(const Point3<Real2> &p) const { return m_signedDistanceImpl(p); }
+
     size_t numParams() const { return m_wireMesh.numParams(); }
     size_t numThicknessParams() const { return m_wireMesh.numThicknessParams(); }
     size_t numPositionParams() const { return m_wireMesh.numPositionParams(); }
     size_t numBlendingParams() const { return m_wireMesh.numBlendingParams(); }
+
+    // Accelerated version of "signedDistance(p) <= 0"
+    virtual bool isInside(const Point3D &p) const override {
+        return m_isInsideImpl(p);
+    }
 
     void setParameters(const std::vector<Real> &params,
                        JointBlendMode blendMode = JointBlendMode::HULL) {
@@ -488,112 +502,6 @@ public:
         return dist;
     }
 
-    // Additional Real type to support automatic differentiation wrt. p only
-    template<typename Real2, bool DebugDerivatives = false>
-    Real2 signedDistance(Point3<Real2> p) const {
-        p = WMesh::PatternSymmetry::mapToBaseUnit(p);
-        std::vector<Real2> edgeDists;
-        Real2 closestEdgeDist = 1e5;
-        size_t closestEdge = m_edgeGeometry.size();
-        edgeDists.reserve(m_edgeGeometry.size());
-        for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
-            edgeDists.push_back(m_edgeGeometry[i].signedDistance(p));
-            if (edgeDists.back() < closestEdgeDist) {
-                closestEdgeDist = edgeDists.back();
-                closestEdge = i;
-            }
-        }
-
-        assert(closestEdge < m_edgeGeometry.size());
-        Real2 dist = combinedJointDistances<Real2, false, DebugDerivatives>(p, edgeDists, closestEdge);
-
-        // TODO: compare distance to each joint against distance to the edge.
-        // The joint dist should always be <= edge dist since blending is
-        // additive. If both are < edge dist the blending regions overlap and an
-        // smin should be used to smooth creases.
-
-        // // Create smoothed union geometry around each vertex and then union
-        // // together
-        // Real2 dist = 1e5;
-        // for (size_t u = 0; u < numVertices(); ++u)
-        //     dist = std::min(dist, distToVtxJoint(u));
-#if 0
-        for (size_t u = 0; u < numVertices(); ++u) {
-            // Vertex smoothness is in [0, 1],
-            //      1.0: full smoothness (m_blendingParams(u))
-            //      0.0: "no" smoothness (1/256.0)
-            // "smoothness" is computed in multiple steps to work around a bug
-            // in Eigen AutoDiff's make_coherent for expression templates.
-            Real2 smoothness = 1/256.0 + (1.0 - 1/256.0) * vertexSmoothness(u);
-            smoothness *= m_blendingParams.at(u);
-            // Transition to precise union for extremely low smoothing
-            if (smoothness > 1/256.0) {
-                // inlined exp_smin_reparam
-                Real2 k = 1 / smoothness;
-                Real2 smin = 0;
-                for (size_t ei : m_adjEdges[u])
-                    smin += exp(-k * edgeDists[ei]);
-                dist = std::min<Real2>(dist, -log(smin) * smoothness);
-            }
-            else {
-                for (size_t ei : m_adjEdges[u])
-                    dist = std::min<Real2>(dist, edgeDists.at(ei));
-            }
-        }
-#endif
-
-        if (std::isnan(stripAutoDiff(dist)) || std::isinf(stripAutoDiff(dist))) {
-            std::cerr << "ERROR, invalid dist: " << dist << "at: " << stripAutoDiff(p).transpose() << std::endl;
-            std::cerr << "Edge dists:";
-            for (const Real2 &ed : edgeDists) {
-                std::cerr << '\t' << ed;
-            }
-            std::cerr << std::endl;
-        }
-
-        assert(!std::isnan(stripAutoDiff(dist)));
-        assert(!std::isinf(stripAutoDiff(dist)));
-
-        return dist;
-    }
-
-    // Accelerated version of "signedDistance(p) <= 0"
-    bool isInside(Point3<Real> p) const {
-        p = WMesh::PatternSymmetry::mapToBaseUnit(p);
-        std::vector<Real> edgeDists;
-        edgeDists.reserve(m_edgeGeometry.size());
-        // Definitely inside if we're inside one of the edges: assumes blending
-        // is additive.
-        // Note: possibly could be sped up by implementing cheap isInside for
-        // edge geometry.
-        for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
-            edgeDists.push_back(m_edgeGeometry[i].signedDistance(p));
-            if (edgeDists.back() <= 0)
-                return true; // blending is additive
-        }
-
-        return combinedJointDistances<Real, true/* accelerated version*/>(p, edgeDists, 0 /* closestEdge */) <= 0;
-
-        // // see signedDistance(p) above
-        // for (size_t u = 0; u < numVertices(); ++u)
-        //     if (distToVtxJoint(u) <= 0) return true;
-#if 0
-        for (size_t u = 0; u < numVertices(); ++u) {
-            Real smoothness = m_blendingParams[u] * (1/256.0 + (1.0 - 1/256.0) * m_vertexSmoothness[u]);
-            if (smoothness > 1/256.0) {
-                const Real k = 1.0 / smoothness;
-                Real res = 0;
-                for (size_t ei : m_adjEdges[u])
-                    res += exp(-k * edgeDists[ei]);
-                if (res > 1) return true;
-            }
-            else { continue; } // Note: sharp joints only contain p if one of the edges does (can't happen)
-        }
-#endif
-
-        return false;
-    }
-
     // Debug smoothing modulation field/smoothing amount
     template<typename Real2>
     std::pair<Real2, size_t> smoothnessAndClosestVtx(Point3<Real2> p) const {
@@ -642,22 +550,21 @@ public:
     }
 
     // Representative cell bounding box (region to be meshed)
-    BBox<Point3<Real>> boundingBox() const { return m_bbox; }
+    virtual const BBox<Point3D> &boundingBox() const override { return m_bbox; }
     // Choose a different box region to be meshed instead of the default
     // representative cell region (for debugging purposes)
-    void setBoundingBox(const BBox<Point3<Real>> &bb) { m_bbox = bb; }
+    void setBoundingBox(const BBox<Point3D> &bb) { m_bbox = bb; }
 
     // Sphere bounding the representative mesh cell, needed for CGAL meshing.
     // Note: CGAL requires the bounding sphere center to lie inside the object.
-    template<typename Real>
-    void boundingSphere(Point3<Real> &c, Real &r) const {
+    virtual void boundingSphere(Point3D &c, double &r) const override {
         auto bbox = boundingBox();
         auto boxCenter = bbox.center();
         // CGAL requires our bounding sphere center to lie within the object, so we
         // find the closest point on the medial axis to the bounding box center.
-        c = closestMedialAxisPoint(boxCenter);
+        c = stripAutoDiff(closestMedialAxisPoint(autodiffCast<Point3<Real>>(boxCenter)));
         // Determine a radius large enough for the bounding box to fit within.
-        Point3<Real> boxCorner;
+        Point3D boxCorner;
         r = 0.0;
         for (size_t corner = 0; corner < 8; ++corner) {
             for (size_t d = 0; d < 3; ++d) {
@@ -755,13 +662,122 @@ public:
         outFile << "}" << std::endl;
     }
 
+    virtual ~PatternSignedDistance() override { }
+
+private:
+    ////////////////////////////////////////////////////////////////////////////
+    // Signed Distance Evaluation
+    ////////////////////////////////////////////////////////////////////////////
+    // Additional Real type to support automatic differentiation wrt. p only
+    template<typename Real2, bool DebugDerivatives = false>
+    Real2 m_signedDistanceImpl(Point3<Real2> p) const {
+        p = WMesh::PatternSymmetry::mapToBaseUnit(p);
+        std::vector<Real2> edgeDists;
+        Real2 closestEdgeDist = 1e5;
+        if (m_edgeGeometry.size() == 0) return 1.0;
+        size_t closestEdge = m_edgeGeometry.size();
+        edgeDists.reserve(m_edgeGeometry.size());
+        for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
+            edgeDists.push_back(m_edgeGeometry[i].signedDistance(p));
+            if (edgeDists.back() < closestEdgeDist) {
+                closestEdgeDist = edgeDists.back();
+                closestEdge = i;
+            }
+        }
+
+        assert(closestEdge < m_edgeGeometry.size());
+        Real2 dist = combinedJointDistances<Real2, false, DebugDerivatives>(p, edgeDists, closestEdge);
+
+        // TODO: compare distance to each joint against distance to the edge.
+        // The joint dist should always be <= edge dist since blending is
+        // additive. If both are < edge dist the blending regions overlap and an
+        // smin should be used to smooth creases.
+
+        // // Create smoothed union geometry around each vertex and then union
+        // // together
+        // Real2 dist = 1e5;
+        // for (size_t u = 0; u < numVertices(); ++u)
+        //     dist = std::min(dist, distToVtxJoint(u));
+#if 0
+        for (size_t u = 0; u < numVertices(); ++u) {
+            // Vertex smoothness is in [0, 1],
+            //      1.0: full smoothness (m_blendingParams(u))
+            //      0.0: "no" smoothness (1/256.0)
+            // "smoothness" is computed in multiple steps to work around a bug
+            // in Eigen AutoDiff's make_coherent for expression templates.
+            Real2 smoothness = 1/256.0 + (1.0 - 1/256.0) * vertexSmoothness(u);
+            smoothness *= m_blendingParams.at(u);
+            // Transition to precise union for extremely low smoothing
+            if (smoothness > 1/256.0) {
+                // inlined exp_smin_reparam
+                Real2 k = 1 / smoothness;
+                Real2 smin = 0;
+                for (size_t ei : m_adjEdges[u])
+                    smin += exp(-k * edgeDists[ei]);
+                dist = std::min<Real2>(dist, -log(smin) * smoothness);
+            }
+            else {
+                for (size_t ei : m_adjEdges[u])
+                    dist = std::min<Real2>(dist, edgeDists.at(ei));
+            }
+        }
+#endif
+
+        if (std::isnan(stripAutoDiff(dist)) || std::isinf(stripAutoDiff(dist))) {
+            std::cerr << "ERROR, invalid dist: " << dist << "at: " << stripAutoDiff(p).transpose() << std::endl;
+            std::cerr << "Edge dists:";
+            for (const Real2 &ed : edgeDists) {
+                std::cerr << '\t' << ed;
+            }
+            std::cerr << std::endl;
+        }
+
+        assert(!std::isnan(stripAutoDiff(dist)));
+        assert(!std::isinf(stripAutoDiff(dist)));
+
+        return dist;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Accelerated Inside/Outside Check
+    // For meshers that need only inside-outside queries (e.g. CGAL), we can
+    // respond faster if we bypass exact signed distance evaluation.
+    ////////////////////////////////////////////////////////////////////////////
+    // Running inside-outside tests for the autodiff-typed
+    // PatternSignedDistance instantiation is needlessly slow and currently
+    // will trigger a static assert in combinedJointDistances--just forbid it.
+    template<typename Real2>
+    typename std::enable_if<IsAutoDiffType<Real>::value || IsAutoDiffType<Real2>::value, bool>::type
+    m_isInsideImpl(Point3<Real2> /* p */) const {
+        throw std::runtime_error("Inside/outside check attempted with autodiff class or point.");
+    }
+
+    template<typename Real2>
+    typename std::enable_if<!(IsAutoDiffType<Real>::value || IsAutoDiffType<Real2>::value), bool>::type
+    m_isInsideImpl(Point3<Real2> p) const {
+        p = WMesh::PatternSymmetry::mapToBaseUnit(p);
+        std::vector<double> edgeDists;
+        edgeDists.reserve(m_edgeGeometry.size());
+        // Definitely inside if we're inside one of the edges: assumes blending
+        // is additive.
+        // Note: possibly could be sped up by implementing cheap isInside for
+        // edge geometry.
+        for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
+            auto dist = stripAutoDiff(m_edgeGeometry[i].signedDistance(autodiffCast<Point3<Real>>(p)));
+            if (dist <= 0) return true; // blending is additive
+            edgeDists.push_back(dist);
+        }
+
+        return combinedJointDistances<Real, true/* accelerated version*/>(p, edgeDists, 0 /* closestEdge */) <= 0;
+    }
+
 private:
     const WMesh &m_wireMesh;
 
     // Bounding box for the meshing cell. Defaults to the representative cell
     // for the symmetry type, but can be changed manually for debugging
     // purposes.
-    BBox<Point3<Real>> m_bbox = WMesh::PatternSymmetry::template representativeMeshCell<Real>();
+    BBox<Point3D> m_bbox = WMesh::PatternSymmetry::template representativeMeshCell<double>();
 
     std::vector<typename WMesh::Edge> m_edges; // vertex index pairs for each edge
     std::vector<SD::Primitives::InflatedEdge<Real>> m_edgeGeometry;
