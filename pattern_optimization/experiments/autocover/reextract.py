@@ -5,7 +5,7 @@ import os.path
 from glob import glob
 import tarfile, shutil
 import numpy as np
-from LookupTable_isofix import LUT, extract as extractLUT
+from LookupTable import LUT, extract as extractLUT
 dim, pat, rounds_dir, = sys.argv[1:]
 
 dim = int(dim)

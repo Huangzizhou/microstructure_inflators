@@ -21,6 +21,7 @@
 #include <Materials.hh>
 #include <PeriodicHomogenization.hh>
 #include <GlobalBenchmark.hh>
+#include <Future.hh>
 
 #include <vector>
 #include <queue>
@@ -135,6 +136,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("usePthRoot,R",                                                  "Use the true Lp norm for global worst case stress measure (applying pth root)")
         ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
         ("WCSMeasure,w", po::value<string>()->default_value("frobenius"), "Which worst-case stress measure to analyze ('frobenius', 'vonMises')")
+        ("FixedMacroStress", po::value<string>(),                         "Use a fixed macroscopic stress tensor instead of the worst-case")
         ("JSWeight",     po::value<double>(),                             "Use the NLLS tensor fitting term with specified weight.")
         ("JIsoWeight",   po::value<double>(),                             "Use the NLLS isotropy fitting term with specified weight (shrinkage side effect).")
         ("JIsoRelWeight",po::value<double>(),                             "Use the relative isotropy fitting term with specified weight.")
@@ -313,6 +315,20 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     auto measure = args["WCSMeasure"].as<string>();
     boost::algorithm::to_lower(measure);
     ifactory->WCSTermConfig::measure = measure;
+
+    if (args.count("FixedMacroStress")) {
+        auto macroStressStr = args["FixedMacroStress"].as<string>();
+        vector<string> stressComponents;
+        boost::trim(macroStressStr);
+        boost::split(stressComponents, macroStressStr, boost::is_any_of("\t ,"),
+                     boost::token_compress_on);
+        if (stressComponents.size() != flatLen(_N))
+            throw runtime_error("Invalid FixedMacroStress tensor");
+        ifactory->WCSTermConfig::macroLoad =
+            Future::make_unique<typename Simulator::SMatrix>();
+        for (size_t i = 0; i < flatLen(_N); ++i)
+            (*ifactory->WCSTermConfig::macroLoad)[i] = std::stod(stressComponents[i]);
+    }
 
     if (args.count("JSWeight")) {
         ifactory->TensorFitTermConfig::weight  = args["JSWeight"].as<double>();

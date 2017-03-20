@@ -15,13 +15,17 @@ namespace ObjectiveTerms {
 
 template<class _Sim, class _WCSObjectiveType>
 struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
-    using   Base = ObjectiveTerm<_Sim::N>;
-    using  OForm = ScalarOneForm<_Sim::N>;
-    using VField = typename _Sim::VField;
+    using    Base = ObjectiveTerm<_Sim::N>;
+    using   OForm = ScalarOneForm<_Sim::N>;
+    using  VField = typename _Sim::VField;
+    using SMatrix = typename _Sim::SMatrix;
     template<class _Iterate>
     WorstCaseStress(const _Iterate &it,
                     Real globalObjectivePNorm, Real globalObjectiveRoot,
-                    const std::string &measure) : m_baseCellOps(it.baseCellOps()) {
+                    const std::string &measure,
+                    const SMatrix *macroLoad)
+        : m_baseCellOps(it.baseCellOps())
+    {
         // Configure objective
         m_wcs_objective.integrand.p        = globalObjectivePNorm;
         m_wcs_objective.p                  = globalObjectiveRoot;
@@ -33,14 +37,40 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
         // constant, so we can read it off a single element.
         auto CBase = mesh.element(0)->E();
         if (measure == "frobenius") {
-            m_wcs_objective.setPointwiseWCS(mesh,
-                worstCaseFrobeniusStress(CBase, it.complianceTensor(),
-                    m_baseCellOps.macroStrainToMicroStrainTensors()));
+            if (!macroLoad) {
+                m_wcs_objective.setPointwiseWCS(mesh,
+                    worstCaseFrobeniusStress(CBase, it.complianceTensor(),
+                        m_baseCellOps.macroStrainToMicroStrainTensors()));
+            }
+            else {
+                m_wcs_objective.setPointwiseWCS(mesh,
+                    fixedLoadFrobeniusStress(CBase, it.complianceTensor(),
+                        m_baseCellOps.macroStrainToMicroStrainTensors(), *macroLoad));
+            }
         }
         else if (measure == "vonmises") {
-            m_wcs_objective.setPointwiseWCS(mesh,
-                worstCaseVonMisesStress(CBase, it.complianceTensor(),
-                    m_baseCellOps.macroStrainToMicroStrainTensors()));
+            if (!macroLoad) {
+                m_wcs_objective.setPointwiseWCS(mesh,
+                    worstCaseVonMisesStress(CBase, it.complianceTensor(),
+                        m_baseCellOps.macroStrainToMicroStrainTensors()));
+            }
+            else {
+                m_wcs_objective.setPointwiseWCS(mesh,
+                    fixedLoadVonMisesStress(CBase, it.complianceTensor(),
+                        m_baseCellOps.macroStrainToMicroStrainTensors(), *macroLoad));
+            }
+        }
+        else if (measure == "maxnorm") {
+            if (!macroLoad) {
+                m_wcs_objective.setPointwiseWCS(mesh,
+                    worstCaseMaxStress(CBase, it.complianceTensor(),
+                        m_baseCellOps.macroStrainToMicroStrainTensors()));
+            }
+            else {
+                m_wcs_objective.setPointwiseWCS(mesh,
+                    fixedLoadPrincipalStress(CBase, it.complianceTensor(),
+                        m_baseCellOps.macroStrainToMicroStrainTensors(), *macroLoad));
+            }
         }
         else throw std::runtime_error("Unknown worst-case measure: " + measure);
 
@@ -113,7 +143,7 @@ struct IFConfigWorstCaseStress : public IFConfig {
         static_assert(_Iterate::_N == N, "Mismatch in problem dimensions.");
         BENCHMARK_START_TIMER_SECTION("WCS Term");
         auto wcs = Future::make_unique<WorstCaseStress<_Sim, _WCSObjectiveType>>(
-                *it, globalObjectivePNorm, globalObjectiveRoot, measure);
+                *it, globalObjectivePNorm, globalObjectiveRoot, measure, macroLoad.get());
         wcs->setWeight(weight);
 
         // WCS normalization is the initial worst case stress
@@ -129,6 +159,7 @@ struct IFConfigWorstCaseStress : public IFConfig {
     Real globalObjectivePNorm = 1.0;
     Real globalObjectiveRoot = 1.0;
     std::string measure = "frobenius";
+    std::unique_ptr<typename _Sim::SMatrix> macroLoad;
 };
 
 }}
