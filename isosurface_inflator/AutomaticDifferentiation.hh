@@ -36,7 +36,6 @@ template<typename T1, typename T2> struct GetADTypeOfPairImpl<T1, T2, false,  tr
 template<typename T1, typename T2>
 struct GetADTypeOfPair : public GetADTypeOfPairImpl<T1, T2, IsAutoDiffType<T1>::value, IsAutoDiffType<T2>::value> { };
 
-
 // A note on Eigen's norm() vs squaredNorm():
 // Adept's sqrt overload is not visible to Eigen, so we must use
 // sqrt(x.squaredNorm()) (or include Adept before Eigen).
@@ -155,7 +154,6 @@ namespace Eigen {
     FUNC(const Eigen::AutoDiffScalar<DerType>& x) { \
         using namespace Eigen; \
         typedef typename Eigen::internal::traits<typename Eigen::internal::remove_all<DerType>::type>::Scalar Scalar; \
-        typedef AutoDiffScalar<CwiseUnaryOp<Eigen::internal::scalar_multiple_op<Scalar>, const typename Eigen::internal::remove_all<DerType>::type> > ReturnType; \
         CODE; \
     }
 
@@ -181,8 +179,9 @@ namespace Eigen {
 
     // Implement log(cosh(x)) with derivative; useful for stable exp_smin computation
     EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY(log_cosh,
-      return MakeAutoDiffScalar(std::log(std::cosh(x.value())),
-                        x.derivatives() * std::tanh(x.value()));
+        Scalar val = std::log(std::cosh(x.value()));
+        return MakeAutoDiffScalar(val,
+            x.derivatives() * std::tanh(x.value()));
     )
     #undef EIGEN_AUTODIFF_DECLARE_GLOBAL_UNARY
 
