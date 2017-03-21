@@ -254,7 +254,7 @@ void testShapeVelocity(const vector<Point3d> &points, vector<VectorField<double,
         stack.reverse();
         // cout << "Distance: " << dist << endl;
         Point3<double> distGradC1, distGradC2, distGradX;
-        
+
         for (size_t i = 0; i < 3; ++i) {
              distGradX[i] =  x[i].get_gradient();
         }

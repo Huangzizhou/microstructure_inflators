@@ -8,6 +8,8 @@ syntax: glob
 *.pyc
 *.orig
 
+build/*
+
 sequential_laminates/homogenization.pdf
 sequential_laminates/IsotropicFit/results/
 sequential_laminates/results/
