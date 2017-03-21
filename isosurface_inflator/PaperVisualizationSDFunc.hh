@@ -61,7 +61,10 @@ struct PaperVisualizationSDFunc : public SignedDistanceRegion<3> {
         r = 3.0;
     }
 
-    virtual BBox<Point3D> boundingBox() const override { return BBox<Point3D>(Point3D(-1, -1, -1), Point3D(2, 2, 2)); }
+    virtual const BBox<PointNd<3>> & boundingBox() const override {
+    	static auto box = BBox<Point3D>(Point3D(-1, -1, -1), Point3D(2, 2, 2));
+    	return box;
+    }
 
     virtual Real signedDistance(const Point3D &p) const override {
         const double maxOverlapSmoothingAmt = 0.02;
