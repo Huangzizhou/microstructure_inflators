@@ -21,6 +21,9 @@ target_include_directories(isosurface_inflator PUBLIC .)
 set_target_properties(isosurface_inflator PROPERTIES CXX_STANDARD 11)
 set_target_properties(isosurface_inflator PROPERTIES CXX_STANDARD_REQUIRED ON)
 
+# Hide internal symbols
+set_target_properties(isosurface_inflator PROPERTIES CXX_VISIBILITY_PRESET hidden)
+
 # MeshFEM library
 find_package(MeshFEM REQUIRED)
 target_link_libraries(isosurface_inflator MeshFEM)

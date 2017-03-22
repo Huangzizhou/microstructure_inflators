@@ -15,6 +15,7 @@ git/PyMesh
 git/vcglib
 local/ceres-solver 1.12.0-1
 local/cork-git r24.5987de5-1
+local/dlib 19.4-1
 local/f2c 1.0-8
 local/gmsh 2.16.0-1
 local/levmar 2.6-3

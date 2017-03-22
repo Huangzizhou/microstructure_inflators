@@ -5,6 +5,11 @@
 cmake_minimum_required(VERSION 3.0)
 project(Microstructures)
 
+# CMP0063: Honor visibility properties for all target types.
+if(POLICY CMP0063)
+	cmake_policy(SET CMP0063 NEW)
+endif()
+
 ################################################################################
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
