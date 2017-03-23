@@ -12,7 +12,7 @@
 //
 //      The BoundaryPerturbationInflator is used to ease the creation of a
 //      perturbed mesh.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  03/16/2016 18:14:07
@@ -28,7 +28,7 @@
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
-#include "../pattern_optimization/BoundaryPerturbationInflator.hh"
+#include "../pattern_optimization/inflators/BoundaryPerturbationInflator.hh"
 #include "../pattern_optimization/ShapeVelocityInterpolator.hh"
 #include "WorstCaseStress.hh"
 
@@ -333,7 +333,7 @@ int main(int argc, const char *argv[])
     string meshPath = args["mesh"].as<string>();
     auto type = load(meshPath, inVertices, inElements, MeshIO::FMT_GUESS,
                      MeshIO::MESH_GUESS);
-    
+
     // Infer dimension from mesh type.
     size_t dim;
     if      (type == MeshIO::MESH_TET) dim = 3;
