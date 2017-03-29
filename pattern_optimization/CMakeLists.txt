@@ -32,7 +32,6 @@ find_package(VCGlib REQUIRED)
 target_link_libraries(inflators VCGlib::core)
 
 ################################################################################
-
 add_library(optimizers
 		optimizers/ceres.cc
 		optimizers/dlib.cc
@@ -47,6 +46,12 @@ target_link_libraries(optimizers MeshFEM)
 find_package(NLopt REQUIRED)
 target_include_directories(optimizers PUBLIC ${NLOPT_INCLUDE_DIR})
 target_link_libraries(optimizers ${NLOPT_LIBRARIES})
+
+# Accelerate framework
+if (APPLE)
+    find_library(AccelerateFramework Accelerate)
+    target_link_libraries(optimizers ${AccelerateFramework})
+endif (APPLE)
 
 ################################################################################
 
