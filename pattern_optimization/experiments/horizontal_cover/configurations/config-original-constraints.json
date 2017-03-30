@@ -1,0 +1,37 @@
+{
+    "dim": 2,
+    "pattern": 0,
+    "material": "B9Creator",
+    "jobTemplate": "/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/pattern_optimization/experiments/horizontal_cover/template.job",
+    
+    "targetE": 20,
+    "targetNuRange": [-1.0, 1.0],
+    
+    "initialE": 1,
+    "initialNu": 0.35,
+    
+    "targetNSubdiv": 100,
+    "climbingSteps": 20,
+    "branches": 3,
+    "printable": false,
+
+    "radiusBounds": [0.02, 0.2],
+    "translationBounds": [0.1, 0.8],
+    "blendingBounds": [0.005, 0.2],
+    "offsetBounds": [-0.3,0.3],
+
+    "numIters": 20,
+    "maxSimultaneousJobs": 50,
+    "singleClosestInit": true,
+
+    "mem": "2GB",
+    "walltime": "0:10:00",
+
+    "args": ["--solver", "slsqp", "-V", "-O", "--TensorFitConstraint",
+             "--tensor_fit_tolerance=1e-5",
+             "-M", "/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/pattern_optimization/experiments/autocover/2D/meshing_opts.json",
+             "--WCSWeight=0",
+             "--JSWeight=1.0",
+             "--proximityRegularizationWeight=1.0"]
+}
+
