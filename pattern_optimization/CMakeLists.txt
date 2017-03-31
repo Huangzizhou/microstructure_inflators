@@ -15,21 +15,36 @@ add_library(inflators
 		MakeInflator.cc
 		inflators/EqualityConstrainedInflator.cc
 		inflators/IsoinflatorWrapper.cc
-		inflators/JamesInflatorWrapper.cc
-		inflators/LuigiInflatorWrapper.cc
+		
 		inflators/BoundaryPerturbationInflator.cc)
 set_target_properties(inflators PROPERTIES CXX_STANDARD 11)
-
-# PyMesh Wires library
-find_package(PyMesh REQUIRED)
-target_link_libraries(inflators PyMesh::core PyMesh::wires)
 
 # MeshFEM library
 target_link_libraries(inflators MeshFEM)
 
+################################################################################
+# Optional libraries for inflation
+################################################################################
+
+# PyMesh Wires library
+find_package(PyMesh QUIET)
+if (PYMESH_FOUND)
+    target_link_libraries(inflators PyMesh::core PyMesh::wires)
+    target_compile_definitions(inflators PUBLIC -DHAS_PYMESH)
+    target_sources(inflators PRIVATE inflators/JamesInflatorWrapper.cc)
+else()
+    message(STATUS "PyMesh not found; disabling James' Inflator")
+endif()
+
 # VCG library
-find_package(VCGlib REQUIRED)
-target_link_libraries(inflators VCGlib::core)
+find_package(VCGlib QUIET)
+if (VCGLIB_FOUND)
+    target_link_libraries(inflators VCGlib::core)
+    target_compile_definitions(inflators -DHAS_VCG)
+    target_sources(inflators PRIVATE inflators/LuigiInflatorWrapper.cc)
+else()
+    message(STATUS "VCGLib not found; disabling Luigi's Inflator")
+endif()
 
 ################################################################################
 
@@ -47,6 +62,29 @@ target_link_libraries(optimizers MeshFEM)
 find_package(NLopt REQUIRED)
 target_include_directories(optimizers PUBLIC ${NLOPT_INCLUDE_DIR})
 target_link_libraries(optimizers ${NLOPT_LIBRARIES})
+
+################################################################################
+# Optional optimization libraries
+################################################################################
+# Dlib Library
+find_package(Dlib QUIET)
+if (DLIB_FOUND)
+    target_include_directories(optimizers PUBLIC ${DLIB_INCLUDE_DIR})
+    target_link_libraries(optimizers ${DLIB_LIBRARIES})
+    target_compile_definitions(optimizers PUBLIC -DHAS_DLIB)
+else()
+    message(STATUS "DLib not found; bfgs optimizer is disabled")
+endif()
+
+# Ceres library
+find_package(Ceres QUIET)
+if (CERES_FOUND)
+    target_include_directories(optimizers SYSTEM PUBLIC ${CERES_INCLUDE_DIRS})
+    target_link_libraries(optimizers ${CERES_LIBRARIES})
+    target_compile_definitions(optimizers PUBLIC -DHAS_CERES)
+else()
+    message(STATUS "Google's ceres-solver not found; levenberg-marquardt disabled")
+endif()
 
 ################################################################################
 

@@ -158,7 +158,7 @@ struct IFConfigWorstCaseStress : public IFConfig {
     Real weight = 1.0;
     Real globalObjectivePNorm = 1.0;
     Real globalObjectiveRoot = 1.0;
-    std::string measure = "frobenius";
+    std::string measure = std::string("frobenius");
     std::unique_ptr<typename _Sim::SMatrix> macroLoad;
 };
 

@@ -1,5 +1,6 @@
 #include "ceres.hh"
 
+#if HAS_CERES
 #include <ceres/ceres.h>
 #include <glog/logging.h>
 
@@ -153,3 +154,25 @@ void optimize_ceres_dogleg(ScalarField<Real> &params,
     ceres::Solve(options, &problem, &summary);
     std::cout << summary.BriefReport() << "\n";
 }
+
+#else // !HAS_CERES
+
+void optimize_ceres_lm(ScalarField<Real> &params,
+                       const BoundConstraints &bds,
+                       IterateManagerBase &im,
+                       const OptimizerConfig &oconfig,
+                       const std::string &outPath)
+{
+    throw std::runtime_error("Built without Google ceres-solver");
+}
+
+void optimize_ceres_dogleg(ScalarField<Real> &params,
+        const PatternOptimization::BoundConstraints &bds,
+        PatternOptimization::IterateManagerBase &im,
+        const PatternOptimization::OptimizerConfig &oconfig,
+        const std::string &outPath)
+{
+    throw std::runtime_error("Built without Google ceres-solver");
+}
+
+#endif // HAS_CERES

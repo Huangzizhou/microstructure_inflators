@@ -1,5 +1,6 @@
 #include "dlib.hh"
 
+#if HAS_DLIB
 #include <dlib/optimization.h>
 #include <vector>
 
@@ -112,3 +113,16 @@ void optimize_dlib_bfgs(ScalarField<Real> &params,
     for (size_t p = 0; p < nParams; ++p)
         params[p] = optParams(p);
 }
+
+#else // !HAS_DLIB
+
+void optimize_dlib_bfgs(ScalarField<Real> &params,
+        const PatternOptimization::BoundConstraints &bds,
+        PatternOptimization::IterateManagerBase &im,
+        const PatternOptimization::OptimizerConfig &oconfig,
+        const std::string &outPath)
+{
+    throw std::runtime_error("Built without DLib");
+}
+
+#endif // HAS_DLIB

@@ -8,8 +8,7 @@ add_library(isosurface_inflator
 		ConvexHullTriangulation.cc
 		IsosurfaceInflator.cc
 		MeshingOptions.cc
-		MidplaneMesher.cc
-		VCGSurfaceMesher.cc)
+		MidplaneMesher.cc)
 
 target_include_directories(isosurface_inflator PUBLIC .)
 
@@ -28,14 +27,21 @@ set_target_properties(isosurface_inflator PROPERTIES CXX_VISIBILITY_PRESET hidde
 find_package(MeshFEM REQUIRED)
 target_link_libraries(isosurface_inflator MeshFEM)
 
-# VCG library
-find_package(VCGlib REQUIRED)
-target_link_libraries(isosurface_inflator VCGlib::core)
-
 # CGAL library
 find_package(CGAL REQUIRED COMPONENTS Core)
 set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS ON CACHE BOOL "" FORCE) # Don't mess up our build plz
 include(${CGAL_USE_FILE}) # <-- Looking forwards to have imported targets with CGAL
+
+################################################################################
+# Optional libraries
+################################################################################
+# VCG library
+find_package(VCGlib)
+if (VCGLIB_FOUND)
+    target_link_libraries(isosurface_inflator VCGlib::core)
+    target_compile_definitions(isosurface_inflator -DHAS_VCG)
+    target_sources(isosurface_inflator PRIVATE VCGSurfaceMesher.cc)
+endif()
 
 ################################################################################
 # Independent binaries

@@ -24,5 +24,6 @@ find_package_handle_standard_args(MESHFEM DEFAULT_MSG MESHFEM_INCLUDE)
 
 if(MESHFEM_FOUND AND NOT TARGET MeshFEM)
 	# Build MeshFEM library alongside the rest of the project
-	add_subdirectory(${MESHFEM_INCLUDE} MeshFEM)
+    # EXCLUDE_FFROM_ALL: don't compile the MeshFEM executables by default.
+    add_subdirectory(${MESHFEM_INCLUDE} MeshFEM EXCLUDE_FROM_ALL)
 endif()
