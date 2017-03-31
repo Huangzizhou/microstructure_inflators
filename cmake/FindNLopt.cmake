@@ -17,6 +17,7 @@ FIND_PATH(NLOPT_INCLUDE_DIR nlopt.h
 		${NLOPT_PREFIX_PATH}
 	PATHS
 		"C:/Program Files/NLopt/include"
+		$ENV{NLOPT_INC}
 )
 
 SET (NLOPT_NAMES nlopt nlopt_cxx)
@@ -26,6 +27,7 @@ FIND_LIBRARY (NLOPT_LIBRARY NAMES ${NLOPT_NAMES}
 		${NLOPT_PREFIX_PATH}
 	PATHS
 		"C:/Program Files/NLopt/lib"
+		$ENV{NLOPT_LIB}
 )
 
 # handle the QUIETLY and REQUIRED arguments and set NLOPT_FOUND to TRUE if

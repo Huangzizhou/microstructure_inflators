@@ -39,7 +39,7 @@ include(${CGAL_USE_FILE}) # <-- Looking forwards to have imported targets with C
 find_package(VCGlib)
 if (VCGLIB_FOUND)
     target_link_libraries(isosurface_inflator VCGlib::core)
-    target_compile_definitions(isosurface_inflator -DHAS_VCG)
+    target_compile_definitions(isosurface_inflator PUBLIC -DHAS_VCG)
     target_sources(isosurface_inflator PRIVATE VCGSurfaceMesher.cc)
 endif()
 
