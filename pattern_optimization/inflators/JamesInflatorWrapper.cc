@@ -1,5 +1,7 @@
 #include "JamesInflatorWrapper.hh"
 
+#if JAMES_INFLATOR_ENABLED
+
 #include <Wires/Interfaces/PeriodicExploration.h>
 #include <stdexcept>
 #include <Future.hh>
@@ -147,3 +149,5 @@ void JamesInflatorWrapper::m_inflate_dofs() {
 // Destructor
 ////////////////////////////////////////////////////////////////////////////////
 JamesInflatorWrapper::~JamesInflatorWrapper() { }
+
+#endif // JAMES_INFLATOR_ENABLED

@@ -20,17 +20,23 @@ target_include_directories(isosurface_inflator PUBLIC .)
 set_target_properties(isosurface_inflator PROPERTIES CXX_STANDARD 11)
 set_target_properties(isosurface_inflator PROPERTIES CXX_STANDARD_REQUIRED ON)
 
-# Hide internal symbols
-set_target_properties(isosurface_inflator PROPERTIES CXX_VISIBILITY_PRESET hidden)
+# # Hide internal symbols
+# set_target_properties(isosurface_inflator PROPERTIES CXX_VISIBILITY_PRESET hidden)
 
 # MeshFEM library
 find_package(MeshFEM REQUIRED)
 target_link_libraries(isosurface_inflator MeshFEM)
 
 # CGAL library
+# Note: CGAL only accepts Release and Debug build types...
+set(MyBuildType "${CMAKE_BUILD_TYPE}")
+if ((CMAKE_BUILD_TYPE STREQUAL "RelWithAssert") OR (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
 find_package(CGAL REQUIRED COMPONENTS Core)
 set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS ON CACHE BOOL "" FORCE) # Don't mess up our build plz
 include(${CGAL_USE_FILE}) # <-- Looking forwards to have imported targets with CGAL
+set(CMAKE_BUILD_TYPE "${MyBuildType}")
 
 ################################################################################
 # Optional libraries

@@ -136,7 +136,7 @@ public:
     ParameterType parameterType(size_t p) const override {
         if (p == 0) return ParameterType::Thickness;
         if (p == 1) return ParameterType::Blending; // Sorta...
-        assert(false);
+        throw std::runtime_error("Invalid parameter: " + std::to_string(p));
     }
 
     // 2D is always printable.

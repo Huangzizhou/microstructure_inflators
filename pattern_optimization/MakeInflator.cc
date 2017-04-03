@@ -10,12 +10,8 @@
 #include "inflators/EqualityConstrainedInflator.hh"
 #include "inflators/BoundaryPerturbationInflator.hh"
 
-#if HAS_PYMESH
 #include "inflators/JamesInflatorWrapper.hh"
-#endif
-#if HAS_VCGLIB
 #include "inflators/LuigiInflatorWrapper.hh"
-#endif
 
 using namespace std;
 namespace po = boost::program_options;
@@ -73,25 +69,17 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
                 extract_flag(opts, "vertexThickness"));
     }
     else if (ci_string("James") == name.c_str()) {
-#if HAS_PYMESH
         infl = Future::make_unique<JamesInflatorWrapper>(
                 extract_required<string>(opts, "pattern"),
                 extract_defaulted<double>(opts, "cell_size", 5.0),
                 0.5 * sqrt(2),
                 extract_flag(opts, "isotropicParameters"),
                 extract_flag(opts, "vertexThickness"));
-#else // !HAS_PYMESH
-        throw std::runtime_error("James' inflator disabled (PyMesh unavailable)");
-#endif
         infl->configureSubdivision(extract_defaulted<string>(opts, "sub_algorithm", "simple"),
                                    extract_defaulted<size_t>(opts,     "subdivide",        0));
     }
     else if (ci_string("Luigi") == name.c_str()) {
-#if HAS_VCGLIB
         infl = Future::make_unique<LuigiInflatorWrapper>(extract_required<string>(opts, "pattern"));
-#else // !HAS_VCGLIB
-        throw std::runtime_error("Luigi's inflator disabled (VCGLib unavailable)");
-#endif
     }
     else if (ci_string("LpHole") == name.c_str()) {
         auto lphole_infl = Future::make_unique<LpHoleInflator>();

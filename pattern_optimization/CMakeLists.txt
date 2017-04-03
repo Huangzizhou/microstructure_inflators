@@ -15,7 +15,8 @@ add_library(inflators
 		MakeInflator.cc
 		inflators/EqualityConstrainedInflator.cc
 		inflators/IsoinflatorWrapper.cc
-		
+		inflators/JamesInflatorWrapper.cc
+		inflators/LuigiInflatorWrapper.cc
 		inflators/BoundaryPerturbationInflator.cc)
 set_target_properties(inflators PROPERTIES CXX_STANDARD 11)
 
@@ -31,7 +32,6 @@ find_package(PyMesh QUIET)
 if (PYMESH_FOUND)
     target_link_libraries(inflators PyMesh::core PyMesh::wires)
     target_compile_definitions(inflators PUBLIC -DHAS_PYMESH)
-    target_sources(inflators PRIVATE inflators/JamesInflatorWrapper.cc)
 else()
     message(STATUS "PyMesh not found; disabling James' Inflator")
 endif()
@@ -40,10 +40,17 @@ endif()
 find_package(VCGlib QUIET)
 if (VCGLIB_FOUND)
     target_link_libraries(inflators VCGlib::core)
-    target_compile_definitions(inflators PUBLIC -DHAS_VCG)
-    target_sources(inflators PRIVATE inflators/LuigiInflatorWrapper.cc)
+    target_compile_definitions(inflators PUBLIC -DHAS_VCGLIB)
 else()
     message(STATUS "VCGLib not found; disabling Luigi's Inflator")
+endif()
+
+# Clipper library
+find_package(Clipper QUIET)
+if (CLIPPER_FOUND)
+    target_include_directories(inflators SYSTEM PUBLIC ${CLIPPER_INCLUDE_DIRS})
+    target_link_libraries(     inflators        ${CLIPPER_LIBRARIES})
+    target_compile_definitions(inflators PUBLIC -DHAS_CLIPPER)
 endif()
 
 ################################################################################
@@ -89,9 +96,15 @@ endif()
 ################################################################################
 
 # CGAL library
+# Note: CGAL only accepts Release and Debug build types...
+set(MyBuildType "${CMAKE_BUILD_TYPE}")
+if ((CMAKE_BUILD_TYPE STREQUAL "RelWithAssert") OR (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
+    set(CMAKE_BUILD_TYPE "Release")
+endif()
 find_package(CGAL REQUIRED COMPONENTS Core)
 set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS ON CACHE BOOL "" FORCE) # Don't mess up our build plz
 include(${CGAL_USE_FILE}) # <-- Looking forwards to have imported targets with CGAL
+set(CMAKE_BUILD_TYPE "${MyBuildType}")
 
 ################################################################################
 # Independent binaries

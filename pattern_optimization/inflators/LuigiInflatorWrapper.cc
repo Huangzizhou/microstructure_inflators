@@ -1,5 +1,7 @@
 #include "LuigiInflatorWrapper.hh"
 
+#if LUIGI_INFLATOR_ENABLED
+
 #include "../../Luigi/wireinflator2D/src/WireInflator2D.h"
 
 #include <Future.hh>
@@ -76,3 +78,5 @@ Real LuigiInflatorWrapper::getMaxElementVolume() const { return m_tparams->max_a
 // Destructor
 ////////////////////////////////////////////////////////////////////////////////
 LuigiInflatorWrapper::~LuigiInflatorWrapper() { }
+
+#endif // LUIGI_INFLATOR_ENABLED

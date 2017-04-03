@@ -9,6 +9,10 @@
 
 #include <Fields.hh>
 
+#define LUIGI_INFLATOR_ENABLED (HAS_VCGLIB && HAS_CLIPPER)
+
+#if LUIGI_INFLATOR_ENABLED
+
 // Forward-declare some of Luigi's types.
 class WireInflator2D;
 struct TessellationParameters;
@@ -57,5 +61,24 @@ private:
     std::vector<ParameterType> m_paramTypes;
     std::vector<VectorField<Real, 2>> m_vvels; // velocity field induced by each param
 };
+
+#else // !!LUIGI_INFLATOR_ENABLED
+class LuigiInflatorWrapper : public Inflator<2> {
+public:
+    LuigiInflatorWrapper(const std::string &/* wireMeshPath */, const int /* symmetryMode */ = -1) {
+        throw std::runtime_error("Luigi's inflator is disabled (check HAS_VCGLIB and HAS_CLIPPER)");
+    }
+
+    virtual bool isParametric() const override { return true; }
+    virtual size_t numParameters() const override { return 0; }
+    virtual ParameterType parameterType(size_t /* p */) const override { return ParameterType::Thickness; }
+    // 2D is always printable.
+    virtual bool isPrintable(const std::vector<Real> &/* params */) override { return true; }
+
+    virtual ~LuigiInflatorWrapper() { }
+private:
+    virtual void m_inflate(const std::vector<Real> &/* params */) override { }
+};
+#endif // LUIGI_INFLATOR_ENABLED
 
 #endif /* end of include guard: LUIGIINFLATORWRAPPER_HH */
