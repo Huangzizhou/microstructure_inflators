@@ -23,8 +23,13 @@ $MICRO_DIR/isosurface_inflator/isosurface_cli orthotropic $pattern \
 
 optImg=${pat}_${num}.opt.png
 initImg=${pat}_${num}.init.png
+optImg_zup=${pat}_${num}.opt.zup.png
+initImg_zup=${pat}_${num}.init.zup.png
 gmsh_offscreen $pat.$num.opt.msh  $script_dir/view_pat.opt -o $optImg
 gmsh_offscreen $pat.$num.init.msh $script_dir/view_pat.opt -o $initImg
+
+gmsh_offscreen $pat.$num.opt.msh  $script_dir/view_pat_zup.opt -o $optImg_zup
+gmsh_offscreen $pat.$num.init.msh $script_dir/view_pat_zup.opt -o $initImg_zup
 
 convert -trim -border 5x5 \
     $initImg $optImg +append \
@@ -32,4 +37,10 @@ convert -trim -border 5x5 \
     label:"Stress reduction, init stress, opt stress: $(echo $optString | cut -f2-4 | tr '\t' ',    ')" \
     -append ${pat}_$num.png
 
-rm $pat.$num.opt.msh $pat.$num.init.msh $optImg $initImg
+convert -trim -border 5x5 \
+    $initImg_zup $optImg_zup +append \
+    -gravity Center -background khaki \
+    label:"Stress reduction, init stress, opt stress: $(echo $optString | cut -f2-4 | tr '\t' ',    ')" \
+    -append ${pat}_${num}_zup.png
+
+rm $pat.$num.opt.msh $pat.$num.init.msh $optImg $initImg $optImg_zup $initImg_zup
