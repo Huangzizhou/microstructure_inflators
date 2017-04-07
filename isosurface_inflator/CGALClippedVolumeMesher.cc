@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "BoxIntersection1DFeatures.hh"
-#include "WireMesh.hh"
 
 #include <GlobalBenchmark.hh>
 

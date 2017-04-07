@@ -781,10 +781,7 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
 #endif
     }
     else if (type == "2D_square") {
-        throw std::runtime_error("2D square symmetry unimplemented.");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(wireMeshPath);
-        // Line mesh doesn't support our post-processing
-        // disablePostprocess();
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Square<>>, MidplaneMesher>(wireMeshPath);
     }
     else if (type == "2D_orthotropic") {
 #if 1

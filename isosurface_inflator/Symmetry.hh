@@ -40,6 +40,7 @@ enum class NodeType : unsigned int { Vertex = 0, Edge = 1, Face = 2, Interior = 
 template<typename TOL = DEFAULT_TOL> struct TriplyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct Orthotropic;
 template<typename TOL = DEFAULT_TOL> struct Cubic;
+template<typename TOL = DEFAULT_TOL> struct Square;
 
 // We need a traits class for CRTP to look up the correct NodePositioner class.
 // This traits class must be specialized for each symmetry type.
@@ -49,6 +50,7 @@ template<class Sym> struct SymmetryTraits { };
 template<typename TOL> struct SymmetryTraits<TriplyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Orthotropic<TOL>>    { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Cubic<TOL>>          { template<typename Real> using NodePositioner = TetNodePositioner<Real, TOL>; };
+template<typename TOL> struct SymmetryTraits<Square<TOL>>         { template<typename Real> using NodePositioner = TetNodePositioner<Real, TOL>; };
 
 // Implements some of the shared interface of the symmetry classes
 template<class Sym>
@@ -129,6 +131,11 @@ struct TriplyPeriodic : SymmetryCRTP<TriplyPeriodic<TOL>> {
                (isNegative<TOL>(std::abs(p[2]) - 1.0));
     }
 
+    template<typename Real>
+    static bool inMeshingCell(const Point3<Real> &p) {
+        return inBaseUnit(p);
+    }
+
     // Note that the group of translational symmetries is infinite, but for our
     // purposes (determining incident edges from neighboring cells), the
     // isometries that take us to adjacent cells are sufficient
@@ -177,6 +184,11 @@ struct Orthotropic : public TriplyPeriodic<TOL>, SymmetryCRTP<Orthotropic<TOL>> 
         return TriplyPeriodic<TOL>::inBaseUnit(p) &&
                 isPositive<TOL>(p[0]) && isPositive<TOL>(p[1]) &&
                 isPositive<TOL>(p[2]);
+    }
+
+    template<typename Real>
+    static bool inMeshingCell(const Point3<Real> &p) {
+        return inBaseUnit(p);
     }
 
     static std::vector<Isometry> symmetryGroup() {
@@ -240,6 +252,11 @@ struct Cubic : public Orthotropic<TOL>, SymmetryCRTP<Cubic<TOL>> {
                 (p[1] + tolerance >= p[2]);
     }
 
+    template<typename Real>
+    static bool inMeshingCell(const Point3<Real> &p) {
+        return Orthotropic<TOL>::inMeshingCell(p);
+    }
+
     // Octahedral group symmetries are the reflections of the Orthotropic class'
     // group combined with all 6 axis permutations
     static std::vector<Isometry> symmetryGroup() {
@@ -254,6 +271,45 @@ struct Cubic : public Orthotropic<TOL>, SymmetryCRTP<Cubic<TOL>> {
 
             group.push_back(p.compose(Isometry::permutation(Axis::Y, Axis::Z)).compose(Isometry::permutation(Axis::X, Axis::Y))); // Y Z X
             group.push_back(p.compose(Isometry::permutation(Axis::X, Axis::Y)).compose(Isometry::permutation(Axis::Y, Axis::Z))); // Z X Y
+        }
+        return group;
+    }
+};
+
+// Square symmetry: implemented as cubic symmetry with the unwanted symmetry
+// operations (those permuting out of the z = 0 plane) filtered out.
+// Symmetry group D8 x Translations
+template<typename TOL>
+struct Square : public Orthotropic<TOL>, SymmetryCRTP<Square<TOL>> {
+    typedef TOL Tolerance;
+    using Orthotropic<TOL>::representativeMeshCell;
+    using TriplyPeriodic<TOL>::tolerance;
+
+    // Disambiguate CRTP instances
+    typedef SymmetryCRTP<Square<TOL>> CRTP;
+    using CRTP::nodePositioner;
+    using CRTP::nodeType;
+
+    template<typename Real>
+    static Point3<Real> mapToBaseUnit(Point3<Real> p) {
+        return Cubic<TOL>::mapToBaseUnit(p);
+    }
+
+    template<typename Real>
+    static bool inBaseUnit(const Point3<Real> &p) {
+        return Cubic<TOL>::inBaseUnit(p);
+    }
+
+    template<typename Real>
+    static bool inMeshingCell(const Point3<Real> &p) {
+        return Orthotropic<TOL>::inMeshingCell(p);
+    }
+
+    static std::vector<Isometry> symmetryGroup() {
+        std::vector<Isometry> group;
+        for (const Isometry &iso : Cubic<TOL>::symmetryGroup()) {
+            if (!iso.affectsAxis(Axis::Z))
+                group.push_back(iso);
         }
         return group;
     }

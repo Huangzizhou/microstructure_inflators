@@ -77,6 +77,11 @@ struct Isometry {
             if (op->isReflection(axis)) return true;
         return false;
     }
+    bool affectsAxis(const Symmetry::Axis axis) const {
+        for (const auto &op : operations)
+            if (op->affectsAxis(axis)) return true;
+        return false;
+    }
 
     // Compose "op" on the right (op will be performed before operations[]).
     Isometry compose(std::unique_ptr<const Operation> &&op) const {
@@ -102,8 +107,8 @@ struct Isometry {
     // holds a constant translation.
     // @return  transformed copy of posMap
     Eigen::Matrix3Xd xformMap(Eigen::Matrix3Xd posMap) const {
-        for (const auto &op : operations)
-            op->xformMap(posMap);
+        for (size_t i = operations.size(); i > 0; --i)
+            operations[i - 1]->xformMap(posMap);
         return posMap;
     }
 
@@ -125,6 +130,7 @@ struct Isometry {
         virtual bool isTranslation() const { return false; }
         virtual bool isReflection(const Symmetry::Axis /*axis*/ = Symmetry::Axis::ANY) const { return false; }
         virtual bool isPermutation() const { return false; }
+        virtual bool affectsAxis(const Symmetry::Axis /*axis*/) const = 0;
         virtual void xformMap(Eigen::Matrix3Xd &posMap) const = 0;
         virtual ~Operation() { }
     };
@@ -135,6 +141,7 @@ struct Isometry {
         virtual void print(std::ostream &os) const override { os << "t(" << t[0] << ", " << t[1] << ", " << t[2] << ")"; }
         virtual std::unique_ptr<Operation> clone() const override { return Future::make_unique<Translation>(*this); }
         virtual bool isTranslation() const override { return true; }
+        virtual bool affectsAxis(const Symmetry::Axis axis) const override { return t[size_t(axis)] != 0; }
         virtual void xformMap(Eigen::Matrix3Xd &posMap) const override {
             assert(posMap.cols() > 1);
             posMap.col(posMap.cols() - 1) += t;
@@ -150,6 +157,7 @@ struct Isometry {
         virtual bool isReflection(const Symmetry::Axis axis = Symmetry::Axis::ANY) const override {
             return (axis == Symmetry::Axis::ANY) || (axis == a);
         }
+        virtual bool affectsAxis(const Symmetry::Axis axis) const override { return axis == a; }
         virtual void xformMap(Eigen::Matrix3Xd &posMap) const override {
             posMap.row(static_cast<unsigned int>(a)) *= -1.0;
         }
@@ -162,6 +170,7 @@ struct Isometry {
         virtual void print(std::ostream &os) const override { os << "p(" << axisName(a1) << ", " << axisName(a2) << ")"; }
         virtual std::unique_ptr<Operation> clone() const override { return Future::make_unique<Permutation>(*this); }
         virtual bool isPermutation() const override { return true; }
+        virtual bool affectsAxis(const Symmetry::Axis axis) const override { return (axis == a1) || (axis == a2); }
         virtual void xformMap(Eigen::Matrix3Xd &posMap) const override {
             posMap.row(static_cast<unsigned int>(a1)).swap(posMap.row(static_cast<unsigned int>(a2)));
         }

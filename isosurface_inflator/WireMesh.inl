@@ -71,15 +71,15 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     std::vector<TransformedEdge>   rEdges;
     replicatedGraph(PatternSymmetry::symmetryGroup(), rVertices, rEdges);
 
-    // Detect edges inside or incident base cell.
-    std::vector<bool> touchingBaseCell;
+    // Detect edges inside or incident meshing cell.
+    std::vector<bool> touchingMeshingCell;
     for (const auto &re : rEdges) {
-        touchingBaseCell.push_back(PatternSymmetry::inBaseUnit(rVertices[re.e[0]].pt) ||
-                                   PatternSymmetry::inBaseUnit(rVertices[re.e[1]].pt));
+        touchingMeshingCell.push_back(PatternSymmetry::inMeshingCell(rVertices[re.e[0]].pt) ||
+                                      PatternSymmetry::inMeshingCell(rVertices[re.e[1]].pt));
     }
 
     // Keep edges inside or incident base cell
-    std::vector<bool> keepEdge = touchingBaseCell;
+    std::vector<bool> keepEdge = touchingMeshingCell;
 
     if (KEEP_BC_ADJ_JOINTS) {
         // Also keep the edges for joints incident these edges.
@@ -119,7 +119,7 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
         m_inflVtx.push_back(rVertices[i]);
     }
 
-    // Reindex kept edges.
+    // Update kept edges' endpoint indices.
     for (auto &e : m_inflEdge) {
         e.first = vertexRenumber.at(e.first);
         e.second = vertexRenumber.at(e.second);
