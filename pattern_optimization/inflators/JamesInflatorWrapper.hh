@@ -5,6 +5,10 @@
 #include <memory>
 #include <Fields.hh>
 
+#define JAMES_INFLATOR_ENABLED HAS_PYMESH
+
+#if JAMES_INFLATOR_ENABLED
+
 // Forward declare some of James' types
 namespace PyMesh {
 class PeriodicExploration;
@@ -86,5 +90,26 @@ private:
     // (optionally written to surface_debug.msh)
     void m_inflate_dofs();
 };
+
+#else // !JAMES_INFLATOR_ENABLED
+class JamesInflatorWrapper : public Inflator<3> {
+public:
+    JamesInflatorWrapper(const std::string &/* wireMeshPath */,
+             Real /* cell_size */ = 5.0, Real /* default_thickness */ = 0.5 * sqrt(2),
+             bool /* isotropic_params */ = false, bool /* vertex_thickness */ = false) {
+        throw std::runtime_error("James' inflator is disabled (check HAS_PYMESH)");
+    }
+
+    virtual bool isParametric() const override { return true; }
+    virtual size_t numParameters() const override { return 0; }
+    virtual ParameterType parameterType(size_t /* p */) const override { return ParameterType::Thickness; }
+    // 2D is always printable.
+    virtual bool isPrintable(const std::vector<Real> &/* params */) override { return true; }
+    virtual ~JamesInflatorWrapper() { }
+private:
+    virtual void m_inflate(const std::vector<Real> &/* params */) override { }
+};
+
+#endif // JAMES_INFLATOR_ENABLED
 
 #endif /* end of include guard: JAMESINFLATORWRAPPER_HH */

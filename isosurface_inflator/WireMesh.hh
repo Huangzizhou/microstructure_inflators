@@ -251,14 +251,24 @@ public:
                 // Search for repeated vertices.
                 for (size_t i = 0; i < rVertices.size(); ++i) {
                     if (rVertices[i].sqDistTo(mappedPu) < PatternSymmetry::tolerance) {
-                        if (!hasTranslation) // Translations will give different position maps, but this should be fine for orthotropic patterns
+                        if (!hasTranslation) {// Translations will give different position maps, but this should be fine for orthotropic patterns
+                            if ((rVertices[i].posMap - isometry.xformMap(uPosMap)).squaredNorm() >= 1e-8) {
+                                std::cout << rVertices[i].posMap << std::endl;
+                                std::cout << isometry.xformMap(uPosMap) << std::endl;
+                            }
                             assert((rVertices[i].posMap - isometry.xformMap(uPosMap)).squaredNorm() < 1e-8);
+                        }
                         assert(rVertices[i].origVertex == u); // Note: will fail on triply periodic; need constraints
                         mappedUIdx = i;
                     }
                     if (rVertices[i].sqDistTo(mappedPv) < PatternSymmetry::tolerance) {
-                        if (!hasTranslation)
+                        if (!hasTranslation) {
+                            if ((rVertices[i].posMap - isometry.xformMap(vPosMap)).squaredNorm() >= 1e-8) {
+                                std::cout << rVertices[i].posMap << std::endl;
+                                std::cout << isometry.xformMap(vPosMap) << std::endl;
+                            }
                             assert((rVertices[i].posMap - isometry.xformMap(vPosMap)).squaredNorm() < 1e-8);
+                        }
                         assert(rVertices[i].origVertex == v); // Note: will fail on triply periodic; need constraints
                         mappedVIdx = i;
                     }

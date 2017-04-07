@@ -32,9 +32,12 @@
 #endif
 
 #include "CGALClippedVolumeMesher.hh"
-#include "VCGSurfaceMesher.hh"
 #include "BoxIntersectionMesher.hh"
 #include "MidplaneMesher.hh"
+
+#if HAS_VCG
+#include "VCGSurfaceMesher.hh"
+#endif
 
 #include "IsosurfaceInflatorConfig.hh"
 
@@ -736,7 +739,7 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
 #endif
     }
     else if (type == "cubic_preview")   {
-#if 0
+#if 0 && HAS_VCG
         m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, VCGSurfaceMesher>(wireMeshPath);
         // Triangle mesh doesn't support our post-processing
         disablePostprocess();
@@ -770,17 +773,15 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
         disablePostprocess();
     }
     else if (type == "triply_periodic_preview")   {
-        throw std::runtime_error("Disabled");
-        // Output the sharp 1D features created by bounding box intersection.
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, VCGSurfaceMesher>(wireMeshPath);
-        // Line mesh doesn't support our post-processing
+#if 0 && HAS_VCG
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, VCGSurfaceMesher>(wireMeshPath);
         disablePostprocess();
+#else
+        throw std::runtime_error("Disabled");
+#endif
     }
     else if (type == "2D_square") {
-        throw std::runtime_error("2D square symmetry unimplemented.");
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(wireMeshPath);
-        // Line mesh doesn't support our post-processing
-        // disablePostprocess();
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Square<>>, MidplaneMesher>(wireMeshPath);
     }
     else if (type == "2D_orthotropic") {
 #if 1

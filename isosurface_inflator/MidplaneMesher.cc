@@ -3,7 +3,6 @@
 #include <vector>
 #include <utility>
 
-#include "WireMesh.hh"
 #include "MarchingSquares/MarchingSquaresStitch.hh"
 #include <filters/CurveCleanup.hh>
 #include <Triangulate.h>

@@ -3,7 +3,6 @@
 #include <vector>
 #include <utility>
 
-#include "WireMesh.hh"
 #include "BoxIntersection1DFeatures.hh"
 
 using namespace std;

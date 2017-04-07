@@ -6,11 +6,12 @@
 
 #include "Inflator.hh"
 #include "inflators/IsoinflatorWrapper.hh"
-#include "inflators/JamesInflatorWrapper.hh"
-#include "inflators/LuigiInflatorWrapper.hh"
 #include "inflators/LpHoleInflator.hh"
 #include "inflators/EqualityConstrainedInflator.hh"
 #include "inflators/BoundaryPerturbationInflator.hh"
+
+#include "inflators/JamesInflatorWrapper.hh"
+#include "inflators/LuigiInflatorWrapper.hh"
 
 using namespace std;
 namespace po = boost::program_options;
