@@ -280,6 +280,13 @@ public:
                            const std::vector<Real2> &edgeDists, size_t /* closestEdge */) const {
         std::vector<Real2> jointEdgeDists;
         const double maxOverlapSmoothingAmt = 0.02;
+
+        // {
+        //     Real2 dist = 1e5;
+        //     for (size_t vtx = 0, i = 0; vtx < numVertices(); ++vtx)
+        //         dist = std::min(dist, distToVtxJoint(vtx, p, edgeDists, jointEdgeDists).smooth);
+        //     return dist;
+        // }
 #if 1
         // Note: this computation is made slow by needing to compute signed
         // distances to the blending region for each joint considered. To
