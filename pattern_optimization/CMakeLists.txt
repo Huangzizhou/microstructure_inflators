@@ -67,7 +67,7 @@ target_link_libraries(optimizers MeshFEM)
 
 # NLopt library
 find_package(NLopt REQUIRED)
-target_include_directories(optimizers PUBLIC ${NLOPT_INCLUDE_DIR})
+target_include_directories(optimizers SYSTEM PUBLIC ${NLOPT_INCLUDE_DIR})
 target_link_libraries(optimizers ${NLOPT_LIBRARIES})
 
 ################################################################################
@@ -76,7 +76,7 @@ target_link_libraries(optimizers ${NLOPT_LIBRARIES})
 # Dlib Library
 find_package(Dlib QUIET)
 if (DLIB_FOUND)
-    target_include_directories(optimizers PUBLIC ${DLIB_INCLUDE_DIR})
+    target_include_directories(optimizers SYSTEM PUBLIC ${DLIB_INCLUDE_DIR})
     target_link_libraries(optimizers ${DLIB_LIBRARIES})
     target_compile_definitions(optimizers PUBLIC -DHAS_DLIB)
 else()
