@@ -5,7 +5,12 @@ echo -ne "init_zcompress_min\tinit_zcompress_max\topt_zcompress_min\topt_zcompre
 echo -ne "init_zcompress_sim_min\tinit_zcompress_sim_max\topt_zcompress_sim_min\topt_zcompress_sim_max\t"
 echo -e  "init_zcompress_sim_2x2x1_min\tinit_zcompress_sim_2x2x1_max\topt_zcompress_sim_2x2x1_min\topt_zcompress_sim_2x2x1_max"
 
-for dir in [0-9]*; do
+directories=([0-9]*)
+if [ $# -ne 0 ]; then
+    directories=("$@")
+fi
+
+for dir in $directories; do
     echo -ne "$dir\t"
   ( grep 'Young\|v_yx' $dir/init.homog.txt | cut -f2
     grep 'Young\|v_yx' $dir/opt.homog.txt  | cut -f2
