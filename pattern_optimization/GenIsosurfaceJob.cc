@@ -54,7 +54,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     p.add("topology", 1);
 
     po::options_description visible_opts;
-    visible_opts.add_options()("help",        "Produce this help message")
+    visible_opts.add_options()("help",                                           "Produce this help message")
         ("offsetBounds,o",      po::value<string>(),                             "offset bounds specifier (lower,upper)")
         ("translationBounds,t", po::value<string>(),                             "translation bounds specifier (lower,upper)")
         ("radiusBounds,r",      po::value<string>()->default_value("0.04,0.2"),  "radius bounds specifier (lower,upper)")
@@ -62,6 +62,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("elasticityTensor,e",  po::value<string>()->default_value("1,0"),       "target tensor specifier (Young,Poisson)")
         ("initialParams,p",     po::value<string>(),                             "initial parameters (optional)")
         ("parameterConstraints,c", po::value<string>(),                          "parameter constraint expressions (semicolon-separated, optional)")
+        ("isotropicParameters,I",                                                "Use isotropic DoFs")
+        ("limitedOffset,L",                                                        "Limit offset of nodes to within the base unit (0, 1)")
         ;
 
     po::options_description cli_opts;
@@ -121,7 +123,30 @@ int main(int argc, const char *argv[])
         zmag = max(zmag, std::abs(v[2]));
     size_t dim = (zmag < 1e-2) ? 2 : 3;
 
-    WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>> wm(vertices, elements);
+    // Two different cases, square or orthotropic symmetry
+    std::vector<double> defaultParameters;
+    std::vector<double> defaultPositions;
+    if (args.count("isotropicParameters")){
+        WireMesh<ThicknessType::Vertex, Symmetry::Square<>> wm(vertices, elements);
+        defaultParameters = wm.defaultParameters();
+        defaultPositions = wm.defaultPositionParams();
+
+        // Position parameters should be first in the isosurface inflator
+        for (size_t p = 0; p < defaultPositions.size(); ++p) {
+            assert(wm.isPositionParam(p));
+        }
+    }
+    else {
+        WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>> wm(vertices, elements);
+        defaultParameters = wm.defaultParameters();
+        defaultPositions = wm.defaultPositionParams();
+
+        // Position parameters should be first in the isosurface inflator
+        for (size_t p = 0; p < defaultPositions.size(); ++p) {
+            assert(wm.isPositionParam(p));
+        }
+    }
+
 
     vector<Real> targetModuli = parseVecArg(args["elasticityTensor"].as<string>(), 2);
 
@@ -139,13 +164,26 @@ int main(int argc, const char *argv[])
 
     if (args.count("offsetBounds")) {
         vector<Real> offsetBds = parseVecArg(args["offsetBounds"].as<string>(), 2);
-        auto defaultPositions = wm.defaultPositionParams();
 
         for (size_t p = 0; p < defaultPositions.size(); ++p) {
-            // Position parameters should be first in the isosurface inflator
-            assert(wm.isPositionParam(p));
-            job->varLowerBounds.emplace(p, defaultPositions[p] + offsetBds[0]);
-            job->varUpperBounds.emplace(p, defaultPositions[p] + offsetBds[1]);
+            double lowerBound;
+            double upperBound;
+            if (args.count("limitedOffset"))
+            {
+                lowerBound =  (defaultPositions[p] + offsetBds[0]) > 0 ? (defaultPositions[p] + offsetBds[0]) : 0;
+                upperBound =  (defaultPositions[p] + offsetBds[1]) < 1 ? (defaultPositions[p] + offsetBds[1]) : 1;
+            }
+            else
+            {
+                lowerBound = defaultPositions[p] + offsetBds[0];
+                upperBound = defaultPositions[p] + offsetBds[1];
+            }
+
+            //std::cout << "lower bound: " << lowerBound << std::endl;
+            //std::cout << "upper bound: " << upperBound << std::endl;
+
+            job->varLowerBounds.emplace(p, lowerBound);
+            job->varUpperBounds.emplace(p, upperBound);
         }
     }
 
@@ -163,7 +201,7 @@ int main(int argc, const char *argv[])
                 args["parameterConstraints"].as<string>(), boost::is_any_of(";"));
     }
 
-    job->initialParams = wm.defaultParameters();
+    job->initialParams = defaultParameters;
     if (args.count("initialParams")) {
         job->initialParams = parseVecArg(args["initialParams"].as<string>(),
                                          job->initialParams.size());

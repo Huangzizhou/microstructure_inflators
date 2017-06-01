@@ -134,6 +134,9 @@ public:
     virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
         selfSupportingConstraints(const std::vector<Real> &params) const = 0;
 
+    virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
+    positioningConstraints(const std::vector<Real> &params) const = 0;
+
     // Whether the inflator generates only the orthotropic symmetry base cell
     // (by default--reflectiveInflator will override this)
     virtual bool _mesherGeneratesOrthoCell() const = 0;
@@ -360,6 +363,11 @@ public:
         return wmesh.selfSupportingConstraints(params);
     }
 
+    virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
+    positioningConstraints(const std::vector<Real> &params) const override {
+        return wmesh.positioningConstraints(params);
+    }
+
     WMesh wmesh;
     PSD pattern;
     Mesher mesher;
@@ -405,6 +413,11 @@ bool IsosurfaceInflator::isPrintable(const std::vector<Real> &params) const { re
 Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
 IsosurfaceInflator::selfSupportingConstraints(const std::vector<Real> &params) const {
     return m_imp->selfSupportingConstraints(params);
+}
+
+Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
+IsosurfaceInflator::positioningConstraints(const std::vector<Real> &params) const {
+    return m_imp->positioningConstraints(params);
 }
 
 MeshingOptions &IsosurfaceInflator::meshingOptions() { return m_imp->meshingOptions(); }

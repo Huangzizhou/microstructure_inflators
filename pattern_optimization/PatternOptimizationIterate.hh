@@ -68,6 +68,9 @@ struct Iterate : public IterateBase {
         m_printable = inflator.isPrintable(m_params);
         m_selfSupportingConstraints = inflator.selfSupportingConstraints(m_params);
 
+        // Positioning constraints (cannot fall out of simplex or base unit)
+        m_positioningConstraints = inflator.positioningConstraints(m_params);
+
         // std::cout << "Inflating" << std::endl;
         BENCHMARK_START_TIMER_SECTION("Inflate");
         try {
@@ -373,6 +376,14 @@ struct Iterate : public IterateBase {
         return m_selfSupportingConstraints;
     }
 
+    // Return the positioning inequality constraints in the form of a matrix
+    // acting on a homogenous parameter vector:
+    //      C [p] >= 0
+    //        [1]
+    Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> positioningConstraints() const {
+        return m_positioningConstraints;
+    }
+
     // Tell this iterate that it was inflated with a different set of paramters
     // than it actually was (useful when a perturbation is applied to circumvent
     // meshing problems, but we want paramsDiffer() to return false for the
@@ -395,6 +406,7 @@ protected:
 
     bool m_printable;
     Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> m_selfSupportingConstraints;
+    Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> m_positioningConstraints;
 
     ObjectiveTermMap m_objectiveTerms; 
     ConstraintMap    m_constraints; 

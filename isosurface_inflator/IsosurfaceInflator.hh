@@ -79,6 +79,9 @@ public:
     Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
     selfSupportingConstraints(const std::vector<Real> &params) const;
 
+    Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
+    positioningConstraints(const std::vector<Real> &params) const;
+
     ~IsosurfaceInflator();
 
 public:

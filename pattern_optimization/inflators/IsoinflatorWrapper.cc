@@ -22,13 +22,16 @@ template<size_t N> void IsoinflatorWrapper<N>::clear() { m_inflator->clear(); }
 template<size_t N>
 IsoinflatorWrapper<N>::IsoinflatorWrapper(const std::string &wireMeshPath,
                                           bool isotropic_params, bool vertex_thickness) {
-    m_inflator = Future::make_unique<IsosurfaceInflator>(
-                (N == 2) ? "2D_orthotropic" :
-                (isotropic_params ? "cubic" : "orthotropic"),
-                vertex_thickness, wireMeshPath);
-    if ((N == 2) && isotropic_params)
-        throw std::runtime_error("2D isosurface inflator currently only supports orthotropic parameters.");
-    // IsosurfaceInflatorConfig::get().inflationGraphPath = "inflgraph.wire";
+    std::string inflatorType;
+
+    if (N == 2) {
+        inflatorType = isotropic_params ? "2D_square" : "2D_orthotropic";
+    }
+    else {
+        inflatorType = isotropic_params ? "cubic" : "orthotropic";
+    }
+
+    m_inflator = Future::make_unique<IsosurfaceInflator>(inflatorType, vertex_thickness, wireMeshPath);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -146,6 +149,12 @@ template<size_t N>
 Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
 IsoinflatorWrapper<N>::selfSupportingConstraints(const std::vector<double> &params) const {
     return m_inflator->selfSupportingConstraints(params);
+}
+
+template<size_t N>
+Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
+IsoinflatorWrapper<N>::positioningConstraints(const std::vector<double> &params) const {
+    return m_inflator->positioningConstraints(params);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
