@@ -10,7 +10,7 @@ import time
 
 if (len(sys.argv) != 4):
     print "usage: ./experiment_targets.py template \"list of Young's module targets\" \"list of patterns\"" 
-    print "example: ./horizontal_cover.py template.json \"5 10 20 30\" \"-2 -1 0\""
+    print "example: ./experiment_targets.py template.json \"5 10 20 30\" \"-2 -1 0\""
     sys.exit(-1)
 
 configPath = sys.argv[1]
@@ -29,6 +29,7 @@ folderName = time.strftime("%Y%m%d-%H%M%S")
 os.system("mkdir " + folderName)
 os.system("cp *.py " + folderName)
 os.system("cp *.sh " + folderName)
+os.system("cp " + configPath + " " + folderName)
 os.chdir(folderName)
 
 for e in Etargets:

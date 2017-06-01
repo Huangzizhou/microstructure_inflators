@@ -7,16 +7,20 @@ import shutil
 import glob
 import pdb
 
-if (len(sys.argv) != 5):
-    print "usage: ./elasticity_to_mesh.py luTable output youngsModule poissonRatio"
-    print "example: ./elasticity_to_mesh.py table.txt drawing.msh 20 0.3"
+if (len(sys.argv) != 5) and (len(sys.argv) != 6):
+    print "usage: ./elasticity_to_mesh.py luTable output youngsModule poissonRatio [inflationGraph]"
+    print "example: ./elasticity_to_mesh.py table.txt drawing.msh 20 0.3 inflation.msh"
     sys.exit(-1)
 
 tablePath = sys.argv[1]
 outPath = sys.argv[2]
 targetE = float(sys.argv[3])
 targetNu = float(sys.argv[4])
+inflationGraph = ""
 dim = 2
+
+if (len(sys.argv) == 6):
+    inflationGraph = sys.argv[5]
 
 inflatorPath = paths.inflator()
 
@@ -37,7 +41,7 @@ for i in range(0,3):
     print "\tClosest:"
     print "\t ", (tableLut[order[i]])
 
-params = lut.params[order[i]]
+params = lut.params[order[0]]
 paramsString = str(params)
 paramsStringLen = len(paramsString)
 paramsString = paramsString[1:(paramsStringLen-1)].replace('\n', ' ')
@@ -72,8 +76,16 @@ print cmd
 try:
     subprocess.check_output(cmd)
 except Exception, e:
-    print "Did not work out perfectly!!"
+    print "Did not work out perfectly!! Maybe it is not orthotropic!?"
     print str(e)
-    os.rename("debug.msh", outPath)
-
+   
+    print "Let's try again with 2D_square!"
+    
+    if (len(sys.argv) == 6):
+        cmd = [paths.inflator(), '2D_square', paths.pattern(int(lut.pattern[order[0]]), dim), 
+                outPath, '-m',  meshingOptsPath, '-D', inflationGraph, '--params', paramsString]
+    else:
+        cmd = [paths.inflator(), '2D_square', paths.pattern(int(lut.pattern[order[0]]), dim), 
+                outPath, '-m',  meshingOptsPath,'--params', paramsString]
+    subprocess.check_output(cmd)
 

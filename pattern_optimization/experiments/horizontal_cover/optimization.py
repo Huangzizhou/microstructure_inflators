@@ -86,8 +86,9 @@ class PatternOptimization:
     def run(self, directory):
         self.writeJobs(directory)
         for i in range(len(self.jobs)):
+            itPrefix = directory + '/job-%i_it' % i
             cmd = [paths.optimizer(self.dim), directory + '/%i.job' % i,
-                '-p', paths.pattern(self.pattern, self.dim), '-m', self.material] + self.patoptArgs
+                '-p', paths.pattern(self.pattern, self.dim), '-m', self.material, '-o', itPrefix] + self.patoptArgs
             outPath = directory + '/stdout_%i.txt' % i
             with open(outPath, 'w') as outLog:
                 try:

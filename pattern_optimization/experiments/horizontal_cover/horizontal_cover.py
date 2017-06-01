@@ -34,6 +34,8 @@ climbingSteps = config['climbingSteps']
 branches = config['branches']
 dim = config['dim']
 printable = config['printable']
+symmetry = config.get('symmetry')
+limitedOffset = config.get('limitedOffset')
 
 # Need to implement this to get template job:
 # $MICRO_DIR/pattern_optimization/GenIsosurfaceJob $i -e'1,0' -r'0.02,0.2' -o'-0.3,0.3' > init_jobs/$pat.opt;
@@ -43,6 +45,13 @@ cmd = [paths.jobGenerator(config['dim']), paths.pattern(pattern, config['dim']),
     '-o', str(offsetBounds[0]) + ',' + str(offsetBounds[1]), 
     '-b', str(blendingBounds[0]) + ',' + str(blendingBounds[1]), 
     '-e', str(config['initialE']) + ',' + str(config['initialNu'])]
+
+if symmetry:
+    cmd = cmd + ['--' + str(symmetry)]
+
+if limitedOffset:
+    cmd = cmd + ['--limitedOffset']
+
 print(cmd)
 
 outPath = cwd + '/template.job'
