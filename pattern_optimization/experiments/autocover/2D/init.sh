@@ -1,6 +1,7 @@
 #!/usr/bin/env zsh
 mkdir -p init_jobs autocover_configs
-ijobs=$(readlink -f init_jobs)
+#ijobs=$(readlink -f init_jobs)
+ijobs=$(grealpath init_jobs)
 TDIR=$MICRO_DIR/patterns/2D/topologies
 ACDir=$MICRO_DIR/pattern_optimization/experiments/autocover/2D
 for i in $TDIR/*.obj; do
