@@ -58,14 +58,13 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
     if (ci_string("Isosurface2D") == name.c_str()) {
         infl = Future::make_unique<IsoinflatorWrapper<2>>(
                 extract_required<string>(opts, "pattern"),
-
-                extract_flag(opts, "isotropicParameters"),
+                extract_required<std::string>(opts, "symmetry"),
                 extract_flag(opts, "vertexThickness"));
     }
     else if (ci_string("Isosurface3D") == name.c_str()) {
         infl = Future::make_unique<IsoinflatorWrapper<3>>(
                 extract_required<string>(opts, "pattern"),
-                extract_flag(opts, "isotropicParameters"),
+                extract_required<std::string>(opts, "symmetry"),
                 extract_flag(opts, "vertexThickness"));
     }
     else if (ci_string("James") == name.c_str()) {
@@ -73,7 +72,7 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
                 extract_required<string>(opts, "pattern"),
                 extract_defaulted<double>(opts, "cell_size", 5.0),
                 0.5 * sqrt(2),
-                extract_flag(opts, "isotropicParameters"),
+                extract_required<std::string>(opts, "symmetry") == "cubic",
                 extract_flag(opts, "vertexThickness"));
         infl->configureSubdivision(extract_defaulted<string>(opts, "sub_algorithm", "simple"),
                                    extract_defaulted<size_t>(opts,     "subdivide",        0));
@@ -135,7 +134,7 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
 po_vm filterInflatorOptions(const po_vm &opts) {
     auto keys = {
         "pattern",
-        "isotropicParameters",
+        "symmetry",
         "vertexThickness",
         "cell_size",
         "hole_segments",

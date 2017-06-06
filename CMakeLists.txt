@@ -38,6 +38,8 @@ set(CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}" CACHE STRING "Choose the type of buil
 
 # Color output
 include(UseColors)
+# Make sure warnings/errors are still colorized when using Ninja for building.
+add_definitions(-fdiagnostics-color=always)
 
 # Export compile flags(used for autocompletion of the C++ code)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)

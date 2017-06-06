@@ -790,6 +790,13 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
         throw std::runtime_error("Disabled.");
 #endif
     }
+    else if (type == "2D_doubly_periodic") {
+#if 1
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, MidplaneMesher>(wireMeshPath);
+#else
+        throw std::runtime_error("Disabled.");
+#endif
+    }
     else throw runtime_error("Unknown inflator type: " + type);
 }
 

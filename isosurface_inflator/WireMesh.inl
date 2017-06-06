@@ -13,6 +13,7 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     // Clear old state.
     m_fullVertices.clear(), m_fullEdges.clear();
     m_baseVertices.clear(), m_baseEdges.clear();
+    m_baseVertexVarOffsets.clear();
     m_baseVertexPositioners.clear();
 
     m_fullVertices.reserve(inVertices.size());
@@ -25,18 +26,16 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     // Convert vertices to Point type, scaling into [-1, 1]
     BBox<Point> bb(inVertices);
     auto dim = bb.dimensions();
+    if ((std::abs(dim[0]) < 1e-6) || (std::abs(dim[1]) < 1e-6))
+        throw std::runtime_error("Degenerate pattern");
+    const bool is2D = (std::abs(dim[2]) <= 1e-6);
+
     for (const auto &v : inVertices) {
         // transform graph to [-1, 1]
-        Point p;
-        p.setZero();
-        for (size_t i = 0; i < 3; ++i) {
-            // Hack to handle 2D case: leave "empty dimension" coordinates at zero.
-            if (std::abs(dim[i]) < 1e-6) {
-                assert(i == 2);
-                continue;
-            }
+        Point p(Point::Zero());
+        // Hack for 2D case: leave z coords at 0
+        for (size_t i = 0; i < (is2D ? 2 : 3); ++i)
             p[i] = (v[i] - bb.minCorner[i]) * (2.0 / dim[i]) - 1.0;
-        }
         m_fullVertices.push_back(p);
     }
 
@@ -56,12 +55,63 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
             m_baseEdges.push_back({u, v});
     }
 
-    // Enumerate position parameters:
-    // Position parameters for each base vertex are determined using the
-    // NodePositioner.
+    // Create positioners for each base vertex
     m_baseVertexPositioners.reserve(m_baseVertices.size());
     for (const auto &p : m_baseVertices)
         m_baseVertexPositioners.push_back(PatternSymmetry::nodePositioner(p));
+
+    // Determine the "independent" and "dependent" base vertices
+    // First, assume there are no dependent vertices
+    m_numIndepBaseVertices = numBaseVertices();
+    m_numDepBaseVertices = 0;
+    m_indepVtxForBaseVtx.resize(numBaseVertices());
+    auto isIndep = [&](size_t u) { return m_indepVtxForBaseVtx.at(u) == u; };
+    std::iota(m_indepVtxForBaseVtx.begin(), m_indepVtxForBaseVtx.end(), 0);
+    // Next, link dependent vertices to their corresponding independent vertex
+    for (size_t u = 0; u < numBaseVertices(); ++u) {
+        const Point &up = m_baseVertices.at(u);
+        const Point &vp = PatternSymmetry::independentVertexPosition(up);
+        // Most vertices will be independent (coincide with their independent
+        // vertex position), so check this first for efficiency
+        if ((vp - up).norm() < PatternSymmetry::tolerance)
+            continue;
+
+        // For dependent vertices, we must search for corresponding indep vtx
+        m_indepVtxForBaseVtx.at(u) = m_findBaseVertex(vp);
+        --m_numIndepBaseVertices;
+        ++m_numDepBaseVertices;
+    }
+
+    // Enumerate variables
+    m_baseVertexVarOffsets.resize(numBaseVertices());
+
+    // Create variables for each independent vertex.
+    {
+        size_t varOffset = 0;
+        // Create position vars
+        for (size_t i = 0; i < numBaseVertices(); ++i) {
+            if (!isIndep(i)) continue;
+            m_baseVertexVarOffsets[i].position = varOffset;
+            varOffset += m_baseVertexPositioners[i].numDoFs();
+        }
+        m_numPositionParams = varOffset;
+
+        // Create thickness vars
+        for (size_t i = 0; i < numBaseVertices(); ++i) {
+            if (!isIndep(i)) continue;
+            m_baseVertexVarOffsets[i].thickness = varOffset++;
+        }
+
+        // Create blending vars
+        for (size_t i = 0; i < numBaseVertices(); ++i) {
+            if (!isIndep(i)) continue;
+            m_baseVertexVarOffsets[i].blending = varOffset++;
+        }
+    }
+
+    // Link dependent vertices to the independent vertices' variables.
+    for (size_t u = 0; u < numBaseVertices(); ++u)
+        m_baseVertexVarOffsets[u] = m_baseVertexVarOffsets[m_indepVtxForBaseVtx[u]];
 
     ////////////////////////////////////////////////////////////////////////////
     // Construct inflation graph
@@ -208,12 +258,12 @@ template<ThicknessType thicknessType, class Sym>
 size_t WireMesh<thicknessType, Sym>::
 m_findBaseVertex(const Point &p) const {
     for (size_t i = 0; i < m_baseVertices.size(); ++i) {
-        if ((p - m_baseVertices[i]).norm() < PatternSymmetry::tolerance)
+        if ((p - m_baseVertices[i]).squaredNorm() < (PatternSymmetry::tolerance * PatternSymmetry::tolerance))
             return i;
     }
-    std::cout << "Failed to find " << p[0] << " " << p[1] << " " << p[2] << std::endl;
+    std::cout << "Failed to find " << p.transpose() << std::endl;
     for (const Point &v : m_baseVertices)
-        std::cout << "    candidate " << v[0] << " " << v[1] << " " << v[2] << std::endl;
+        std::cout << "    candidate " << v.transpose() << std::endl;
     throw std::runtime_error("Couldn't find corresponding base vertex.");
 }
 
@@ -231,4 +281,3 @@ saveInflationGraph(const std::string &path, std::vector<double> params) const {
 
     _OutputGraph(path, igraphVertices, igraphEdges);
 }
-

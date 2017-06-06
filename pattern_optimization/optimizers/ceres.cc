@@ -1,10 +1,10 @@
 #include "ceres.hh"
 
+using namespace PatternOptimization;
+
 #if HAS_CERES
 #include <ceres/ceres.h>
 #include <glog/logging.h>
-
-using namespace PatternOptimization;
 
 // Wraps (nonlinear) least squares-supporting objective terms
 // (those with residuals and jacobians)

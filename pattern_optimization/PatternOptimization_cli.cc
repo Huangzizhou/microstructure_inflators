@@ -85,12 +85,12 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description misc_opts;
     misc_opts.add_options()("help",        "Produce this help message")
         ("inflator,i",   po::value<string>()->default_value("Isosurface"),       "inflator to use (defaults to Isosurface)")
+        ("symmetry",     po::value<string>()->default_value("orthotropic"),      "Symmetries to enforce (orhotropic (default), cubic, square, triply_periodic, doubly_periodic)")
         ("pattern,p",    po::value<string>(),                                    "Pattern wire mesh (.obj|wire)")
         ("material,m",   po::value<string>(),                                    "base material")
         ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
         ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
         ("cell_size,c",  po::value<double>(),                                    "Inflation cell size (James' inflator only. Default: 5mm)")
-        ("isotropicParameters,I",                                                "Use isotropic DoFs (3D only)")
         ("vertexThickness,V",                                                    "Use vertex thickness instead of edge thickness (3D only)")
         ("proximityRegularizationWeight", po::value<double>(),                   "Use a quadratic proximity regularization term with the specified weight.")
         ;
