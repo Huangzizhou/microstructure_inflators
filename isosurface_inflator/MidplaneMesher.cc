@@ -97,7 +97,6 @@ mesh(const SignedDistanceRegion<3> &sdf,
     // TODO: periodic cleanup if we're actually meshing the full period cell.
     std::vector<std::vector<double>> variableMinLens;
     variableMinLens.reserve(polygons.size());
-    bool periodic = false;
     if (meshingOptions.curvatureAdaptive) {
         for (const auto &poly : polygons) {
             std::vector<MeshIO::IOVertex> vertices;
@@ -236,11 +235,11 @@ mesh(const SignedDistanceRegion<3> &sdf,
             double cellEpsilon = 0.0; // Marching squares guarantees cell boundary vertex coords are exact
             if (variableMinLens.size()) {
                 curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
-                        meshingOptions.featureAngleThreshold, periodic, variableMinLens.at(i), cellEpsilon);
+                        meshingOptions.featureAngleThreshold, this->periodic, variableMinLens.at(i), cellEpsilon);
             }
             else {
                 curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
-                        meshingOptions.featureAngleThreshold, periodic, std::vector<double>(), cellEpsilon);
+                        meshingOptions.featureAngleThreshold, this->periodic, std::vector<double>(), cellEpsilon);
             }
             ++i;
         }

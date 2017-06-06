@@ -85,7 +85,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description misc_opts;
     misc_opts.add_options()("help",        "Produce this help message")
         ("inflator,i",   po::value<string>()->default_value("Isosurface"),       "inflator to use (defaults to Isosurface)")
-        ("symmetry",     po::value<string>()->default_value("orthotropic"),      "Symmetries to enforce (orhotropic (default), cubic, square, triply_periodic, doubly_periodic)")
+        ("symmetry",     po::value<string>()->default_value("orthotropic"),      "Symmetries to enforce (orthotropic (default), cubic, square, triply_periodic, doubly_periodic)")
         ("pattern,p",    po::value<string>(),                                    "Pattern wire mesh (.obj|wire)")
         ("material,m",   po::value<string>(),                                    "base material")
         ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")

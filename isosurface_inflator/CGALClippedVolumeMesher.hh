@@ -21,23 +21,20 @@
 #ifndef CGALCLIPPEDVOLUMEMESHER_HH
 #define CGALCLIPPEDVOLUMEMESHER_HH
 
-#include <vector>
+#include "MesherBase.hh"
 #include <MeshIO.hh>
-#include "MeshingOptions.hh"
 
 #include "SignedDistanceRegion.hh"
 
-class CGALClippedVolumeMesher {
+class CGALClippedVolumeMesher : public MesherBase {
 public:
     using Real = typename SignedDistanceRegion<3>::Real;
-    CGALClippedVolumeMesher(const MeshingOptions &opts = MeshingOptions())
-        : meshingOptions(opts) { }
+    using MesherBase::MesherBase;
+    using MesherBase::meshingOptions;
 
-    void mesh(const SignedDistanceRegion<3> &sdf,
+    virtual void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
-            std::vector<MeshIO::IOElement> &elements);
-
-    MeshingOptions meshingOptions;
+            std::vector<MeshIO::IOElement> &elements) override;
 private:
     struct ClippedSignedDistanceFunction;
 };

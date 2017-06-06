@@ -1,25 +1,29 @@
 #ifndef IGLSURFACEMESHERMC_HH
 #define IGLSURFACEMESHERMC_HH
 
-#include "MeshingOptions.hh"
+#include "MesherBase.hh"
 #include <MeshIO.hh>
 
 #include <igl/copyleft/marching_cubes.h>
 
 #include <Parallelism.hh>
 
-class IGLSurfaceMesherMC {
+class IGLSurfaceMesherMC : public MesherBase {
 public:
     using Real = SignedDistanceRegion<3>::Real;
-    IGLSurfaceMesherMC(const MeshingOptions &opts = MeshingOptions())
-        : meshingOptions(opts) { }
+    using MesherBase::MesherBase;
+    using MesherBase::meshingOptions;
+
+    virtual void mesh(const SignedDistanceRegion<3> &sdf,
+            std::vector<MeshIO::IOVertex> &vertices,
+            std::vector<MeshIO::IOElement> &elements) override {
+        mesh(sdf, vertices, elements, 0.0);
+    }
 
     void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
             std::vector<MeshIO::IOElement> &elements,
-            const double isolevel = 0.0);
-
-    MeshingOptions meshingOptions;
+            const double isolevel);
 };
 
 mesh(const SignedDistanceRegion<3> &sdf,

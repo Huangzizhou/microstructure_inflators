@@ -1,29 +1,28 @@
 ////////////////////////////////////////////////////////////////////////////////
-// MidplaneMesher.hh
+// MesherBase.hh
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
-//      Mesh midplane slice through the 3D signed distance function. I.e. mesh
-//      the 1D intersection of the 3D pattern surface with the z = 0 midplane.
-*/ 
+//      Abstract base class for all isosurface inflator meshers.
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
-//  Created:  02/03/2016 11:41:48
+//  Created:  06/06/2017 02:27:47
 ////////////////////////////////////////////////////////////////////////////////
-#ifndef MIDPLANEMESHER_HH
-#define MIDPLANEMESHER_HH
+#ifndef MESHERBASE_HH
+#define MESHERBASE_HH
 
-#include "MesherBase.hh"
+#include "MeshingOptions.hh"
 #include <MeshIO.hh>
 #include "SignedDistanceRegion.hh"
 
-class MidplaneMesher : public MesherBase {
+class MesherBase {
 public:
-    using MesherBase::MesherBase;
-    using MesherBase::meshingOptions;
-
     virtual void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
-            std::vector<MeshIO::IOElement> &elements) override;
+            std::vector<MeshIO::IOElement> &elements) = 0;
+
+    MeshingOptions meshingOptions;
+    bool periodic = false;
 };
 
-#endif /* end of include guard: MIDPLANEMESHER_HH */
+#endif /* end of include guard: MESHERBASE_HH */

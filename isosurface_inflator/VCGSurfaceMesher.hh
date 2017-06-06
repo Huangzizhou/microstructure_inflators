@@ -11,22 +11,20 @@
 #ifndef VCGSURFACEMESHER_HH
 #define VCGSURFACEMESHER_HH
 
-#include "MeshingOptions.hh"
+#include "MesherBase.hh"
 #include <MeshIO.hh>
 
 #include "SignedDistanceRegion.hh"
 
-class VCGSurfaceMesher {
+class VCGSurfaceMesher : public MesherBase {
 public:
     using Real = SignedDistanceRegion<3>::Real;
-    VCGSurfaceMesher(const MeshingOptions &opts = MeshingOptions())
-        : meshingOptions(opts) { }
+    using MesherBase::MesherBase;
+    using MesherBase::meshingOptions;
 
-    void mesh(const SignedDistanceRegion<3> &sdf,
+    virtual void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
-            std::vector<MeshIO::IOElement> &elements);
-
-    MeshingOptions meshingOptions;
+            std::vector<MeshIO::IOElement> &elements) override;
 };
 
 #endif /* end of include guard: VCGSURFACEMESHER_HH */

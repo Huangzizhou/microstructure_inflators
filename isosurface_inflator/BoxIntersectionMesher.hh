@@ -12,21 +12,19 @@
 #ifndef BOXINTERSECTIONMESHER_HH
 #define BOXINTERSECTIONMESHER_HH
 
-#include "MeshingOptions.hh"
+#include "MesherBase.hh"
 #include <MeshIO.hh>
 #include "SignedDistanceRegion.hh"
 
-class BoxIntersectionMesher {
+class BoxIntersectionMesher : public MesherBase {
 public:
     using Real = SignedDistanceRegion<3>::Real;
-    BoxIntersectionMesher(const MeshingOptions &opts = MeshingOptions())
-        : meshingOptions(opts) { }
+    using MesherBase::MesherBase;
+    using MesherBase::meshingOptions;
 
-    void mesh(const SignedDistanceRegion<3> &sdf,
+    virtual void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
-            std::vector<MeshIO::IOElement> &elements);
-
-    MeshingOptions meshingOptions;
+            std::vector<MeshIO::IOElement> &elements) override;
 };
 
 #endif /* end of include guard: BOXINTERSECTIONMESHER_HH */
