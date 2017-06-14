@@ -73,6 +73,7 @@ target_link_libraries(optimizers ${NLOPT_LIBRARIES})
 ################################################################################
 # Optional optimization libraries
 ################################################################################
+
 # Dlib Library
 find_package(Dlib QUIET)
 if (DLIB_FOUND)

@@ -2,7 +2,7 @@
 # Find PyMesh sources
 # The following are set:
 #
-# PYMESH_FOUND     - Whether the PyMesh library was found
+# PYMESH_FOUND     - Whether the PyMesh and PyWires libraries were found
 # PyMesh::core     - Imported target for PyMesh
 # PyMesh::wires    - Imported target for the Wires library
 #
@@ -37,7 +37,7 @@ find_library(PYWIRES_LIBRARY
 )
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(PYMESH DEFAULT_MSG PYMESH_INCLUDE PYMESH_LIBRARY)
+find_package_handle_standard_args(PYMESH DEFAULT_MSG PYMESH_INCLUDE PYMESH_LIBRARY PYWIRES_LIBRARY)
 
 if(PYMESH_FOUND AND NOT TARGET PyMesh::core)
 	# Imported interface target for PyMesh

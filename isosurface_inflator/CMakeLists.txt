@@ -31,7 +31,7 @@ target_link_libraries(isosurface_inflator MeshFEM)
 # Note: CGAL only accepts Release and Debug build types...
 set(MyBuildType "${CMAKE_BUILD_TYPE}")
 if ((CMAKE_BUILD_TYPE STREQUAL "RelWithAssert") OR (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
-    set(CMAKE_BUILD_TYPE "Release")
+	set(CMAKE_BUILD_TYPE "Release")
 endif()
 find_package(CGAL REQUIRED COMPONENTS Core)
 set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS ON CACHE BOOL "" FORCE) # Don't mess up our build plz
@@ -41,12 +41,13 @@ set(CMAKE_BUILD_TYPE "${MyBuildType}")
 ################################################################################
 # Optional libraries
 ################################################################################
+
 # VCG library
 find_package(VCGlib)
 if (VCGLIB_FOUND)
-    target_link_libraries(isosurface_inflator VCGlib::core)
-    target_compile_definitions(isosurface_inflator PUBLIC -DHAS_VCG)
-    target_sources(isosurface_inflator PRIVATE VCGSurfaceMesher.cc)
+	target_link_libraries(isosurface_inflator VCGlib::core)
+	target_compile_definitions(isosurface_inflator PUBLIC -DHAS_VCG)
+	target_sources(isosurface_inflator PRIVATE VCGSurfaceMesher.cc)
 endif()
 
 ################################################################################
