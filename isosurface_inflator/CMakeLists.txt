@@ -57,6 +57,10 @@ add_executable(isosurface_cli isosurface_cli.cc)
 target_link_libraries(isosurface_cli isosurface_inflator)
 set_target_properties(isosurface_cli PROPERTIES CXX_STANDARD 11)
 
+add_executable(default_parameters default_parameters.cpp)
+target_link_libraries(default_parameters isosurface_inflator)
+set_target_properties(default_parameters PROPERTIES CXX_STANDARD 11)
+
 add_executable(replicate replicate.cc)
 target_link_libraries(replicate isosurface_inflator)
 set_target_properties(replicate PROPERTIES CXX_STANDARD 11)

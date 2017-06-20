@@ -126,6 +126,21 @@ SignedDistance_cli/fast:
 .PHONY : SignedDistance_cli/fast
 
 # Convenience name for target.
+isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/rule:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/rule
+.PHONY : isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/rule
+
+# Convenience name for target.
+OffsetBoundsToTranslationBounds: isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/rule
+
+.PHONY : OffsetBoundsToTranslationBounds
+
+# fast build rule for target.
+OffsetBoundsToTranslationBounds/fast:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/build.make isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/build
+.PHONY : OffsetBoundsToTranslationBounds/fast
+
+# Convenience name for target.
 isosurface_inflator/CMakeFiles/PrintabilityConstraints.dir/rule:
 	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/PrintabilityConstraints.dir/rule
 .PHONY : isosurface_inflator/CMakeFiles/PrintabilityConstraints.dir/rule
@@ -216,19 +231,19 @@ isosurface_cli/fast:
 .PHONY : isosurface_cli/fast
 
 # Convenience name for target.
-isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/rule:
-	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/rule
-.PHONY : isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/rule
+isosurface_inflator/CMakeFiles/default_parameters.dir/rule:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/default_parameters.dir/rule
+.PHONY : isosurface_inflator/CMakeFiles/default_parameters.dir/rule
 
 # Convenience name for target.
-OffsetBoundsToTranslationBounds: isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/rule
+default_parameters: isosurface_inflator/CMakeFiles/default_parameters.dir/rule
 
-.PHONY : OffsetBoundsToTranslationBounds
+.PHONY : default_parameters
 
 # fast build rule for target.
-OffsetBoundsToTranslationBounds/fast:
-	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/build.make isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/build
-.PHONY : OffsetBoundsToTranslationBounds/fast
+default_parameters/fast:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/default_parameters.dir/build.make isosurface_inflator/CMakeFiles/default_parameters.dir/build
+.PHONY : default_parameters/fast
 
 # Convenience name for target.
 isosurface_inflator/CMakeFiles/isosurface_inflator.dir/rule:
@@ -596,6 +611,33 @@ __/pattern_optimization/PatternOptimizationJob.cc.s:
 	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/build.make isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/__/pattern_optimization/PatternOptimizationJob.cc.s
 .PHONY : __/pattern_optimization/PatternOptimizationJob.cc.s
 
+default_parameters.o: default_parameters.cpp.o
+
+.PHONY : default_parameters.o
+
+# target to build an object file
+default_parameters.cpp.o:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/default_parameters.dir/build.make isosurface_inflator/CMakeFiles/default_parameters.dir/default_parameters.cpp.o
+.PHONY : default_parameters.cpp.o
+
+default_parameters.i: default_parameters.cpp.i
+
+.PHONY : default_parameters.i
+
+# target to preprocess a source file
+default_parameters.cpp.i:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/default_parameters.dir/build.make isosurface_inflator/CMakeFiles/default_parameters.dir/default_parameters.cpp.i
+.PHONY : default_parameters.cpp.i
+
+default_parameters.s: default_parameters.cpp.s
+
+.PHONY : default_parameters.s
+
+# target to generate assembly for a file
+default_parameters.cpp.s:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/default_parameters.dir/build.make isosurface_inflator/CMakeFiles/default_parameters.dir/default_parameters.cpp.s
+.PHONY : default_parameters.cpp.s
+
 isosurface_cli.o: isosurface_cli.cc.o
 
 .PHONY : isosurface_cli.o
@@ -685,14 +727,15 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... SignedDistance_cli"
+	@echo "... rebuild_cache"
+	@echo "... OffsetBoundsToTranslationBounds"
 	@echo "... PrintabilityConstraints"
 	@echo "... TestWireMesh"
 	@echo "... PrintabilityCheck"
-	@echo "... rebuild_cache"
 	@echo "... replicate"
 	@echo "... VisualizeQuantities"
 	@echo "... isosurface_cli"
-	@echo "... OffsetBoundsToTranslationBounds"
+	@echo "... default_parameters"
 	@echo "... isosurface_inflator"
 	@echo "... BoxIntersectionMesher.o"
 	@echo "... BoxIntersectionMesher.i"
@@ -733,6 +776,9 @@ help:
 	@echo "... __/pattern_optimization/PatternOptimizationJob.o"
 	@echo "... __/pattern_optimization/PatternOptimizationJob.i"
 	@echo "... __/pattern_optimization/PatternOptimizationJob.s"
+	@echo "... default_parameters.o"
+	@echo "... default_parameters.i"
+	@echo "... default_parameters.s"
 	@echo "... isosurface_cli.o"
 	@echo "... isosurface_cli.i"
 	@echo "... isosurface_cli.s"
