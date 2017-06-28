@@ -34,6 +34,11 @@ private:
     BBox<Point2d> m_2DBBox;
 };
 
+void computeCurvatureAdaptiveMinLen(const std::list<std::list<Point2D>> &polygons,
+                                    const MidplaneSlice &slice,
+                                    const double minLen, const double maxLen,
+                                    std::vector<std::vector<double>> &variableMinLens);
+
 // Steps:
 //   1) Mesh Boundary (MS grid based on sqrt(max area) target)
 //   2) Re-mesh boundary based on short edge criteria
@@ -86,171 +91,41 @@ mesh(const SignedDistanceRegion<3> &sdf,
     polygons.remove_if([gridCellWidth](const std::list<Point2D> &poly) {
             BBox<Point2D> pbb(poly);
             auto dims = pbb.dimensions();
-            if ((dims[0] < 0.25 * gridCellWidth) && (dims[1] < 0.25 * gridCellWidth)) {
-                return true;
-            }
-            return false;
+            return ((dims[0] < 0.25 * gridCellWidth) &&
+                    (dims[1] < 0.25 * gridCellWidth));
         }
     );
 
-    // Non-periodic polygon cleanup (we assume we're meshing a quarter-cell).
-    // TODO: periodic cleanup if we're actually meshing the full period cell.
+    // Clean up/simplify marching squares polygons.
     std::vector<std::vector<double>> variableMinLens;
-    variableMinLens.reserve(polygons.size());
-    if (meshingOptions.curvatureAdaptive) {
-        for (const auto &poly : polygons) {
-            std::vector<MeshIO::IOVertex> vertices;
-            std::vector<MeshIO::IOElement> elements;
-            std::vector<double> signedCurvatures;
-
-            size_t offset = vertices.size();
-            vertices.reserve(offset + poly.size());
-            for (const auto &p : poly) {
-                vertices.emplace_back(p);
-                elements.emplace_back(vertices.size() - 1, vertices.size());
-            }
-            elements.back()[1] = offset;
-            signedCurvatures.reserve(vertices.size());
-
-            // Use a finite difference to determine if the normal points
-            // left or right from a curve tangent. But make sure we test a true
-            // boundary segment (instead of a cell boundary segment)
-            auto segmentP0 = poly.begin();
-            for (; segmentP0 != poly.end(); ++segmentP0) {
-                if (!PeriodicBoundaryMatcher::FaceMembership<2>(*segmentP0, slice.boundingBox()).onAnyFace())
-                    break;
-            }
-
-            // Skip all-cell-boundary (or an annoying corner case of nearly
-            // all-cell-boundary) polygons--these don't need adaptive meshing
-            auto segmentP1 = segmentP0;
-            if ((segmentP0 == poly.end()) || (++segmentP1 == poly.end())) {
-                variableMinLens.emplace_back();
-                continue;
-            }
-
-            // Choose curvature sign so that it reflects concave/convex geometry
-            // (object normal is a 90 clockwise rotation of curve tangent)
-            Point2D midpoint = 0.5 * (*segmentP0 + *segmentP1);
-            Vector2D tangent = *segmentP1 - *segmentP0;
-            tangent *= 1.0 / tangent.norm();
-            Vector2D right(tangent[1], -tangent[0]);
-            double eps = 1e-3;
-            // Positive if "right" is an outward normal
-            double diff = slice.signedDistance(midpoint + eps * right) -
-                          slice.signedDistance(midpoint - eps * right);
-            double sign = diff > 0;
-
-            // With this sign convention, convex geometry
-            // (tangent turning ccw towards interior) has positive curvature and
-            // concave geometry (tangent turning cw towards exterior) has
-            // negative sign.
-            for (double k : signedCurvature(poly))
-                signedCurvatures.push_back(sign * k);
-
-            assert(signedCurvatures.size() == vertices.size());
-            ScalarField<double> kappa(vertices.size());
-            for (size_t i = 0; i < vertices.size(); ++i)
-                kappa[i] = signedCurvatures[i];
-
-#if DEBUG_OUT
-            MSHFieldWriter writer("curvatures.msh", vertices, elements);
-            writer.addField("signed curvature", kappa, DomainType::PER_NODE);
-#endif
-            // {
-            //     std::ofstream curvatureOut("curvature.txt");
-            //     for (size_t i = 0; i < signedCurvatures.size(); ++i)
-            //         curvatureOut << signedCurvatures[i] << std::endl;
-            // }
-
-            // Chose adaptive edge length based on curvature: highly negative
-            // curvature uses the fine marching squares-based edge length while the
-            // zero and higher curvature uses maxLen / 4
-            ScalarField<double> lengths(vertices.size()); // Actually per edge
-            for (size_t i = 0; i < vertices.size(); ++i) {
-                auto pt1 = truncateFrom3D<Point2D>(vertices[i]),
-                     pt2 = truncateFrom3D<Point2D>(vertices[(i + 1) % vertices.size()]);
-                int numAverage = 0;
-                double k = 0;
-                if (!PeriodicBoundaryMatcher::FaceMembership<2>(pt1, slice.boundingBox()).onAnyFace()) {
-                    ++numAverage; k += kappa[i];
-                }
-                if (!PeriodicBoundaryMatcher::FaceMembership<2>(pt2, slice.boundingBox()).onAnyFace()) {
-                    ++numAverage; k += kappa[(i + 1) % vertices.size()];
-                }
-                if (numAverage != 0) k /= numAverage;
-
-                // Want to interpolate from upper at k >= c to lower at k = d
-                // using function a * 2^(k * b)
-                double upper = maxLen / 4.0;
-                double lower = minLen;
-                double c = -1.0, d = -4;
-                // upper = a * 2^(cb)
-                // lower = a * 2^(db)
-                // upper / lower = 2^((c - d) b) ==> b = log2(u / l) / (c - d)
-                // a = upper / 2^(c * b)
-                double b = log(upper / lower) / (log(2) * (c - d));
-                double a = upper / pow(2, c * b);
-                lengths[i] = a * pow(2, b * k);
-                lengths[i] = std::min(lengths[i], upper);
-                lengths[i] = std::max(lengths[i], lower);
-            }
-#if DEBUG_OUT
-            writer.addField("min_lengths", lengths, DomainType::PER_ELEMENT);
-            ScalarField<double> edgeLengths(vertices.size());
-            ScalarField<double> isShort(vertices.size());
-            for (size_t i = 0; i < vertices.size(); ++i) {
-                auto pt1 = truncateFrom3D<Point2D>(vertices[i]),
-                     pt2 = truncateFrom3D<Point2D>(vertices[(i + 1) % vertices.size()]);
-                edgeLengths[i] = (pt2 - pt1).norm();
-                isShort[i] = (edgeLengths[i] < lengths[i]) ? 1.0 : 0.0;
-            }
-
-            writer.addField("edge_lengths", edgeLengths, DomainType::PER_ELEMENT);
-            writer.addField("is_short", isShort, DomainType::PER_ELEMENT);
-#endif
-            variableMinLens.emplace_back(lengths.domainSize());
-            std::vector<double> &vml = variableMinLens.back();
-            for (size_t i = 0; i < lengths.domainSize(); ++i)
-                vml[i] = lengths[i];
-        }
-    }
+    if (meshingOptions.curvatureAdaptive)
+        computeCurvatureAdaptiveMinLen(polygons, slice, minLen, maxLen, variableMinLens);
 
 #if DEBUG_OUT
     std::cout << polygons.size() << " polygons. Sizes:" << std::endl;
-    for (auto &poly : polygons) {
+    for (auto &poly : polygons)
         std::cout << "\t" << poly.size() << std::endl;
-    }
 
-    {
-        IOElementEdgeSoupFromClosedPolygonList<Point2D> esoup(polygons);
-        MeshIO::save("ms_polygons.msh", esoup);
-    }
+    MeshIO::save("ms_polygons.msh",
+                 IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
 #endif
 
     BENCHMARK_START_TIMER("Curve Cleanup");
     {
         size_t i = 0;
         for (auto &poly : polygons) {
-            double cellEpsilon = 0.0; // Marching squares guarantees cell boundary vertex coords are exact
-            if (variableMinLens.size()) {
-                curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
-                        meshingOptions.featureAngleThreshold, this->periodic, variableMinLens.at(i), cellEpsilon);
-            }
-            else {
-                curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
-                        meshingOptions.featureAngleThreshold, this->periodic, std::vector<double>(), cellEpsilon);
-            }
+            curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
+                    meshingOptions.featureAngleThreshold, this->periodic,
+                    variableMinLens.size() ? variableMinLens.at(i) : std::vector<double>(),
+                    0.0 /* marching squares guarantees cell boundary vertex coords are exact */);
             ++i;
         }
     }
     BENCHMARK_STOP_TIMER("Curve Cleanup");
 
 #if DEBUG_OUT
-    {
-        IOElementEdgeSoupFromClosedPolygonList<Point2D> esoup(polygons);
-        MeshIO::save("cleaned_polygons.msh", esoup);
-    }
+    MeshIO::save("cleaned_polygons.msh",
+                 IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
 #endif
 
     // Determine which polygon is touching the bbox (there must be exactly one):
@@ -325,9 +200,134 @@ mesh(const SignedDistanceRegion<3> &sdf,
     }
 
     triangulatePSLC(polygons, holePts, vertices, triangles,
-                    meshingOptions.maxArea, "Q");
+                    meshingOptions.maxArea,
+                    (this->periodic ? "QY" : "Q"));
 
 #if DEBUG_OUT
     MeshIO::save("triangulated_polygon.msh", vertices, triangles);
 #endif
+}
+
+void computeCurvatureAdaptiveMinLen(const std::list<std::list<Point2D>> &polygons,
+                                    const MidplaneSlice &slice,
+                                    const double minLen, const double maxLen,
+                                    std::vector<std::vector<double>> &variableMinLens)
+{
+    variableMinLens.reserve(polygons.size());
+    for (const auto &poly : polygons) {
+        std::vector<MeshIO::IOVertex> vertices;
+        std::vector<MeshIO::IOElement> elements;
+        std::vector<double> signedCurvatures;
+
+        size_t offset = vertices.size();
+        vertices.reserve(offset + poly.size());
+        for (const auto &p : poly) {
+            vertices.emplace_back(p);
+            elements.emplace_back(vertices.size() - 1, vertices.size());
+        }
+        elements.back()[1] = offset;
+        signedCurvatures.reserve(vertices.size());
+
+        // Use a finite difference to determine if the normal points
+        // left or right from a curve tangent. But make sure we test a true
+        // boundary segment (instead of a cell boundary segment)
+        auto segmentP0 = poly.begin();
+        for (; segmentP0 != poly.end(); ++segmentP0) {
+            if (!PeriodicBoundaryMatcher::FaceMembership<2>(*segmentP0, slice.boundingBox()).onAnyFace())
+                break;
+        }
+
+        // Skip all-cell-boundary (or an annoying corner case of nearly
+        // all-cell-boundary) polygons--these don't need adaptive meshing
+        auto segmentP1 = segmentP0;
+        if ((segmentP0 == poly.end()) || (++segmentP1 == poly.end())) {
+            variableMinLens.emplace_back();
+            continue;
+        }
+
+        // Choose curvature sign so that it reflects concave/convex geometry
+        // (object normal is a 90 clockwise rotation of curve tangent)
+        Point2D midpoint = 0.5 * (*segmentP0 + *segmentP1);
+        Vector2D tangent = *segmentP1 - *segmentP0;
+        tangent *= 1.0 / tangent.norm();
+        Vector2D right(tangent[1], -tangent[0]);
+        double eps = 1e-3;
+        // Positive if "right" is an outward normal
+        double diff = slice.signedDistance(midpoint + eps * right) -
+                      slice.signedDistance(midpoint - eps * right);
+        double sign = diff > 0;
+
+        // With this sign convention, convex geometry
+        // (tangent turning ccw towards interior) has positive curvature and
+        // concave geometry (tangent turning cw towards exterior) has
+        // negative sign.
+        for (double k : signedCurvature(poly))
+            signedCurvatures.push_back(sign * k);
+
+        assert(signedCurvatures.size() == vertices.size());
+        ScalarField<double> kappa(vertices.size());
+        for (size_t i = 0; i < vertices.size(); ++i)
+            kappa[i] = signedCurvatures[i];
+
+#if DEBUG_OUT
+        MSHFieldWriter writer("curvatures.msh", vertices, elements);
+        writer.addField("signed curvature", kappa, DomainType::PER_NODE);
+#endif
+        // {
+        //     std::ofstream curvatureOut("curvature.txt");
+        //     for (size_t i = 0; i < signedCurvatures.size(); ++i)
+        //         curvatureOut << signedCurvatures[i] << std::endl;
+        // }
+
+        // Chose adaptive edge length based on curvature: highly negative
+        // curvature uses the fine marching squares-based edge length while the
+        // zero and higher curvature uses maxLen / 4
+        ScalarField<double> lengths(vertices.size()); // Actually per edge
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            auto pt1 = truncateFrom3D<Point2D>(vertices[i]),
+                 pt2 = truncateFrom3D<Point2D>(vertices[(i + 1) % vertices.size()]);
+            int numAverage = 0;
+            double k = 0;
+            if (!PeriodicBoundaryMatcher::FaceMembership<2>(pt1, slice.boundingBox()).onAnyFace()) {
+                ++numAverage; k += kappa[i];
+            }
+            if (!PeriodicBoundaryMatcher::FaceMembership<2>(pt2, slice.boundingBox()).onAnyFace()) {
+                ++numAverage; k += kappa[(i + 1) % vertices.size()];
+            }
+            if (numAverage != 0) k /= numAverage;
+
+            // Want to interpolate from upper at k >= c to lower at k = d
+            // using function a * 2^(k * b)
+            double upper = maxLen / 4.0;
+            double lower = minLen;
+            double c = -1.0, d = -4;
+            // upper = a * 2^(cb)
+            // lower = a * 2^(db)
+            // upper / lower = 2^((c - d) b) ==> b = log2(u / l) / (c - d)
+            // a = upper / 2^(c * b)
+            double b = log(upper / lower) / (log(2) * (c - d));
+            double a = upper / pow(2, c * b);
+            lengths[i] = a * pow(2, b * k);
+            lengths[i] = std::min(lengths[i], upper);
+            lengths[i] = std::max(lengths[i], lower);
+        }
+#if DEBUG_OUT
+        writer.addField("min_lengths", lengths, DomainType::PER_ELEMENT);
+        ScalarField<double> edgeLengths(vertices.size());
+        ScalarField<double> isShort(vertices.size());
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            auto pt1 = truncateFrom3D<Point2D>(vertices[i]),
+                 pt2 = truncateFrom3D<Point2D>(vertices[(i + 1) % vertices.size()]);
+            edgeLengths[i] = (pt2 - pt1).norm();
+            isShort[i] = (edgeLengths[i] < lengths[i]) ? 1.0 : 0.0;
+        }
+
+        writer.addField("edge_lengths", edgeLengths, DomainType::PER_ELEMENT);
+        writer.addField("is_short", isShort, DomainType::PER_ELEMENT);
+#endif
+        variableMinLens.emplace_back(lengths.domainSize());
+        std::vector<double> &vml = variableMinLens.back();
+        for (size_t i = 0; i < lengths.domainSize(); ++i)
+            vml[i] = lengths[i];
+    }
 }

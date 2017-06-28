@@ -62,6 +62,10 @@ add_executable(replicate replicate.cc)
 target_link_libraries(replicate isosurface_inflator)
 set_target_properties(replicate PROPERTIES CXX_STANDARD 11)
 
+add_executable(tile tile.cc)
+target_link_libraries(tile isosurface_inflator)
+set_target_properties(tile PROPERTIES CXX_STANDARD 11)
+
 add_executable(VisualizeQuantities VisualizeQuantities.cc)
 target_link_libraries(VisualizeQuantities isosurface_inflator)
 set_target_properties(VisualizeQuantities PROPERTIES CXX_STANDARD 11)
