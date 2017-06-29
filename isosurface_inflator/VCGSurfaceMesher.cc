@@ -1,5 +1,7 @@
 #include "VCGSurfaceMesher.hh"
 
+#if HAS_VCG
+
 #include <vcg/complex/complex.h>
 #include <vcg/complex/algorithms/create/marching_cubes.h>
 #include <vcg/complex/algorithms/create/mc_trivial_walker.h>
@@ -87,3 +89,13 @@ mesh(const SignedDistanceRegion<3> &sdf,
                               vcg::tri::Index(mc_mesh, f.V(2)));
     }
 }
+#else // !HAS_VCG
+
+void VCGSurfaceMesher::
+mesh(const SignedDistanceRegion<3> &sdf,
+     std::vector<MeshIO::IOVertex> &vertices,
+     std::vector<MeshIO::IOElement> &elements)
+{
+    throw std::runtime_error("VCG unavailable");
+}
+#endif // HAS_VCG

@@ -34,10 +34,7 @@
 #include "CGALClippedVolumeMesher.hh"
 #include "BoxIntersectionMesher.hh"
 #include "MidplaneMesher.hh"
-
-#if HAS_VCG
-#include "VCGSurfaceMesher.hh"
-#endif
+#include "IGLSurfaceMesherMC.hh"
 
 #include "IsosurfaceInflatorConfig.hh"
 
@@ -737,8 +734,8 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
 #endif
     }
     else if (type == "cubic_preview")   {
-#if 0 && HAS_VCG
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>>(wireMeshPath, Future::make_unique<VCGSurfaceMesher>());
+#if 1
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>>(wireMeshPath, Future::make_unique<IGLSurfaceMesherMC>());
         // Triangle mesh doesn't support our post-processing
         disablePostprocess();
 #else
@@ -771,8 +768,8 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
         disablePostprocess();
     }
     else if (type == "triply_periodic_preview")   {
-#if 0 && HAS_VCG
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<VCGSurfaceMesher>());
+#if 1
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<IGLSurfaceMesherMC>());
         disablePostprocess();
 #else
         throw std::runtime_error("Disabled");

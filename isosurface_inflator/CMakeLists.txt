@@ -8,7 +8,9 @@ add_library(isosurface_inflator
 		ConvexHullTriangulation.cc
 		IsosurfaceInflator.cc
 		MeshingOptions.cc
-		MidplaneMesher.cc)
+		MidplaneMesher.cc
+        VCGSurfaceMesher.cc
+        IGLSurfaceMesherMC.cc)
 
 target_include_directories(isosurface_inflator PUBLIC .)
 
@@ -47,7 +49,12 @@ find_package(VCGlib)
 if (VCGLIB_FOUND)
 	target_link_libraries(isosurface_inflator VCGlib::core)
 	target_compile_definitions(isosurface_inflator PUBLIC -DHAS_VCG)
-	target_sources(isosurface_inflator PRIVATE VCGSurfaceMesher.cc)
+endif()
+
+find_package(LIBIGL QUIET)
+if (LIBIGL_FOUND)
+    target_compile_definitions(isosurface_inflator PUBLIC -DHAS_LIBIGL)
+    target_include_directories(isosurface_inflator SYSTEM PRIVATE ${LIBIGL_INCLUDE_DIRS})
 endif()
 
 ################################################################################
