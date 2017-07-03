@@ -8,3 +8,4 @@
             * [Main parameters](Documentation/running.md#main-parameters)
             * [Complete example](Documentation/running.md#complete-example)
             * [Use cases](Documentation/running.md#use-cases)
+* [FAQ](Documentation/faq.md)

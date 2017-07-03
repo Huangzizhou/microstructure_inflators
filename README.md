@@ -5,7 +5,7 @@
 
 | Folder | Description |
 |--------|-------------|
-| `Documentation/`        | Draft of documentation |
+| `Documentation/`        | Draft of documentation. |
 | `isosurface_inflator/`  | Generate tet-mesh from a graph labeled with vertex thicknesses. |
 | `pattern_optimization/` | Optimize the parameters of a pattern to attain target elastic properties. |
 | `patterns/`             | List possible pattern topologies in 2D/3D. |
