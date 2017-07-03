@@ -5,6 +5,8 @@ from subprocess import call
 
 import numpy as np
 
+Tolerance = 1e-3
+
 
 def create_wire(vertices, edges, out_wire):
     out_file = open(out_wire, 'w')
@@ -13,6 +15,19 @@ def create_wire(vertices, edges, out_wire):
     for edge in edges:
         out_file.write("l " + str(edge[0] + 1) + " " + str(edge[1] + 1) + "\n")
     out_file.close()
+
+
+def create_diamond(initial, end, thickness):
+    v = np.array(end) - initial
+    v_rot = rotate(90, np.array([v]))
+    u_rot = (v_rot / np.linalg.norm(v_rot))[0]
+
+    midpoint = (np.array(end) + initial) / 2.0
+
+    left = midpoint - u_rot * thickness / 2.0
+    right = midpoint + u_rot * thickness / 2.0
+
+    return [initial, left, end, right]
 
 
 def min_distance_to_other_vertices(vertices, centroid_index):
@@ -49,6 +64,19 @@ def create_subdivided_segment(segment_start, segment_end, n, edges_descriptions)
 
         edges_descriptions.append([last_point, new_point])
         last_point = new_point
+
+
+def create_subdivided_segment_with_constant_spacing(segment_start, segment_end, n, spacing, edges_descriptions):
+    vector = (segment_end - segment_start)
+    direction = vector / np.linalg.norm(vector)
+    last_point = segment_start
+    for t in range(1, n-1):
+        new_point = segment_start + spacing * t * direction
+
+        edges_descriptions.append([last_point, new_point])
+        last_point = new_point
+
+    edges_descriptions.append([last_point, segment_end])
 
 
 def create_pillars(segment1, segment2, n):
@@ -127,9 +155,6 @@ def find_vertex_in_list(vertices, v):
     return vertex_position
 
 
-Tolerance = 1e-3
-
-
 def inflate_hexagonal_box(input_path, vertices_thickeness, out_path, vertices=[], triangle_centroids=[],
                           hypotenuse_nodes=[]):
     # discover number of vertices
@@ -185,7 +210,7 @@ def inflate_hexagonal_box(input_path, vertices_thickeness, out_path, vertices=[]
     call(cmd)
 
 
-def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bending, out_path, *args):
+def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bending, out_path, custom_thickness_pairs = []):
     # discover vertices
     vertices = []
     floats_pattern = re.compile(r'\-*\d+\.\d+')  # Compile a pattern to capture float values
@@ -227,7 +252,7 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
         parameters[i] = vertices_bending
 
     # Now, for the extra parameters, find vertices and apply customized thickness
-    for thickness_pair in args:
+    for thickness_pair in custom_thickness_pairs:
         custom_thickness = thickness_pair[1]
         customized_nodes = thickness_pair[0]
 
@@ -239,6 +264,11 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
                 print "[Warning] vertex with customized thickness not found"
 
     parameters_string = ' '.join(str(param) for param in parameters)
+
+    parameters_file_path = os.path.splitext(input_path)[0] + '.param'
+    parameters_file = open(parameters_file_path, "w")
+    parameters_file.write(parameters_string)
+    parameters_file.close()
 
     cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_triply_periodic', input_path, '--params',
            parameters_string, '-m', 'refined-meshing_opts.json', '-D', 'inflated.msh', '-R', 'replicated.msh', out_path]
@@ -285,7 +315,7 @@ def connect_all_vertices(vertices):
 
 
 def polygon_centroid(polygon_vertices):
-    centroid = [0.0, 0.0]
+    centroid = np.array([0.0, 0.0])
 
     for vertex in polygon_vertices:
         centroid[0] += vertex[0]
@@ -419,6 +449,104 @@ def simplex_to_whole_parallelogram(simplex_vertices, simplex_edges, parallelogra
     return vertices, edges
 
 
+def simplex_vertices_to_whole_square(simplex_vertices):
+    vertices = list(simplex_vertices)
+
+    # Operation 1: reflect against 45 degrees line
+    vertices = np.array(vertices)
+    reflected_vertices = reflect(45, vertices)
+
+    vertices = vertices.tolist()
+    add_new_vertices(reflected_vertices, vertices)
+
+    # Operation 2: reflect against y axis at x = 0
+    reflected_vertices = reflect(90, vertices)
+
+    add_new_vertices(reflected_vertices, vertices)
+
+    # Operation 3: reflect against x axis at y = 0
+    reflected_vertices = reflect(0, vertices)
+
+    add_new_vertices(reflected_vertices, vertices)
+
+    return vertices
+
+
+def simplex_polygon_to_whole_parallelogram(simplex_polygon, parallelogram_side):
+    l = parallelogram_side / 2
+    vertices = list(simplex_polygon)
+    polygons = [simplex_polygon]
+
+    # Operation 1: reflect against 30 degrees line
+    vertices = np.array(vertices)
+    reflected_vertices = reflect(30, vertices)
+    polygons.append(reflected_vertices) # polygons now has 2 pols
+    polygons_step_1 = list(polygons)
+
+    # Operation 2: reflect against y axis at x = l
+    polygons_copy = list(polygons)
+    for pol in polygons_copy:
+        pol_vertices = pol - np.array([l, 0])
+        reflected_vertices = reflect(90, pol_vertices)
+        reflected_vertices += np.array([l, 0])
+        polygons.append(reflected_vertices)
+    # polygons now has 4 pols
+
+    # Operation 3: rotate 240 degrees and plug on top of current structure
+    polygons_copy = list(polygons_step_1)
+    for pol in polygons_copy:
+        translated_vertices = pol - np.array([l, math.sqrt(3) / 3])
+        rotated_vertices = rotate(240, translated_vertices)
+        rotated_vertices += np.array([l, math.sqrt(3) / 3])
+        polygons.append(rotated_vertices)
+    # polygons now has 6 pols
+
+    # Operation 4:
+    polygons_copy = list(polygons)
+    for pol in polygons_copy:
+        translated_vertices = pol - np.array([2 * l, 0])
+        reflected_vertices = reflect(120, translated_vertices)
+        reflected_vertices += np.array([2 * l, 0])
+        polygons.append(reflected_vertices)
+    # polygons now has 12 pols
+
+    # Operation 5: transform parallelogram to square
+    transformation_matrix = np.matrix('1.0 -0.577350269189626; 0.0 1.154700538379251')
+    for index, pol in enumerate(polygons):
+        vertices = np.array(pol)
+        resulting_vertices = transformation_matrix * vertices.transpose()
+        polygons[index] = np.asarray(resulting_vertices.transpose() - l)
+
+    return polygons
+
+
+def simplex_to_whole_square(simplex_vertices, simplex_edges):
+    vertices = list(simplex_vertices)
+    edges = list(simplex_edges)
+
+    # Operation 1: reflect against 45 degrees line
+    vertices = np.array(vertices)
+    reflected_vertices = reflect(45, vertices)
+
+    reflected_edges = list(edges)
+    vertices = vertices.tolist()
+    add_new_vertices_and_edges(reflected_vertices, reflected_edges, vertices, edges)
+
+    # Operation 2: reflect against y axis at x = 0
+    reflected_vertices = reflect(90, vertices)
+
+    reflected_edges = list(edges)
+    add_new_vertices_and_edges(reflected_vertices, reflected_edges, vertices, edges)
+
+    # Operation 3: reflect against x axis at y = 0
+    reflected_vertices = reflect(0, vertices)
+
+    reflected_edges = list(edges)
+    add_new_vertices_and_edges(reflected_vertices, reflected_edges, vertices, edges)
+
+    return vertices, edges
+
+
 def rotate(theta_degrees, vertices):
     theta = math.radians(theta_degrees)
     R = np.matrix([[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]])
@@ -432,7 +560,8 @@ def reflect(theta_degrees, vertices):
     theta = math.radians(theta_degrees)
     Rl = np.matrix([[math.cos(2 * theta), math.sin(2 * theta)], [math.sin(2 * theta), -math.cos(2 * theta)]])
 
-    reflected_vertices = Rl * vertices.transpose()
+    np_vertices = np.array(vertices)
+    reflected_vertices = Rl * np_vertices.transpose()
 
     return np.asarray(reflected_vertices.transpose())
 
@@ -449,3 +578,28 @@ def add_new_vertices_and_edges(reflected_vertices, reflected_edges, vertices, ed
         new_edges_description.append([reflected_vertex1, reflected_vertex2])
 
     add_new_edges(new_edges_description, vertices, edges)
+
+
+def triangle_incenter(triangle):
+    p_a = np.array(triangle[0])
+    p_b = np.array(triangle[1])
+    p_c = np.array(triangle[2])
+
+    a = np.linalg.norm(p_b - p_c)
+    b = np.linalg.norm(p_a - p_c)
+    c = np.linalg.norm(p_a - p_b)
+
+    incenter = (a*p_a + b*p_b + c*p_c) / (a + b + c)
+
+    return incenter
+
+
+def polygon_to_edges_descriptions(polygon):
+    edges_descriptions = []
+
+    for i in range(0, len(polygon)):
+        p1 = polygon[i]
+        p2 = polygon[(i+1) % len(polygon)]
+
+        edges_descriptions.append([p1, p2])
+    return edges_descriptions

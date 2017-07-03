@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import sys, os
 sys.path.insert(0, "/Users/davitozoni/Desktop/NYU/Research/Apps/libigl-new/libigl/python")
 import pyigl as igl

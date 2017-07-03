@@ -48,16 +48,41 @@ def six_leaf_clover_generator():
         for width_parameter in width_parameter_values:
             for tiling_thickness_parameter in tiling_thickness_parameter_values:
                 cwd = os.getcwd()
-                name = folder_path + '/six-leaf-clover-c{}-w{}-t{}'.format(round(center_thickness_parameter,3), round(width_parameter,3), round(tiling_thickness_parameter,3))
+                name = folder_path + '/six-leaf-clover-c{}-w{}-t{}'.format(round(center_thickness_parameter, 3),
+                                                                           round(width_parameter, 3),
+                                                                           round(tiling_thickness_parameter, 3))
                 wire_name = name + '.wire'
                 mesh_name = name + '.msh'
 
                 if os.path.isfile(mesh_name):
                     continue
 
-                cmd = [cwd + '/six-leaf-clover-creatorls.py', str(center_thickness_parameter), str(width_parameter), str(tiling_thickness_parameter), wire_name,
+                cmd = [cwd + '/six-leaf-clover-creatorls.py', str(center_thickness_parameter), str(width_parameter),
+                       str(tiling_thickness_parameter), wire_name,
                        mesh_name]
                 call(cmd)
+
+
+def hex_diamond_generator():
+    triangle_side_values = np.arange(0.5, 1.8, 0.1)
+    diamond_width_values = np.arange(0.1, 1.0, 0.1)
+
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+
+    for triangle_side in triangle_side_values:
+        for thickness in diamond_width_values:
+            cwd = os.getcwd()
+            name = folder_path + '/hexagon-diamond-s{}-t{}'.format(triangle_side, thickness)
+            wire_name = name + '.wire'
+            mesh_name = name + '.msh'
+
+            if os.path.isfile(mesh_name):
+                continue
+
+            cmd = [cwd + '/hexa-diamond-creator.py', str(triangle_side), str(thickness), wire_name,
+                   mesh_name]
+            call(cmd)
 
 
 if len(sys.argv) != 3:
@@ -70,6 +95,7 @@ out_path = sys.argv[2]
 folder_path = os.getcwd() + '/' + out_path
 
 generator_dictionary = {"hexagon-pillars": hex_pillars_generator,
-                        "six-leaf-clover": six_leaf_clover_generator}
+                        "six-leaf-clover": six_leaf_clover_generator,
+                        "hexagon-diamond": hex_diamond_generator}
 
 generator_dictionary[generator]()
