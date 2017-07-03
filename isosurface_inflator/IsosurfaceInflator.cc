@@ -132,7 +132,7 @@ public:
     // Printability checks/constraints
     virtual bool isPrintable(const std::vector<Real> &params) const = 0;
     virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
-        selfSupportingConstraints(const std::vector<Real> &params) const = 0;
+    selfSupportingConstraints(const std::vector<Real> &params) const = 0;
 
     virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
     positioningConstraints(const std::vector<Real> &params) const = 0;
@@ -189,7 +189,7 @@ public:
     typedef PatternSignedDistance<Real, WMesh> PSD;
     typedef typename WMesh::PatternSymmetry PatternSymmetry;
     IsosurfaceInflatorImpl(const string &wireMeshPath)
-        : wmesh(wireMeshPath), pattern(wmesh) { }
+            : wmesh(wireMeshPath), pattern(wmesh) { }
 
     virtual void meshPattern(const vector<Real> &params) override {
         // std::cout << "Meshing parameters:";
@@ -220,7 +220,7 @@ public:
     // period cell.
     virtual bool _mesherGeneratesOrthoCell() const override {
         return is_base_of<Symmetry::Orthotropic<typename PatternSymmetry::Tolerance>,
-                          PatternSymmetry>::value
+                PatternSymmetry>::value
                && (reflectiveInflator || !generateFullPeriodCell);
     }
 
@@ -247,10 +247,10 @@ public:
 
 #if USE_TBB
         tbb::parallel_for(
-            tbb::blocked_range<size_t>(0, nEvals),
-            [&](const tbb::blocked_range<size_t> &r) {
-                for (size_t p = r.begin(); p < r.end(); ++p) evalAtPtIdx(p);
-            });
+                tbb::blocked_range<size_t>(0, nEvals),
+                [&](const tbb::blocked_range<size_t> &r) {
+                    for (size_t p = r.begin(); p < r.end(); ++p) evalAtPtIdx(p);
+                });
 #else
         for (size_t p = 0; p < nEvals; ++p) evalAtPtIdx(p);
 #endif
@@ -280,7 +280,7 @@ public:
     // parameter (autodiff-based).
     virtual vector<vector<Real>> signedDistanceParamPartials(const vector<Point> &evalPoints) const override {
         const size_t nEvals = evalPoints.size(),
-                    nParams = pattern.numParams();
+                nParams = pattern.numParams();
         vector<vector<Real>> partials(nParams, vector<Real>(nEvals));
 #if !SKIP_SVEL
         // Scalar supporting derivatives with respect to each pattern parameter
@@ -316,10 +316,10 @@ public:
         };
 #if USE_TBB
         tbb::parallel_for(
-            tbb::blocked_range<size_t>(0, nEvals),
-            [&](const tbb::blocked_range<size_t> &r) {
-                for (size_t e = r.begin(); e < r.end(); ++e) evalAtPtIdx(e);
-            });
+                tbb::blocked_range<size_t>(0, nEvals),
+                [&](const tbb::blocked_range<size_t> &r) {
+                    for (size_t e = r.begin(); e < r.end(); ++e) evalAtPtIdx(e);
+                });
 #else
         for (size_t e = 0; e < nEvals; ++e) evalAtPtIdx(e);
 #endif
@@ -359,7 +359,7 @@ public:
     }
 
     virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
-        selfSupportingConstraints(const std::vector<Real> &params) const override {
+    selfSupportingConstraints(const std::vector<Real> &params) const override {
         return wmesh.selfSupportingConstraints(params);
     }
 
@@ -581,8 +581,8 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     vector<vector<Real>> vnp;
     vector<Point> sdGradX;
     // try {
-        vnp = inflator.signedDistanceParamPartials(evaluationPoints);
-        sdGradX = inflator.signedDistanceGradient(evaluationPoints);
+    vnp = inflator.signedDistanceParamPartials(evaluationPoints);
+    sdGradX = inflator.signedDistanceGradient(evaluationPoints);
     // }
     // catch(...) {
     //     MSHFieldWriter debug("debug.msh", vertices, elements);
@@ -798,9 +798,25 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
     }
     else if (type == "2D_orthotropic") {
 #if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(wireMeshPath);
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(
+                wireMeshPath);
 #else
         throw std::runtime_error("Disabled.");
+#endif
+    }
+    else if (type == "2D_parallelogram") {
+#if 1
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Parallelogram<>>, MidplaneMesher>(
+                wireMeshPath);
+#else
+        throw std::runtime_error("Disabled.");
+#endif
+    }
+    else if (type == "2D_triply_periodic") {
+#if 1
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, MidplaneMesher>(wireMeshPath);
+#else
+        throw std::runtime_error("Disabled");
 #endif
     }
     else throw runtime_error("Unknown inflator type: " + type);

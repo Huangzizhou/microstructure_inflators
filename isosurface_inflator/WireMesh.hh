@@ -34,7 +34,7 @@
 struct TransformedVertex {
     using Point = Point3<double>;
     TransformedVertex(const Point &p, size_t vtx, const Isometry &iso, const Eigen::MatrixXd &pm)
-        : pt(p), origVertex(vtx), iso(iso), posMap(pm) { }
+            : pt(p), origVertex(vtx), iso(iso), posMap(pm) { }
     Point pt;
     size_t origVertex;
     Isometry iso;
@@ -45,7 +45,7 @@ struct TransformedVertex {
 struct TransformedEdge {
     using Edge = std::pair<size_t, size_t>;
     TransformedEdge(size_t u, size_t v, size_t oe)
-        : e(u, v), origEdge(oe) { }
+            : e(u, v), origEdge(oe) { }
     UnorderedPair e;
     size_t origEdge;
     // Allow std::map
@@ -55,7 +55,7 @@ struct TransformedEdge {
 enum class ThicknessType { Vertex, Edge };
 
 template<ThicknessType thicknessType_ = ThicknessType::Vertex,
-         class Symmetry_ = Symmetry::TriplyPeriodic<>>
+        class Symmetry_ = Symmetry::TriplyPeriodic<>>
 class WireMesh {
 public:
     typedef Symmetry_ PatternSymmetry;
@@ -119,7 +119,7 @@ public:
         size_t paramOffset = 0;
         for (size_t i = 0; i < m_baseVertices.size(); ++i) {
             m_baseVertexPositioners[i].getDoFsForPoint(m_baseVertices[i],
-                    &positionParams[paramOffset]);
+                                                       &positionParams[paramOffset]);
             paramOffset += m_baseVertexPositioners[i].numDoFs();
         }
         assert(paramOffset == np);
@@ -240,36 +240,40 @@ public:
             Eigen::Matrix3Xd uPosMap = m_baseVertexPositioners.at(u).getPositionMap(nparams, vtxPosParamOffset.at(u));
             Eigen::Matrix3Xd vPosMap = m_baseVertexPositioners.at(v).getPositionMap(nparams, vtxPosParamOffset.at(v));
 
-            for (const auto &isometry : isometries) {
+            for (size_t isometryIndex = 0; isometryIndex < isometries.size(); isometryIndex++){
+                const auto &isometry = isometries[isometryIndex];
+                //for (const auto &isometry : isometries) {
                 auto mappedPu = isometry.apply(pu);
                 auto mappedPv = isometry.apply(pv);
 
                 const bool hasTranslation = isometry.hasTranslation();
+                const bool isIdentity = isometry.isIdentity();
 
                 size_t mappedUIdx = std::numeric_limits<size_t>::max(),
                         mappedVIdx = std::numeric_limits<size_t>::max();
                 // Search for repeated vertices.
                 for (size_t i = 0; i < rVertices.size(); ++i) {
                     if (rVertices[i].sqDistTo(mappedPu) < PatternSymmetry::tolerance) {
-                        if (!hasTranslation) {// Translations will give different position maps, but this should be fine for orthotropic patterns
+                        if (!hasTranslation && !isIdentity) {// Translations will give different position maps, but this should be fine for orthotropic patterns
                             if ((rVertices[i].posMap - isometry.xformMap(uPosMap)).squaredNorm() >= 1e-8) {
                                 std::cout << rVertices[i].posMap << std::endl;
                                 std::cout << isometry.xformMap(uPosMap) << std::endl;
                             }
                             assert((rVertices[i].posMap - isometry.xformMap(uPosMap)).squaredNorm() < 1e-8);
                         }
-                        assert(rVertices[i].origVertex == u); // Note: will fail on triply periodic; need constraints
+                        //assert(rVertices[i].origVertex == u); // Note: will fail on triply periodic; need constraints
                         mappedUIdx = i;
                     }
                     if (rVertices[i].sqDistTo(mappedPv) < PatternSymmetry::tolerance) {
-                        if (!hasTranslation) {
+                        if (!hasTranslation && !isIdentity) {
                             if ((rVertices[i].posMap - isometry.xformMap(vPosMap)).squaredNorm() >= 1e-8) {
                                 std::cout << rVertices[i].posMap << std::endl;
                                 std::cout << isometry.xformMap(vPosMap) << std::endl;
                             }
+                            std::cout << isometryIndex << std::endl;
                             assert((rVertices[i].posMap - isometry.xformMap(vPosMap)).squaredNorm() < 1e-8);
                         }
-                        assert(rVertices[i].origVertex == v); // Note: will fail on triply periodic; need constraints
+                        //assert(rVertices[i].origVertex == v); // Note: will fail on triply periodic; need constraints
                         mappedVIdx = i;
                     }
                 }
@@ -587,7 +591,7 @@ public:
 
             void remove(size_t u) {
                 auto it = std::find(candidates.begin(),
-                                 candidates.end(), u);
+                                    candidates.end(), u);
                 if (it == candidates.end()) throw std::runtime_error("Attempted to remove nonexistant support candidate: " + std::to_string(u));
                 candidates.erase(it);
             }

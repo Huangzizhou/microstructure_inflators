@@ -30,6 +30,16 @@ namespace Symmetry {
         }
         return "Unknown";
     }
+
+    enum class DiagonalAxis : unsigned int { YEqualsX = 0, YEqualsMinusX = 1, ANY = 255 };
+    inline std::string diagonalAxisName(DiagonalAxis d) {
+        switch(d) {
+            case DiagonalAxis::YEqualsX: return "Y=X";
+            case DiagonalAxis::YEqualsMinusX: return "Y=-X";
+            case DiagonalAxis::ANY: return "ANY";
+        }
+        return "Unknown";
+    }
 }
 
 // Elements of a symmetry group
@@ -129,6 +139,7 @@ struct Isometry {
         virtual std::unique_ptr<Operation> clone() const = 0;
         virtual bool isTranslation() const { return false; }
         virtual bool isReflection(const Symmetry::Axis /*axis*/ = Symmetry::Axis::ANY) const { return false; }
+        virtual bool isDiagonalReflection(const Symmetry::DiagonalAxis /*axis*/ = Symmetry::DiagonalAxis::ANY) const { return false; }
         virtual bool isPermutation() const { return false; }
         virtual bool affectsAxis(const Symmetry::Axis /*axis*/) const = 0;
         virtual void xformMap(Eigen::Matrix3Xd &posMap) const = 0;
@@ -162,6 +173,39 @@ struct Isometry {
             posMap.row(static_cast<unsigned int>(a)) *= -1.0;
         }
         Symmetry::Axis a;
+    };
+
+    struct DiagonalReflection : public Operation {
+        DiagonalReflection(Symmetry::DiagonalAxis d) : d(d) { }
+        virtual ~DiagonalReflection() { }
+        virtual void print(std::ostream &os) const override { os << "dr(" << diagonalAxisName(d) << ")"; }
+        virtual std::unique_ptr<Operation> clone() const override { return Future::make_unique<DiagonalReflection>(*this); }
+        virtual bool isDiagonalReflection(const Symmetry::DiagonalAxis axis = Symmetry::DiagonalAxis::ANY) const override {
+            return (axis == Symmetry::DiagonalAxis::ANY) || (axis == d);
+        }
+        virtual bool affectsAxis(const Symmetry::Axis axis) const override { return (axis != Symmetry::Axis::Z); }
+        virtual void xformMap(Eigen::Matrix3Xd &posMap) const override {
+            // only works in 3D right now
+            const Symmetry::Axis a1 = Symmetry::Axis::X;
+            const Symmetry::Axis a2 = Symmetry::Axis::Y;
+
+            switch(d) {
+                case Symmetry::DiagonalAxis::YEqualsX:
+                    // permutation
+                    posMap.row(static_cast<unsigned int>(a1)).swap(posMap.row(static_cast<unsigned int>(a2)));
+                    break;
+                case Symmetry::DiagonalAxis::YEqualsMinusX:
+                    // permutation + negation
+                    posMap.row(static_cast<unsigned int>(a1)).swap(posMap.row(static_cast<unsigned int>(a2)));
+                    posMap.row(static_cast<unsigned int>(a1)) *= -1.0;
+                    posMap.row(static_cast<unsigned int>(a2)) *= -1.0;
+                    break;
+                default:
+                    break;
+            }
+
+        }
+        Symmetry::DiagonalAxis d;
     };
 
     struct Permutation : public Operation {
