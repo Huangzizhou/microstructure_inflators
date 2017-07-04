@@ -18,7 +18,7 @@ Here I'm applying `offsetBounds` instead of `translationBounds`. These constrain
 
 `GenIsosurfaceJob` also creates an initial parameter vector for you: it positions each vertex as in the `.wire` file and assigns all vertices a default radius and blending parameter of 0.07 and 0.01 respectively.
 
-##### Q3: What happens if you *don't* use `--usePthRoot`?
+##### Q3: What is the effect of the parameter `--usePthRoot`?
 
 Passing `--usePthRoot` changes the objective from $$\int_\Omega \mathrm{wcs}^p dx$$ to $$(\int_\Omega \mathrm{wcs}^p dx)^{1/p}$$. Using the p^th root prevents the objective from blowing up as the $$p$$ parameter is increased, simplifying parameter tuning for multi-objective optimization (e.g., if you wanted to add `--proximityRegularizationWeight`). But if you're simply simply minimizing the worst-case stress objective with an equality constraint on the elasticity tensor, omitting `-P` probably will work.
 
@@ -30,7 +30,7 @@ I used the same meshing options for all 3D examples in the paper. Do you want th
 
 I generally didn't run the optimization to completion (partially because the runtimes on HPC varied wildly; on the old cluster, some nodes would occasionally run 2-10x slower for no apparent reason). Instead, I searched through the optimizer output to find the best stress reduction among the iterates within some threshold distance of the target moduli.
 
-##### Q6: It seems that 'isosurface_inflator' is used to recover the final microstructure mesh (and not just the symmetry tet/triangle)? If so, could you indicate how you run it, given the results from `WCSOptimization` (for both 2D and 3D)?
+##### Q6: It seems that `isosurface_inflator/` can be used to recover the final microstructure mesh (and not just the symmetry tet/triangle)? If so, could you indicate how you run it, given the results from `WCSOptimization` (for both 2D and 3D)?
 
 Yes, you can use `isosurface_cli` to create a mesh for the optimal parameters (which you pass using the `--params` flag):
 
