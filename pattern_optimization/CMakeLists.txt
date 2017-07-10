@@ -29,7 +29,7 @@ target_link_libraries(inflators MeshFEM)
 
 # PyMesh Wires library
 find_package(PyMesh QUIET)
-if (PYMESH_FOUND)
+if(PYMESH_FOUND)
     target_link_libraries(inflators PyMesh::core PyMesh::wires)
     target_compile_definitions(inflators PUBLIC -DHAS_PYMESH)
 else()
@@ -38,7 +38,7 @@ endif()
 
 # VCG library
 find_package(VCGlib QUIET)
-if (VCGLIB_FOUND)
+if(VCGLIB_FOUND)
     target_link_libraries(inflators VCGlib::core)
     target_compile_definitions(inflators PUBLIC -DHAS_VCGLIB)
 else()
@@ -47,7 +47,7 @@ endif()
 
 # Clipper library
 find_package(Clipper QUIET)
-if (CLIPPER_FOUND)
+if(CLIPPER_FOUND)
     target_include_directories(inflators SYSTEM PUBLIC ${CLIPPER_INCLUDE_DIRS})
     target_link_libraries(     inflators        ${CLIPPER_LIBRARIES})
     target_compile_definitions(inflators PUBLIC -DHAS_CLIPPER)
@@ -76,7 +76,7 @@ target_link_libraries(optimizers ${NLOPT_LIBRARIES})
 
 # Dlib Library
 find_package(Dlib QUIET)
-if (DLIB_FOUND)
+if(DLIB_FOUND)
     target_include_directories(optimizers SYSTEM PUBLIC ${DLIB_INCLUDE_DIR})
     target_link_libraries(optimizers ${DLIB_LIBRARIES})
     target_compile_definitions(optimizers PUBLIC -DHAS_DLIB)
@@ -86,7 +86,7 @@ endif()
 
 # Ceres library
 find_package(Ceres QUIET)
-if (CERES_FOUND)
+if(CERES_FOUND)
     target_include_directories(optimizers SYSTEM PUBLIC ${CERES_INCLUDE_DIRS})
     target_link_libraries(optimizers ${CERES_LIBRARIES})
     target_compile_definitions(optimizers PUBLIC -DHAS_CERES)
@@ -99,7 +99,7 @@ endif()
 # CGAL library
 # Note: CGAL only accepts Release and Debug build types...
 set(MyBuildType "${CMAKE_BUILD_TYPE}")
-if ((CMAKE_BUILD_TYPE STREQUAL "RelWithAssert") OR (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
+if((CMAKE_BUILD_TYPE STREQUAL "RelWithAssert") OR (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 find_package(CGAL REQUIRED COMPONENTS Core)
@@ -117,7 +117,7 @@ set_target_properties(PatternOptimization_cli PROPERTIES CXX_STANDARD 11)
 
 add_executable(GenIsosurfaceJob GenIsosurfaceJob.cc)
 target_link_libraries(GenIsosurfaceJob pattern_optimization)
-set_target_properties(GenIsosurfaceJob PROPERTIES CXX_STANDARD 11)
+set_target_properties(GenIsosurfaceJob PROPERTIES CXX_STANDARD 14)
 
 # add_executable(RandomJob RandomJob.cc)
 # target_link_libraries(RandomJob pattern_optimization)

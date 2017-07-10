@@ -3,7 +3,7 @@
 #include "IGLSurfaceMesherMC.hh"
 #include "PaperVisualizationSDFunc.hh"
 #include "SignedDistance.hh"
-#include <Utilities/apply.hh>
+//#include <Utilities/apply.hh>
 
 int main(int argc, const char *argv[]) {
     if (argc != 8) {
