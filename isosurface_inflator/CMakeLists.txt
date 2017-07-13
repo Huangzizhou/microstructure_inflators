@@ -9,8 +9,8 @@ add_library(isosurface_inflator
 		IsosurfaceInflator.cc
 		MeshingOptions.cc
 		MidplaneMesher.cc
-        VCGSurfaceMesher.cc
-        IGLSurfaceMesherMC.cc)
+		VCGSurfaceMesher.cc
+		IGLSurfaceMesherMC.cc)
 
 target_include_directories(isosurface_inflator PUBLIC .)
 
@@ -31,14 +31,15 @@ target_link_libraries(isosurface_inflator MeshFEM)
 
 # CGAL library
 # Note: CGAL only accepts Release and Debug build types...
-set(MyBuildType "${CMAKE_BUILD_TYPE}")
-if ((CMAKE_BUILD_TYPE STREQUAL "RelWithAssert") OR (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
-	set(CMAKE_BUILD_TYPE "Release")
-endif()
+#set(MyBuildType "${CMAKE_BUILD_TYPE}")
+#if ((CMAKE_BUILD_TYPE STREQUAL "RelWithAssert") OR (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
+#	set(CMAKE_BUILD_TYPE "Release")
+#endif()
 find_package(CGAL REQUIRED COMPONENTS Core)
-set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS ON CACHE BOOL "" FORCE) # Don't mess up our build plz
-include(${CGAL_USE_FILE}) # <-- Looking forwards to have imported targets with CGAL
-set(CMAKE_BUILD_TYPE "${MyBuildType}")
+target_link_libraries(isosurface_inflator CGAL::CGAL)
+#set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS ON CACHE BOOL "" FORCE) # Don't mess up our build plz
+#include(${CGAL_USE_FILE}) # <-- Looking forwards to have imported targets with CGAL
+#set(CMAKE_BUILD_TYPE "${MyBuildType}")
 
 ################################################################################
 # Optional libraries
@@ -46,15 +47,15 @@ set(CMAKE_BUILD_TYPE "${MyBuildType}")
 
 # VCG library
 find_package(VCGlib)
-if (VCGLIB_FOUND)
+if(VCGLIB_FOUND)
 	target_link_libraries(isosurface_inflator VCGlib::core)
 	target_compile_definitions(isosurface_inflator PUBLIC -DHAS_VCG)
 endif()
 
 find_package(LIBIGL QUIET)
-if (LIBIGL_FOUND)
-    target_compile_definitions(isosurface_inflator PUBLIC -DHAS_LIBIGL)
-    target_include_directories(isosurface_inflator SYSTEM PRIVATE ${LIBIGL_INCLUDE_DIRS})
+if(LIBIGL_FOUND)
+	target_compile_definitions(isosurface_inflator PUBLIC -DHAS_LIBIGL)
+	target_include_directories(isosurface_inflator SYSTEM PRIVATE ${LIBIGL_INCLUDE_DIRS})
 endif()
 
 ################################################################################
