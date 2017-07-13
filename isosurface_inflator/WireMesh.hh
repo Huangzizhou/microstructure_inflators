@@ -125,6 +125,7 @@ public:
     std::vector<double> defaultPositionParams() const {
         std::vector<double> positionParams(numPositionParams());
         for (size_t i = 0; i < m_baseVertices.size(); ++i) {
+            if (m_baseVertexPositioners[i].numDoFs() == 0) continue;
             size_t offset = m_baseVertexVarOffsets[i].position;
             assert(offset < positionParams.size());
             m_baseVertexPositioners[i].getDoFsForPoint(m_baseVertices[i],
