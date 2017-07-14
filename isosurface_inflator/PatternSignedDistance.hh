@@ -85,8 +85,12 @@ public:
         // Construct joints at each vertex in the base unit.
         for (size_t u = 0; u < points.size(); ++u) {
             if (m_adjEdges[u].size() < 2) {
-                if (WMesh::PatternSymmetry::inBaseUnit(stripAutoDiff(points[u])))
-                    throw std::runtime_error("Dangling edge inside base unit");
+                if (WMesh::PatternSymmetry::inBaseUnit(stripAutoDiff(points[u]))) {
+                    std::cerr << "WARNING: dangling edge inside the base unit at ["
+                              << points[u].transpose()
+                              << "] (neighboring cell's edge is probably protruding inside base cell)"
+                              << std::endl;
+                }
                 // Vertices outside the base unit cell with only one edge
                 // incident are not really joints.
                 m_jointForVertex.emplace_back(std::unique_ptr<Joint<Real>>());
