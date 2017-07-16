@@ -174,10 +174,10 @@ int main(int argc, const char *argv[])
 
 
     if (args["symmetry"].as<std::string>() == "square") {
-        WireMesh<ThicknessType::Vertex, Symmetry::Square<>> wm(vertices, elements);
+        WireMesh<Symmetry::Square<>> wm(vertices, elements);
         writeJob(wm);
     } else {
-        WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>> wm(vertices, elements);
+        WireMesh<Symmetry::Orthotropic<>> wm(vertices, elements);
         writeJob(wm);
     }
 

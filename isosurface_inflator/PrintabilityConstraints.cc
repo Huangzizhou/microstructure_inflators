@@ -35,7 +35,7 @@ int main(int argc, const char *argv[]) {
 
 
     using PSym = Symmetry::Orthotropic<>;
-    using WMesh = WireMesh<ThicknessType::Vertex, PSym>;
+    using WMesh = WireMesh<PSym>;
     WMesh wmesh(wirePath);
 
     if (params.size() == 0)

@@ -36,8 +36,8 @@ class PatternSignedDistance : public SignedDistanceRegion<3> {
 public:
     using Real = _Real;
     PatternSignedDistance(const WMesh &wireMesh) : m_wireMesh(wireMesh) {
-        static_assert(WMesh::thicknessType == ThicknessType::Vertex,
-                "Only per-vertex thicknesses are currently supported");
+        if (wireMesh.thicknessType() != ThicknessType::Vertex)
+            throw std::runtime_error("Only Per-Vertex Thickness Supported");
     }
 
     // Always support double type for compatibility with SignedDistanceRegion

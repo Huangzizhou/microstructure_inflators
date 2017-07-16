@@ -41,6 +41,7 @@ template<typename TOL = DEFAULT_TOL> struct TriplyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct Orthotropic;
 template<typename TOL = DEFAULT_TOL> struct Cubic;
 template<typename TOL = DEFAULT_TOL> struct Square;
+template<typename TOL = DEFAULT_TOL> struct Null;
 
 // We need a traits class for CRTP to look up the correct NodePositioner class.
 // This traits class must be specialized for each symmetry type.
@@ -345,6 +346,30 @@ struct Square : public Orthotropic<TOL>, SymmetryCRTP<Square<TOL>> {
         }
         return group;
     }
+};
+
+// Patterns with no symmetries
+template<typename TOL>
+struct Null {
+    using Tolerance = TOL;
+    static constexpr double tolerance = double(TOL::num) / double(TOL::den);
+
+    // We still probably want to mesh only the "period cell"
+    // (e.g., for periodic tilings, we mesh one cell of the tiling at a time for better efficiency.)
+    template<typename Real>
+    static BBox<Point3<Real>> representativeMeshCell() { return TriplyPeriodic<TOL>::template representativeMeshCell<Real>(); }
+    template<typename Real>
+    static bool inMeshingCell(const Point3<Real> &p) { return TriplyPeriodic<TOL>::inBaseUnit(p); }
+
+    template<typename Real>
+    static Point3<Real> mapToBaseUnit(Point3<Real> p) { return p; }
+
+    // "Base unit" is infinite
+    template<typename Real>
+    static bool inBaseUnit(const Point3<Real> &p) { return true; }
+
+    // No symmetries
+    static std::vector<Isometry> symmetryGroup() { return std::vector<Isometry>(); }
 };
 
 } // end of namespace Symmetry

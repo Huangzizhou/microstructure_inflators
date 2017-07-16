@@ -2,8 +2,8 @@
 #include <iterator>
 
 // Set from embedded graph
-template<ThicknessType thicknessType, class Sym>
-void WireMesh<thicknessType, Sym>::
+template<class Sym>
+void WireMesh<Sym>::
 set(const std::vector<MeshIO::IOVertex > &inVertices,
     const std::vector<MeshIO::IOElement> &inElements)
 {
@@ -119,7 +119,7 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     // Determine vertices/edges in the inflation graph
     std::vector<TransformedVertex> rVertices;
     std::vector<TransformedEdge>   rEdges;
-    replicatedGraph(PatternSymmetry::symmetryGroup(), rVertices, rEdges);
+    replicatedGraph(symmetryGroup(), rVertices, rEdges);
 
     // Detect edges inside or incident meshing cell.
     std::vector<bool> touchingMeshingCell;
@@ -177,13 +177,28 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     }
 
     ////////////////////////////////////////////////////////////////////////////
+    // Construct full period cell graph
+    ////////////////////////////////////////////////////////////////////////////
+    {
+        std::vector<Isometry> pcellIsometries;
+        for (const auto &iso : symmetryGroup()) {
+            if (iso.hasTranslation()) continue;
+            pcellIsometries.push_back(iso);
+        }
+        std::vector<TransformedEdge> pEdges;
+        replicatedGraph(pcellIsometries, m_periodCellVtx, pEdges);
+        for (const auto &pe : pEdges)
+            m_periodCellEdge.push_back({pe.e[0], pe.e[1]});
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
     // Construct printability graph
     ////////////////////////////////////////////////////////////////////////////
     // Reflect base graph into the "printability column." This is done by
     // applying all permutation isometries, but no translation and only the
     // z-axis reflection
     std::vector<Isometry> printabiltyIsometries;
-    for (const auto &iso : PatternSymmetry::symmetryGroup()) {
+    for (const auto &iso : symmetryGroup()) {
         if (iso.hasTranslation() ||
             iso.hasReflection(Symmetry::Axis::X) ||
             iso.hasReflection(Symmetry::Axis::Y)) {
@@ -200,9 +215,76 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
         m_printGraphEdge.push_back({pe.e[0], pe.e[1]});
 }
 
+// Construct (stitched) replicated graph along with the maps from parameters
+// to vertex positions/thicknesses/blending parameters
+// Note: these maps operate on "homogeneous parameters" (i.e. the vector of
+// parameters with 1 appended).
+template<class Sym>
+void WireMesh<Sym>::
+replicatedGraph(const std::vector<Isometry> &isometries,
+                std::vector<TransformedVertex> &outVertices,
+                std::vector<TransformedEdge  > &outEdges) const
+{
+    std::vector<TransformedVertex> rVertices;
+    std::set<TransformedEdge>      rEdges;
+
+    const double tol = m_tolerance();
+
+    for (size_t ei = 0; ei < m_baseEdges.size(); ++ei) {
+        const auto &e = m_baseEdges[ei];
+        const size_t u = e.first, v = e.second;
+
+        auto pu = m_baseVertices.at(u),
+             pv = m_baseVertices.at(v);
+
+        Eigen::Matrix3Xd uPosMap = m_baseVertexPositioners.at(u).getPositionMap(numParams(), m_baseVertexVarOffsets.at(u).position);
+        Eigen::Matrix3Xd vPosMap = m_baseVertexPositioners.at(v).getPositionMap(numParams(), m_baseVertexVarOffsets.at(v).position);
+
+        for (const auto &isometry : isometries) {
+            auto mappedPu = isometry.apply(pu);
+            auto mappedPv = isometry.apply(pv);
+
+            // Create a new replicated vertex at "p" unless p coincides
+            // with an existing one. Return resulting unique vertex's index
+            auto createUniqueVtx = [&](const size_t origVertex, const Point &p, const Eigen::Matrix3Xd &posMap) {
+                // Find and return vertex index if it already exists.
+                for (size_t i = 0; i < rVertices.size(); ++i) {
+                    if (rVertices[i].sqDistTo(p) < tol) {
+                        // Verify position maps agree for coinciding reflected vertices
+                        if ((rVertices[i].posMap - posMap).squaredNorm() >= 1e-8) {
+                            std::cout << rVertices[i].posMap << std::endl;
+                            std::cout << posMap << std::endl;
+                            assert(false && "Conflicting maps");
+                        }
+                        // Verify repeated vertices originate from same independent vtx
+                        assert(m_indepVtxForBaseVtx.at(rVertices[i].origVertex) ==
+                               m_indepVtxForBaseVtx.at(origVertex));
+                        return i;
+                    }
+                }
+                // Create new reflected vertex at "p" otherwise
+                size_t newVtxIdx = rVertices.size();
+                rVertices.emplace_back(p, origVertex, isometry, posMap);
+                return newVtxIdx;
+            };
+
+            size_t mappedUIdx = createUniqueVtx(u, mappedPu, isometry.xformMap(uPosMap)),
+                   mappedVIdx = createUniqueVtx(v, mappedPv, isometry.xformMap(vPosMap));
+
+            TransformedEdge xfEdge(mappedUIdx, mappedVIdx, ei);
+            auto ret = rEdges.insert(xfEdge);
+            if (ret.second == false) // reflected already exists; verify it's from the same base edge
+                assert(ret.first->origEdge == ei);
+        }
+    }
+
+    outVertices = rVertices;
+    outEdges.clear();
+    outEdges.insert(outEdges.end(), rEdges.begin(), rEdges.end());
+}
+
 // Set from embedded graph stored in obj/msh format.
-template<ThicknessType thicknessType, class Sym>
-void WireMesh<thicknessType, Sym>::
+inline void WireMeshBase::
 load(const std::string &wirePath) {
     std::vector<MeshIO::IOVertex> inVertices;
     std::vector<MeshIO::IOElement> inElements;
@@ -222,27 +304,24 @@ void _OutputGraph(const std::string &path, const std::vector<Point> &points,
 }
 
 // Save the full embedded graph in obj/msh format.
-template<ThicknessType thicknessType, class Sym>
-void WireMesh<thicknessType, Sym>::
+inline void WireMeshBase::
 save(const std::string &path) const {
     _OutputGraph(path, m_fullVertices, m_fullEdges);
 }
 
 // Save the embedded base unit graph in obj/msh format.
-template<ThicknessType thicknessType, class Sym>
-void WireMesh<thicknessType, Sym>::
+inline void WireMeshBase::
 saveBaseUnit(const std::string &path) const {
     _OutputGraph(path, m_baseVertices, m_baseEdges);
 }
 
 // For symmetry debugging:
 // save the tiled base unit graph in obj/msh format
-template<ThicknessType thicknessType, class Sym>
-void WireMesh<thicknessType, Sym>::
+inline void WireMeshBase::
 saveReplicatedBaseUnit(const std::string &path) const {
     std::vector<MeshIO::IOVertex> outVertices;
     std::vector<MeshIO::IOElement> outEdges;
-    for (const auto &iso : PatternSymmetry::symmetryGroup()) {
+    for (const auto &iso : symmetryGroup()) {
         size_t offset = outVertices.size();
         for (const Point &p : m_baseVertices) { outVertices.emplace_back(iso.apply(p)); }
         for (const Edge  &e :    m_baseEdges) { outEdges.emplace_back(e.first + offset, e.second + offset); }
@@ -250,27 +329,17 @@ saveReplicatedBaseUnit(const std::string &path) const {
     MeshIO::save(path, outVertices, outEdges);
 }
 
-// Find the base vertex within symmetry tolerance of p
-// (or throw an exception if none exists).
-// The number of base vertices to check is generally small, so fancy
-// data structures shouldn't be needed.
-template<ThicknessType thicknessType, class Sym>
-size_t WireMesh<thicknessType, Sym>::
-m_findBaseVertex(const Point &p) const {
-    for (size_t i = 0; i < m_baseVertices.size(); ++i) {
-        if ((p - m_baseVertices[i]).squaredNorm() < (PatternSymmetry::tolerance * PatternSymmetry::tolerance))
-            return i;
-    }
-    std::cout << "Failed to find " << p.transpose() << std::endl;
-    for (const Point &v : m_baseVertices)
-        std::cout << "    candidate " << v.transpose() << std::endl;
-    throw std::runtime_error("Couldn't find corresponding base vertex.");
+inline void WireMeshBase::
+savePeriodCellGraph(const std::string &path) const {
+    std::vector<Point> outVertices;
+    std::vector<Edge>  outEdges;
+    periodCellGraph(outVertices, outEdges);
+    _OutputGraph(path, outVertices, outEdges);
 }
 
 // For symmetry debugging:
 // save the inflation graph in obj/msh format
-template<ThicknessType thicknessType, class Sym>
-void WireMesh<thicknessType, Sym>::
+inline void WireMeshBase::
 saveInflationGraph(const std::string &path, std::vector<double> params) const {
     if (params.size() == 0)
         params = defaultParameters();
@@ -280,4 +349,21 @@ saveInflationGraph(const std::string &path, std::vector<double> params) const {
     inflationGraph(params, igraphVertices, igraphEdges, thicknesses, blendingParams);
 
     _OutputGraph(path, igraphVertices, igraphEdges);
+}
+
+// Find the base vertex within symmetry tolerance of p
+// (or throw an exception if none exists).
+// The number of base vertices to check is generally small, so fancy
+// data structures shouldn't be needed.
+template<class Sym>
+size_t WireMesh<Sym>::
+m_findBaseVertex(const Point &p) const {
+    for (size_t i = 0; i < m_baseVertices.size(); ++i) {
+        if ((p - m_baseVertices[i]).squaredNorm() < (PatternSymmetry::tolerance * PatternSymmetry::tolerance))
+            return i;
+    }
+    std::cout << "Failed to find " << p.transpose() << std::endl;
+    for (const Point &v : m_baseVertices)
+        std::cout << "    candidate " << v.transpose() << std::endl;
+    throw std::runtime_error("Couldn't find corresponding base vertex.");
 }

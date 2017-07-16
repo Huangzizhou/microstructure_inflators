@@ -40,9 +40,9 @@ void execute(const string &wirePath, string paramString, const Point3d &evalPt, 
 }
 
 map<string, function<void(const string &, string, const Point3d &, const string &)>> execImpls =
-    {{          "cubic", execute<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>         >},
-     {    "orthotropic", execute<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>   >},
-     {"triply_periodic", execute<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>>}};
+    {{          "cubic", execute<WireMesh<Symmetry::Cubic<>>         >},
+     {    "orthotropic", execute<WireMesh<Symmetry::Orthotropic<>>   >},
+     {"triply_periodic", execute<WireMesh<Symmetry::TriplyPeriodic<>>>}};
 
 void usage(int status, const po::options_description &visible_opts) {
     cerr << "Usage: ./SignedDistance_cli pattern_symmetry wire.obj evalPt -p parameters [options]" << endl;

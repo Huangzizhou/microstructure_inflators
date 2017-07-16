@@ -26,6 +26,7 @@
 #include <numeric>
 
 #include <MeshIO.hh>
+#include <Utilities/apply.hh>
 #include "InflatorTypes.hh"
 #include "Symmetry.hh"
 
@@ -67,34 +68,23 @@ enum class ThicknessType { Vertex, Edge };
 // triply periodic symmetry).
 struct BaseVtxVarOffsets { size_t position, thickness, blending; };
 
-template<ThicknessType thicknessType_ = ThicknessType::Vertex,
-         class Symmetry_ = Symmetry::TriplyPeriodic<>>
-class WireMesh {
+// Parts of WireMesh's interface that can be implemented without the
+// PatternSymmetry template parameter (or nan be made virtual)
+class WireMeshBase {
 public:
-    typedef Symmetry_ PatternSymmetry;
-    typedef Point3<double>            Point;
-    typedef std::pair<size_t, size_t> Edge;
-    // A vertex adjacent to the base cell: this is represented by the index of
-    // its corresponding base cell vertex (first), and the isometry transforming
-    // the base cell vertex into it (second).
-    typedef std::pair<size_t, Isometry> AdjacentVertex;
-    static constexpr ThicknessType thicknessType = thicknessType_;
+    using Point = Point3<double>;
+    using Edge = std::pair<size_t, size_t>;
 
-    WireMesh(const std::string &wirePath) { load(wirePath); }
-    WireMesh(const std::vector<MeshIO::IOVertex > &inVertices,
-             const std::vector<MeshIO::IOElement> &inElements) {
-        set(inVertices, inElements);
-    }
+    virtual void set(const std::vector<MeshIO::IOVertex > &inVertices,
+                     const std::vector<MeshIO::IOElement> &inElements) = 0;
 
     // Embedded graph I/O (OBJ/MSH format)
     void load                  (const std::string &path);
     void save                  (const std::string &path) const;
     void saveBaseUnit          (const std::string &path) const;
     void saveReplicatedBaseUnit(const std::string &path) const;
+    void savePeriodCellGraph   (const std::string &path) const;
     void saveInflationGraph    (const std::string &path, std::vector<double> params = std::vector<double>()) const;
-
-    void set(const std::vector<MeshIO::IOVertex > &inVertices,
-             const std::vector<MeshIO::IOElement> &inElements);
 
     size_t numVertices    () const { return m_fullVertices.size(); }
     size_t numEdges       () const { return m_fullEdges   .size(); }
@@ -105,10 +95,12 @@ public:
     // determined by the base vertex positioner.
     size_t numPositionParams() const { return m_numPositionParams; }
 
+    ThicknessType thicknessType() const { return m_thicknessType; }
+
     // There is a thickness parameter for each base vertex or base edge
     // depending on thicknessType.
     size_t numThicknessParams() const {
-        switch (thicknessType) {
+        switch (thicknessType()) {
             case ThicknessType::Edge:   return numBaseEdges();
             case ThicknessType::Vertex: return m_numIndepBaseVertices;
             default: assert(false);
@@ -120,19 +112,16 @@ public:
 
     size_t numParams() const { return numPositionParams() + numThicknessParams() + numBlendingParameters(); }
 
-    // Determine the position parameters from the original embedded graph
-    // positions.
-    std::vector<double> defaultPositionParams() const {
-        std::vector<double> positionParams(numPositionParams());
-        for (size_t i = 0; i < m_baseVertices.size(); ++i) {
-            if (m_baseVertexPositioners[i].numDoFs() == 0) continue;
-            size_t offset = m_baseVertexVarOffsets[i].position;
-            assert(offset < positionParams.size());
-            m_baseVertexPositioners[i].getDoFsForPoint(m_baseVertices[i],
-                                                       &positionParams[offset]);
-        }
+    virtual std::vector<double> defaultPositionParams() const = 0;
 
-        return positionParams;
+    // Position parameters come first, followed by thickness and blending
+    std::vector<double> defaultParameters() const {
+        std::vector<double> params;
+        params.reserve(numParams());
+        params = defaultPositionParams();
+        auto dtp = defaultThicknessParams(); params.insert(params.end(), dtp.begin(), dtp.end());
+        auto dbp =  defaultBlendingParams(); params.insert(params.end(), dbp.begin(), dbp.end());
+        return params;
     }
 
     // TODO: MAKE CONFIGURABLE.
@@ -150,14 +139,122 @@ public:
     bool isThicknessParam(size_t p) const { validateParamIdx(p); return (p >= numPositionParams()) && (p < numPositionParams() + numThicknessParams()); }
     bool  isBlendingParam(size_t p) const { validateParamIdx(p); return p >= numPositionParams() + numThicknessParams(); };
 
-    // Position parameters come first, followed by thickness and blending
-    std::vector<double> defaultParameters() const {
-        std::vector<double> params;
-        params.reserve(numParams());
-        params = defaultPositionParams();
-        auto dtp = defaultThicknessParams(); params.insert(params.end(), dtp.begin(), dtp.end());
-        auto dbp =  defaultBlendingParams(); params.insert(params.end(), dbp.begin(), dbp.end());
-        return params;
+    virtual void inflationGraph(const std::vector<double> &params,
+                                std::vector<Point3<double>> &points,
+                                std::vector<Edge> &edges,
+                                std::vector<double> &thicknesses,
+                                std::vector<double> &blendingParams) const = 0;
+
+    // Full period cell graph in its default configuration.
+    void periodCellGraph(std::vector<Point> &points,
+                         std::vector<Edge>  &edges) const {
+        edges  = m_periodCellEdge;
+        points = apply(m_periodCellVtx, [](const TransformedVertex &tv) { return tv.pt; });
+    }
+
+    // Full period cell graph and associated thickness/blending params under
+    // parameter values "params".
+    virtual void periodCellGraph(const std::vector<double> &params,
+                         std::vector<Point3<double>> &points,
+                         std::vector<Edge>   &edges,
+                         std::vector<double> &thicknesses,
+                         std::vector<double> &blendingParams) const = 0;
+
+    // Construct (stitched) replicated graph along with the maps from parameters
+    // to vertex positions/thicknesses/blending parameters
+    // Note: these maps operate on "homogeneous parameters" (i.e. the vector of
+    // parameters with 1 appended).
+    virtual void replicatedGraph(const std::vector<Isometry> &isometries,
+                         std::vector<TransformedVertex> &outVertices,
+                         std::vector<TransformedEdge  > &outEdges) const = 0;
+
+    virtual std::vector<Isometry> symmetryGroup() const = 0;
+
+protected:
+    // All vertex/edges of the pattern
+    std::vector<Point>  m_fullVertices;
+    std::vector<Edge>   m_fullEdges;
+    // The distinct vertices/edges of the pattern modulo symmetry
+    std::vector<Point>  m_baseVertices;
+    std::vector<Edge>   m_baseEdges;
+
+    // For certain pattern symmetries (e.g. TriplyPeriodic), some vertices in
+    // the base graph must be constrained to have the same
+    // position/thickness/radius variables as others. We do this by declaring
+    // certain vertices to be "independent" and others to be "dependent."
+    // Dependent vertices share variables with their single paired independent
+    // vertex (m_indepVtxForBaseVtx[*]).
+    size_t m_numIndepBaseVertices,
+           m_numDepBaseVertices;
+    std::vector<size_t> m_indepVtxForBaseVtx;
+
+    size_t m_numPositionParams;
+    // Index into the parameter vector of each base vertex's parameters.
+    std::vector<BaseVtxVarOffsets> m_baseVertexVarOffsets;
+
+    // The inflation graph, with each vertex/edge linked back to the
+    // corresponding originating vertex/edge in the base cell.
+    // This graph consists of only the edges needed to properly define the
+    // geometry inside the base cell (i.e. all base cell edges, edges incident
+    // the base cell. For cases where blending regions for joints outside the
+    // base cell can extend inside, we also include edges adjacent to the
+    // base-cell-incident edges).
+    std::vector<Edge>              m_inflEdge;
+    std::vector<size_t>            m_inflEdgeOrigin;
+    std::vector<TransformedVertex> m_inflVtx;
+
+    // The full period cell graph
+    std::vector<Edge>              m_periodCellEdge;
+    std::vector<TransformedVertex> m_periodCellVtx;
+
+    // The printability graph
+    std::vector<Edge>              m_printGraphEdge;
+    std::vector<TransformedVertex> m_printGraphVtx;
+
+    ThicknessType m_thicknessType = ThicknessType::Vertex;
+
+    virtual double m_tolerance() const = 0;
+};
+
+template<class Symmetry_ = Symmetry::TriplyPeriodic<>>
+class WireMesh : public WireMeshBase {
+public:
+    using PatternSymmetry = Symmetry_;
+
+    WireMesh(const std::string &wirePath) { load(wirePath); }
+    WireMesh(const std::vector<MeshIO::IOVertex > &inVertices,
+             const std::vector<MeshIO::IOElement> &inElements) {
+        set(inVertices, inElements);
+    }
+
+    virtual std::vector<Isometry> symmetryGroup() const override {
+        return PatternSymmetry::symmetryGroup();
+    }
+
+    virtual void set(const std::vector<MeshIO::IOVertex > &inVertices,
+                     const std::vector<MeshIO::IOElement> &inElements) override;
+
+    // Determine the position parameters from the original embedded graph
+    // positions.
+    virtual std::vector<double> defaultPositionParams() const override {
+        std::vector<double> positionParams(numPositionParams());
+        for (size_t i = 0; i < m_baseVertices.size(); ++i) {
+            if (m_baseVertexPositioners[i].numDoFs() == 0) continue;
+            size_t offset = m_baseVertexVarOffsets[i].position;
+            assert(offset < positionParams.size());
+            m_baseVertexPositioners[i].getDoFsForPoint(m_baseVertices[i],
+                                                       &positionParams[offset]);
+        }
+
+        return positionParams;
+    }
+
+    virtual void inflationGraph(const std::vector<double> &params,
+                                std::vector<Point3<double>> &points,
+                                std::vector<Edge> &edges,
+                                std::vector<double> &thicknesses,
+                                std::vector<double> &blendingParams) const override {
+        inflationGraph<double>(params, points, edges, thicknesses, blendingParams);
     }
 
     // The inflation graph includes all vertices and edges in the base symmetry
@@ -175,102 +272,28 @@ public:
                         std::vector<Edge> &edges,
                         std::vector<Real> &thicknesses,
                         std::vector<Real> &blendingParams) const {
-        if (params.size() != numParams())
-            throw std::runtime_error("Invalid number of params.");
+        m_getGraphForParameters(m_inflVtx, m_inflEdge, params, points, edges,
+                                thicknesses, blendingParams);
+    }
 
-        edges = m_inflEdge;
-
-        // Position the base graph vertices using params
-        std::vector<Point3<Real>> baseGraphPos;
-        baseGraphPos.reserve(m_baseVertices.size());
-        for (size_t i = 0; i < m_baseVertices.size(); ++i) {
-            const auto &pos = m_baseVertexPositioners[i];
-            size_t offset = m_baseVertexVarOffsets[i].position;
-            baseGraphPos.push_back(pos.template getPosition<Real>(&params[offset]));
-        }
-
-        points.clear(), points.reserve(m_inflVtx.size());
-        // Determine the inflation graph positions from the base positions.
-        for (const TransformedVertex &iv : m_inflVtx)
-            points.push_back(iv.iso.apply(baseGraphPos.at(iv.origVertex)));
-
-        // Determine thicknesses and blending parameters
-        if (thicknessType == ThicknessType::Edge)
-            throw std::runtime_error("Edge thickness currently unimplemented"); // will be easy to implement with m_inflEdgeOrigin
-
-        thicknesses   .clear(), thicknesses   .reserve(m_inflVtx.size());
-        blendingParams.clear(), blendingParams.reserve(m_inflVtx.size());
-
-        for (const TransformedVertex &iv : m_inflVtx) {
-            const auto &vo = m_baseVertexVarOffsets.at(iv.origVertex);
-            thicknesses   .push_back(params.at(vo.thickness));
-            blendingParams.push_back(params.at(vo.blending));
-        }
+    // Full period cell graph and associated thickness/blending params under
+    // parameter values "params".
+    virtual void periodCellGraph(const std::vector<double> &params,
+                         std::vector<Point3<double>> &points,
+                         std::vector<Edge>   &edges,
+                         std::vector<double> &thicknesses,
+                         std::vector<double> &blendingParams) const override {
+        m_getGraphForParameters(m_periodCellVtx, m_periodCellEdge, params, points, edges,
+                                thicknesses, blendingParams);
     }
 
     // Construct (stitched) replicated graph along with the maps from parameters
     // to vertex positions/thicknesses/blending parameters
     // Note: these maps operate on "homogeneous parameters" (i.e. the vector of
     // parameters with 1 appended).
-    void replicatedGraph(const std::vector<Isometry> &isometries,
+    virtual void replicatedGraph(const std::vector<Isometry> &isometries,
                          std::vector<TransformedVertex> &outVertices,
-                         std::vector<TransformedEdge  > &outEdges) const
-    {
-        std::vector<TransformedVertex> rVertices;
-        std::set<TransformedEdge>      rEdges;
-
-        for (size_t ei = 0; ei < m_baseEdges.size(); ++ei) {
-            const auto &e = m_baseEdges[ei];
-            const size_t u = e.first, v = e.second;
-
-            auto pu = m_baseVertices.at(u),
-                 pv = m_baseVertices.at(v);
-
-            Eigen::Matrix3Xd uPosMap = m_baseVertexPositioners.at(u).getPositionMap(numParams(), m_baseVertexVarOffsets.at(u).position);
-            Eigen::Matrix3Xd vPosMap = m_baseVertexPositioners.at(v).getPositionMap(numParams(), m_baseVertexVarOffsets.at(v).position);
-
-            for (const auto &isometry : isometries) {
-                auto mappedPu = isometry.apply(pu);
-                auto mappedPv = isometry.apply(pv);
-
-                // Create a new replicated vertex at "p" unless p coincides
-                // with an existing one. Return resulting unique vertex's index
-                auto createUniqueVtx = [&](const size_t origVertex, const Point &p, const Eigen::Matrix3Xd &posMap) {
-                    // Find and return vertex index if it already exists.
-                    for (size_t i = 0; i < rVertices.size(); ++i) {
-                        if (rVertices[i].sqDistTo(p) < PatternSymmetry::tolerance) {
-                            // Verify position maps agree for coinciding reflected vertices
-                            if ((rVertices[i].posMap - posMap).squaredNorm() >= 1e-8) {
-                                std::cout << rVertices[i].posMap << std::endl;
-                                std::cout << posMap << std::endl;
-                                assert(false && "Conflicting maps");
-                            }
-                            // Verify repeated vertices originate from same independent vtx
-                            assert(m_indepVtxForBaseVtx.at(rVertices[i].origVertex) ==
-                                   m_indepVtxForBaseVtx.at(origVertex));
-                            return i;
-                        }
-                    }
-                    // Create new reflected vertex at "p" otherwise
-                    size_t newVtxIdx = rVertices.size();
-                    rVertices.emplace_back(p, origVertex, isometry, posMap);
-                    return newVtxIdx;
-                };
-
-                size_t mappedUIdx = createUniqueVtx(u, mappedPu, isometry.xformMap(uPosMap)),
-                       mappedVIdx = createUniqueVtx(v, mappedPv, isometry.xformMap(vPosMap));
-
-                TransformedEdge xfEdge(mappedUIdx, mappedVIdx, ei);
-                auto ret = rEdges.insert(xfEdge);
-                if (ret.second == false) // reflected already exists; verify it's from the same base edge
-                    assert(ret.first->origEdge == ei);
-            }
-        }
-
-        outVertices = rVertices;
-        outEdges.clear();
-        outEdges.insert(outEdges.end(), rEdges.begin(), rEdges.end());
-    }
+                         std::vector<TransformedEdge  > &outEdges) const override;
 
     // Extract the replicated graph needed to validate printability (i.e. self
     // supporting check) and to determine the self supporting constraints for
@@ -292,8 +315,8 @@ public:
                            std::vector<size_t> &thicknessVars,
                            std::vector<Eigen::Matrix3Xd> &positionMaps) const
     {
-        static_assert(thicknessType == ThicknessType::Vertex,
-                      "Only Per-Vertex Thickness Supported");
+        if (thicknessType() != ThicknessType::Vertex)
+            throw std::runtime_error("Only Per-Vertex Thickness Supported");
 
         // Decode from cached printability graph.
         thicknessVars.clear(); thicknessVars.reserve(m_printGraphVtx.size());
@@ -331,8 +354,8 @@ public:
     }
 
     bool isPrintable(const std::vector<Real> &params) const {
-        static_assert(thicknessType == ThicknessType::Vertex,
-                      "Only Per-Vertex Thickness Supported");
+        if (thicknessType() != ThicknessType::Vertex)
+            throw std::runtime_error("Only Per-Vertex Thickness Supported");
 
         std::vector<Edge> edges;
         std::vector<Point> points;
@@ -354,7 +377,7 @@ public:
         }
 
         std::vector<bool> supported(numPoints, false);
-        const double tol = PatternSymmetry::tolerance;
+        const double tol = m_tolerance();
 
         // Should actually be the base cell bottom
         Real minZ = *std::min_element(zCoords.begin(), zCoords.end());
@@ -410,8 +433,8 @@ public:
     Eigen::MatrixXd selfSupportingConstraints(
             const std::vector<Real> &params) const
     {
-        static_assert(thicknessType == ThicknessType::Vertex,
-                      "Only Per-Vertex Thickness Supported");
+        if (thicknessType() != ThicknessType::Vertex)
+            throw std::runtime_error("Only Per-Vertex Thickness Supported");
 
         std::vector<Edge> edges;
         std::vector<Point> points;
@@ -467,7 +490,7 @@ public:
         };
 
         // Determine the candidates for supporting each vertex
-        const double tol = PatternSymmetry::tolerance;
+        const double tol = m_tolerance();
         std::vector<SupportCandidates> supportCandidates(numPoints);
         std::vector<bool> needsSupport(numPoints, true);
         for (size_t u = 0; u < numPoints; ++u) {
@@ -601,43 +624,53 @@ public:
     }
 
 private:
-
-    // All vertex/edges of the pattern
-    std::vector<Point>  m_fullVertices;
-    std::vector<Edge>   m_fullEdges;
-    // The distinct vertices/edges of the pattern modulo symmetry
-    std::vector<Point>  m_baseVertices;
-    std::vector<Edge>   m_baseEdges;
-
-    // For certain pattern symmetries (e.g. TriplyPeriodic), some vertices in
-    // the base graph must be constrained to have the same
-    // position/thickness/radius variables as others. We do this by declaring
-    // certain vertices to be "independent" and others to be "dependent."
-    // Dependent vertices share variables with their single paired independent
-    // vertex (m_indepVtxForBaseVtx[*]).
-    size_t m_numIndepBaseVertices,
-           m_numDepBaseVertices;
-    std::vector<size_t> m_indepVtxForBaseVtx;
-
-    size_t m_numPositionParams;
-    // Index into the parameter vector of each base vertex's parameters.
-    std::vector<BaseVtxVarOffsets> m_baseVertexVarOffsets;
     std::vector<decltype(PatternSymmetry::nodePositioner(Point()))> m_baseVertexPositioners;
 
-    // The inflation graph, with each vertex/edge linked back to the
-    // corresponding originating vertex/edge in the base cell.
-    // This graph consists of only the edges needed to properly define the
-    // geometry inside the base cell (i.e. all base cell edges, edges incident
-    // the base cell. For cases where blending regions for joints outside the
-    // base cell can extend inside, we also include edges adjacent to the
-    // base-cell-incident edges).
-    std::vector<Edge>              m_inflEdge;
-    std::vector<size_t>            m_inflEdgeOrigin;
-    std::vector<TransformedVertex> m_inflVtx;
+    // Get the positioned graph and decoded per-vertex variables for a
+    // particular graph (e.g. inflation graph) under parameter values "params"
+    template<typename Real>
+    void m_getGraphForParameters(
+                        const std::vector<TransformedVertex> &graphVertices,
+                        const std::vector<Edge>              &graphEdges,
+                        const std::vector<Real> &params,
+                        std::vector<Point3<Real>> &points,
+                        std::vector<Edge> &edges,
+                        std::vector<Real> &thicknesses,
+                        std::vector<Real> &blendingParams) const {
+        if (params.size() != numParams())
+            throw std::runtime_error("Invalid number of params.");
 
-    // The printability graph
-    std::vector<Edge>              m_printGraphEdge;
-    std::vector<TransformedVertex> m_printGraphVtx;
+        edges = graphEdges;
+
+        // Position the base graph vertices using params
+        std::vector<Point3<Real>> baseGraphPos;
+        baseGraphPos.reserve(m_baseVertices.size());
+        for (size_t i = 0; i < m_baseVertices.size(); ++i) {
+            const auto &pos = m_baseVertexPositioners[i];
+            size_t offset = m_baseVertexVarOffsets[i].position;
+            baseGraphPos.push_back(pos.template getPosition<Real>(&params[offset]));
+        }
+
+        points.clear(), points.reserve(graphVertices.size());
+        // Determine the vertex positions from the base positions.
+        for (const TransformedVertex &iv : graphVertices)
+            points.push_back(iv.iso.apply(baseGraphPos.at(iv.origVertex)));
+
+        // Determine thicknesses and blending parameters
+        if (thicknessType() == ThicknessType::Edge)
+            throw std::runtime_error("Edge thickness currently unimplemented"); // will be easy to implement with m_inflEdgeOrigin
+
+        thicknesses   .clear(), thicknesses   .reserve(graphVertices.size());
+        blendingParams.clear(), blendingParams.reserve(graphVertices.size());
+
+        for (const TransformedVertex &iv : graphVertices) {
+            const auto &vo = m_baseVertexVarOffsets.at(iv.origVertex);
+            thicknesses   .push_back(params.at(vo.thickness));
+            blendingParams.push_back(params.at(vo.blending));
+        }
+    }
+
+    virtual double m_tolerance() const override { return PatternSymmetry::tolerance; }
 
     // Find the base vertex within symmetry tolerance of p
     // (or throw an exception if none exists).
