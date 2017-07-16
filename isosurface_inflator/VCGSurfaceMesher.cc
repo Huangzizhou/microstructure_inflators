@@ -92,9 +92,9 @@ mesh(const SignedDistanceRegion<3> &sdf,
 #else // !HAS_VCG
 
 void VCGSurfaceMesher::
-mesh(const SignedDistanceRegion<3> &sdf,
-     std::vector<MeshIO::IOVertex> &vertices,
-     std::vector<MeshIO::IOElement> &elements)
+mesh(const SignedDistanceRegion<3> &/* sdf */,
+     std::vector<MeshIO::IOVertex> &/* vertices */,
+     std::vector<MeshIO::IOElement> &/* elements */)
 {
     throw std::runtime_error("VCG unavailable");
 }

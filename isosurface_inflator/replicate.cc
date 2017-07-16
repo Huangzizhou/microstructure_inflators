@@ -120,7 +120,7 @@ void execute(const std::vector<std::string> &components, const std::string &in_m
             size_t nt = nTiles;
             while (nt >>= 1) ++nReflections[i];
         }
-        if ((1 << nReflections[i]) != nTiles)
+        if ((size_t(1) << nReflections[i]) != nTiles)
             throw runtime_error("Only power of 2 tilings are supported");
         // It takes one reflection to reach 1x1x1 period cell.
         ++nReflections[i];

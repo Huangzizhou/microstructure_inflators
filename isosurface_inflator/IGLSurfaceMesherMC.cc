@@ -65,9 +65,9 @@ mesh(const SignedDistanceRegion<3> &sdf,
 #include <stdexcept>
 
 void IGLSurfaceMesherMC::
-mesh(const SignedDistanceRegion<3> &sdf,
-     std::vector<MeshIO::IOVertex> &vertices,
-     std::vector<MeshIO::IOElement> &elements, const double isolevel)
+mesh(const SignedDistanceRegion<3> &/* sdf */,
+     std::vector<MeshIO::IOVertex> &/* vertices */,
+     std::vector<MeshIO::IOElement> &/* elements */, const double /* isolevel */)
 {
     throw std::runtime_error("LIBIGL unavailable");
 }
