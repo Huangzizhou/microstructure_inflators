@@ -54,9 +54,9 @@ mesh(const SignedDistanceRegion<3> &sdf,
     vertices.clear(), elements.clear();
     vertices.reserve(V.rows());
     elements.reserve(F.rows());
-    for (size_t i = 0; i < V.rows(); ++i)
+    for (int i = 0; i < V.rows(); ++i)
         vertices.emplace_back(Point3D(V.row(i)));
-    for (size_t i = 0; i < F.rows(); ++i)
+    for (int i = 0; i < F.rows(); ++i)
         elements.emplace_back(F(i, 0), F(i, 1), F(i, 2));
 }
 

@@ -362,11 +362,10 @@ struct Null {
     static bool inMeshingCell(const Point3<Real> &p) { return TriplyPeriodic<TOL>::inBaseUnit(p); }
 
     template<typename Real>
-    static Point3<Real> mapToBaseUnit(Point3<Real> p) { return p; }
+    static Point3<Real> mapToBaseUnit(const Point3<Real> &p) { return p; }
 
-    // "Base unit" is infinite
     template<typename Real>
-    static bool inBaseUnit(const Point3<Real> &p) { return true; }
+    static bool inBaseUnit(const Point3<Real> &p) { return TriplyPeriodic<TOL>::inBaseUnit(p); }
 
     // No symmetries
     static std::vector<Isometry> symmetryGroup() { return std::vector<Isometry>(); }

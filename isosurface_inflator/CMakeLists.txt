@@ -99,3 +99,7 @@ set_target_properties(SignedDistance_cli PROPERTIES CXX_STANDARD 11)
 add_executable(TestWireMesh tests/TestWireMesh.cc)
 target_link_libraries(TestWireMesh isosurface_inflator)
 set_target_properties(TestWireMesh PROPERTIES CXX_STANDARD 11)
+
+add_executable(TestStitchedWireMesh tests/TestStitchedWireMesh.cc)
+target_link_libraries(TestStitchedWireMesh isosurface_inflator)
+set_target_properties(TestStitchedWireMesh PROPERTIES CXX_STANDARD 11)

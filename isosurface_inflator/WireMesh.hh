@@ -155,7 +155,7 @@ public:
     // Full period cell graph and associated thickness/blending params under
     // parameter values "params".
     virtual void periodCellGraph(const std::vector<double> &params,
-                         std::vector<Point3<double>> &points,
+                         std::vector<Point>  &points,
                          std::vector<Edge>   &edges,
                          std::vector<double> &thicknesses,
                          std::vector<double> &blendingParams) const = 0;

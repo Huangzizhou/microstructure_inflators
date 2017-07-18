@@ -699,11 +699,6 @@ private:
         assert(closestEdge < m_edgeGeometry.size());
         Real2 dist = combinedJointDistances<Real2, false, DebugDerivatives>(p, edgeDists, closestEdge);
 
-        // TODO: compare distance to each joint against distance to the edge.
-        // The joint dist should always be <= edge dist since blending is
-        // additive. If both are < edge dist the blending regions overlap and an
-        // smin should be used to smooth creases.
-
         // // Create smoothed union geometry around each vertex and then union
         // // together
         // Real2 dist = 1e5;
