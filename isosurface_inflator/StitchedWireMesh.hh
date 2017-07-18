@@ -22,9 +22,11 @@
 
 #include <Utilities/NDArray.hh>
 #include <function_traits.hh>
+#include <Geometry.hh>
 #include <stdexcept>
 #include <PeriodicBoundaryMatcher.hh> // for FaceMembership
 #include <memory>
+#include <set>
 #include "Symmetry.hh"
 #include "WireMesh.hh"
 
@@ -118,12 +120,13 @@ public:
 
         // Re-link edges in allEdges to the stitched vertices
         // Also, remove duplicate edges (if topologies have edges on interface)
-        std::set<Edge> uniqueEdges;
+        std::set<UnorderedPair> uniqueEdges;
         for (auto &e : allEdges) {
             uniqueEdges.emplace(stitchedIndex[e.first],
                                 stitchedIndex[e.second]);
         }
-        m_stitchedEdges = std::vector<Edge>(uniqueEdges.begin(), uniqueEdges.end());
+        m_stitchedEdges.clear(), m_stitchedEdges.reserve(uniqueEdges.size());
+        for (auto &e : uniqueEdges) m_stitchedEdges.emplace_back(e[0], e[1]);
 
         std::vector<PointND<N>> stitchedVtxLoc;
         for (const auto &sv : m_stitchedVertices)
