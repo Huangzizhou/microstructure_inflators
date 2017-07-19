@@ -27,7 +27,7 @@ for num_pillars in num_pillars_values:
         max = max_thickness(num_pillars, triangle_side)
         min = max / 2
 
-        thickness_values = np.linspace(min, max, 20)[1:20:4]
+        thickness_values = np.linspace(min, max, 20)
         print thickness_values
 
         for thickness in thickness_values:
