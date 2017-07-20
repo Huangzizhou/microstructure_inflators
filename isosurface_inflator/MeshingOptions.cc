@@ -6,6 +6,7 @@
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
+#include <boost/algorithm/string.hpp>
 
 using namespace std;
 using boost::property_tree::ptree;
@@ -19,6 +20,7 @@ void MeshingOptions::load(const std::string &jsonPath) {
         "marchingSquaresGridSize", "marchingCubesGridSize",
         "maxArea", "featureAngleThreshold", "forceMSGridSize",
         "marchingSquaresCoarsening", "curvatureAdaptive",
+        "curveSimplifier",
         "forceMaxBdryEdgeLen",
         "jointBlendingMode"
     };
@@ -54,6 +56,16 @@ void MeshingOptions::load(const std::string &jsonPath) {
         m_forceMaxBdryEdgeLen = true;
         m_forcedMaxBdryEdgeLen = pt.get<double>("forceMaxBdryEdgeLen");
     }
+    if (pt.count("curveSimplifier")) {
+        auto simp = pt.get<std::string>("curveSimplifier");
+        if (boost::iequals(simp, "collapse"))
+            curveSimplifier = COLLAPSE;
+        else if (boost::iequals(simp, "resample"))
+            curveSimplifier = RESAMPLE;
+        else throw std::runtime_error("Unknown curve simplifier '" + simp +
+                                      "'; expected 'collapse' or 'resample'");
+    }
+
 
     if (pt.count("jointBlendingMode")) {
         const std::string modeString = pt.get<std::string>("jointBlendingMode");

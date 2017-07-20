@@ -32,9 +32,10 @@
 
 // Stencil Visitors:
 //  Selectively visit cells of the grid if they belong to the neighborhood
-//  stencil. Works on two types of visitors:
+//  stencil. Wraps two types of visitors:
 //  1) single-arg functors (accessing value only), and
 //  2) two-arg functors (taking value and an NDArrayIndex)
+// N:   Dimension of grid to visit
 // FNO: Visit Face-adjacent Neighbors Only (true) or all grid cells (false)
 // V:   Visitor functor type (to be deduced)
 template<size_t N, bool FNO, class V> struct StencilVisitor;

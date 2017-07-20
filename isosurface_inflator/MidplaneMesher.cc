@@ -5,9 +5,12 @@
 
 #include "MarchingSquares/MarchingSquaresStitch.hh"
 #include <filters/CurveCleanup.hh>
+#include <filters/ResampleCurve.hh>
 #include <Triangulate.h>
 #include <PeriodicBoundaryMatcher.hh>
 #include <stdexcept>
+
+#include <boost/optional.hpp>
 
 #define     DEBUG_OUT 0
 #define SDF_DEBUG_OUT 0
@@ -49,8 +52,8 @@ void computeCurvatureAdaptiveMinLen(const std::list<std::list<Point2D>> &polygon
 //  Potential future improvement: mesh full cell by reflecting and remeshing the
 //  interior.
 void MidplaneMesher::
-mesh(const SignedDistanceRegion<3> &sdf,
-     std::vector<MeshIO::IOVertex> &vertices,
+mesh(const SignedDistanceRegion<3>  &sdf,
+     std::vector<MeshIO::IOVertex>  &vertices,
      std::vector<MeshIO::IOElement> &triangles)
 {
     auto bb = sdf.boundingBox();
@@ -112,14 +115,34 @@ mesh(const SignedDistanceRegion<3> &sdf,
 
     BENCHMARK_START_TIMER("Curve Cleanup");
     {
-        size_t i = 0;
-        for (auto &poly : polygons) {
-            curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
-                    meshingOptions.featureAngleThreshold, this->periodic,
-                    variableMinLens.size() ? variableMinLens.at(i) : std::vector<double>(),
-                    0.0 /* marching squares guarantees cell boundary vertex coords are exact */);
-            ++i;
+        // Only remesh the cell boundary if we're doing "periodic" meshing
+        // (i.e. preventing Triangle from inserting Steiner points). Otherwise,
+        // we'll let Triangle subdivide the boundary optimally.
+        boost::optional<double> cellBdryEdgeLen;
+        if (this->periodic) cellBdryEdgeLen = meshingOptions.maxEdgeLenFromMaxArea() / 2;
+
+        if (meshingOptions.curveSimplifier == MeshingOptions::COLLAPSE) {
+            size_t i = 0;
+            for (auto &poly : polygons) {
+                curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
+                        meshingOptions.featureAngleThreshold, this->periodic, cellBdryEdgeLen,
+                        variableMinLens.size() ? variableMinLens.at(i) : std::vector<double>(),
+                        0.0 /* marching squares guarantees cell boundary vertex coords are exact */);
+                ++i;
+            }
         }
+        else if (meshingOptions.curveSimplifier == MeshingOptions::RESAMPLE) {
+            size_t i = 0;
+            Real targetLen = minLen * 3;
+            for (auto &poly : polygons) {
+                resampleCurve<2>(poly, slice.boundingBox(), targetLen,
+                        meshingOptions.featureAngleThreshold, cellBdryEdgeLen,
+                        variableMinLens.size() ? variableMinLens.at(i) : std::vector<double>(),
+                        0.0 /* marching squares guarantees cell boundary vertex coords are exact */);
+                ++i;
+            }
+        }
+        else throw std::runtime_error("Illegal curve simplifier");
     }
     BENCHMARK_STOP_TIMER("Curve Cleanup");
 
