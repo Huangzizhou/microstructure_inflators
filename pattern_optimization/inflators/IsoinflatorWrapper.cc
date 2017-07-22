@@ -22,13 +22,14 @@ template<size_t N> void IsoinflatorWrapper<N>::clear() { m_inflator->clear(); }
 ////////////////////////////////////////////////////////////////////////////////
 template<size_t N>
 IsoinflatorWrapper<N>::IsoinflatorWrapper(const std::string &wireMeshPath,
-                                          const std::string &symmetryType, bool vertex_thickness) {
+                                          const std::string &symmetryType, bool vertex_thickness,
+                                          size_t inflationGraphRadius) {
     std::string inflatorName(symmetryType);
     boost::algorithm::to_lower(inflatorName);
     inflatorName = ((N == 2) ? "2D_" : "") + inflatorName;
     m_inflator = Future::make_unique<IsosurfaceInflator>(
                 inflatorName,
-                vertex_thickness, wireMeshPath);
+                vertex_thickness, wireMeshPath, inflationGraphRadius);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

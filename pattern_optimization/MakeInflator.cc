@@ -59,13 +59,15 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
         infl = Future::make_unique<IsoinflatorWrapper<2>>(
                 extract_required<string>(opts, "pattern"),
                 extract_required<std::string>(opts, "symmetry"),
-                extract_flag(opts, "vertexThickness"));
+                extract_flag(opts, "vertexThickness"),
+                extract_defaulted<size_t>(opts, "inflation_graph_radius", 2));
     }
     else if (ci_string("Isosurface3D") == name.c_str()) {
         infl = Future::make_unique<IsoinflatorWrapper<3>>(
                 extract_required<string>(opts, "pattern"),
                 extract_required<std::string>(opts, "symmetry"),
-                extract_flag(opts, "vertexThickness"));
+                extract_flag(opts, "vertexThickness"),
+                extract_defaulted<size_t>(opts, "inflation_graph_radius", 2));
     }
     else if (ci_string("James") == name.c_str()) {
         infl = Future::make_unique<JamesInflatorWrapper>(
@@ -143,7 +145,8 @@ po_vm filterInflatorOptions(const po_vm &opts) {
         "subdivide",
         "sub_algorithm",
         "ortho_cell",
-        "inflation_dump_path"
+        "inflation_dump_path",
+        "inflation_graph_radius",
     };
     po_vm filtered;
     for (const string &key : keys)

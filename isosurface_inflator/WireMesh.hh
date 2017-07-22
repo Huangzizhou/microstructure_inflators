@@ -30,11 +30,6 @@
 #include "InflatorTypes.hh"
 #include "Symmetry.hh"
 
-// Whether to keep the base cell-adjacent joints in the inflation graph. These
-// are needed when their blending regions extend into the base cell.
-// Note: slows down meshing/velocity computations.
-#define KEEP_BC_ADJ_JOINTS 1
-
 struct TransformedVertex {
     using Point = Point3<double>;
     TransformedVertex(const Point &p, size_t vtx, const Isometry &iso, const Eigen::MatrixXd &pm)
@@ -221,11 +216,12 @@ class WireMesh : public WireMeshBase {
 public:
     using PatternSymmetry = Symmetry_;
 
-    WireMesh(const std::string &wirePath) { load(wirePath); }
+    WireMesh(const std::string &wirePath, size_t inflationNeighborhoodEdgeDist = 2)
+        : m_inflationNeighborhoodEdgeDist(inflationNeighborhoodEdgeDist) { load(wirePath); }
     WireMesh(const std::vector<MeshIO::IOVertex > &inVertices,
-             const std::vector<MeshIO::IOElement> &inElements) {
-        set(inVertices, inElements);
-    }
+             const std::vector<MeshIO::IOElement> &inElements,
+             size_t inflationNeighborhoodEdgeDist = 2)
+        : m_inflationNeighborhoodEdgeDist(inflationNeighborhoodEdgeDist) { set(inVertices, inElements); }
 
     virtual std::vector<Isometry> symmetryGroup() const override {
         return PatternSymmetry::symmetryGroup();
@@ -675,6 +671,10 @@ private:
     // Find the base vertex within symmetry tolerance of p
     // (or throw an exception if none exists).
     size_t m_findBaseVertex(const Point &p) const;
+
+    // How many edges to traverse outward when adding meshing-cell-adjacent
+    // vertices to the inflation graph.
+    size_t m_inflationNeighborhoodEdgeDist;
 };
 
 #include "WireMesh.inl"

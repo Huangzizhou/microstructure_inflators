@@ -166,10 +166,15 @@ mesh(const SignedDistanceRegion<3>  &sdf,
         isHoleBdry.push_back(isHole);
         numHoles += isHole;
     }
+
+    // Actually, we can have more than one bbox-incident curve when a neigboring
+    // extends into this one.
+#if 0
     if (polygons.size() - numHoles != 1) {
         throw std::runtime_error("Should have exactly one bbox-incident curve; got "
                 + std::to_string(polygons.size() - numHoles) + ".");
     }
+#endif
 
     // Try to find a point inside each hole boundary.
     BENCHMARK_START_TIMER("Hole detection");
@@ -216,11 +221,9 @@ mesh(const SignedDistanceRegion<3>  &sdf,
             }
         }
     }
+
+    assert(holePts.size() == numHoles);
     BENCHMARK_STOP_TIMER("Hole detection");
-    if (polygons.size() - holePts.size() != 1) {
-        throw std::runtime_error("Should have exactly one non-hole curve. Got "
-                + std::to_string(polygons.size() - holePts.size()));
-    }
 
     triangulatePSLC(polygons, holePts, vertices, triangles,
                     meshingOptions.maxArea,

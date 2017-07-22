@@ -120,6 +120,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("inflation_dump_path,D", po::value<string>(), "Dump the inflated geometry immediately after meshing.")
         ("ortho_cell,O",                               "Only mesh and optimize the orthotropic base cell (for orthotropic patterns only")
         ("fullCellInflator",                           "Use the full period cell inflator instead of the reflection-based one")
+        ("inflation_graph_radius",po::value<size_t>(), "Number of edges to traverse outward from the symmetry cell when building the inflation graph (defaults to 2)")
         ;
 
     po::options_description optimizerOptions;

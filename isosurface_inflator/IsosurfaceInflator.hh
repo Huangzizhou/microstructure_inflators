@@ -30,7 +30,8 @@ public:
     enum class ParameterType { Thickness, Position, Blending };
 
     IsosurfaceInflator(const std::string &type, bool vertexThickness,
-                       const std::string &wireMeshPath);
+                       const std::string &wireMeshPath,
+                       size_t inflationNeighborhoodEdgeDist = 2);
 
     void inflate(const std::vector<Real> &params);
     std::vector<Real> defaultParameters() const;
@@ -58,9 +59,10 @@ public:
     const std::vector<Point>             &vertexNormals() const;
     const std::vector<Real>              &inflatedParams() const;
 
-
     // For debugging
     Point trackSignedDistanceGradient(const Point &evalPt) const;
+
+    void dumpInflationGraph(const std::string &path, const std::vector<Real> &params) const;
 
     size_t numParams() const;
 

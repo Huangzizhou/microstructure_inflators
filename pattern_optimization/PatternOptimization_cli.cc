@@ -117,6 +117,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("sub_algorithm,A", po::value<string>(),   "Subdivision algorithm for James' inflator (simple or loop, default: simple)")
         ("ortho_cell,O",                           "Only mesh and optimize the orthotropic base cell (for orthotropic patterns only")
         ("fullCellInflator",                       "Use the full period cell inflator instead of the reflection-based one")
+        ("inflation_graph_radius",po::value<size_t>(), "Number of edges to traverse outward from the symmetry cell when building the inflation graph (defaults to 2)")
         ;
 
     po::options_description visible_opts;

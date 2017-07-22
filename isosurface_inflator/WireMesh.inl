@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <iterator>
+#include <type_traits>
+#include <Utilities/apply.hh>
 
 // Set from embedded graph
 template<class Sym>
@@ -121,59 +123,65 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     std::vector<TransformedEdge>   rEdges;
     replicatedGraph(symmetryGroup(), rVertices, rEdges);
 
-    // Detect edges inside or incident meshing cell.
-    std::vector<bool> touchingMeshingCell;
+    // We want to include all vertices either inside the symmetry base unit or
+    // m_inflationNeighborhoodEdgeDist edges away. First, we compute the edge
+    // distance to the symmetry base unit.
+    std::vector<size_t> vtxEdgeDist;
+    std::queue<size_t> bfsQ;
+    for (size_t i = 0; i < rVertices.size(); ++i) {
+        size_t dist = std::numeric_limits<size_t>::max();
+        if (PatternSymmetry::inBaseUnit(rVertices[i].pt)) {
+            dist = 0;
+            bfsQ.push(i);
+        }
+        vtxEdgeDist.push_back(dist);
+    }
+
+    std::vector<std::vector<size_t>> adj(rVertices.size());
     for (const auto &re : rEdges) {
-        touchingMeshingCell.push_back(PatternSymmetry::inMeshingCell(rVertices[re.e[0]].pt) ||
-                                      PatternSymmetry::inMeshingCell(rVertices[re.e[1]].pt));
+        adj.at(re.e[0]).push_back(re.e[1]);
+        adj.at(re.e[1]).push_back(re.e[0]);
     }
 
-    // Keep edges inside or incident base cell
-    std::vector<bool> keepEdge = touchingMeshingCell;
-
-    if (KEEP_BC_ADJ_JOINTS) {
-        // Also keep the edges for joints incident these edges.
-        std::vector<bool> keepJoint(rVertices.size(), false);
-        for (size_t ei = 0; ei < rEdges.size(); ++ei) {
-            if (!keepEdge[ei]) continue;
-            const auto &re = rEdges[ei];
-            keepJoint.at(re.e[0]) = keepJoint.at(re.e[1]) = true;
-        }
-
-        for (size_t ei = 0; ei < rEdges.size(); ++ei) {
-            const auto &re = rEdges[ei];
-            if (keepJoint.at(re.e[0]) || keepJoint.at(re.e[1]))
-                keepEdge[ei] = true;
+    while (!bfsQ.empty()) {
+        size_t u = bfsQ.front();
+        bfsQ.pop();
+        size_t uDist = vtxEdgeDist[u];
+        assert(uDist < std::numeric_limits<size_t>::max());
+        for (size_t v : adj[u]) {
+            if (uDist + 1 < vtxEdgeDist[v]) {
+                vtxEdgeDist[v] = uDist + 1;
+                bfsQ.push(v);
+            }
         }
     }
 
-    // Copy over kept edges.
-    m_inflEdge.clear(), m_inflEdgeOrigin.clear();
-    std::vector<bool> vtxSeen(rVertices.size(), false);
-    for (size_t ei = 0; ei < rEdges.size(); ++ei) {
-        const auto &re = rEdges[ei];
-        if (!keepEdge[ei]) continue;
-        size_t u = re.e[0],
-               v = re.e[1];
-        m_inflEdge.push_back({u, v});
-        m_inflEdgeOrigin.push_back(re.origEdge);
-        vtxSeen.at(u) = vtxSeen.at(v) = true;
-    }
+    auto keepVtx = apply(vtxEdgeDist, [=](size_t dist) { return dist <= m_inflationNeighborhoodEdgeDist; });
 
-    // Only keep vertices belonging to kept edges.
+    // Reindex kept vertices
     m_inflVtx.clear();
     std::vector<size_t> vertexRenumber(rVertices.size(), std::numeric_limits<size_t>::max());
     for (size_t i = 0; i < rVertices.size(); ++i) {
-        if (!vtxSeen[i]) continue;
+        if (!keepVtx[i]) continue;
         vertexRenumber[i] = m_inflVtx.size();
         m_inflVtx.push_back(rVertices[i]);
     }
 
-    // Update kept edges' endpoint indices.
-    for (auto &e : m_inflEdge) {
-        e.first = vertexRenumber.at(e.first);
-        e.second = vertexRenumber.at(e.second);
-        assert((e.first < m_inflVtx.size()) && (e.second < m_inflVtx.size()));
+    // Copy over edges m_inflationNeighborhoodEdgeDist away from cell
+    // (i.e. the induced graph of kept vertices, but excluding the edges
+    // between the frontier vertices)
+    m_inflEdge.clear(), m_inflEdgeOrigin.clear();
+    for (const auto &re : rEdges) {
+        bool keepEdge = vtxEdgeDist[re.e[0]] < m_inflationNeighborhoodEdgeDist
+                     || vtxEdgeDist[re.e[1]] < m_inflationNeighborhoodEdgeDist;
+        // Always keep edges inside the inflation graph.
+        keepEdge |= (vtxEdgeDist[re.e[0]] == 0) && (vtxEdgeDist[re.e[1]] == 0);
+        if (!keepEdge) continue;
+        size_t u = vertexRenumber.at(re.e[0]),
+               v = vertexRenumber.at(re.e[1]);
+        assert((u < m_inflVtx.size()) && (v < m_inflVtx.size()));
+        m_inflEdge.push_back({u, v});
+        m_inflEdgeOrigin.push_back(re.origEdge);
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -273,8 +281,13 @@ replicatedGraph(const std::vector<Isometry> &isometries,
 
             TransformedEdge xfEdge(mappedUIdx, mappedVIdx, ei);
             auto ret = rEdges.insert(xfEdge);
-            if (ret.second == false) // reflected already exists; verify it's from the same base edge
-                assert(ret.first->origEdge == ei);
+            if (ret.second == false) {
+                // reflected already exists; verify it's from the same base edge
+                // (unless this is a triply periodic pattern where base edges
+                // on the period cell boundary are redundant)
+                assert(((ret.first->origEdge == ei) ||
+                        std::is_same<Symmetry::TriplyPeriodic<typename PatternSymmetry::Tolerance>, PatternSymmetry>::value));
+            }
         }
     }
 

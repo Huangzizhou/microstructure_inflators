@@ -17,7 +17,7 @@ using namespace std;
 using namespace std;
 
 void usage(int status, const po::options_description &visible_opts) {
-    cerr << "Usage: ./isosurface_cli mesher_name pattern parameters out.msh [options]" << endl;
+    cerr << "Usage: ./isosurface_cli mesher_name pattern [out.msh options]" << endl;
     cerr << "eg: ./isosurface_cli cubic pattern0746.wire \"0.25 0.5 0.25 0.25 0.5 0.25 0.25 0.25 0.25\" out.msh" << endl;
     cout << visible_opts << endl;
     exit(status);
@@ -46,6 +46,7 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
                               ("params,p", po::value<string>(),              " Pattern parameters")
                               ("nonReflectiveInflator",                      " use non-reflective inflator (reflective by default)")
                               ("ortho_cell,O",                               " Generate the ortho cell only (for ortho-cell meshers)")
+                              ("inflation_graph_radius", po::value<size_t>()->default_value(2),   "Number of edges to traverse outward from the symmetry cell when building the inflation graph")
                               ("dumpShapeVelocities,S", po::value<string>(), " Dump the shape velocities for debugging")
                               ("loadMesh,M",            po::value<string>(), " Skip meshing process, loading existing mesh instead (for debugging)")
                               ("assertPlanarNormals",                        " Verify that normals have a zero z component (relevant in 2D)")
@@ -69,8 +70,8 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
     }
 
     bool fail = false;
-    if (vm.count("outMSH") == 0) {
-        cout << "Error: must specify all positional arguments" << endl;
+    if (vm.count("wire") == 0) {
+        cout << "Error: must specify mesher and pattern" << endl;
         fail = true;
     }
 
@@ -95,7 +96,8 @@ int main(int argc, char *argv[])
     tbb::task_scheduler_init init(np);
 #endif
 
-    IsosurfaceInflator inflator(args["mesher"].as<string>(), true, args["wire"].as<string>());
+    IsosurfaceInflator inflator(args["mesher"].as<string>(), true, args["wire"].as<string>(),
+            args["inflation_graph_radius"].as<size_t>());
 
     vector<Real> params(inflator.defaultParameters());
     if (args.count("params")) {
@@ -115,8 +117,8 @@ int main(int argc, char *argv[])
     }
 
     auto &config = IsosurfaceInflatorConfig::get();
-    if (args.count("dumpInflationGraph"))
-        config.inflationGraphPath = args["dumpInflationGraph"].as<string>();
+    if (args.count("dumpInflationGraph")) // dump inflation graph directly without running inflation
+        inflator.dumpInflationGraph(args["dumpInflationGraph"].as<string>(), params);
     if (args.count("dumpReplicatedGraph"))
         config.replicatedGraphPath = args["dumpReplicatedGraph"].as<string>();
     if (args.count("dumpBaseUnitGraph"))
@@ -129,27 +131,29 @@ int main(int argc, char *argv[])
     if (args.count("dumpShapeVelocities")) inflator.meshingOptions().debugSVelPath = args["dumpShapeVelocities"].as<string>();
     if (args.count("loadMesh")) inflator.meshingOptions().debugLoadMeshPath = args["loadMesh"].as<string>();
 
-    inflator.setGenerateFullPeriodCell(args.count("ortho_cell") == 0);
-    inflator.inflate(params);
+    if (args.count("outMSH")) {
+        inflator.setGenerateFullPeriodCell(args.count("ortho_cell") == 0);
+        inflator.inflate(params);
 
-    MeshIO::save(args["outMSH"].as<string>(), inflator.vertices(), inflator.elements());
+        MeshIO::save(args["outMSH"].as<string>(), inflator.vertices(), inflator.elements());
 
-    if (args.count("assertPlanarNormals")) {
-        const auto &n = inflator.vertexNormals();
-        double maxZMag = 0;
-        size_t maxZMagVtx = 0;
-        for (size_t vi = 0; vi < n.size(); ++vi) {
-            Real zmag = std::abs(n[vi][2]);
-            if (zmag > maxZMag) {
-                maxZMag = zmag;
-                maxZMagVtx = vi;
+        if (args.count("assertPlanarNormals")) {
+            const auto &n = inflator.vertexNormals();
+            double maxZMag = 0;
+            size_t maxZMagVtx = 0;
+            for (size_t vi = 0; vi < n.size(); ++vi) {
+                Real zmag = std::abs(n[vi][2]);
+                if (zmag > maxZMag) {
+                    maxZMag = zmag;
+                    maxZMagVtx = vi;
+                }
             }
-        }
 
-        if (maxZMag > 0.1) {
-            std::cerr << "Large normal z component: " << maxZMag << std::endl;
-            auto n = inflator.trackSignedDistanceGradient(inflator.vertices().at(maxZMagVtx).point);
-            std::cout << "normal: " << n.transpose() << std::endl;
+            if (maxZMag > 0.1) {
+                std::cerr << "Large normal z component: " << maxZMag << std::endl;
+                auto n = inflator.trackSignedDistanceGradient(inflator.vertices().at(maxZMagVtx).point);
+                std::cout << "normal: " << n.transpose() << std::endl;
+            }
         }
     }
 
