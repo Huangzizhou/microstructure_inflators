@@ -14,10 +14,6 @@ if len(sys.argv) != 6:
 #     . '  |
 # a._______| c
 #       d
-# . b
-#     . '  |
-# a.____.__| c
-#       d
 ab_param = float(sys.argv[1])
 ac_param = float(sys.argv[2])
 thickness = float(sys.argv[3])

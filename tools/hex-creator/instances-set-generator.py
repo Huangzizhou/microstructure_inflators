@@ -37,6 +37,32 @@ def hex_pillars_generator():
                 call(cmd)
 
 
+def four_leaf_clover_generator():
+    center_thickness_parameter_values = np.linspace(0.75, 0.99, 10)
+    width_parameter_values = np.linspace(0.5, 0.98, 10)
+    tiling_thickness_parameter_values = np.linspace(0.75, 0.99, 10)
+
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    for center_thickness_parameter in center_thickness_parameter_values:
+        for width_parameter in width_parameter_values:
+            for tiling_thickness_parameter in tiling_thickness_parameter_values:
+                cwd = os.getcwd()
+                name = folder_path + '/four-leaf-clover-c{}-w{}-t{}'.format(round(center_thickness_parameter, 3),
+                                                                           round(width_parameter, 3),
+                                                                           round(tiling_thickness_parameter, 3))
+                wire_name = name + '.wire'
+                mesh_name = name + '.msh'
+
+                if os.path.isfile(mesh_name):
+                    continue
+
+                cmd = [cwd + '/four-leaf-clover-creator.py', str(center_thickness_parameter), str(width_parameter),
+                       str(tiling_thickness_parameter), wire_name,
+                       mesh_name]
+                call(cmd)
+
+
 def six_leaf_clover_generator():
     center_thickness_parameter_values = np.linspace(0.75, 0.99, 10)
     width_parameter_values = np.linspace(0.5, 0.98, 10)
@@ -57,7 +83,7 @@ def six_leaf_clover_generator():
                 if os.path.isfile(mesh_name):
                     continue
 
-                cmd = [cwd + '/six-leaf-clover-creatorls.py', str(center_thickness_parameter), str(width_parameter),
+                cmd = [cwd + '/six-leaf-clover-creator.py', str(center_thickness_parameter), str(width_parameter),
                        str(tiling_thickness_parameter), wire_name,
                        mesh_name]
                 call(cmd)
@@ -85,6 +111,83 @@ def hex_diamond_generator():
             call(cmd)
 
 
+def auxetic_squar_generator():
+    diagonal_positioning_values = np.linspace(0.02, 0.9, 20)
+    axis_positioning_values = np.linspace(0.02, 0.9, 20)
+    thickness_values = np.linspace(0.01, 0.15, 15)
+
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    for diagonal_positioning in diagonal_positioning_values:
+        for axis_positioning in axis_positioning_values:
+            for thickness in thickness_values:
+                cwd = os.getcwd()
+                name = folder_path + '/auxetic-squar-d{}-a{}-t{}'.format(round(diagonal_positioning, 3),
+                                                                           round(axis_positioning, 3),
+                                                                           round(thickness, 3))
+                wire_name = name + '.wire'
+                mesh_name = name + '.msh'
+
+                if os.path.isfile(mesh_name):
+                    continue
+
+                cmd = [cwd + '/auxetic-squar-creator.py', str(diagonal_positioning), str(axis_positioning),
+                       str(thickness), wire_name, mesh_name]
+                call(cmd)
+
+def auxetic_diamond_squar_generator():
+    diagonal_positioning_values = np.linspace(0.02, 0.9, 20)
+    axis_positioning_values = np.linspace(0.02, 0.9, 20)
+    star_thickness_values = np.linspace(0.01, 0.15, 15)
+    tiling_thickness_values = np.linspace(0.01, 0.15, 15)
+
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    for diagonal_positioning in diagonal_positioning_values:
+        for axis_positioning in axis_positioning_values:
+            for star_thickness in star_thickness_values:
+                for tiling_thickness in tiling_thickness_values:
+                    cwd = os.getcwd()
+                    name = folder_path + '/auxetic-diamond-squar-d{}-a{}-s{}-t{}'.format(round(diagonal_positioning, 3),
+                                                                                            round(axis_positioning, 3),
+                                                                                            round(star_thickness, 3),
+                                                                                            round(tiling_thickness, 3))
+                    wire_name = name + '.wire'
+                    mesh_name = name + '.msh'
+
+                    if os.path.isfile(mesh_name):
+                        continue
+
+                    cmd = [cwd + '/auxetic-diamond-squar.py', str(diagonal_positioning), str(axis_positioning),
+                           str(star_thickness), str(tiling_thickness), wire_name, mesh_name]
+                    call(cmd)
+
+
+def auxetic_star_generator():
+    diagonal_positioning_values = np.linspace(0.02, 0.9, 20)
+    axis_positioning_values = np.linspace(0.02, 0.9, 20)
+    thickness_values = np.linspace(0.01, 0.15, 15)
+
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    for diagonal_positioning in diagonal_positioning_values:
+        for axis_positioning in axis_positioning_values:
+            for thickness in thickness_values:
+                cwd = os.getcwd()
+                name = folder_path + '/auxetic-star-d{}-a{}-t{}'.format(round(diagonal_positioning, 3),
+                                                                           round(axis_positioning, 3),
+                                                                           round(thickness, 3))
+                wire_name = name + '.wire'
+                mesh_name = name + '.msh'
+
+                if os.path.isfile(mesh_name):
+                    continue
+
+                cmd = [cwd + '/auxetic-star-creator.py', str(diagonal_positioning), str(axis_positioning),
+                       str(thickness), wire_name, mesh_name]
+                call(cmd)
+
+
 if len(sys.argv) != 3:
     print "usage: ./instances-set-generator.py <generator> <output folder>"
     print "example: ./instances-set-generator.py six-leaf-clover instances"
@@ -94,8 +197,12 @@ generator = sys.argv[1]
 out_path = sys.argv[2]
 folder_path = os.getcwd() + '/' + out_path
 
-generator_dictionary = {"hexagon-pillars": hex_pillars_generator,
+generator_dictionary = {"four-leaf-clover": four_leaf_clover_generator,
                         "six-leaf-clover": six_leaf_clover_generator,
-                        "hexagon-diamond": hex_diamond_generator}
+                        "hexagon-diamond": hex_diamond_generator,
+                        "hexagon-pillars": hex_pillars_generator,
+                        "auxetic-squar": auxetic_squar_generator,
+                        "auxetic-diamond-squar": auxetic_diamond_squar_generator,
+                        "auxetic-star": auxetic_squar_generator}
 
 generator_dictionary[generator]()
