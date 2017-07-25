@@ -190,6 +190,7 @@ mesh(const SignedDistanceRegion<3>  &sdf,
                 std::list<std::list<Point2D>> holePolygons(1, poly);
                 std::vector<MeshIO::IOVertex > holeVertices;
                 std::vector<MeshIO::IOElement> holeTriangles;
+                //MeshIO::save("polygons.msh", IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
                 triangulatePSLC(holePolygons, std::vector<Point2D>(),
                                 holeVertices, holeTriangles, 1.0, "Q");
 
@@ -225,6 +226,8 @@ mesh(const SignedDistanceRegion<3>  &sdf,
     assert(holePts.size() == numHoles);
     BENCHMARK_STOP_TIMER("Hole detection");
 
+
+    //MeshIO::save("polygons.msh", IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
     triangulatePSLC(polygons, holePts, vertices, triangles,
                     meshingOptions.maxArea,
                     (this->periodic ? "QY" : "Q"));

@@ -414,7 +414,7 @@ public:
 						int idx0 = vcg::tri::Index(mesh, v0);
 						int idx1 = vcg::tri::Index(mesh, v1);
 						std::pair<int, int> e = { idx0, idx1 };
-						
+
 						if (edges.count(e) == 0)
 						{
 							// compute normal of edge
@@ -495,7 +495,7 @@ public:
 	}
 
 
-	template <class PolyMesh> 
+	template <class PolyMesh>
 	void printEdgeNeighbors(PolyMesh & pmesh, const bool useParametrization)
 	{
 		std::cout << "-------------------------------------" << std::endl;
@@ -512,7 +512,7 @@ public:
 
 		this->setTessellationParameters();
 		this->m_paths.clear();
-		
+
 		WireEmbedding::preprocessQuadMesh(pmesh);
 
 		for (int i = 0; i < pmesh.face.size(); ++i)
@@ -538,8 +538,8 @@ public:
 					edgeP1 = (edgeNumber + 1) % f.VN();
 				}
 
-				std::cout << "edge " << e << " or ectula edge " << (int)edgeNumber << " consists of " << "(" << f.V(edgeP0)->cP()[0] << "," << f.V(edgeP0)->cP()[1] << ")" << 
-					                                      								"-------->" << "(" << f.V(edgeP1)->cP()[0] << "," << f.V(edgeP1)->cP()[1] << ")" << std::endl; 
+				std::cout << "edge " << e << " or ectula edge " << (int)edgeNumber << " consists of " << "(" << f.V(edgeP0)->cP()[0] << "," << f.V(edgeP0)->cP()[1] << ")" <<
+					                                      								"-------->" << "(" << f.V(edgeP1)->cP()[0] << "," << f.V(edgeP1)->cP()[1] << ")" << std::endl;
 			}
 
 			std::cout << std::endl << std::endl;
@@ -576,7 +576,7 @@ public:
 					neighFaces = WireEmbedding::adjacentFaceEdge(pmesh, f, e);
 				}
 				if (neighEdges.size() <= 0)
-					std::cout << "edge " << (int)edgeNumber << " has no dual edge" << std::endl; 
+					std::cout << "edge " << (int)edgeNumber << " has no dual edge" << std::endl;
 				else
 				{
 					size_t jj;
@@ -611,7 +611,7 @@ public:
 
 		this->setTessellationParameters();
 		this->m_paths.clear();
-		
+
 		if (preProcessQuad)
 			WireEmbedding::preprocessQuadMesh(pmesh);
 
@@ -843,10 +843,10 @@ protected:
 	{
 		/*
 		 * Note that if you inflate em into a square cell you will end up with the correct inflated version
-		 * In other words, em displacement and raduis parameters are set to the desired (square-cell) values 
+		 * In other words, em displacement and raduis parameters are set to the desired (square-cell) values
 		 */
 
-		EMesh em0; // this will hold the original em sent to this function 
+		EMesh em0; // this will hold the original em sent to this function
 		vcg::tri::Append<EMesh,EMesh>::MeshCopy(em0, em, false, true);
 
 		typedef WireMeshEmbedding<EMesh, PolyMesh> WireEmbedding;
@@ -857,7 +857,7 @@ protected:
 		this->m_base_paths.clear();
 
 		// embed within the quad
-		WireEmbedding::embedWireMesh(em, f, pmesh); 
+		WireEmbedding::embedWireMesh(em, f, pmesh);
 
 		vcg::tri::RequireVEAdjacency(em);
 		vcg::tri::RequireEEAdjacency(em);
@@ -1016,7 +1016,7 @@ protected:
 		profile.clear();
 		clip.Execute(ClipperLib::ctUnion, profile, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
 	}
-	
+
 	// MHS on AUG06, 2015
 	// this inflates the edge mesh as follows:
 	// First:  for each edge in the mesh it creates a circle at each vertex and a trapazoid connnecting the two vertecies by means of the circle tangents.
@@ -1081,7 +1081,7 @@ protected:
 			Coord2Type p0_inQuad(ScalarType(v0.cP()[0]), ScalarType(v0.cP()[1]));
 			Coord2Type p1_inQuad(ScalarType(v1.cP()[0]), ScalarType(v1.cP()[1]));
 
-			// transform them back to the corresponding coordinates in the unit square 
+			// transform them back to the corresponding coordinates in the unit square
 			Coord2Type p0 = quadInterpolateInv<PolyMesh>(em0, p0_inQuad, pmesh, f);
 			Coord2Type p1 = quadInterpolateInv<PolyMesh>(em0, p1_inQuad, pmesh, f);
 
@@ -1116,7 +1116,7 @@ protected:
 			// p1
 			// p1 - (rightRot * r1)
 			// p1 - (rightRot * r0)
-		
+
 			// obtain the corresponding of each point in the quad and add them to the edge_path
 			ClipperLib::Path edge_path;
 			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p0, pmesh, f) ) );
@@ -1125,7 +1125,7 @@ protected:
 			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p1, pmesh, f) ) );
 			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p1 - (rightRot * r1), pmesh, f) ) );
 			edge_path.push_back( ThisType::convertToIntPoint( quadInterpolate<PolyMesh>( p0 - (rightRot * r0), pmesh, f) ) );
-			
+
 			clip.AddPath(edge_path, ClipperLib::ptSubject, true);
 		}
 
@@ -1144,17 +1144,17 @@ protected:
 
 			std::vector<Coord2Type> c;
 			this->generateCircle(c, p, v.cQ(), true);
-			
-			// deform c 
+
+			// deform c
 			std::vector<Coord2Type> deformedC;
 			deformedC.clear();
 			for (size_t j = 0; j < c.size(); ++j)
 			{
 				deformedC.push_back(quadInterpolate<PolyMesh>(c[j], pmesh, f));
 			}
-			
 
-			// add the deformed c to circle 
+
+			// add the deformed c to circle
 			circle.clear();
 			for (auto it=deformedC.begin(); it!=deformedC.end(); ++it)
 				circle.push_back(scaleToIntPoint(*it, ScalarType(ThisType::ScaleFactor)));
@@ -1177,7 +1177,7 @@ protected:
 		typedef typename WireEmbedding::QuadParametrization QuadParametrization;
 		QuadParametrization qpar = WireEmbedding::getQuadParametrizationHandle(pmesh)[&face];
 
-		char index0 = qpar.index0; 
+		char index0 = qpar.index0;
 		char index1 = (index0+1)%4;
 		char index2 = (index0+2)%4;
 		char index3 = (index0+3)%4;
@@ -1216,7 +1216,7 @@ protected:
 			if (distances[i] < distances[targetVertex])
 				targetVertex = i;
 
-	
+
 		return Coord2Type(ScalarType(e0.vert[targetVertex].cP()[0]), ScalarType(e0.vert[targetVertex].cP()[1]));
 	}
 
@@ -1603,7 +1603,9 @@ protected:
 			case 1 :
 				// set V(1) border flag to maintain consistency through multiple collapses. (V(1) is the vertex that survives the collapse)
 				this->pos.V(1)->SetB();
+				break;
 			case 2 :
+				this->pos.V(1)->SetB();
 				vcg::tri::EdgeCollapser<TriMesh,VertexPair>::Do(m, this->pos, this->pos.V(bb-1)->cP());
 				break;
 			}
