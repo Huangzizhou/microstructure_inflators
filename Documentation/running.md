@@ -74,7 +74,7 @@ This package implements the worst-case microstructure stress analysis and minimi
    
   Also, this option let us set the initial parameters of the structure (like offset and vertices radius) and set constraints for them.
 
-  Here is an example of a `file.obj` serving as target:
+  Here is an example of a `job.opt` serving as target:
   ```json
   {
     "dim": 2,
@@ -159,7 +159,7 @@ This package implements the worst-case microstructure stress analysis and minimi
 
 - Set the **weights** for elements considered in the objective function. The most common parameters are:
   - `--WCSWeight <parameter>` decides the weight given for minimizing the worst case stress in the mesh.
-    ($$J_{wcs} = (\int_w s^p)^{\frac{1}{p}}$$, where $$p$$ can also be set with `--usePthRoot` and `--pnorm <parameter>` options. See below)
+    ($$J_{wcs} = (\int_\Omega s^p)^{\frac{1}{p}}$$, where $$p$$ can also be set with `--usePthRoot` and `--pnorm <parameter>` options. See below)
     
   - `--JSWeight <parameter>` decides the weight given to $$\lVert S(w) - S^* \rVert$$, where $$ S^* $$ is the desired compliance tensor. There is also a constraint $$C(w) = C^*$$ in the optimization problem that can be set using option `--TensorFitConstraint`.
 

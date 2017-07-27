@@ -66,6 +66,10 @@ add_executable(tile tile.cc)
 target_link_libraries(tile isosurface_inflator)
 set_target_properties(tile PROPERTIES CXX_STANDARD 11)
 
+add_executable(stitch_cells_cli stitch_cells_cli.cc)
+target_link_libraries(stitch_cells_cli isosurface_inflator cli11 json)
+set_target_properties(stitch_cells_cli PROPERTIES CXX_STANDARD 14)
+
 add_executable(VisualizeQuantities VisualizeQuantities.cc)
 target_link_libraries(VisualizeQuantities isosurface_inflator)
 set_target_properties(VisualizeQuantities PROPERTIES CXX_STANDARD 11)
