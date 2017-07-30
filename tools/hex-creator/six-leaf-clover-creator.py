@@ -35,7 +35,7 @@ origin = np.array([0, 0])
 a = origin.copy()
 b = np.array([l, l * math.sqrt(3) / 3.0])
 c = np.array([l, 0])
-d = np.array([1.0 * l / 2, 0])
+d = np.array([2.0 * l / 3, 0])
 
 # define vertices on simplex based on parameters
 p1 = (1.0 - ab_param) * b + ab_param * a
@@ -43,8 +43,8 @@ p2 = (1.0 - bd_param) * d + bd_param * b
 p3 = (1.0 - cb_param) * b + cb_param * c
 
 # auxiliary vertices to fill space
-midpoint_left = polygon_centroid([p1, p1, d, p2, p2])
-midpoint_right = polygon_centroid([p2, p2, d, p3, p3])
+midpoint_left = polygon_centroid([p1, d, p2])
+midpoint_right = polygon_centroid([p2, d, p3])
 p1_middle = [p1[0], p1[1]/2]
 p3_middle = [p3[0], p3[1]/2]
 
@@ -79,7 +79,6 @@ edges.append([6, 1])
 edges.append([7, 8])
 edges.append([9, 2])
 edges.append([9, 1])
-edges.append([5, 9])
 
 # create edges and vertices to fill in the polygons
 midpoint_left_vertices = simplex_vertices_to_whole_parallelogram([midpoint_left], parallelogram_side)
@@ -96,11 +95,11 @@ hexlib.create_wire(vertices, edges, out_wire)
 
 print "Inflating ..."
 
-thickness_midpoint_left = 1.0 * min_distance_point_line(midpoint_left, [p1, p2])
-thickness_midpoint_right = 1.0 * min_distance_point_line(midpoint_right, [p2, p3])
-thickness_p1_middle = p1[1] * 0.5
-thickness_p3_middle = p3[1] * 0.5
+thickness_midpoint_left = 1.2 * min_distance_point_line(midpoint_left, [p1, p2])
+thickness_midpoint_right = 1.15 * min_distance_point_line(midpoint_right, [p2, p3])
+thickness_p1_middle = p1[1] * 0.45
+thickness_p3_middle = p3[1] * 0.45
 
-hexlib.inflate_hexagonal_box_smarter(out_wire, 0.005, 0.001,  out_mesh, [[midpoint_left_vertices, thickness_midpoint_left],
+hexlib.inflate_hexagonal_box_smarter(out_wire, 0.02, 0.001,  out_mesh, [midpoint_left_vertices, thickness_midpoint_left],
                                      [midpoint_right_vertices, thickness_midpoint_right], [p1_middle_vertices, thickness_p1_middle],
-                                     [p3_middle_vertices, thickness_p3_middle], [d_vertices, 0.2]])
+                                     [p3_middle_vertices, thickness_p3_middle], [d_vertices, 0.2])
