@@ -47,7 +47,8 @@ l = parallelogram_side / 2.0
 s = triangle_side
 
 num_upper_intervals = num_pillars - 1
-upper_spacing = (s - pillars_thickness) / (num_pillars-1)
+if num_upper_intervals > 0:
+    upper_spacing = (s - pillars_thickness) / (num_pillars-1)
 num_upper_points = int(math.floor(num_pillars / 2.0) + 1)
 
 # graph to be constructed
@@ -88,36 +89,43 @@ edges.append([1, 2])
 # creating vertices and edges between p1 and p2
 edges_descriptions = []
 
-hexlib.create_subdivided_segment_with_constant_spacing(p1_offset, p2, num_upper_points, upper_spacing, edges_descriptions)
-vertices_from_p1_to_p2 = hexlib.extract_vertices_from_edges_descriptions(edges_descriptions)
-hexlib.add_new_edges(edges_descriptions, vertices, edges)
+if num_upper_intervals > 0:
+    hexlib.create_subdivided_segment_with_constant_spacing(p1_offset, p2, num_upper_points, upper_spacing, edges_descriptions)
+    vertices_from_p1_to_p2 = hexlib.extract_vertices_from_edges_descriptions(edges_descriptions)
+    hexlib.add_new_edges(edges_descriptions, vertices, edges)
+else:
+    vertices_from_p1_to_p2 = [p2]
+    vertices.append(p2)
 
 # adding edge between p2, b and p2,c
 edges.append([len(vertices)-1, 0])
 if (num_pillars % 2) == 1:
     edges.append([len(vertices)-1, 2])
 
-pillar_triangles = []
-for index, top_point in enumerate(vertices_from_p1_to_p2):
-    if index == (len(vertices_from_p1_to_p2)-1) and (num_pillars % 2) == 0: # if even number of nodes, last one does not have pillars
-        continue
 
-    a1 = np.array([top_point[0] - pillars_thickness/2, top_point[1]])
-    a2 = np.array([top_point[0] + pillars_thickness / 2, top_point[1]])
+if num_upper_intervals > -1:
+    pillar_triangles = []
+    for index, top_point in enumerate(vertices_from_p1_to_p2):
+        if index == (len(vertices_from_p1_to_p2)-1) and (num_pillars % 2) == 0: # if even number of nodes, last one does not have pillars
+            continue
 
-    b1 = np.array([top_point[0] - pillars_thickness/2, 0])
-    b2 = np.array([top_point[0] + pillars_thickness/2, 0])
+        a1 = np.array([top_point[0] - pillars_thickness/2, top_point[1]])
+        a2 = np.array([top_point[0] + pillars_thickness / 2, top_point[1]])
 
-    triangle_left = [a1, b1, b2]
-    triangle_right = [a1, b2, a2]
+        b1 = np.array([top_point[0] - pillars_thickness/2, 0])
+        b2 = np.array([top_point[0] + pillars_thickness/2, 0])
 
-    edges_descriptions += hexlib.polygon_to_edges_descriptions(triangle_left)
-    edges_descriptions += hexlib.polygon_to_edges_descriptions(triangle_right)
-    hexlib.add_new_edges(edges_descriptions, vertices, edges)
+        triangle_left = [a1, b1, b2]
+        triangle_right = [a1, b2, a2]
 
-    pillar_triangles += hexlib.simplex_polygon_to_whole_parallelogram(triangle_left, parallelogram_side)
-    pillar_triangles += hexlib.simplex_polygon_to_whole_parallelogram(triangle_right, parallelogram_side)
+        edges_descriptions += hexlib.polygon_to_edges_descriptions(triangle_left)
+        edges_descriptions += hexlib.polygon_to_edges_descriptions(triangle_right)
+        hexlib.add_new_edges(edges_descriptions, vertices, edges)
 
+        pillar_triangles += hexlib.simplex_polygon_to_whole_parallelogram(triangle_left, parallelogram_side)
+        pillar_triangles += hexlib.simplex_polygon_to_whole_parallelogram(triangle_right, parallelogram_side)
+else:
+    pillar_triangles = []
 
 # create topology in parallelogram
 vertices, edges = hexlib.simplex_to_whole_parallelogram(vertices, edges, parallelogram_side)
@@ -131,4 +139,5 @@ hexlib.create_wire(vertices, edges, out_wire)
 
 print "Inflating ..."
 
-hexlib.inflate_hexagonal_box_smarter(out_wire, 0.005, 0.001, out_mesh, upper_incenters_thickness_pairs + pillar_triangles_incenters_thickness_pairs)
+#hexlib.inflate_hexagonal_box_smarter(out_wire, 0.005, 0.001, out_mesh, upper_incenters_thickness_pairs + pillar_triangles_incenters_thickness_pairs)
+hexlib.inflate_hexagonal_box_smarter(out_wire, 0.00001, 0.00001, out_mesh, upper_incenters_thickness_pairs + pillar_triangles_incenters_thickness_pairs)
