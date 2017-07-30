@@ -114,8 +114,8 @@ for index, top_point in enumerate(vertices_from_p1_to_p2):
     edges.append([last_pillar_connector, q1_index])
     last_pillar_connector = q2_index
 
-    obtuse1 = [q[0] - pillars_thickness/2, q[1] - 0.02]
-    obtuse2 = [q[0] + pillars_thickness / 2, q[1] - 0.02]
+    obtuse1 = [q[0] - pillars_thickness/2, q[1] - 0.04]
+    obtuse2 = [q[0] + pillars_thickness / 2, q[1] - 0.04]
 
     #obtuse1 = [q[0] - pillars_thickness/2, q1[1] - q1[0] + q[0] - pillars_thickness/2 ]
     #obtuse2 = [q[0] + pillars_thickness/2, obtuse1[1]]
