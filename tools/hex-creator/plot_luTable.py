@@ -4,9 +4,13 @@ import json
 import random
 import sys
 
+import numpy as np
+
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
+
+import interactiveplotlib as ipl
 
 if len(sys.argv) < 3:
     print "usage: ./plotLutTable.py type table"
@@ -28,6 +32,7 @@ ax.grid(True)
 i = 0
 x = []
 y = []
+annotes = []
 alpha = []
 p = []
 for i in range(2, len(sys.argv)):
@@ -38,6 +43,7 @@ for i in range(2, len(sys.argv)):
         x.append(float(fields[2]))
         y.append(float(fields[1]))
         alpha.append(float(fields[3]))
+        annotes.append(fields[5])
         p.append(fields[0])
 
 initialColors = ["r", "b", "g", "m", "y", "c", "k", "grey"]
@@ -69,26 +75,29 @@ for index, pattern in enumerate(p):
     #z.append(colorMap[pattern])
 
 #print allPatterns
-
+plt.close('all')
 if chart_type == "triangle":
     leftVertex = (-1.0, 0.0)
     topVertex = (baseNu, baseE)
     rightVertex = (1.0, 0.0)
 
-    plt.axes()
+    fig, ax = plt.subplots()
+
+    #plt.axes()
+    ax.grid(True)
     polygon = plt.Polygon([leftVertex, topVertex, rightVertex], fill=None, color='r')
-    plt.gca().add_patch(polygon)
+    ax.add_patch(polygon)
 
-    plt.axis('auto')
-    plt.xlabel(r'$\nu$')
-    plt.ylabel('E')
+    #ax.axis('auto')
+    ax.set_xlabel(r'$\nu$')
+    ax.set_ylabel('E')
 
-    plt.scatter(x, y, c=z, marker='+')
+    col = ax.scatter(x, y, c=z, marker='+', picker=True)
+
+    af = ipl.AnnoteFinder(x, y, annotes, ax=ax)
+    fig.canvas.mpl_connect('button_press_event', af)
+
 else:
-
-    plt.axis('auto')
-    plt.xlabel('$\kappa$')
-    plt.ylabel(r'$\mu$')
 
     # Now, create a new plot showing shear and bulk modulus
     x2 = []
@@ -97,13 +106,26 @@ else:
         nu = x[index]
         E = y[index]
 
-        K = E / (2*(1-nu))
-        G = E / (2*(1+nu))
+        K = E / (2 * (1 - nu))
+        G = E / (2 * (1 + nu))
 
         x2.append(K)
         y2.append(G)
 
-    plt.scatter(x2, y2, c=z, marker='+')
+    fig, ax = plt.subplots()
+
+    # plt.axes()
+    ax.grid(True)
+
+    # ax.axis('auto')
+    ax.set_xlabel('$\kappa$')
+    ax.set_ylabel(r'$\mu$')
+
+    col = ax.scatter(x2, y2, c=z, marker='o', picker=True)
+
+    af = ipl.AnnoteFinder(x2, y2, annotes, ax=ax)
+    fig.canvas.mpl_connect('button_press_event', af)
+
 
 plt.legend(handles=legend_patches)
 plt.show()
