@@ -491,30 +491,188 @@ pre.editor-colors .fold-marker:after {
   (See microstructure number 9 in Figure 7).</p>
 <ol>
 <li><p>Rectangle pillars:</p>
-<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/readme-pictures/hexagon-pillars-1.png" width="400"></p>
+<p>Figure below shows the inflated structure on a 2x2 square. Notice that the
+figure shows the warped structure and not the original structure on the
+parallelogram tiling.</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-pillars/hexa-pillars-example.png" width="400"></p>
+<p>To better visualize, we can show how the tiling of four of such structures appears:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-pillars/hexa-pillars-example-tiling.png" width="400"></p>
+<p>We experimented with this structure and obtained very interesting results.
+Below, see the charts of Young&#39;s module vs Poisson ratio and shear modulus vs
+bulk (meshes and result tables are in &#39;davi-repo&#39; branch in folder
+&#39;tools/hex-creator/experiments/hexa-pillars&#39;):</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-pillars/young-vs-poisson.png" width="400"></p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-pillars/shear-vs-bulk.png" width="400"></p>
+<p>These results show that the achieved elastic properties are closer to the
+theoretical limit than the ones obtained by the patter 98 when using squares
+tiling. For these experiments, we used script &#39;hexa-many-pillars-creator.py&#39;,
+with parameters described below (see figure below):</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-pillars/hexa-pillars-parameters.png" width="400"></p>
+<ul>
+<li>side of triangle: 1.0 to 1.8 (represented by &#39;s&#39; in the picture)</li>
+<li>number of pillars: 10 to 50 (steps of 10) (picture shows an example with 4 pillars)</li>
+<li>thickness of each pillar: 20 values between the maximum possible value (so
+pillars would not intersect) and half of this value (thickness represented by
+&#39;t&#39; in picture).</li>
+</ul>
+<p>Later, we verified how the elasticity properties respond when varying the
+number of pillars, but keeping the same volume fraction. This is done by
+keeping the same triangle side but varying the thickness of each pillar.
+Results can be seen in folders &#39;storyline-manypillars-sX&#39;, where X contains
+the triangle side value. Below, we show charts for triangle side equal to 1.4
+and number of pillars varying from 1 to 15.</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-pillars/s1.4-young-vs-poisson.png" width="400"></p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-pillars/s1.4-shear-vs-bulk.png" width="400"></p>
+<p>The numbers in both charts represents the number of pillars. We see from the
+shear vs bulk chart that, as expected, the shear modulus decreases when
+increasing the number of pillars. Also, the bulk modulus does not vary much,
+staying in the range from 80 to 95 when using more than 5 pillars. This agrees
+with our intuition, that adding pillars instead of a unique connection will
+make it easier to shear, since each pillar can move independently. Also, it
+makes sense that the bulk modulus continues practically the same, since the
+amount of material connecting the triangles is the same and in the same
+direction.</p>
+<p>This change in bulk and shear means also a change in Young&#39;s module
+and Poisson ratio. Since the change in &#39;shear vs bulk&#39; is mostly vertical, the
+result in &#39;young vs poisson&#39; will be close to a straight line with negative
+angular coefficient. Notice that increasing the pillars means reducing the
+Young&#39;s module and increasing the poisson ratio. Also, one can observe that
+the elasticity properties are getting closer to the theoretical limit when
+increasing the number of pillars (but for lower values of Young&#39;s module).</p>
+<p>So, we would expect that, for achieving a result close to the theoretical
+bounds for a high E value, we should use a larger triangle in the
+microstructure, achieving an initial Young&#39;s module closer to the top.
+This is seen when using triangle side equal to 1.5, as shown in the figures
+below:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-pillars/s1.5-young-vs-poisson.png" width="400"></p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-pillars/s1.5-shear-vs-bulk.png" width="400"></p>
+</li>
+<li><p>Quasi-pillars:</p>
+<p>We also implemented a structure called quasi-pillars, in which the region of
+contact between pillars and triangles is reduced in order to reduce the shear
+modulus, hoping that this can achieve values in the Young vs Poisson chart
+closer to the boundary. The figure below shows how this was done:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-quasipillar/hexa-quasipillars-parameters.png" width="400"></p>
+<p>The result is shown in the pictures below:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-quasipillar/hexa-quasipillars-example.png" width="400"></p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-quasipillar/hexa-quasipillars-example-tiling.png" width="400"></p>
+<p>For producing these structures, the script &#39;hexa-quasi-pillars-creator.py&#39; is used.</p>
+<p>Then, we also implemented a script (&#39;pillar2quasipillar-storyline.py&#39;) to verify,
+given an initial pillar structure with satisfiable elasticity results (where
+values are close to theoretical boundary), what happens when we slowly reduce
+the connection width between pillars and triangles. The script tests a number
+of widths between 0.005 and the original pillar thickness.</p>
+<p>We tested the script with out instance &#39;hexagon-pillars-n10-s1.4-t0.0786.msh&#39;,
+which has 10 pillars, thickness equal to 0.0786 and triangle side of 1.4.
+We experimented with 10 different values for the connection thickness and the
+results are shown below:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-quasipillar/young-vs-poisson.png" width="400"></p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-quasipillar/shear-vs-bulk.png" width="400"></p>
+<p>On one side, as expected, results show that, when reducing connection region,
+we also reduce shear. This should be good to achieve better values of Poisson
+ration and Young&#39;s module. However, the decrease in resistance to
+compressibility seen through the bulk modulus values is very significant,
+not helping in achieving elasticity properties closer to the theoretical
+boundary.</p>
+<p>Instances and results of this experiment can be seen in &#39;davi-repo&#39; branch in
+folder &#39;tools/hex-creator/experiments/hexa-quasipillar/&#39;</p>
 </li>
 <li><p>Diamond pillars:</p>
-<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/readme-pictures/hexagon-pillars-2.png" width="400"></p>
+<p>Another variant of the pillar structures is obtained by using a diamond shape
+instead of the rectangular one used in the original structure. The idea here is
+that the short connection between the pillars and the triangles will give
+smaller values for shear, while not changing so much resistance to
+compressibility (bulk).</p>
+<p>The figure below shows how this was done and the parameters considered:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-diamonds/hexa-diamonds-parameters.png" width="400"></p>
+<p>Obtaining something like shown in the example below:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-diamonds/hexa-diamonds-example.png" width="400"></p>
+<p>Then, we experimented with this kind of structures (still in progress). We
+considered the following range of parameters:</p>
+<ul>
+<li>side of triangle: 0.8 to 1.6 (represented by &#39;s&#39; in the picture)</li>
+<li>number of pillars: 5 to 25 (steps of 5) (picture shows an example with 4 pillars)</li>
+<li>thickness of each pillar: 20 values between the maximum possible value (so
+pillars would not intersect) and half of this value (thickness represented by
+&#39;t&#39; in picture).</li>
+</ul>
+<p>The results can be seen below. Green shows the structures with 5 pillars, while
+purple shows the case for 10 pillars, red for 15 and blue for 20:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-diamonds/young-vs-poisson.png" width="400"></p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-diamonds/shear-vs-bulk.png" width="400"></p>
+<p>These charts show that, in fact, a very low shear value is obtained for each
+of these structures (max below 5). However, the bulk modulus ends up being
+limited, which also affects how high the Young&#39;s module is.</p>
 </li>
 <li><p>Sear pillars:</p>
-<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/readme-pictures/hexagon-pillars-3.png" width="400"></p>
+<p>Finally, we also experimented with a structure with a very short connection between
+triangles and pillars, but a rapid transition (45 degrees) to a shape as wide
+as the original pillar shape.</p>
+<p>The parameters for this case are seen below:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-spears/hexa-spears-parameters.png" width="400"></p>
+<p>See an example:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-spears/hexa-spears-example.png" width="400"></p>
+<p>Then, we experimented with this kind of structures (still in progress). We
+considered the following range of parameters:</p>
+<ul>
+<li>side of triangle: 0.8 to 1.6 (represented by &#39;s&#39; in the picture)</li>
+<li>number of pillars: 5 to 25 (steps of 5) (picture shows an example with 4 pillars)</li>
+<li>thickness of each pillar: 20 values between the maximum possible value (so
+pillars would not intersect) and half of this value (thickness represented by
+&#39;t&#39; in picture).</li>
+</ul>
+<p>The results are shown below:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-spears/young-vs-poisson.png" width="400"></p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/hexa-spears/shear-vs-bulk.png" width="400"></p>
+<p>The outcome is better than seen with diamonds, with more strong material,
+as seen from the bulk modulus result. However, they are not as good as seen
+with the original pillars (TODO: add picture to show this).</p>
 </li>
 </ol>
 <h2 id="hexagon-squares-similar-to-clovers-">hexagon/squares similar to clovers:</h2>
-<p>  The idea of this type of topology is to provide a very small connection in the center of the clover and short
-  regions connecting neighbor structures, in a way that the
-  leaves could move with freedom, shrinking and stretching the overall
+<p>  The idea of this type of topology is to provide a very small connection in the
+  center of the clover and short regions connecting neighbor structures, in a way
+  that the leaves could move with freedom, shrinking and stretching the overall
   object.</p>
 <ol>
 <li><p>Square shape:</p>
+<p>First, we show how the base unit (considering the orthotropic symmetry) is
+planned.</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/four-leaf-clover/four-leaf-clover-parameters.png" width="400"></p>
+<p>The resulting structure is shown below:</p>
 <p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/readme-pictures/square-clover.png" width="400"></p>
 </li>
-<li><p>Hexagonal shape:</p>
-<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/readme-pictures/hexagon-clover.png" width="400"></p>
+</ol>
+<ol>
+<li><p>Hexagonal shape:
+For the hexagonal tiling case, we again used the simplex for describing the
+shape of the final structure. See the following picture:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/six-leaf-clover/six-leaf-clover-parameters.png" width="400"></p>
+<p>Notice that points <em>p1</em>, <em>p2</em> and <em>p3</em> are enough to describe the shape we want.
+<em>p1</em> can be given as a linear interpolation of <em>a</em> and <em>b</em>. The same happens
+for <em>p2</em> using points <em>b</em> and <em>d</em> and for <em>p3</em> with points <em>b</em> and <em>c</em>.</p>
+<p>An example of the resulting microstructure in the 2x2 square is shown below:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/six-leaf-clover/six-leaf-clover-example.png" width="400"></p>
+<p>See how the resulting microstructure in the hexagonal tiling works below:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/six-leaf-clover/six-leaf-clover-example-tiling.png" width="400"></p>
+<p>A script was created to produce a series of these shapes and test their
+elasticity properties. We used here three parameters that represent the
+interpolation factor used to produce <em>p1</em>, <em>p2</em> and <em>p3</em>.</p>
+<ul>
+<li>ab positioning: how close to <em>a</em> should <em>p1</em> be? 10 values between 0.75 and 0.99</li>
+<li>bd positioning: how close to <em>b</em> should <em>p2</em> be? 10 values between 0.5 and 0.98</li>
+<li>cb positioning: how close to <em>c</em> should <em>p3</em> be? 10 values between 0.75 and 0.99</li>
+</ul>
+<p>Unfortunately, the results were not very good and far from the theoretical triangle
+in the young vs poisson chart (and close to the base material poisson ratio),
+as seen below:</p>
+<p><img src="/Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures/tools/hex-creator/experiments/six-leaf-clover/young-vs-poisson.png" width="400"></p>
 </li>
 </ol>
 <h2 id="auxetic-attempt-material-">Auxetic attempt material:</h2>
-<p> The idea here is to mimic the design seen, for example, in Kaminakis et al. paper <a href="http://www.sciencedirect.com/science/article/pii/S1359836812002338">&quot;Topology optimization for compliant mechanisms, using evolutionary-hybrid algorithms and application to the design of auxetic materials&quot;</a>.</p>
+<p> The idea here is to mimic the design seen, for example, in Kaminakis et al.
+ paper <a href="http://www.sciencedirect.com/science/article/pii/S1359836812002338">&quot;Topology optimization for compliant mechanisms, using
+ evolutionary-hybrid algorithms and application to the design of auxetic materials&quot;</a>.</p>
 <ol>
 <li><p>Square tiling:</p>
 <ol>
