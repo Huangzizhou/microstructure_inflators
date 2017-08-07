@@ -106,14 +106,21 @@ if (num_pillars % 2) == 1:
 if num_upper_intervals > -1:
     pillar_triangles = []
     for index, top_point in enumerate(vertices_from_p1_to_p2):
-        if index == (len(vertices_from_p1_to_p2)-1) and (num_pillars % 2) == 0: # if even number of nodes, last one does not have pillars
-            continue
+        if index == (len(vertices_from_p1_to_p2)-1):
+            if (num_pillars % 2) == 0: # if even number of nodes, last one does not have pillars
+                continue
+            else:
+                a1 = np.array([top_point[0] - pillars_thickness / 2, top_point[1]])
+                a2 = np.array([top_point[0], top_point[1]])
 
-        a1 = np.array([top_point[0] - pillars_thickness/2, top_point[1]])
-        a2 = np.array([top_point[0] + pillars_thickness / 2, top_point[1]])
+                b1 = np.array([top_point[0] - pillars_thickness / 2, 0])
+                b2 = np.array([top_point[0], 0])
+        else:
+            a1 = np.array([top_point[0] - pillars_thickness/2, top_point[1]])
+            a2 = np.array([top_point[0] + pillars_thickness / 2, top_point[1]])
 
-        b1 = np.array([top_point[0] - pillars_thickness/2, 0])
-        b2 = np.array([top_point[0] + pillars_thickness/2, 0])
+            b1 = np.array([top_point[0] - pillars_thickness/2, 0])
+            b2 = np.array([top_point[0] + pillars_thickness/2, 0])
 
         triangle_left = [a1, b1, b2]
         triangle_right = [a1, b2, a2]
