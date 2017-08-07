@@ -4,7 +4,7 @@ import json
 import random
 import sys
 
-import numpy as np
+import hexlib
 
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
@@ -116,6 +116,11 @@ else:
 
     # plt.axes()
     ax.grid(True)
+
+    # draw theoretical rectangle
+    theoretical_rectangle = hexlib.theoretical_rectangle(200.0, 0.35, 1.0)
+    polygon = plt.Polygon(theoretical_rectangle, fill=None, color='b')
+    ax.add_patch(polygon)
 
     # ax.axis('auto')
     ax.set_xlabel('$\kappa$')
