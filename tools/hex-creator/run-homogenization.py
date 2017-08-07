@@ -14,13 +14,18 @@ def find_between(s, first, last):
     except ValueError:
         return ""
 
-if len(sys.argv) != 3:
-    print "usage: ./run-homogenization.py <input folder> <output table>"
+if len(sys.argv) < 3:
+    print "usage: ./run-homogenization.py <input folder> <output table> <material>"
     print "example: ./run-homogenization.py instances table.txt"
     sys.exit(-1)
 
 input_folder = sys.argv[1]
 output_table = sys.argv[2]
+if len(sys.argv) == 4:
+    material = sys.argv[3]
+else:
+    material = '../../materials/B9Creator.material'
+
 
 cwd = os.getcwd()
 deformed_cells_executable_path = cwd + '/../../../MeshFEM/DeformedCells_cli'
@@ -34,7 +39,7 @@ for filename in os.listdir(input_folder):
         print "Already computed!"
         continue
 
-    cmd = [deformed_cells_executable_path, input_folder + '/' + filename, '-m', '../../materials/B9Creator.material',
+    cmd = [deformed_cells_executable_path, input_folder + '/' + filename, '-m', material,
            '--homogenize', '--jacobian', '1 0.5 0 0.8660', '--transformVersion']
 
     with open('output_log.txt', 'w') as out_log:
