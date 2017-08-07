@@ -112,9 +112,9 @@ def hex_diamond_generator():
 
 
 def auxetic_squar_generator():
-    diagonal_positioning_values = np.linspace(0.02, 0.9, 20)
-    axis_positioning_values = np.linspace(0.02, 0.9, 20)
-    thickness_values = np.linspace(0.01, 0.15, 15)
+    diagonal_positioning_values = np.linspace(0.02, 0.9, 10)
+    axis_positioning_values = np.linspace(0.02, 0.9, 10)
+    thickness_values = np.linspace(0.01, 0.15, 5)
 
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
@@ -136,10 +136,10 @@ def auxetic_squar_generator():
                 call(cmd)
 
 def auxetic_diamond_squar_generator():
-    diagonal_positioning_values = np.linspace(0.02, 0.9, 20)
-    axis_positioning_values = np.linspace(0.02, 0.9, 20)
-    star_thickness_values = np.linspace(0.01, 0.15, 15)
-    tiling_thickness_values = np.linspace(0.01, 0.15, 15)
+    diagonal_positioning_values = np.linspace(0.02, 0.9, 10)
+    axis_positioning_values = np.linspace(0.02, 0.9, 10)
+    star_thickness_values = np.linspace(0.01, 0.15, 5)
+    tiling_thickness_values = np.linspace(0.01, 0.15, 5)
 
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
@@ -164,9 +164,9 @@ def auxetic_diamond_squar_generator():
 
 
 def auxetic_star_generator():
-    diagonal_positioning_values = np.linspace(0.02, 0.9, 20)
-    axis_positioning_values = np.linspace(0.02, 0.9, 20)
-    thickness_values = np.linspace(0.01, 0.15, 15)
+    diagonal_positioning_values = np.linspace(0.02, 0.9, 10)
+    axis_positioning_values = np.linspace(0.02, 0.9, 10)
+    thickness_values = np.linspace(0.01, 0.15, 5)
 
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
