@@ -70,7 +70,7 @@ def create_subdivided_segment_with_constant_spacing(segment_start, segment_end, 
     vector = (segment_end - segment_start)
     direction = vector / np.linalg.norm(vector)
     last_point = segment_start
-    for t in range(1, n-1):
+    for t in range(1, n - 1):
         new_point = segment_start + spacing * t * direction
 
         edges_descriptions.append([last_point, new_point])
@@ -210,7 +210,8 @@ def inflate_hexagonal_box(input_path, vertices_thickeness, out_path, vertices=[]
     call(cmd)
 
 
-def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bending, out_path, custom_thickness_pairs = []):
+def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bending, out_path,
+                                  custom_thickness_pairs=[]):
     # discover vertices
     vertices = []
     floats_pattern = re.compile(r'\-*\d+\.\d+')  # Compile a pattern to capture float values
@@ -309,7 +310,7 @@ def connect_all_vertices(vertices):
     edges = []
 
     for index in range(0, len(vertices) - 1):
-        edges.append([index, index+1])
+        edges.append([index, index + 1])
 
     return edges
 
@@ -334,15 +335,14 @@ def min_distance_point_line(point, line):
     y1 = line[0][1]
     x2 = line[1][0]
     y2 = line[1][1]
-    line_norm = math.sqrt((y2-y1)*(y2-y1) + (x2-x1)*(x2-x1))
+    line_norm = math.sqrt((y2 - y1) * (y2 - y1) + (x2 - x1) * (x2 - x1))
 
-    distance = abs((y2-y1)*x0 - (x2-x1)*y0 + x2*y1 - y2*x1) / line_norm
+    distance = abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1) / line_norm
 
     return distance
 
 
 def add_new_vertices(new_vertices, vertices):
-
     for vertex in new_vertices:
         position = find_vertex_in_list(vertices, vertex)
         if position == -1:
@@ -350,7 +350,7 @@ def add_new_vertices(new_vertices, vertices):
 
 
 def simplex_vertices_to_whole_parallelogram(simplex_vertices, parallelogram_side):
-    l = parallelogram_side/2
+    l = parallelogram_side / 2
     vertices = list(simplex_vertices)
 
     # Operation 1: reflect against 30 degrees line
@@ -480,7 +480,7 @@ def simplex_polygon_to_whole_parallelogram(simplex_polygon, parallelogram_side):
     # Operation 1: reflect against 30 degrees line
     vertices = np.array(vertices)
     reflected_vertices = reflect(30, vertices)
-    polygons.append(reflected_vertices) # polygons now has 2 pols
+    polygons.append(reflected_vertices)  # polygons now has 2 pols
     polygons_step_1 = list(polygons)
 
     # Operation 2: reflect against y axis at x = l
@@ -589,7 +589,7 @@ def triangle_incenter(triangle):
     b = np.linalg.norm(p_a - p_c)
     c = np.linalg.norm(p_a - p_b)
 
-    incenter = (a*p_a + b*p_b + c*p_c) / (a + b + c)
+    incenter = (a * p_a + b * p_b + c * p_c) / (a + b + c)
 
     return incenter
 
@@ -599,7 +599,88 @@ def polygon_to_edges_descriptions(polygon):
 
     for i in range(0, len(polygon)):
         p1 = polygon[i]
-        p2 = polygon[(i+1) % len(polygon)]
+        p2 = polygon[(i + 1) % len(polygon)]
 
         edges_descriptions.append([p1, p2])
     return edges_descriptions
+
+
+def theoretical_rectangle(E_base, nu_base, volume_fraction):
+    vertices = []
+    k_base = E_base / (2 * (1 - nu_base))
+    mu_base = E_base / (2 * (1 + nu_base))
+
+    rho = volume_fraction
+    k_lower = 0.0
+    mu_lower = 0.0
+
+    k_upper = k_base + (1 - rho) / (rho / (k_base + mu_base) - 1 / k_base)
+    mu_upper = mu_base + (1 - rho) / (rho * (k_base + 2 * mu_base) / (2 * mu_base * (k_base + mu_base)) - 1 / mu_base)
+
+    vertices.append([k_lower, mu_lower])
+    vertices.append([k_lower, mu_upper])
+    vertices.append([k_upper, mu_upper])
+    vertices.append([k_upper, mu_lower])
+
+    return vertices
+
+
+def theoretical_triangle(E_base, nu_base, volume_fraction):
+    rectangle_vertices = theoretical_rectangle(E_base, nu_base, volume_fraction)
+
+    upper_vertex = rectangle_vertices[2]
+    k = upper_vertex[0]
+    mu = upper_vertex[1]
+
+    # top vertex
+    nu_top = (k - mu) / (k + mu)
+    E_top = 2 * mu * (1 + nu_top)
+    top_vertex = [nu_top, E_top]
+
+    # left vertex
+    left_vertex = [-1.0, 0.0]
+
+    # right vertex
+    right_vertex = [1.0, 0.0]
+
+    return [left_vertex, top_vertex, right_vertex]
+
+
+def add_polygons_incenters(polygons, vertices, edges):
+    incenters_thickness_pairs = []
+
+    for index, pol in enumerate(polygons):
+        incenter = triangle_incenter(pol)
+        thickness = min(min_distance_point_line(incenter, [pol[0], pol[1]]),
+                        min_distance_point_line(incenter, [pol[1], pol[2]]),
+                        min_distance_point_line(incenter, [pol[2], pol[0]]))
+
+        incenters_thickness_pairs.append([[incenter], thickness])
+
+        edges_descriptions = []
+        for i in range(0, len(pol)):
+            a = list(pol[i])
+            b = incenter
+            edges_descriptions.append([a, b])
+
+        add_new_edges(edges_descriptions, vertices, edges)
+
+    return incenters_thickness_pairs
+
+
+def det_2D(a, b):
+    return a[0] * b[1] - a[1] * b[0]
+
+
+def edge_intersection(edge_1, edge_2):
+    x_delta = (edge_1[0][0] - edge_1[1][0], edge_2[0][0] - edge_2[1][0])
+    y_delta = (edge_1[0][1] - edge_1[1][1], edge_2[0][1] - edge_2[1][1])
+
+    div = det_2D(x_delta, y_delta)
+    if div == 0:
+        raise Exception('lines do not intersect')
+
+    d = (det_2D(*edge_1), det_2D(*edge_2))
+    x = det_2D(d, x_delta) / div
+    y = det_2D(d, y_delta) / div
+    return [x, y]
