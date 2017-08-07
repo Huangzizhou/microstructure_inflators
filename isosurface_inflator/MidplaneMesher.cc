@@ -113,6 +113,9 @@ mesh(const SignedDistanceRegion<3>  &sdf,
                  IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
 #endif
 
+    if (!msPolygonPath.empty())
+        MeshIO::save(msPolygonPath, IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
+
     BENCHMARK_START_TIMER("Curve Cleanup");
     {
         // Only remesh the cell boundary if we're doing "periodic" meshing
@@ -212,9 +215,8 @@ mesh(const SignedDistanceRegion<3>  &sdf,
 
                 if (maxDist == std::numeric_limits<double>::lowest())
                     throw std::runtime_error("Couldn't find point inside hole " + std::to_string(i));
-                if (maxDist <= 0)
-                    std::cerr << "WARNING: hole point inside object (nonpostive signed distance)" << std::endl;
-                holePts.push_back(bestCandidate);
+                if (maxDist <= 0) std::cerr << "WARNING: hole point inside object (nonpostive signed distance)" << std::endl;
+                else holePts.push_back(bestCandidate);
 #if DEBUG_OUT
                 std::cerr << "Found hole point: " << bestCandidate << std::endl;
                 std::cerr << "signed distance at hole point: " << maxDist << std::endl;
@@ -223,11 +225,14 @@ mesh(const SignedDistanceRegion<3>  &sdf,
         }
     }
 
-    assert(holePts.size() == numHoles);
+    if (holePts.size() != numHoles)
+        std::cerr << "WARNING: couldn't find all holes" << std::endl;
     BENCHMARK_STOP_TIMER("Hole detection");
 
 
     //MeshIO::save("polygons.msh", IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
+
+    if (polygons.size() == 0) return;
     triangulatePSLC(polygons, holePts, vertices, triangles,
                     meshingOptions.maxArea,
                     (this->periodic ? "QY" : "Q"));
@@ -359,4 +364,16 @@ void computeCurvatureAdaptiveMinLen(const std::list<std::list<Point2D>> &polygon
         for (size_t i = 0; i < lengths.domainSize(); ++i)
             vml[i] = lengths[i];
     }
+}
+
+void MidplaneMesher::dumpSDF(const SignedDistanceRegion<3>  &sdf,
+                             const std::string &path) {
+    auto bb = sdf.boundingBox();
+    size_t gridSizeX = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[0]),
+           gridSizeY = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[1]);
+    MarchingSquaresGrid msquares(gridSizeX, gridSizeY,
+                                 meshingOptions.marchingSquaresCoarsening);
+
+    MidplaneSlice slice(sdf);
+    msquares.outputSignedDistanceField(path, slice);
 }

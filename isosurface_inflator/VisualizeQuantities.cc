@@ -1,6 +1,7 @@
 #include "InflatorTypes.hh"
 #include "CGALClippedVolumeMesher.hh"
 #include "IGLSurfaceMesherMC.hh"
+#include "MidplaneMesher.hh"
 #include "PaperVisualizationSDFunc.hh"
 #include "SignedDistance.hh"
 //#include <Utilities/apply.hh>
@@ -25,6 +26,7 @@ int main(int argc, const char *argv[]) {
     std::unique_ptr<MesherBase> mesher;
     if      (mesherName == "cgal") mesher = Future::make_unique<CGALClippedVolumeMesher>();
     else if (mesherName ==  "igl") mesher = Future::make_unique<IGLSurfaceMesherMC>();
+    else if (mesherName ==  "midplane") mesher = Future::make_unique<MidplaneMesher>();
     else throw std::runtime_error("Unknown mesher; must be cgal or igl");
 
     mesher->meshingOptions.facetDistance = facet_distance;

@@ -74,6 +74,10 @@ add_executable(VisualizeQuantities VisualizeQuantities.cc)
 target_link_libraries(VisualizeQuantities isosurface_inflator)
 set_target_properties(VisualizeQuantities PROPERTIES CXX_STANDARD 11)
 
+add_executable(VisualizeQuantities2D VisualizeQuantities2D.cc)
+target_link_libraries(VisualizeQuantities2D isosurface_inflator)
+set_target_properties(VisualizeQuantities2D PROPERTIES CXX_STANDARD 11)
+
 add_executable(PrintabilityCheck PrintabilityCheck.cc)
 target_link_libraries(PrintabilityCheck isosurface_inflator)
 set_target_properties(PrintabilityCheck PROPERTIES CXX_STANDARD 11)

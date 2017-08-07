@@ -38,6 +38,7 @@ enum class NodeType : unsigned int { Vertex = 0, Edge = 1, Face = 2, Interior = 
 
 // Forward declarations of Symmetry types.
 template<typename TOL = DEFAULT_TOL> struct TriplyPeriodic;
+template<typename TOL = DEFAULT_TOL> struct DoublyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct Orthotropic;
 template<typename TOL = DEFAULT_TOL> struct Cubic;
 template<typename TOL = DEFAULT_TOL> struct Square;
@@ -49,6 +50,7 @@ template<typename TOL = DEFAULT_TOL> struct Null;
 // Cubic symmetry has a tet base cell.
 template<class Sym> struct SymmetryTraits { };
 template<typename TOL> struct SymmetryTraits<TriplyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
+template<typename TOL> struct SymmetryTraits<DoublyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Orthotropic<TOL>>    { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Cubic<TOL>>          { template<typename Real> using NodePositioner = TetNodePositioner<Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Square<TOL>>         { template<typename Real> using NodePositioner = TetNodePositioner<Real, TOL>; };
@@ -164,6 +166,21 @@ struct TriplyPeriodic : SymmetryCRTP<TriplyPeriodic<TOL>> {
             group.emplace_back(Isometry::translation(2.0 * x, 2.0 * y, 2.0 * z));
         }
         return group;
+    }
+};
+
+// Hack: same as TriplyPeriodic (since the isometries involving z don't have
+// any effect on the z = 0 signed distance slice), except we don't want to
+// assign z translation parameters. By setting the representative cell to have zero
+// height, points will be constrained to stay on the midplane.
+template<typename TOL>
+struct DoublyPeriodic : public TriplyPeriodic<TOL>, SymmetryCRTP<DoublyPeriodic<TOL>> {
+    using CRTP = SymmetryCRTP<DoublyPeriodic<TOL>>;
+    using CRTP::nodePositioner;
+    template<typename Real>
+    static BBox<Point3<Real>> representativeMeshCell() {
+        return BBox<Point3<Real>>(Point3<Real>(-1, -1, 0),
+                                  Point3<Real>(1, 1, 0));
     }
 };
 

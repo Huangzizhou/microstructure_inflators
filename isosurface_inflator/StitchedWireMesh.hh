@@ -239,11 +239,11 @@ public:
     // printability by clamping each repositioned vertex to be at the same
     // level as the adjacent vertex it needs to support.
     template<typename Real>
-    void printableInflationGraph(const std::vector<Real> &params,
-                        std::vector<Point3<Real>> &points,
-                        std::vector<Edge> &edges,
-                        std::vector<Real> &thicknesses,
-                        std::vector<Real> &blendingParams) const {
+    void printableInflationGraph(const std::vector<Real> &/* params */,
+                        std::vector<Point3<Real>> &/* points */,
+                        std::vector<Edge> &/* edges */,
+                        std::vector<Real> &/* thicknesses */,
+                        std::vector<Real> &/* blendingParams */) const {
         throw std::runtime_error("printableInflationGraph unimplemented");
     }
 

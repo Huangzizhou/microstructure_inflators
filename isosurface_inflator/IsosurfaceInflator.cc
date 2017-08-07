@@ -22,6 +22,9 @@
 #include "SnapAndReflect.hh"
 #include "Isometries.hh"
 
+#include "../pattern_optimization/ShapeVelocityInterpolator.hh"
+#include <LinearElasticity.hh>
+
 #define DEBUG_EVALPTS 0
 
 // We can get faster builds for debugging/experimenting with the signed
@@ -106,6 +109,23 @@ public:
                     vn(i) = normalShapeVelocities[p][i];
                 writer.addField("svel " + std::to_string(p), vn, DomainType::PER_NODE);
             }
+
+#if 0
+            // Get interpolated velocities
+            using Mesh = LinearElasticity::Mesh<2, 1, LinearElasticity::HomogenousMaterialGetter<Materials::Constant>::template Getter>;
+            LinearElasticity::Simulator<Mesh> sim(elements, vertices);
+            const auto &mesh = sim.mesh();
+            ShapeVelocityInterpolator interpolator(sim);
+            VectorField<Real, 2> bvel(mesh.numBoundaryVertices());
+            for (size_t p = 0; p < normalShapeVelocities.size(); ++p) {
+                for (auto bv : mesh.boundaryVertices()) {
+                    size_t vi = bv.volumeVertex().index();
+                    bvel(bv.index()) = truncateFrom3D<Point2D>(vertexNormals.at(vi)) * normalShapeVelocities[p][vi];
+                }
+                auto vvel = interpolator.interpolate(sim, bvel);
+                writer.addField("vvel " + std::to_string(p), vvel, DomainType::PER_NODE);
+            }
+#endif
         }
     }
 
@@ -835,7 +855,7 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
     }
     else if (type == "2D_doubly_periodic") {
 #if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::DoublyPeriodic<>>>(wireMeshPath, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
 #else
         throw std::runtime_error("Disabled.");
 #endif

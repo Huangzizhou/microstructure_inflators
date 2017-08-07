@@ -66,7 +66,13 @@ struct Iterate : public IterateBase {
 
         // Printability check and constraints
         m_printable = inflator.isPrintable(m_params);
-        m_selfSupportingConstraints = inflator.selfSupportingConstraints(m_params);
+        try {
+            m_selfSupportingConstraints = inflator.selfSupportingConstraints(m_params);
+            m_hasSelfSupportingConstraints = true;
+        }
+        catch (...) {
+            m_hasSelfSupportingConstraints = false;
+        }
 
         // std::cout << "Inflating" << std::endl;
         BENCHMARK_START_TIMER_SECTION("Inflate");
@@ -370,6 +376,8 @@ struct Iterate : public IterateBase {
     //      C [p] >= 0
     //        [1]
     Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> selfSupportingConstraints() const {
+        if (!m_hasSelfSupportingConstraints)
+            throw std::runtime_error("This inflator didn't provide self-supporting constraints.");
         return m_selfSupportingConstraints;
     }
 
@@ -395,6 +403,7 @@ protected:
 
     bool m_printable;
     Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> m_selfSupportingConstraints;
+    bool m_hasSelfSupportingConstraints;
 
     ObjectiveTermMap m_objectiveTerms; 
     ConstraintMap    m_constraints; 
