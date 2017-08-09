@@ -8,7 +8,7 @@
 //      (compiling anything depending on CGAL is slow!!).
 //
 //      Both 2D and 3D isosurface inflators are implemented (and can be selected
-//      using the constructor's "type" argument, but the result is always
+//      using the constructor's "type" argument), but the result is always
 //      embedded in 3D.
 */
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com

@@ -165,7 +165,7 @@ mesh(const SignedDistanceRegion<3> &sdf,
     size_t i = 0;
     for (auto it = tr.finite_vertices_begin(); it != tr.finite_vertices_end(); ++it) {
         V[it] = i++;
-        Point p = it->point();
+        auto p = it->point();
         vertices.emplace_back(CGAL::to_double(p.x()), CGAL::to_double(p.y()),
                 CGAL::to_double(p.z()));
     }

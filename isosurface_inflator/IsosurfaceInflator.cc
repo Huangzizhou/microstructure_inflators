@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <algorithm>
+#include <map>
 
 #include <MeshIO.hh>
 #include <MSHFieldWriter.hh>
@@ -24,6 +26,7 @@
 
 #include "../pattern_optimization/ShapeVelocityInterpolator.hh"
 #include <LinearElasticity.hh>
+
 
 #define DEBUG_EVALPTS 0
 
@@ -780,86 +783,47 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
 ////////////////////////////////////////////////////////////////////////////////
 IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness, const string &wireMeshPath, size_t inflationNeighborhoodEdgeDist) {
     if (!vertexThickness) throw runtime_error("Only per-vertex thickness is currently supported.");
-    if (type == "cubic") {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>>>(wireMeshPath, Future::make_unique<CGALClippedVolumeMesher>(), inflationNeighborhoodEdgeDist);
-#else
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "orthotropic") {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>>>(wireMeshPath, Future::make_unique<CGALClippedVolumeMesher>(), inflationNeighborhoodEdgeDist);
-#else
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "triply_periodic") {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<CGALClippedVolumeMesher>(), inflationNeighborhoodEdgeDist);
-#else
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "cubic_preview")   {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>>>(wireMeshPath, Future::make_unique<IGLSurfaceMesherMC>(), inflationNeighborhoodEdgeDist);
-        // Triangle mesh doesn't support our post-processing
-        disablePostprocess();
-#else
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "cubic_features")   {
-#if 0
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>>>(wireMeshPath, Future::make_unique<BoxIntersectionMesher>(), inflationNeighborhoodEdgeDist);
-        // Line mesh doesn't support our post-processing
-        disablePostprocess();
-#else
-        // Output the sharp 1D features created by bounding box intersection.
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "orthotropic_features")   {
-#if 0
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>>>(wireMeshPath, Future::make_unique<BoxIntersectionMesher>(), inflationNeighborhoodEdgeDist);
-        disablePostprocess();
-#else
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "triply_periodic_features")   {
-        throw std::runtime_error("Disabled");
-        // Output the sharp 1D features created by bounding box intersection.
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<BoxIntersectionMesher>(), inflationNeighborhoodEdgeDist);
-        // Line mesh doesn't support our post-processing
-        disablePostprocess();
-    }
-    else if (type == "triply_periodic_preview")   {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<IGLSurfaceMesherMC>(), inflationNeighborhoodEdgeDist);
-        disablePostprocess();
-#else
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "2D_square") {
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Square<>>>(wireMeshPath, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
-    }
-    else if (type == "2D_orthotropic") {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>>>(wireMeshPath, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
-#else
-        throw std::runtime_error("Disabled.");
-#endif
-    }
-    else if (type == "2D_doubly_periodic") {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::DoublyPeriodic<>>>(wireMeshPath, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
-#else
-        throw std::runtime_error("Disabled.");
-#endif
-    }
-    else throw runtime_error("Unknown inflator type: " + type);
-}
+    string name = type;
+    transform(name.begin(), name.end(), name.begin(), ::tolower);
 
+    // Decode symmetry type and mesher from the inflator name, which is
+    // composed of three parts:
+    // 1) a possible "2D_" prefix indicating a 2D inflator; this will set the mesher to MidplaneMesher
+    // 2) a symmetry type
+    // 3) a possible suffix selecting a custom mesher (only valid for 3D inflators):
+    //      "_preview"  (mesh with marching cubes instead of CGAL)
+    //      "_features" (mesh only the sharp feature curves that will be passed to CGAL)
+    std::unique_ptr<MesherBase> mesher;
+    size_t pos;
+    bool shouldDisablePostprocess = false;
+    if (name.find("2d_") == 0) {
+        mesher = Future::make_unique<MidplaneMesher>();
+        name = name.substr(3, string::npos);
+    }
+    else if ((pos = name.find("_preview")) != string::npos) {
+        mesher = Future::make_unique<IGLSurfaceMesherMC>();
+        name = name.substr(0, pos);
+        shouldDisablePostprocess = true;
+    }
+    else if ((pos = name.find("_features")) != string::npos) {
+        mesher = Future::make_unique<BoxIntersectionMesher>();
+        name = name.substr(0, pos);
+        shouldDisablePostprocess = true;
+    }
+
+    // The default mesher for 3D is CGAL.
+    if (!mesher) mesher = Future::make_unique<CGALClippedVolumeMesher>();
+
+    map<string, function<void()>> makeImplForSymmetry = {
+        {"cubic",           [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>         >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
+        {"orthotropic",     [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>   >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
+        {"triply_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
+        {"doubly_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::DoublyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
+        {"square",          [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Square<>        >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }}
+    };
+
+    if (makeImplForSymmetry.count(name) == 0) throw std::runtime_error("Invalid inflator name: '" + type + "'");
+    makeImplForSymmetry[name]();
+
+    if (shouldDisablePostprocess) disablePostprocess();
+}

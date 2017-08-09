@@ -32,6 +32,7 @@ target_link_libraries(isosurface_inflator MeshFEM)
 # CGAL library
 find_package(CGAL REQUIRED COMPONENTS Core)
 target_link_libraries(isosurface_inflator CGAL::CGAL)
+target_include_directories(isosurface_inflator SYSTEM PRIVATE ${CGAL_INCLUDE_DIRS})
 
 ################################################################################
 # Optional libraries
