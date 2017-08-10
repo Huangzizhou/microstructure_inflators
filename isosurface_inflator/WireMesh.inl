@@ -372,7 +372,7 @@ template<class Sym>
 size_t WireMesh<Sym>::
 m_findBaseVertex(const Point &p) const {
     for (size_t i = 0; i < m_baseVertices.size(); ++i) {
-        if ((p - m_baseVertices[i]).squaredNorm() < (PatternSymmetry::tolerance * PatternSymmetry::tolerance))
+        if ((p - m_baseVertices[i]).squaredNorm() < (PatternSymmetry::tolerance * PatternSymmetry::tolerance * 100))
             return i;
     }
     std::cout << "Failed to find " << p.transpose() << std::endl;
