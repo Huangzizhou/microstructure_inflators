@@ -8,7 +8,9 @@ add_library(isosurface_inflator
 		ConvexHullTriangulation.cc
 		IsosurfaceInflator.cc
 		MeshingOptions.cc
-		MidplaneMesher.cc)
+		MidplaneMesher.cc
+		VCGSurfaceMesher.cc
+		IGLSurfaceMesherMC.cc)
 
 target_include_directories(isosurface_inflator PUBLIC .)
 
@@ -28,25 +30,24 @@ find_package(MeshFEM REQUIRED)
 target_link_libraries(isosurface_inflator MeshFEM)
 
 # CGAL library
-# Note: CGAL only accepts Release and Debug build types...
-set(MyBuildType "${CMAKE_BUILD_TYPE}")
-if ((CMAKE_BUILD_TYPE STREQUAL "RelWithAssert") OR (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo"))
-    set(CMAKE_BUILD_TYPE "Release")
-endif()
 find_package(CGAL REQUIRED COMPONENTS Core)
-set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS ON CACHE BOOL "" FORCE) # Don't mess up our build plz
-include(${CGAL_USE_FILE}) # <-- Looking forwards to have imported targets with CGAL
-set(CMAKE_BUILD_TYPE "${MyBuildType}")
+target_link_libraries(isosurface_inflator CGAL::CGAL)
 
 ################################################################################
 # Optional libraries
 ################################################################################
+
 # VCG library
 find_package(VCGlib)
-if (VCGLIB_FOUND)
-    target_link_libraries(isosurface_inflator VCGlib::core)
-    target_compile_definitions(isosurface_inflator PUBLIC -DHAS_VCG)
-    target_sources(isosurface_inflator PRIVATE VCGSurfaceMesher.cc)
+if(VCGLIB_FOUND)
+	target_link_libraries(isosurface_inflator VCGlib::core)
+	target_compile_definitions(isosurface_inflator PUBLIC -DHAS_VCG)
+endif()
+
+find_package(LIBIGL QUIET)
+if(LIBIGL_FOUND)
+	target_compile_definitions(isosurface_inflator PUBLIC -DHAS_LIBIGL)
+	target_include_directories(isosurface_inflator SYSTEM PRIVATE ${LIBIGL_INCLUDE_DIRS})
 endif()
 
 ################################################################################
@@ -64,6 +65,14 @@ set_target_properties(default_parameters PROPERTIES CXX_STANDARD 11)
 add_executable(replicate replicate.cc)
 target_link_libraries(replicate isosurface_inflator)
 set_target_properties(replicate PROPERTIES CXX_STANDARD 11)
+
+add_executable(tile tile.cc)
+target_link_libraries(tile isosurface_inflator)
+set_target_properties(tile PROPERTIES CXX_STANDARD 11)
+
+add_executable(stitch_cells_cli stitch_cells_cli.cc)
+target_link_libraries(stitch_cells_cli isosurface_inflator cli11 json)
+set_target_properties(stitch_cells_cli PROPERTIES CXX_STANDARD 14)
 
 add_executable(VisualizeQuantities VisualizeQuantities.cc)
 target_link_libraries(VisualizeQuantities isosurface_inflator)
@@ -90,3 +99,7 @@ set_target_properties(SignedDistance_cli PROPERTIES CXX_STANDARD 11)
 add_executable(TestWireMesh tests/TestWireMesh.cc)
 target_link_libraries(TestWireMesh isosurface_inflator)
 set_target_properties(TestWireMesh PROPERTIES CXX_STANDARD 11)
+
+add_executable(TestStitchedWireMesh tests/TestStitchedWireMesh.cc)
+target_link_libraries(TestStitchedWireMesh isosurface_inflator)
+set_target_properties(TestStitchedWireMesh PROPERTIES CXX_STANDARD 11)

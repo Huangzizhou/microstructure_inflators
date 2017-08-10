@@ -52,6 +52,9 @@ struct MeshingOptions {
     // Use an adaptive edge length based on curvature (anticipating high
     // stresses in concave regions).
     bool curvatureAdaptive = false;
+    // Whether an edge-collapse or smooth curve resampling is used to
+    // post-process the marching squares result
+    enum {COLLAPSE, RESAMPLE} curveSimplifier = RESAMPLE;
     // Derived parameters
     // Always determine max edge length from the maxArea param
     double maxEdgeLenFromMaxArea() const {

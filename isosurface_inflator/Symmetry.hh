@@ -42,6 +42,7 @@ template<typename TOL = DEFAULT_TOL> struct Orthotropic;
 template<typename TOL = DEFAULT_TOL> struct Cubic;
 template<typename TOL = DEFAULT_TOL> struct Square;
 template<typename TOL = DEFAULT_TOL> struct Parallelogram;
+template<typename TOL = DEFAULT_TOL> struct Null;
 
 // We need a traits class for CRTP to look up the correct NodePositioner class.
 // This traits class must be specialized for each symmetry type.
@@ -138,6 +139,19 @@ struct TriplyPeriodic : SymmetryCRTP<TriplyPeriodic<TOL>> {
         return inBaseUnit(p);
     }
 
+    // Find the location of the independent vertex linked to p. For vertices in
+    // the base cell's interior, this is just the vertex position itself. For
+    // vertices on the period cell face(s), this is the corresponding location
+    // on the minimum face(s).
+    template<typename Real>
+    static Point3<Real> independentVertexPosition(Point3<Real> p) {
+        assert(inBaseUnit(p));
+        if (isZero<TOL>(std::abs(p[0] - 1.0))) p[0] = -1.0;
+        if (isZero<TOL>(std::abs(p[1] - 1.0))) p[1] = -1.0;
+        if (isZero<TOL>(std::abs(p[2] - 1.0))) p[2] = -1.0;
+        return p;
+    }
+
     // Note that the group of translational symmetries is infinite, but for our
     // purposes (determining incident edges from neighboring cells), the
     // isometries that take us to adjacent cells are sufficient
@@ -191,6 +205,13 @@ struct Orthotropic : public TriplyPeriodic<TOL>, SymmetryCRTP<Orthotropic<TOL>> 
     template<typename Real>
     static bool inMeshingCell(const Point3<Real> &p) {
         return inBaseUnit(p);
+    }
+
+    // All vertices in the orthotropic base unit are independent.
+    template<typename Real>
+    static Point3<Real> independentVertexPosition(Point3<Real> p) {
+        assert(inBaseUnit(p));
+        return p;
     }
 
     static std::vector<Isometry> symmetryGroup() {
@@ -259,6 +280,13 @@ struct Cubic : public Orthotropic<TOL>, SymmetryCRTP<Cubic<TOL>> {
         return Orthotropic<TOL>::inMeshingCell(p);
     }
 
+    // All vertices in the cubic base unit are independent.
+    template<typename Real>
+    static Point3<Real> independentVertexPosition(Point3<Real> p) {
+        assert(inBaseUnit(p));
+        return p;
+    }
+
     // Octahedral group symmetries are the reflections of the Orthotropic class'
     // group combined with all 6 axis permutations
     static std::vector<Isometry> symmetryGroup() {
@@ -307,6 +335,11 @@ struct Square : public Orthotropic<TOL>, SymmetryCRTP<Square<TOL>> {
         return Orthotropic<TOL>::inMeshingCell(p);
     }
 
+    template<typename Real>
+    static Point3<Real> independentVertexPosition(Point3<Real> p) {
+        return Orthotropic<TOL>::independentVertexPosition(p);
+    }
+
     static std::vector<Isometry> symmetryGroup() {
         std::vector<Isometry> group;
         for (const Isometry &iso : Cubic<TOL>::symmetryGroup()) {
@@ -315,6 +348,29 @@ struct Square : public Orthotropic<TOL>, SymmetryCRTP<Square<TOL>> {
         }
         return group;
     }
+};
+
+// Patterns with no symmetries
+template<typename TOL>
+struct Null {
+    using Tolerance = TOL;
+    static constexpr double tolerance = double(TOL::num) / double(TOL::den);
+
+    // We still probably want to mesh only the "period cell"
+    // (e.g., for periodic tilings, we mesh one cell of the tiling at a time for better efficiency.)
+    template<typename Real>
+    static BBox<Point3<Real>> representativeMeshCell() { return TriplyPeriodic<TOL>::template representativeMeshCell<Real>(); }
+    template<typename Real>
+    static bool inMeshingCell(const Point3<Real> &p) { return TriplyPeriodic<TOL>::inBaseUnit(p); }
+
+    template<typename Real>
+    static Point3<Real> mapToBaseUnit(const Point3<Real> &p) { return p; }
+
+    template<typename Real>
+    static bool inBaseUnit(const Point3<Real> &p) { return TriplyPeriodic<TOL>::inBaseUnit(p); }
+
+    // No symmetries
+    static std::vector<Isometry> symmetryGroup() { return std::vector<Isometry>(); }
 };
 
 // Base unit is the top region of the square [0, 1]^2: the triangle with corners (0, 0), (-1, 1), (1, 1)

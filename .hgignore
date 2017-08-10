@@ -8,7 +8,10 @@ syntax: glob
 *.pyc
 *.orig
 
+.idea/*
 build/*
+node_modules/
+cmake-build-*/
 
 sequential_laminates/homogenization.pdf
 sequential_laminates/IsotropicFit/results/

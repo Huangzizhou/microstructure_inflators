@@ -36,8 +36,8 @@ class PatternSignedDistance : public SignedDistanceRegion<3> {
 public:
     using Real = _Real;
     PatternSignedDistance(const WMesh &wireMesh) : m_wireMesh(wireMesh) {
-        static_assert(WMesh::thicknessType == ThicknessType::Vertex,
-                "Only per-vertex thicknesses are currently supported");
+        if (wireMesh.thicknessType() != ThicknessType::Vertex)
+            throw std::runtime_error("Only Per-Vertex Thickness Supported");
     }
 
     // Always support double type for compatibility with SignedDistanceRegion
@@ -85,8 +85,12 @@ public:
         // Construct joints at each vertex in the base unit.
         for (size_t u = 0; u < points.size(); ++u) {
             if (m_adjEdges[u].size() < 2) {
-                if (WMesh::PatternSymmetry::inBaseUnit(stripAutoDiff(points[u])))
-                    throw std::runtime_error("Dangling edge inside base unit");
+                if (WMesh::PatternSymmetry::inBaseUnit(stripAutoDiff(points[u]))) {
+                    std::cerr << "WARNING: dangling edge inside the base unit at ["
+                              << points[u].transpose()
+                              << "] (neighboring cell's edge is probably protruding inside base cell)"
+                              << std::endl;
+                }
                 // Vertices outside the base unit cell with only one edge
                 // incident are not really joints.
                 m_jointForVertex.emplace_back(std::unique_ptr<Joint<Real>>());
@@ -280,6 +284,13 @@ public:
                            const std::vector<Real2> &edgeDists, size_t /* closestEdge */) const {
         std::vector<Real2> jointEdgeDists;
         const double maxOverlapSmoothingAmt = 0.02;
+
+        // {
+        //     Real2 dist = 1e5;
+        //     for (size_t vtx = 0, i = 0; vtx < numVertices(); ++vtx)
+        //         dist = std::min(dist, distToVtxJoint(vtx, p, edgeDists, jointEdgeDists).smooth);
+        //     return dist;
+        // }
 #if 1
         // Note: this computation is made slow by needing to compute signed
         // distances to the blending region for each joint considered. To
@@ -687,11 +698,6 @@ private:
 
         assert(closestEdge < m_edgeGeometry.size());
         Real2 dist = combinedJointDistances<Real2, false, DebugDerivatives>(p, edgeDists, closestEdge);
-
-        // TODO: compare distance to each joint against distance to the edge.
-        // The joint dist should always be <= edge dist since blending is
-        // additive. If both are < edge dist the blending regions overlap and an
-        // smin should be used to smooth creases.
 
         // // Create smoothed union geometry around each vertex and then union
         // // together

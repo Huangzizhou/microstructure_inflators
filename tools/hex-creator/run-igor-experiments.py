@@ -13,19 +13,19 @@ else:
 if os.path.isfile('igor-instances/negative-poisson_p1-0.975_p2-30_p3-0.935_p4-0.72.msh'):
     print "Already computed!"
 else:
-    cmd = [cwd + '/hexa-many-pillars-igor-parameters.py', '0.975', '30', '0.935', '0.72', 'igor-instances/negative-poisson_p1-0.975_p2-30_p3-0.935_p4-0.72.wire', 'igor-instances/negative-poisson_p1-0.975_p2-30_p3-0.935_p4-0.72.msh']
+    cmd = [cwd + '/auxetic-chiral-creator.py', '0.975', '30', '0.935', '0.72', 'igor-instances/negative-poisson_p1-0.975_p2-30_p3-0.935_p4-0.72.wire', 'igor-instances/negative-poisson_p1-0.975_p2-30_p3-0.935_p4-0.72.msh']
     call(cmd)
 
 if os.path.isfile('igor-instances/negative-poisson_p1-0.97_p2-30_p3-0.925_p4-0.86.msh'):
     print "Already computed!"
 else:
-    cmd = [cwd + '/hexa-many-pillars-igor-parameters.py', '0.97', '30', '0.925', '0.86', 'igor-instances/negative-poisson_p1-0.97_p2-30_p3-0.925_p4-0.86.wire', 'igor-instances/negative-poisson_p1-0.97_p2-30_p3-0.925_p4-0.86.msh']
+    cmd = [cwd + '/auxetic-chiral-creator.py', '0.97', '30', '0.925', '0.86', 'igor-instances/negative-poisson_p1-0.97_p2-30_p3-0.925_p4-0.86.wire', 'igor-instances/negative-poisson_p1-0.97_p2-30_p3-0.925_p4-0.86.msh']
     call(cmd)
 
 if os.path.isfile('igor-instances/negative-poisson_p1-0.99_p2-30_p3-0.94_p4-0.6.msh'):
     print "Already computed!"
 else:
-    cmd = [cwd + '/hexa-many-pillars-igor-parameters.py', '0.99', '30', '0.94', '0.6', 'igor-instances/negative-poisson_p1-0.99_p2-30_p3-0.94_p4-0.6.wire', 'igor-instances/negative-poisson_p1-0.99_p2-30_p3-0.94_p4-0.6.msh']
+    cmd = [cwd + '//auxetic-chiral-creator.py', '0.99', '30', '0.94', '0.6', 'igor-instances/negative-poisson_p1-0.99_p2-30_p3-0.94_p4-0.6.wire', 'igor-instances/negative-poisson_p1-0.99_p2-30_p3-0.94_p4-0.6.msh']
     call(cmd)
 
 

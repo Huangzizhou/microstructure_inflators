@@ -17,7 +17,8 @@ template<size_t N>
 class IsoinflatorWrapper : public Inflator<N> {
 public:
     IsoinflatorWrapper(const std::string &wireMeshPath,
-                       bool isotropic_params, bool vertex_thickness);
+                       const std::string &symmetryType, bool vertex_thickness,
+                       size_t inflationGraphRadius);
 
     ////////////////////////////////////////////////////////////////////////////
     // Override geometry access

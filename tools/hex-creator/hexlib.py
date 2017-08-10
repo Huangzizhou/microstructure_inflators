@@ -5,7 +5,7 @@ from subprocess import call
 
 import numpy as np
 
-Tolerance = 1e-3
+Tolerance = 1e-4
 
 
 def create_wire(vertices, edges, out_wire):
@@ -113,6 +113,8 @@ def add_new_edges(edges_descriptions, current_vertices, current_edges):
             current_vertices.append(vertex2)
 
         new_edge = [position1, position2]
+        assert not position1 == position2
+
         edge_position = find_edge_in_list(current_edges, new_edge)
         if edge_position == -1:
             current_edges.append(new_edge)
@@ -139,18 +141,21 @@ def find_edge_in_list(edges, e):
     return edge_position
 
 
-def find_vertex_in_list(vertices, v):
-    new_x = v[0]
-    new_y = v[1]
+def equal_vertices(v1, v2):
+    if (abs(v1[0] - v2[0]) < Tolerance) and (abs(v1[1] - v2[1]) < Tolerance):
+        return True
 
+    return False
+
+
+def find_vertex_in_list(vertices, v):
     vertex_position = -1
 
     for index, vertex in enumerate(vertices):
-        x = vertex[0]
-        y = vertex[1]
 
-        if (abs(x - new_x) < Tolerance) and (abs(y - new_y) < Tolerance):
+        if equal_vertices(v, vertex):
             vertex_position = index
+            break
 
     return vertex_position
 
@@ -168,7 +173,7 @@ def inflate_hexagonal_box(input_path, vertices_thickeness, out_path, vertices=[]
     # run isosurface_inflator first time to obtain default parameters
     cwd = os.getcwd()
     with open('default-parameters.txt', 'w') as out_log:
-        cmd = [cwd + '/../../isosurface_inflator/default_parameters', '2D_triply_periodic', input_path]
+        cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_doubly_periodic', input_path]
         call(cmd, stdout=out_log)
 
     with open('default-parameters.txt', 'r') as out_log:
@@ -204,10 +209,55 @@ def inflate_hexagonal_box(input_path, vertices_thickeness, out_path, vertices=[]
 
     parameters_string = ' '.join(str(param) for param in parameters)
 
-    cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_triply_periodic', input_path, '--params',
+    cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_doubly_periodic', input_path, '--params',
            parameters_string, '-m', 'refined-meshing_opts.json', '-D', 'inflated.msh', '-R', 'replicated.msh', out_path]
     # print cmd
     call(cmd)
+
+
+def is_zero(number):
+    if (number < Tolerance):
+        return True
+
+    return False
+
+
+def independent_vertex_position(vertex):
+    v = list(vertex)
+
+    if is_zero(abs(v[0] - 1.0)):
+        v[0] = -1.0;
+
+    if is_zero(abs(v[1] - 1.0)):
+        v[1] = -1.0;
+
+    return v
+
+
+def extract_independent_vertices(vertices):
+    num_indep_vertices = len(vertices)
+    num_dep_vertices = 0
+
+    independent_vertices = []
+
+    # initialize vertice containing map between vertices and indep index
+    independent_vertex_indices = range(0, len(vertices))
+
+    for index, vertex in enumerate(vertices):
+        independent_vertex = independent_vertex_position(vertex)
+
+        if equal_vertices(vertex, independent_vertex):
+            independent_vertices.append(vertex)
+            continue
+        else:
+
+            ind_index = find_vertex_in_list(independent_vertices, independent_vertex)
+            independent_vertex_indices[index] = ind_index
+
+            num_indep_vertices -= 1
+            num_dep_vertices += 1
+
+    return independent_vertices, independent_vertex_indices
 
 
 def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bending, out_path,
@@ -229,10 +279,12 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
 
                 vertices.append([floats[0], floats[1]])
 
+    independent_vertices, independent_vertex_indices = extract_independent_vertices(vertices)
+
     # run default_parameters binary to obtain default parameters
     cwd = os.getcwd()
     with open('default-parameters.txt', 'w') as out_log:
-        cmd = [cwd + '/../../isosurface_inflator/default_parameters', '2D_triply_periodic', input_path]
+        cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_doubly_periodic', input_path]
         call(cmd, stdout=out_log)
 
     with open('default-parameters.txt', 'r') as out_log:
@@ -244,12 +296,14 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
                 # print element
                 parameters.append(float(element))
 
-    offset_thickeness = len(parameters) - 2 * len(vertices)
-    for i in range(offset_thickeness, offset_thickeness + len(vertices)):
+    offset_thickeness = len(parameters) - 2 * len(independent_vertices)
+    for i in range(offset_thickeness, offset_thickeness + len(independent_vertices)):
+        #print "Thickness original parameter: " + str(parameters[i])
         parameters[i] = vertices_thickness
 
-    offset_bending = len(parameters) - len(vertices)
-    for i in range(offset_bending, offset_bending + len(vertices)):
+    offset_bending = len(parameters) - len(independent_vertices)
+    for i in range(offset_bending, offset_bending + len(independent_vertices)):
+        #print "Bending original parameter: " + str(parameters[i])
         parameters[i] = vertices_bending
 
     # Now, for the extra parameters, find vertices and apply customized thickness
@@ -258,7 +312,8 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
         customized_nodes = thickness_pair[0]
 
         for node in customized_nodes:
-            index = find_vertex_in_list(vertices, node)
+            independent_vertex = independent_vertex_position(node)
+            index = find_vertex_in_list(independent_vertices, independent_vertex)
             if index >= 0:
                 parameters[offset_thickeness + index] = custom_thickness
             else:
@@ -271,7 +326,7 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
     parameters_file.write(parameters_string)
     parameters_file.close()
 
-    cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_triply_periodic', input_path, '--params',
+    cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_doubly_periodic', input_path, '--params',
            parameters_string, '-m', 'refined-meshing_opts.json', '-D', 'inflated.msh', '-R', 'replicated.msh', out_path]
     # print cmd
     call(cmd)

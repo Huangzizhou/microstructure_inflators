@@ -10,15 +10,21 @@ using namespace std;
 *///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char *argv[])
 {
-    WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>> wmesh("pattern0746.wire");
+    if (argc != 2) {
+        std::cerr << "usage: TestWireMesh topology.wire" << std::endl;
+        exit(-1);
+    }
+
+    WireMesh<Symmetry::Cubic<>> wmesh(argv[1]);
     cout << wmesh.numVertices() << endl;
     cout << wmesh.numEdges() << endl;
     cout << wmesh.numBaseVertices() << endl;
     cout << wmesh.numBaseEdges() << endl;
 
-    wmesh.saveBaseUnit("unit.wire");
-    wmesh.save("scaled.wire");
-    wmesh.saveReplicatedBaseUnit("replicated.wire");
-    wmesh.saveInflationGraph("igraph.wire");
+    wmesh.saveBaseUnit("unit.msh");
+    wmesh.save("scaled.msh");
+    wmesh.saveReplicatedBaseUnit("replicated.msh");
+    wmesh.saveInflationGraph("igraph.msh");
+    wmesh.savePeriodCellGraph("pcell.msh");
     return 0;
 }

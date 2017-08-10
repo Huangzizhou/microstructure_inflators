@@ -62,7 +62,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("elasticityTensor,e",  po::value<string>()->default_value("1,0"),       "target tensor specifier (Young,Poisson)")
         ("initialParams,p",     po::value<string>(),                             "initial parameters (optional)")
         ("parameterConstraints,c", po::value<string>(),                          "parameter constraint expressions (semicolon-separated, optional)")
-        ("isotropicParameters,I",                                                "Use isotropic DoFs")
+        ("symmetry",            po::value<string>()->default_value("orthotropic"),"symmetries to enforce (orthotropic (default), cubic, square, triply_periodic, doubly_periodic)")
         ("limitedOffset,L",                                                        "Limit offset of nodes to within the base unit (0, 1)")
         ;
 
@@ -123,91 +123,81 @@ int main(int argc, const char *argv[])
         zmag = max(zmag, std::abs(v[2]));
     size_t dim = (zmag < 1e-2) ? 2 : 3;
 
-    // Two different cases, square or orthotropic symmetry
-    std::vector<double> defaultParameters;
-    std::vector<double> defaultPositions;
-    if (args.count("isotropicParameters")){
-        WireMesh<ThicknessType::Vertex, Symmetry::Square<>> wm(vertices, elements);
-        defaultParameters = wm.defaultParameters();
-        defaultPositions = wm.defaultPositionParams();
+    auto writeJob = [&] (auto wm) {
+        vector<Real> targetModuli = parseVecArg(args["elasticityTensor"].as<string>(), 2);
 
-        // Position parameters should be first in the isosurface inflator
-        for (size_t p = 0; p < defaultPositions.size(); ++p) {
-            assert(wm.isPositionParam(p));
+        unique_ptr<PatternOptimization::JobBase> job;
+        if (dim == 2) {
+            auto job2D = Future::make_unique<PatternOptimization::Job<2>>();
+            job2D->targetMaterial.setIsotropic(targetModuli[0], targetModuli[1]);
+            job = move(job2D);
         }
-    }
-    else {
-        WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>> wm(vertices, elements);
-        defaultParameters = wm.defaultParameters();
-        defaultPositions = wm.defaultPositionParams();
-
-        // Position parameters should be first in the isosurface inflator
-        for (size_t p = 0; p < defaultPositions.size(); ++p) {
-            assert(wm.isPositionParam(p));
+        else {
+            auto job3D = Future::make_unique<PatternOptimization::Job<3>>();
+            job3D->targetMaterial.setIsotropic(targetModuli[0], targetModuli[1]);
+            job = move(job3D);
         }
-    }
 
+        if (args.count("offsetBounds")) {
+            vector<Real> offsetBds = parseVecArg(args["offsetBounds"].as<string>(), 2);
+            auto defaultPositions = wm.defaultPositionParams();
 
-    vector<Real> targetModuli = parseVecArg(args["elasticityTensor"].as<string>(), 2);
+            for (size_t p = 0; p < defaultPositions.size(); ++p) {
+                // Position parameters should be first in the isosurface inflator
+                assert(wm.isPositionParam(p));
+                double lowerBound;
+                double upperBound;
+                if (args.count("limitedOffset"))
+                {
+                    lowerBound =  (defaultPositions[p] + offsetBds[0]) > 0 ? (defaultPositions[p] + offsetBds[0]) : 0;
+                    upperBound =  (defaultPositions[p] + offsetBds[1]) < 1 ? (defaultPositions[p] + offsetBds[1]) : 1;
+                }
+                else
+                {
+                    lowerBound = defaultPositions[p] + offsetBds[0];
+                    upperBound = defaultPositions[p] + offsetBds[1];
+                }
 
-    unique_ptr<PatternOptimization::JobBase> job;
-    if (dim == 2) {
-        auto job2D = Future::make_unique<PatternOptimization::Job<2>>();
-        job2D->targetMaterial.setIsotropic(targetModuli[0], targetModuli[1]);
-        job = move(job2D);
-    }
-    else {
-        auto job3D = Future::make_unique<PatternOptimization::Job<3>>();
-        job3D->targetMaterial.setIsotropic(targetModuli[0], targetModuli[1]);
-        job = move(job3D);
-    }
+                //std::cout << "lower bound: " << lowerBound << std::endl;
+                //std::cout << "upper bound: " << upperBound << std::endl;
 
-    if (args.count("offsetBounds")) {
-        vector<Real> offsetBds = parseVecArg(args["offsetBounds"].as<string>(), 2);
+                job->varLowerBounds.emplace(p, lowerBound);
+                job->varUpperBounds.emplace(p, upperBound);
 
-        for (size_t p = 0; p < defaultPositions.size(); ++p) {
-            double lowerBound;
-            double upperBound;
-            if (args.count("limitedOffset"))
-            {
-                lowerBound =  (defaultPositions[p] + offsetBds[0]) > 0 ? (defaultPositions[p] + offsetBds[0]) : 0;
-                upperBound =  (defaultPositions[p] + offsetBds[1]) < 1 ? (defaultPositions[p] + offsetBds[1]) : 1;
             }
-            else
-            {
-                lowerBound = defaultPositions[p] + offsetBds[0];
-                upperBound = defaultPositions[p] + offsetBds[1];
-            }
-
-            //std::cout << "lower bound: " << lowerBound << std::endl;
-            //std::cout << "upper bound: " << upperBound << std::endl;
-
-            job->varLowerBounds.emplace(p, lowerBound);
-            job->varUpperBounds.emplace(p, upperBound);
         }
+
+        // Set translation bounds, which will be ignored by the optimizer if
+        // offsetBounds introduced per-variable bounds above
+        job->translationBounds = {0.1, 0.8};
+        if (args.count("translationBounds"))
+            job->translationBounds = parseVecArg(args["translationBounds"].as<string>(), 2);
+
+        job->radiusBounds   = parseVecArg(args[  "radiusBounds"].as<string>(), 2);
+        job->blendingBounds = parseVecArg(args["blendingBounds"].as<string>(), 2);
+
+        if (args.count("parameterConstraints")) {
+            boost::split(job->parameterConstraints,
+                    args["parameterConstraints"].as<string>(), boost::is_any_of(";"));
+        }
+
+        job->initialParams = wm.defaultParameters();
+        if (args.count("initialParams")) {
+            job->initialParams = parseVecArg(args["initialParams"].as<string>(),
+                                             job->initialParams.size());
+        }
+
+        job->writeJobFile(cout);
+    };
+
+
+    if (args["symmetry"].as<std::string>() == "square") {
+        WireMesh<Symmetry::Square<>> wm(vertices, elements);
+        writeJob(wm);
+    } else {
+        WireMesh<Symmetry::Orthotropic<>> wm(vertices, elements);
+        writeJob(wm);
     }
-
-    // Set translation bounds, which will be ignored by the optimizer if
-    // offsetBounds introduced per-variable bounds above
-    job->translationBounds = {0.1, 0.8};
-    if (args.count("translationBounds"))
-        job->translationBounds = parseVecArg(args["translationBounds"].as<string>(), 2);
-
-    job->radiusBounds   = parseVecArg(args[  "radiusBounds"].as<string>(), 2);
-    job->blendingBounds = parseVecArg(args["blendingBounds"].as<string>(), 2);
-
-    if (args.count("parameterConstraints")) {
-        boost::split(job->parameterConstraints,
-                args["parameterConstraints"].as<string>(), boost::is_any_of(";"));
-    }
-
-    job->initialParams = defaultParameters;
-    if (args.count("initialParams")) {
-        job->initialParams = parseVecArg(args["initialParams"].as<string>(),
-                                         job->initialParams.size());
-    }
-
-    job->writeJobFile(cout);
 
     return 0;
 }

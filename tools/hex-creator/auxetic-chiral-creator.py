@@ -341,4 +341,4 @@ hexlib.create_wire(vertices, edges, out_wire)
 
 print "Inflating ..."
 
-hexlib.inflate_hexagonal_box_smarter(out_wire, 0.000005, 0.00001, out_mesh, triangles_incenters_thickness_pairs)
+hexlib.inflate_hexagonal_box_smarter(out_wire, 0.00001, 0.00001, out_mesh, triangles_incenters_thickness_pairs)

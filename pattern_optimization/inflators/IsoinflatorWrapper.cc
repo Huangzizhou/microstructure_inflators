@@ -2,6 +2,7 @@
 
 #include "../../isosurface_inflator/IsosurfaceInflator.hh"
 #include "../../isosurface_inflator/IsosurfaceInflatorConfig.hh"
+#include <boost/algorithm/string.hpp>
 #include <Future.hh>
 #include <MSHFieldWriter.hh>
 
@@ -21,17 +22,14 @@ template<size_t N> void IsoinflatorWrapper<N>::clear() { m_inflator->clear(); }
 ////////////////////////////////////////////////////////////////////////////////
 template<size_t N>
 IsoinflatorWrapper<N>::IsoinflatorWrapper(const std::string &wireMeshPath,
-                                          bool isotropic_params, bool vertex_thickness) {
-    std::string inflatorType;
-
-    if (N == 2) {
-        inflatorType = isotropic_params ? "2D_square" : "2D_orthotropic";
-    }
-    else {
-        inflatorType = isotropic_params ? "cubic" : "orthotropic";
-    }
-
-    m_inflator = Future::make_unique<IsosurfaceInflator>(inflatorType, vertex_thickness, wireMeshPath);
+                                          const std::string &symmetryType, bool vertex_thickness,
+                                          size_t inflationGraphRadius) {
+    std::string inflatorName(symmetryType);
+    boost::algorithm::to_lower(inflatorName);
+    inflatorName = ((N == 2) ? "2D_" : "") + inflatorName;
+    m_inflator = Future::make_unique<IsosurfaceInflator>(
+                inflatorName,
+                vertex_thickness, wireMeshPath, inflationGraphRadius);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

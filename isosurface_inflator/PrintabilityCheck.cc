@@ -31,7 +31,7 @@ int main(int argc, const char *argv[]) {
     const std::string  unprintablePath = argv[3];
 
     using PSym = Symmetry::Orthotropic<>;
-    using WMesh = WireMesh<ThicknessType::Vertex, PSym>;
+    using WMesh = WireMesh<PSym>;
 
     IsotropicLookupTable<double> table(patternTablePath);
 

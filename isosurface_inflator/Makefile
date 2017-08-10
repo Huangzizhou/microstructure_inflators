@@ -111,6 +111,36 @@ depend:
 .PHONY : depend
 
 # Convenience name for target.
+isosurface_inflator/CMakeFiles/TestStitchedWireMesh.dir/rule:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/TestStitchedWireMesh.dir/rule
+.PHONY : isosurface_inflator/CMakeFiles/TestStitchedWireMesh.dir/rule
+
+# Convenience name for target.
+TestStitchedWireMesh: isosurface_inflator/CMakeFiles/TestStitchedWireMesh.dir/rule
+
+.PHONY : TestStitchedWireMesh
+
+# fast build rule for target.
+TestStitchedWireMesh/fast:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/TestStitchedWireMesh.dir/build.make isosurface_inflator/CMakeFiles/TestStitchedWireMesh.dir/build
+.PHONY : TestStitchedWireMesh/fast
+
+# Convenience name for target.
+isosurface_inflator/CMakeFiles/TestWireMesh.dir/rule:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/TestWireMesh.dir/rule
+.PHONY : isosurface_inflator/CMakeFiles/TestWireMesh.dir/rule
+
+# Convenience name for target.
+TestWireMesh: isosurface_inflator/CMakeFiles/TestWireMesh.dir/rule
+
+.PHONY : TestWireMesh
+
+# fast build rule for target.
+TestWireMesh/fast:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/TestWireMesh.dir/build.make isosurface_inflator/CMakeFiles/TestWireMesh.dir/build
+.PHONY : TestWireMesh/fast
+
+# Convenience name for target.
 isosurface_inflator/CMakeFiles/SignedDistance_cli.dir/rule:
 	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/SignedDistance_cli.dir/rule
 .PHONY : isosurface_inflator/CMakeFiles/SignedDistance_cli.dir/rule
@@ -156,21 +186,6 @@ PrintabilityConstraints/fast:
 .PHONY : PrintabilityConstraints/fast
 
 # Convenience name for target.
-isosurface_inflator/CMakeFiles/TestWireMesh.dir/rule:
-	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/TestWireMesh.dir/rule
-.PHONY : isosurface_inflator/CMakeFiles/TestWireMesh.dir/rule
-
-# Convenience name for target.
-TestWireMesh: isosurface_inflator/CMakeFiles/TestWireMesh.dir/rule
-
-.PHONY : TestWireMesh
-
-# fast build rule for target.
-TestWireMesh/fast:
-	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/TestWireMesh.dir/build.make isosurface_inflator/CMakeFiles/TestWireMesh.dir/build
-.PHONY : TestWireMesh/fast
-
-# Convenience name for target.
 isosurface_inflator/CMakeFiles/PrintabilityCheck.dir/rule:
 	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/PrintabilityCheck.dir/rule
 .PHONY : isosurface_inflator/CMakeFiles/PrintabilityCheck.dir/rule
@@ -186,19 +201,49 @@ PrintabilityCheck/fast:
 .PHONY : PrintabilityCheck/fast
 
 # Convenience name for target.
-isosurface_inflator/CMakeFiles/replicate.dir/rule:
-	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/replicate.dir/rule
-.PHONY : isosurface_inflator/CMakeFiles/replicate.dir/rule
+isosurface_inflator/CMakeFiles/stitch_cells_cli.dir/rule:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/stitch_cells_cli.dir/rule
+.PHONY : isosurface_inflator/CMakeFiles/stitch_cells_cli.dir/rule
 
 # Convenience name for target.
-replicate: isosurface_inflator/CMakeFiles/replicate.dir/rule
+stitch_cells_cli: isosurface_inflator/CMakeFiles/stitch_cells_cli.dir/rule
 
-.PHONY : replicate
+.PHONY : stitch_cells_cli
 
 # fast build rule for target.
-replicate/fast:
-	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/replicate.dir/build.make isosurface_inflator/CMakeFiles/replicate.dir/build
-.PHONY : replicate/fast
+stitch_cells_cli/fast:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/stitch_cells_cli.dir/build.make isosurface_inflator/CMakeFiles/stitch_cells_cli.dir/build
+.PHONY : stitch_cells_cli/fast
+
+# Convenience name for target.
+isosurface_inflator/CMakeFiles/tile.dir/rule:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/tile.dir/rule
+.PHONY : isosurface_inflator/CMakeFiles/tile.dir/rule
+
+# Convenience name for target.
+tile: isosurface_inflator/CMakeFiles/tile.dir/rule
+
+.PHONY : tile
+
+# fast build rule for target.
+tile/fast:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/tile.dir/build.make isosurface_inflator/CMakeFiles/tile.dir/build
+.PHONY : tile/fast
+
+# Convenience name for target.
+isosurface_inflator/CMakeFiles/isosurface_cli.dir/rule:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/isosurface_cli.dir/rule
+.PHONY : isosurface_inflator/CMakeFiles/isosurface_cli.dir/rule
+
+# Convenience name for target.
+isosurface_cli: isosurface_inflator/CMakeFiles/isosurface_cli.dir/rule
+
+.PHONY : isosurface_cli
+
+# fast build rule for target.
+isosurface_cli/fast:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/isosurface_cli.dir/build.make isosurface_inflator/CMakeFiles/isosurface_cli.dir/build
+.PHONY : isosurface_cli/fast
 
 # Convenience name for target.
 isosurface_inflator/CMakeFiles/VisualizeQuantities.dir/rule:
@@ -216,19 +261,19 @@ VisualizeQuantities/fast:
 .PHONY : VisualizeQuantities/fast
 
 # Convenience name for target.
-isosurface_inflator/CMakeFiles/isosurface_cli.dir/rule:
-	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/isosurface_cli.dir/rule
-.PHONY : isosurface_inflator/CMakeFiles/isosurface_cli.dir/rule
+isosurface_inflator/CMakeFiles/replicate.dir/rule:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/replicate.dir/rule
+.PHONY : isosurface_inflator/CMakeFiles/replicate.dir/rule
 
 # Convenience name for target.
-isosurface_cli: isosurface_inflator/CMakeFiles/isosurface_cli.dir/rule
+replicate: isosurface_inflator/CMakeFiles/replicate.dir/rule
 
-.PHONY : isosurface_cli
+.PHONY : replicate
 
 # fast build rule for target.
-isosurface_cli/fast:
-	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/isosurface_cli.dir/build.make isosurface_inflator/CMakeFiles/isosurface_cli.dir/build
-.PHONY : isosurface_cli/fast
+replicate/fast:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/replicate.dir/build.make isosurface_inflator/CMakeFiles/replicate.dir/build
+.PHONY : replicate/fast
 
 # Convenience name for target.
 isosurface_inflator/CMakeFiles/default_parameters.dir/rule:
@@ -340,6 +385,33 @@ ConvexHullTriangulation.s: ConvexHullTriangulation.cc.s
 ConvexHullTriangulation.cc.s:
 	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/isosurface_inflator.dir/build.make isosurface_inflator/CMakeFiles/isosurface_inflator.dir/ConvexHullTriangulation.cc.s
 .PHONY : ConvexHullTriangulation.cc.s
+
+IGLSurfaceMesherMC.o: IGLSurfaceMesherMC.cc.o
+
+.PHONY : IGLSurfaceMesherMC.o
+
+# target to build an object file
+IGLSurfaceMesherMC.cc.o:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/isosurface_inflator.dir/build.make isosurface_inflator/CMakeFiles/isosurface_inflator.dir/IGLSurfaceMesherMC.cc.o
+.PHONY : IGLSurfaceMesherMC.cc.o
+
+IGLSurfaceMesherMC.i: IGLSurfaceMesherMC.cc.i
+
+.PHONY : IGLSurfaceMesherMC.i
+
+# target to preprocess a source file
+IGLSurfaceMesherMC.cc.i:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/isosurface_inflator.dir/build.make isosurface_inflator/CMakeFiles/isosurface_inflator.dir/IGLSurfaceMesherMC.cc.i
+.PHONY : IGLSurfaceMesherMC.cc.i
+
+IGLSurfaceMesherMC.s: IGLSurfaceMesherMC.cc.s
+
+.PHONY : IGLSurfaceMesherMC.s
+
+# target to generate assembly for a file
+IGLSurfaceMesherMC.cc.s:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/isosurface_inflator.dir/build.make isosurface_inflator/CMakeFiles/isosurface_inflator.dir/IGLSurfaceMesherMC.cc.s
+.PHONY : IGLSurfaceMesherMC.cc.s
 
 IsosurfaceInflator.o: IsosurfaceInflator.cc.o
 
@@ -692,6 +764,60 @@ replicate.cc.s:
 	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/replicate.dir/build.make isosurface_inflator/CMakeFiles/replicate.dir/replicate.cc.s
 .PHONY : replicate.cc.s
 
+stitch_cells_cli.o: stitch_cells_cli.cc.o
+
+.PHONY : stitch_cells_cli.o
+
+# target to build an object file
+stitch_cells_cli.cc.o:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/stitch_cells_cli.dir/build.make isosurface_inflator/CMakeFiles/stitch_cells_cli.dir/stitch_cells_cli.cc.o
+.PHONY : stitch_cells_cli.cc.o
+
+stitch_cells_cli.i: stitch_cells_cli.cc.i
+
+.PHONY : stitch_cells_cli.i
+
+# target to preprocess a source file
+stitch_cells_cli.cc.i:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/stitch_cells_cli.dir/build.make isosurface_inflator/CMakeFiles/stitch_cells_cli.dir/stitch_cells_cli.cc.i
+.PHONY : stitch_cells_cli.cc.i
+
+stitch_cells_cli.s: stitch_cells_cli.cc.s
+
+.PHONY : stitch_cells_cli.s
+
+# target to generate assembly for a file
+stitch_cells_cli.cc.s:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/stitch_cells_cli.dir/build.make isosurface_inflator/CMakeFiles/stitch_cells_cli.dir/stitch_cells_cli.cc.s
+.PHONY : stitch_cells_cli.cc.s
+
+tests/TestStitchedWireMesh.o: tests/TestStitchedWireMesh.cc.o
+
+.PHONY : tests/TestStitchedWireMesh.o
+
+# target to build an object file
+tests/TestStitchedWireMesh.cc.o:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/TestStitchedWireMesh.dir/build.make isosurface_inflator/CMakeFiles/TestStitchedWireMesh.dir/tests/TestStitchedWireMesh.cc.o
+.PHONY : tests/TestStitchedWireMesh.cc.o
+
+tests/TestStitchedWireMesh.i: tests/TestStitchedWireMesh.cc.i
+
+.PHONY : tests/TestStitchedWireMesh.i
+
+# target to preprocess a source file
+tests/TestStitchedWireMesh.cc.i:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/TestStitchedWireMesh.dir/build.make isosurface_inflator/CMakeFiles/TestStitchedWireMesh.dir/tests/TestStitchedWireMesh.cc.i
+.PHONY : tests/TestStitchedWireMesh.cc.i
+
+tests/TestStitchedWireMesh.s: tests/TestStitchedWireMesh.cc.s
+
+.PHONY : tests/TestStitchedWireMesh.s
+
+# target to generate assembly for a file
+tests/TestStitchedWireMesh.cc.s:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/TestStitchedWireMesh.dir/build.make isosurface_inflator/CMakeFiles/TestStitchedWireMesh.dir/tests/TestStitchedWireMesh.cc.s
+.PHONY : tests/TestStitchedWireMesh.cc.s
+
 tests/TestWireMesh.o: tests/TestWireMesh.cc.o
 
 .PHONY : tests/TestWireMesh.o
@@ -719,6 +845,33 @@ tests/TestWireMesh.cc.s:
 	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/TestWireMesh.dir/build.make isosurface_inflator/CMakeFiles/TestWireMesh.dir/tests/TestWireMesh.cc.s
 .PHONY : tests/TestWireMesh.cc.s
 
+tile.o: tile.cc.o
+
+.PHONY : tile.o
+
+# target to build an object file
+tile.cc.o:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/tile.dir/build.make isosurface_inflator/CMakeFiles/tile.dir/tile.cc.o
+.PHONY : tile.cc.o
+
+tile.i: tile.cc.i
+
+.PHONY : tile.i
+
+# target to preprocess a source file
+tile.cc.i:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/tile.dir/build.make isosurface_inflator/CMakeFiles/tile.dir/tile.cc.i
+.PHONY : tile.cc.i
+
+tile.s: tile.cc.s
+
+.PHONY : tile.s
+
+# target to generate assembly for a file
+tile.cc.s:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/tile.dir/build.make isosurface_inflator/CMakeFiles/tile.dir/tile.cc.s
+.PHONY : tile.cc.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -726,15 +879,18 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... edit_cache"
+	@echo "... TestStitchedWireMesh"
+	@echo "... TestWireMesh"
 	@echo "... SignedDistance_cli"
 	@echo "... rebuild_cache"
 	@echo "... OffsetBoundsToTranslationBounds"
 	@echo "... PrintabilityConstraints"
-	@echo "... TestWireMesh"
 	@echo "... PrintabilityCheck"
-	@echo "... replicate"
-	@echo "... VisualizeQuantities"
+	@echo "... stitch_cells_cli"
+	@echo "... tile"
 	@echo "... isosurface_cli"
+	@echo "... VisualizeQuantities"
+	@echo "... replicate"
 	@echo "... default_parameters"
 	@echo "... isosurface_inflator"
 	@echo "... BoxIntersectionMesher.o"
@@ -746,6 +902,9 @@ help:
 	@echo "... ConvexHullTriangulation.o"
 	@echo "... ConvexHullTriangulation.i"
 	@echo "... ConvexHullTriangulation.s"
+	@echo "... IGLSurfaceMesherMC.o"
+	@echo "... IGLSurfaceMesherMC.i"
+	@echo "... IGLSurfaceMesherMC.s"
 	@echo "... IsosurfaceInflator.o"
 	@echo "... IsosurfaceInflator.i"
 	@echo "... IsosurfaceInflator.s"
@@ -785,9 +944,18 @@ help:
 	@echo "... replicate.o"
 	@echo "... replicate.i"
 	@echo "... replicate.s"
+	@echo "... stitch_cells_cli.o"
+	@echo "... stitch_cells_cli.i"
+	@echo "... stitch_cells_cli.s"
+	@echo "... tests/TestStitchedWireMesh.o"
+	@echo "... tests/TestStitchedWireMesh.i"
+	@echo "... tests/TestStitchedWireMesh.s"
 	@echo "... tests/TestWireMesh.o"
 	@echo "... tests/TestWireMesh.i"
 	@echo "... tests/TestWireMesh.s"
+	@echo "... tile.o"
+	@echo "... tile.i"
+	@echo "... tile.s"
 .PHONY : help
 
 

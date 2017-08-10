@@ -29,8 +29,11 @@ int main(int argc, const char *argv[]) {
 
         curr->channel(0); // make bitmap
         if (prev) {
-            assert(curr->width()  == prev->width());
-            assert(curr->height() == prev->height());
+            const size_t width  = curr->width(),
+                         height = curr->height();
+
+            assert(width  == prev->width());
+            assert(height == prev->height());
             auto origSlice = *curr;
 
             curr->label(true /* consider diagonal voxels supported */); // Overwrite image with connected component labels.
@@ -40,8 +43,8 @@ int main(int argc, const char *argv[]) {
             // Determine which components are supported.
             // A component is supported if any of its pixels are.
             std::vector<bool> hasSupport(nComponents, false);
-            for (size_t c = 0; c < curr->width(); ++c) {
-                for (size_t r = 0; r < curr->height(); ++r) {
+            for (size_t c = 0; c < width; ++c) {
+                for (size_t r = 0; r < height; ++r) {
                     unsigned char label = (*curr)(c, r);
                     if (label != 0)
                         if ((*prev)(c, r) != 0) hasSupport.at(label) = true;
@@ -50,14 +53,18 @@ int main(int argc, const char *argv[]) {
 
             // Clear out the unsupported components.
             size_t numRemoved = 0;
-            for (size_t c = 0; c < curr->width(); ++c) {
-                for (size_t r = 0; r < curr->height(); ++r) {
+            for (size_t c = 0; c < width; ++c) {
+                for (size_t r = 0; r < height; ++r) {
+                    if (origSlice(c, r) == 0) {
+                        // Prevent enclosed voids (counted as separate components)
+                        // from filling in.
+                        (*curr)(c, r) = 0;
+                        continue;
+                    }
                     unsigned char label = (*curr)(c, r);
-                    (*curr)(c, r) = hasSupport.at(label) ? 255 : 0;
-                    // Prevent enclosed voids (counted as separate components)
-                    // from filling in.
-                    if (origSlice(c, r) == 0) (*curr)(c, r) = 0;
-                    else if ((label > 0) != ((*curr)(c, r) > 0)) ++numRemoved;
+                    unsigned char newLabel = hasSupport.at(label) ? 255 : 0;
+                    (*curr)(c, r) = newLabel;
+                    if ((label > 0) != (newLabel > 0)) ++numRemoved;
                 }
             }
             if (numRemoved)

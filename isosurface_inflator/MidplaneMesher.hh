@@ -12,20 +12,18 @@
 #ifndef MIDPLANEMESHER_HH
 #define MIDPLANEMESHER_HH
 
-#include "MeshingOptions.hh"
+#include "MesherBase.hh"
 #include <MeshIO.hh>
 #include "SignedDistanceRegion.hh"
 
-class MidplaneMesher {
+class MidplaneMesher : public MesherBase {
 public:
-    MidplaneMesher(const MeshingOptions &opts = MeshingOptions())
-        : meshingOptions(opts) { }
+    using MesherBase::MesherBase;
+    using MesherBase::meshingOptions;
 
-    void mesh(const SignedDistanceRegion<3> &sdf,
+    virtual void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
-            std::vector<MeshIO::IOElement> &elements);
-
-    MeshingOptions meshingOptions;
+            std::vector<MeshIO::IOElement> &elements) override;
 };
 
 #endif /* end of include guard: MIDPLANEMESHER_HH */

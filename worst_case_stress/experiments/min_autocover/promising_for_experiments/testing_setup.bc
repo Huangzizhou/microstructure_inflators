@@ -1,9 +1,9 @@
 {
     "no_rigid_motion": false,
     "fix_periodic_pair_x": "y",
+    "pin_translation": "y",
     "regions": [
         { "type": "dirichletz", "value": [0, 0, -1.0], "box%": { "minCorner": [-0.0001, -0.0001,  0.9999], "maxCorner": [1.0001, 1.0001, 1.0001] } },
-        { "type": "dirichletz", "value": [0, 0,    0], "box%": { "minCorner": [-0.0001, -0.0001, -0.0001], "maxCorner": [1.0001, 1.0001, 0.0001] } },
-        { "type": "dirichlety nodes", "values": [ [[0, 0, 0], [0]] ] }
+        { "type": "dirichletz", "value": [0, 0,    0], "box%": { "minCorner": [-0.0001, -0.0001, -0.0001], "maxCorner": [1.0001, 1.0001, 0.0001] } }
     ]
 }

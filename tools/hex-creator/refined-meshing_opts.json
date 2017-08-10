@@ -6,7 +6,7 @@
     "cellSize"                    : 0.15,
     "edgeSize"                    : 0.025,
     "cellRadiusEdgeRatio"         : 2.0,
-    "marchingSquaresGridSize"     : 16384,
+    "marchingSquaresGridSize"     : 1024,
     "marchingCubesGridSize"       : 128,
 
     "maxArea"                     : 5e-4,

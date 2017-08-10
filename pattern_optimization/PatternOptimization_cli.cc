@@ -85,12 +85,12 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description misc_opts;
     misc_opts.add_options()("help",        "Produce this help message")
         ("inflator,i",   po::value<string>()->default_value("Isosurface"),       "inflator to use (defaults to Isosurface)")
+        ("symmetry",     po::value<string>()->default_value("orthotropic"),      "Symmetries to enforce (orthotropic (default), cubic, square, triply_periodic, doubly_periodic)")
         ("pattern,p",    po::value<string>(),                                    "Pattern wire mesh (.obj|wire)")
         ("material,m",   po::value<string>(),                                    "base material")
         ("degree,d",     po::value<size_t>()->default_value(2),                  "FEM Degree")
         ("output,o",     po::value<string>()->default_value(""),                 "output .js mesh + fields at each iteration")
         ("cell_size,c",  po::value<double>(),                                    "Inflation cell size (James' inflator only. Default: 5mm)")
-        ("isotropicParameters,I",                                                "Use isotropic DoFs (3D only)")
         ("vertexThickness,V",                                                    "Use vertex thickness instead of edge thickness (3D only)")
         ("proximityRegularizationWeight", po::value<double>(),                   "Use a quadratic proximity regularization term with the specified weight.")
         ;
@@ -117,6 +117,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("sub_algorithm,A", po::value<string>(),   "Subdivision algorithm for James' inflator (simple or loop, default: simple)")
         ("ortho_cell,O",                           "Only mesh and optimize the orthotropic base cell (for orthotropic patterns only")
         ("fullCellInflator",                       "Use the full period cell inflator instead of the reflection-based one")
+        ("inflation_graph_radius",po::value<size_t>(), "Number of edges to traverse outward from the symmetry cell when building the inflation graph (defaults to 2)")
         ;
 
     po::options_description visible_opts;

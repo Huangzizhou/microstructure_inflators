@@ -109,32 +109,24 @@ void transferField(const F &field, const std::string &name, DomainType dtype,
     writer.addField(name, outField, dtype);
 }
 
-int main(int argc, const char *argv[]) {
-    auto args = parseCmdLine(argc, argv);
-
-    // Process "reflect" option to get number of reflections needed in each
-    // dimension.
-    vector<string> components;
-    boost::split(components, args.at("reflect").as<string>(), boost::is_any_of("x"));
-    if (components.size() != 3)
-        throw runtime_error("Must have 3 components of the form Nx x Ny x Nz");
-
+template<size_t N>
+void execute(const std::vector<std::string> &components, const std::string &in_mesh, const std::string &out_mesh) {
     std::array<size_t, 3> nReflections;
+    nReflections.fill(0);
 
-    for (size_t i = 0; i < 3; ++i) {
+    for (size_t i = 0; i < N; ++i) {
         size_t nTiles = std::stoi(components[i]);
         {
             size_t nt = nTiles;
-            nReflections[i] = 0;
             while (nt >>= 1) ++nReflections[i];
         }
-        if ((1 << nReflections[i]) != nTiles)
+        if ((size_t(1) << nReflections[i]) != nTiles)
             throw runtime_error("Only power of 2 tilings are supported");
         // It takes one reflection to reach 1x1x1 period cell.
         ++nReflections[i];
     }
 
-    MSHFieldParser<3> reader(args.at("ortho_cell").as<string>());
+    MSHFieldParser<N> reader(in_mesh);
 
     std::vector<MeshIO::IOVertex > vertices = reader.vertices();
     std::vector<MeshIO::IOElement> elements = reader.elements();
@@ -148,7 +140,7 @@ int main(int argc, const char *argv[]) {
 
     while (nReflections[0] + nReflections[1] + nReflections[2]) {
         ComponentMask mask;
-        for (size_t i = 0; i < 3; ++i) {
+        for (size_t i = 0; i < N; ++i) {
             if (nReflections[i] > 0) {
                 mask.set(i);
                 --nReflections[i];
@@ -156,7 +148,7 @@ int main(int argc, const char *argv[]) {
         }
 
         std::vector<size_t> newOrigVertex, newOrigElement;
-        reflect(3, vertices, elements, vertices, elements, mask,
+        reflect(N, vertices, elements, vertices, elements, mask,
                 &newOrigVertex, &newOrigElement, &vtxRefl, &elmRefl);
 
         // Propagate originating vertex/element info
@@ -170,7 +162,7 @@ int main(int argc, const char *argv[]) {
         // case.
     }
 
-    MSHFieldWriter writer(args.at("output").as<string>(), vertices, elements);
+    MSHFieldWriter writer(out_mesh, vertices, elements);
 
     // Transfer fields (Note: higher degree per-element fields are not supported
     // and will be ignored).
@@ -198,6 +190,19 @@ int main(int argc, const char *argv[]) {
         highlightOrthoBase[i] = (origVertex[i] == i) ? 1.0 : 0.0;
     }
     writer.addField("ortho_base_indicator", highlightOrthoBase);
+
+}
+
+int main(int argc, const char *argv[]) {
+    auto args = parseCmdLine(argc, argv);
+
+    // Process "reflect" option to get number of reflections needed in each
+    // dimension.
+    vector<string> components;
+    boost::split(components, args.at("reflect").as<string>(), boost::is_any_of("x"));
+    if      (components.size() == 2) execute<2>(components, args.at("ortho_cell").as<string>(), args.at("output").as<string>());
+    else if (components.size() == 3) execute<3>(components, args.at("ortho_cell").as<string>(), args.at("output").as<string>());
+    else throw runtime_error("Must have 2 or 3 components of the form Nx x Ny x Nz");
 
     return 0;
 }

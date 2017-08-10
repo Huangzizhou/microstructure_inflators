@@ -104,10 +104,11 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     patternOptions.add_options()
         ("pattern,p",    po::value<string>(),                              "Pattern wire mesh (.obj|wire), or initial mesh for BoundaryPerturbationInflator")
         ("inflator,i",   po::value<string>()->default_value("isosurface"), "Which inflator to use: Isosurface (default), LpHole, BoundaryPerturbation, Luigi, James")
-        ("isotropicParameters,I",                                          "Use isotropic DoFs")
+        ("symmetry",     po::value<string>()->default_value("orthotropic"),"Symmetries to enforce (orthotropic (default), cubic, square, triply_periodic, doubly_periodic)")
         ("vertexThickness,V",                                              "Use vertex thickness instead of edge thickness (3D only)")
         ("cell_size,c",  po::value<double>(),                              "Inflation cell size (3D only)")
         ("params",       po::value<string>(),                              "Initial params (overrides those specified in job file).")
+        ("deformedCell", po::value<string>(),                              "Specify the Jacobian of a deformation linearly warping the pattern after meshing (scanline order; in 3D: xx xy xz yx yy yz zx zy zz)")
         ;
 
     po::options_description meshingOptions;
@@ -120,6 +121,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("inflation_dump_path,D", po::value<string>(), "Dump the inflated geometry immediately after meshing.")
         ("ortho_cell,O",                               "Only mesh and optimize the orthotropic base cell (for orthotropic patterns only")
         ("fullCellInflator",                           "Use the full period cell inflator instead of the reflection-based one")
+        ("inflation_graph_radius",po::value<size_t>(), "Number of edges to traverse outward from the symmetry cell when building the inflation graph (defaults to 2)")
         ;
 
     po::options_description optimizerOptions;
@@ -255,6 +257,46 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     // Set up simulators' (base) material
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
+
+    // Design a microstructure to achieve the desired material property in a
+    // linearly deformed tiling.
+    if (args.count("deformedCell")) {
+        // Parse Jacobian of the linear deformation.
+        Eigen::Matrix<Real, _N, _N> jacobian;
+
+        vector<string> jacobianComponents;
+        string jacobianString = args["deformedCell"].as<string>();
+        boost::trim(jacobianString);
+        boost::split(jacobianComponents, jacobianString, boost::is_any_of("\t "),
+                boost::token_compress_on);
+        if (jacobianComponents.size() != _N * _N)
+            throw runtime_error("Invalid deformation jacobian");
+        for (size_t i = 0; i < _N; ++i) {
+            for (size_t j = 0; j < _N; ++j) {
+                jacobian(i, j) = stod(jacobianComponents[_N * i + j]);
+            }
+        }
+
+        // Apply the appropriate transformation to analyze the deformed cell's
+        // properties on the undeformed microstructure geometry.
+        // Material properties must be transformed with the inverse Jacobian:
+        Eigen::Matrix<Real, _N, _N> jacobianInv(jacobian.inverse());
+        mat.setTensor(mat.getTensor().transform(jacobianInv));
+
+        // We compute the deformed tiling's homogenized tensor by homogenizing
+        // the undeformed geometry with this transformed material to obtain
+        // "Eh" and then computing:
+        //      EhDefo = Eh.transform(jacobian);
+        // So, Eh = EhDefo.transform(jacobianInv), and we must transform our
+        // target tensor accordingly:
+        targetC = targetC.transform(jacobianInv);
+
+        cout << "Transformed target tensor:" << endl << targetC << endl << endl;
+        cout << "Transformed target moduli:\t";
+        targetC.printOrthotropic(cout);
+        cout << endl;
+        targetS = targetC.inverse();
+    }
 
     auto parseParams = [](string pstring) -> vector<Real> {
         boost::trim(pstring);

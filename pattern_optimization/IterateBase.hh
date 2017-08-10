@@ -3,7 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
 //      Non-templated, dynamic interface to the pattern optimization iterate.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  05/02/2016 19:08:21
@@ -29,7 +29,7 @@ struct IterateBase {
     // parametricOptimization: whether we're running a lower-dimensional
     // parametric optimization where gradients must be computed by taking inner
     // products with the shape velocity fields.
-    // 
+    //
     // For free boundary shape optimization problems, this inner product
     // approach to gradients is intractable and unnecessary.
     IterateBase(bool parametricOptimization) : m_parametricOptimization(parametricOptimization) { }
@@ -91,7 +91,7 @@ struct IterateBase {
     }
 
     bool paramsDiffer(size_t nParams, const Real *params) const {
-        assert(nParams = m_params.size());
+        assert(nParams == m_params.size());
         for (size_t i = 0; i < nParams; ++i)
             if (m_params[i] != params[i])
                 return true;

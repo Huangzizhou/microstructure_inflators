@@ -1,9 +1,11 @@
 #include <algorithm>
 #include <iterator>
+#include <type_traits>
+#include <Utilities/apply.hh>
 
 // Set from embedded graph
-template<ThicknessType thicknessType, class Sym>
-void WireMesh<thicknessType, Sym>::
+template<class Sym>
+void WireMesh<Sym>::
 set(const std::vector<MeshIO::IOVertex > &inVertices,
     const std::vector<MeshIO::IOElement> &inElements)
 {
@@ -13,6 +15,7 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     // Clear old state.
     m_fullVertices.clear(), m_fullEdges.clear();
     m_baseVertices.clear(), m_baseEdges.clear();
+    m_baseVertexVarOffsets.clear();
     m_baseVertexPositioners.clear();
 
     m_fullVertices.reserve(inVertices.size());
@@ -25,18 +28,16 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     // Convert vertices to Point type, scaling into [-1, 1]
     BBox<Point> bb(inVertices);
     auto dim = bb.dimensions();
+    if ((std::abs(dim[0]) < 1e-6) || (std::abs(dim[1]) < 1e-6))
+        throw std::runtime_error("Degenerate pattern");
+    const bool is2D = (std::abs(dim[2]) <= 1e-6);
+
     for (const auto &v : inVertices) {
         // transform graph to [-1, 1]
-        Point p;
-        p.setZero();
-        for (size_t i = 0; i < 3; ++i) {
-            // Hack to handle 2D case: leave "empty dimension" coordinates at zero.
-            if (std::abs(dim[i]) < 1e-6) {
-                assert(i == 2);
-                continue;
-            }
+        Point p(Point::Zero());
+        // Hack for 2D case: leave z coords at 0
+        for (size_t i = 0; i < (is2D ? 2 : 3); ++i)
             p[i] = (v[i] - bb.minCorner[i]) * (2.0 / dim[i]) - 1.0;
-        }
         m_fullVertices.push_back(p);
     }
 
@@ -56,12 +57,63 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
             m_baseEdges.push_back({u, v});
     }
 
-    // Enumerate position parameters:
-    // Position parameters for each base vertex are determined using the
-    // NodePositioner.
+    // Create positioners for each base vertex
     m_baseVertexPositioners.reserve(m_baseVertices.size());
     for (const auto &p : m_baseVertices)
         m_baseVertexPositioners.push_back(PatternSymmetry::nodePositioner(p));
+
+    // Determine the "independent" and "dependent" base vertices
+    // First, assume there are no dependent vertices
+    m_numIndepBaseVertices = numBaseVertices();
+    m_numDepBaseVertices = 0;
+    m_indepVtxForBaseVtx.resize(numBaseVertices());
+    auto isIndep = [&](size_t u) { return m_indepVtxForBaseVtx.at(u) == u; };
+    std::iota(m_indepVtxForBaseVtx.begin(), m_indepVtxForBaseVtx.end(), 0);
+    // Next, link dependent vertices to their corresponding independent vertex
+    for (size_t u = 0; u < numBaseVertices(); ++u) {
+        const Point &up = m_baseVertices.at(u);
+        const Point &vp = PatternSymmetry::independentVertexPosition(up);
+        // Most vertices will be independent (coincide with their independent
+        // vertex position), so check this first for efficiency
+        if ((vp - up).norm() < PatternSymmetry::tolerance)
+            continue;
+
+        // For dependent vertices, we must search for corresponding indep vtx
+        m_indepVtxForBaseVtx.at(u) = m_findBaseVertex(vp);
+        --m_numIndepBaseVertices;
+        ++m_numDepBaseVertices;
+    }
+
+    // Enumerate variables
+    m_baseVertexVarOffsets.resize(numBaseVertices());
+
+    // Create variables for each independent vertex.
+    {
+        size_t varOffset = 0;
+        // Create position vars
+        for (size_t i = 0; i < numBaseVertices(); ++i) {
+            if (!isIndep(i)) continue;
+            m_baseVertexVarOffsets[i].position = varOffset;
+            varOffset += m_baseVertexPositioners[i].numDoFs();
+        }
+        m_numPositionParams = varOffset;
+
+        // Create thickness vars
+        for (size_t i = 0; i < numBaseVertices(); ++i) {
+            if (!isIndep(i)) continue;
+            m_baseVertexVarOffsets[i].thickness = varOffset++;
+        }
+
+        // Create blending vars
+        for (size_t i = 0; i < numBaseVertices(); ++i) {
+            if (!isIndep(i)) continue;
+            m_baseVertexVarOffsets[i].blending = varOffset++;
+        }
+    }
+
+    // Link dependent vertices to the independent vertices' variables.
+    for (size_t u = 0; u < numBaseVertices(); ++u)
+        m_baseVertexVarOffsets[u] = m_baseVertexVarOffsets[m_indepVtxForBaseVtx[u]];
 
     ////////////////////////////////////////////////////////////////////////////
     // Construct inflation graph
@@ -69,61 +121,82 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     // Determine vertices/edges in the inflation graph
     std::vector<TransformedVertex> rVertices;
     std::vector<TransformedEdge>   rEdges;
-    replicatedGraph(PatternSymmetry::symmetryGroup(), rVertices, rEdges);
+    replicatedGraph(symmetryGroup(), rVertices, rEdges);
 
-    // Detect edges inside or incident meshing cell.
-    std::vector<bool> touchingMeshingCell;
+    // We want to include all vertices either inside the symmetry base unit or
+    // m_inflationNeighborhoodEdgeDist edges away. First, we compute the edge
+    // distance to the symmetry base unit.
+    std::vector<size_t> vtxEdgeDist;
+    std::queue<size_t> bfsQ;
+    for (size_t i = 0; i < rVertices.size(); ++i) {
+        size_t dist = std::numeric_limits<size_t>::max();
+        if (PatternSymmetry::inBaseUnit(rVertices[i].pt)) {
+            dist = 0;
+            bfsQ.push(i);
+        }
+        vtxEdgeDist.push_back(dist);
+    }
+
+    std::vector<std::vector<size_t>> adj(rVertices.size());
     for (const auto &re : rEdges) {
-        touchingMeshingCell.push_back(PatternSymmetry::inMeshingCell(rVertices[re.e[0]].pt) ||
-                                      PatternSymmetry::inMeshingCell(rVertices[re.e[1]].pt));
+        adj.at(re.e[0]).push_back(re.e[1]);
+        adj.at(re.e[1]).push_back(re.e[0]);
     }
 
-    // Keep edges inside or incident base cell
-    std::vector<bool> keepEdge = touchingMeshingCell;
-
-    if (KEEP_BC_ADJ_JOINTS) {
-        // Also keep the edges for joints incident these edges.
-        std::vector<bool> keepJoint(rVertices.size(), false);
-        for (size_t ei = 0; ei < rEdges.size(); ++ei) {
-            if (!keepEdge[ei]) continue;
-            const auto &re = rEdges[ei];
-            keepJoint.at(re.e[0]) = keepJoint.at(re.e[1]) = true;
-        }
-
-        for (size_t ei = 0; ei < rEdges.size(); ++ei) {
-            const auto &re = rEdges[ei];
-            if (keepJoint.at(re.e[0]) || keepJoint.at(re.e[1]))
-                keepEdge[ei] = true;
+    while (!bfsQ.empty()) {
+        size_t u = bfsQ.front();
+        bfsQ.pop();
+        size_t uDist = vtxEdgeDist[u];
+        assert(uDist < std::numeric_limits<size_t>::max());
+        for (size_t v : adj[u]) {
+            if (uDist + 1 < vtxEdgeDist[v]) {
+                vtxEdgeDist[v] = uDist + 1;
+                bfsQ.push(v);
+            }
         }
     }
 
-    // Copy over kept edges.
-    m_inflEdge.clear(), m_inflEdgeOrigin.clear();
-    std::vector<bool> vtxSeen(rVertices.size(), false);
-    for (size_t ei = 0; ei < rEdges.size(); ++ei) {
-        const auto &re = rEdges[ei];
-        if (!keepEdge[ei]) continue;
-        size_t u = re.e[0],
-               v = re.e[1];
-        m_inflEdge.push_back({u, v});
-        m_inflEdgeOrigin.push_back(re.origEdge);
-        vtxSeen.at(u) = vtxSeen.at(v) = true;
-    }
+    auto keepVtx = apply(vtxEdgeDist, [=](size_t dist) { return dist <= m_inflationNeighborhoodEdgeDist; });
 
-    // Only keep vertices belonging to kept edges.
+    // Reindex kept vertices
     m_inflVtx.clear();
     std::vector<size_t> vertexRenumber(rVertices.size(), std::numeric_limits<size_t>::max());
     for (size_t i = 0; i < rVertices.size(); ++i) {
-        if (!vtxSeen[i]) continue;
+        if (!keepVtx[i]) continue;
         vertexRenumber[i] = m_inflVtx.size();
         m_inflVtx.push_back(rVertices[i]);
     }
 
-    // Update kept edges' endpoint indices.
-    for (auto &e : m_inflEdge) {
-        e.first = vertexRenumber.at(e.first);
-        e.second = vertexRenumber.at(e.second);
-        assert((e.first < m_inflVtx.size()) && (e.second < m_inflVtx.size()));
+    // Copy over edges m_inflationNeighborhoodEdgeDist away from cell
+    // (i.e. the induced graph of kept vertices, but excluding the edges
+    // between the frontier vertices)
+    m_inflEdge.clear(), m_inflEdgeOrigin.clear();
+    for (const auto &re : rEdges) {
+        bool keepEdge = vtxEdgeDist[re.e[0]] < m_inflationNeighborhoodEdgeDist
+                     || vtxEdgeDist[re.e[1]] < m_inflationNeighborhoodEdgeDist;
+        // Always keep edges inside the inflation graph.
+        keepEdge |= (vtxEdgeDist[re.e[0]] == 0) && (vtxEdgeDist[re.e[1]] == 0);
+        if (!keepEdge) continue;
+        size_t u = vertexRenumber.at(re.e[0]),
+               v = vertexRenumber.at(re.e[1]);
+        assert((u < m_inflVtx.size()) && (v < m_inflVtx.size()));
+        m_inflEdge.push_back({u, v});
+        m_inflEdgeOrigin.push_back(re.origEdge);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Construct full period cell graph
+    ////////////////////////////////////////////////////////////////////////////
+    {
+        std::vector<Isometry> pcellIsometries;
+        for (const auto &iso : symmetryGroup()) {
+            if (iso.hasTranslation()) continue;
+            pcellIsometries.push_back(iso);
+        }
+        std::vector<TransformedEdge> pEdges;
+        replicatedGraph(pcellIsometries, m_periodCellVtx, pEdges);
+        for (const auto &pe : pEdges)
+            m_periodCellEdge.push_back({pe.e[0], pe.e[1]});
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -133,7 +206,7 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     // applying all permutation isometries, but no translation and only the
     // z-axis reflection
     std::vector<Isometry> printabiltyIsometries;
-    for (const auto &iso : PatternSymmetry::symmetryGroup()) {
+    for (const auto &iso : symmetryGroup()) {
         if (iso.hasTranslation() ||
             iso.hasReflection(Symmetry::Axis::X) ||
             iso.hasReflection(Symmetry::Axis::Y)) {
@@ -150,9 +223,81 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
         m_printGraphEdge.push_back({pe.e[0], pe.e[1]});
 }
 
+// Construct (stitched) replicated graph along with the maps from parameters
+// to vertex positions/thicknesses/blending parameters
+// Note: these maps operate on "homogeneous parameters" (i.e. the vector of
+// parameters with 1 appended).
+template<class Sym>
+void WireMesh<Sym>::
+replicatedGraph(const std::vector<Isometry> &isometries,
+                std::vector<TransformedVertex> &outVertices,
+                std::vector<TransformedEdge  > &outEdges) const
+{
+    std::vector<TransformedVertex> rVertices;
+    std::set<TransformedEdge>      rEdges;
+
+    const double tol = m_tolerance();
+
+    for (size_t ei = 0; ei < m_baseEdges.size(); ++ei) {
+        const auto &e = m_baseEdges[ei];
+        const size_t u = e.first, v = e.second;
+
+        auto pu = m_baseVertices.at(u),
+             pv = m_baseVertices.at(v);
+
+        Eigen::Matrix3Xd uPosMap = m_baseVertexPositioners.at(u).getPositionMap(numParams(), m_baseVertexVarOffsets.at(u).position);
+        Eigen::Matrix3Xd vPosMap = m_baseVertexPositioners.at(v).getPositionMap(numParams(), m_baseVertexVarOffsets.at(v).position);
+
+        for (const auto &isometry : isometries) {
+            auto mappedPu = isometry.apply(pu);
+            auto mappedPv = isometry.apply(pv);
+
+            // Create a new replicated vertex at "p" unless p coincides
+            // with an existing one. Return resulting unique vertex's index
+            auto createUniqueVtx = [&](const size_t origVertex, const Point &p, const Eigen::Matrix3Xd &posMap) {
+                // Find and return vertex index if it already exists.
+                for (size_t i = 0; i < rVertices.size(); ++i) {
+                    if (rVertices[i].sqDistTo(p) < tol) {
+                        // Verify position maps agree for coinciding reflected vertices
+                        if ((rVertices[i].posMap - posMap).squaredNorm() >= 1e-8) {
+                            std::cout << rVertices[i].posMap << std::endl;
+                            std::cout << posMap << std::endl;
+                            assert(false && "Conflicting maps");
+                        }
+                        // Verify repeated vertices originate from same independent vtx
+                        assert(m_indepVtxForBaseVtx.at(rVertices[i].origVertex) ==
+                               m_indepVtxForBaseVtx.at(origVertex));
+                        return i;
+                    }
+                }
+                // Create new reflected vertex at "p" otherwise
+                size_t newVtxIdx = rVertices.size();
+                rVertices.emplace_back(p, origVertex, isometry, posMap);
+                return newVtxIdx;
+            };
+
+            size_t mappedUIdx = createUniqueVtx(u, mappedPu, isometry.xformMap(uPosMap)),
+                   mappedVIdx = createUniqueVtx(v, mappedPv, isometry.xformMap(vPosMap));
+
+            TransformedEdge xfEdge(mappedUIdx, mappedVIdx, ei);
+            auto ret = rEdges.insert(xfEdge);
+            if (ret.second == false) {
+                // reflected already exists; verify it's from the same base edge
+                // (unless this is a triply periodic pattern where base edges
+                // on the period cell boundary are redundant)
+                assert(((ret.first->origEdge == ei) ||
+                        std::is_same<Symmetry::TriplyPeriodic<typename PatternSymmetry::Tolerance>, PatternSymmetry>::value));
+            }
+        }
+    }
+
+    outVertices = rVertices;
+    outEdges.clear();
+    outEdges.insert(outEdges.end(), rEdges.begin(), rEdges.end());
+}
+
 // Set from embedded graph stored in obj/msh format.
-template<ThicknessType thicknessType, class Sym>
-void WireMesh<thicknessType, Sym>::
+inline void WireMeshBase::
 load(const std::string &wirePath) {
     std::vector<MeshIO::IOVertex> inVertices;
     std::vector<MeshIO::IOElement> inElements;
@@ -172,27 +317,24 @@ void _OutputGraph(const std::string &path, const std::vector<Point> &points,
 }
 
 // Save the full embedded graph in obj/msh format.
-template<ThicknessType thicknessType, class Sym>
-void WireMesh<thicknessType, Sym>::
+inline void WireMeshBase::
 save(const std::string &path) const {
     _OutputGraph(path, m_fullVertices, m_fullEdges);
 }
 
 // Save the embedded base unit graph in obj/msh format.
-template<ThicknessType thicknessType, class Sym>
-void WireMesh<thicknessType, Sym>::
+inline void WireMeshBase::
 saveBaseUnit(const std::string &path) const {
     _OutputGraph(path, m_baseVertices, m_baseEdges);
 }
 
 // For symmetry debugging:
 // save the tiled base unit graph in obj/msh format
-template<ThicknessType thicknessType, class Sym>
-void WireMesh<thicknessType, Sym>::
+inline void WireMeshBase::
 saveReplicatedBaseUnit(const std::string &path) const {
     std::vector<MeshIO::IOVertex> outVertices;
     std::vector<MeshIO::IOElement> outEdges;
-    for (const auto &iso : PatternSymmetry::symmetryGroup()) {
+    for (const auto &iso : symmetryGroup()) {
         size_t offset = outVertices.size();
         for (const Point &p : m_baseVertices) { outVertices.emplace_back(iso.apply(p)); }
         for (const Edge  &e :    m_baseEdges) { outEdges.emplace_back(e.first + offset, e.second + offset); }
@@ -200,27 +342,17 @@ saveReplicatedBaseUnit(const std::string &path) const {
     MeshIO::save(path, outVertices, outEdges);
 }
 
-// Find the base vertex within symmetry tolerance of p
-// (or throw an exception if none exists).
-// The number of base vertices to check is generally small, so fancy
-// data structures shouldn't be needed.
-template<ThicknessType thicknessType, class Sym>
-size_t WireMesh<thicknessType, Sym>::
-m_findBaseVertex(const Point &p) const {
-    for (size_t i = 0; i < m_baseVertices.size(); ++i) {
-        if ((p - m_baseVertices[i]).norm() < PatternSymmetry::tolerance)
-            return i;
-    }
-    std::cout << "Failed to find " << p[0] << " " << p[1] << " " << p[2] << std::endl;
-    for (const Point &v : m_baseVertices)
-        std::cout << "    candidate " << v[0] << " " << v[1] << " " << v[2] << std::endl;
-    throw std::runtime_error("Couldn't find corresponding base vertex.");
+inline void WireMeshBase::
+savePeriodCellGraph(const std::string &path) const {
+    std::vector<Point> outVertices;
+    std::vector<Edge>  outEdges;
+    periodCellGraph(outVertices, outEdges);
+    _OutputGraph(path, outVertices, outEdges);
 }
 
 // For symmetry debugging:
 // save the inflation graph in obj/msh format
-template<ThicknessType thicknessType, class Sym>
-void WireMesh<thicknessType, Sym>::
+inline void WireMeshBase::
 saveInflationGraph(const std::string &path, std::vector<double> params) const {
     if (params.size() == 0)
         params = defaultParameters();
@@ -232,3 +364,19 @@ saveInflationGraph(const std::string &path, std::vector<double> params) const {
     _OutputGraph(path, igraphVertices, igraphEdges);
 }
 
+// Find the base vertex within symmetry tolerance of p
+// (or throw an exception if none exists).
+// The number of base vertices to check is generally small, so fancy
+// data structures shouldn't be needed.
+template<class Sym>
+size_t WireMesh<Sym>::
+m_findBaseVertex(const Point &p) const {
+    for (size_t i = 0; i < m_baseVertices.size(); ++i) {
+        if ((p - m_baseVertices[i]).squaredNorm() < (PatternSymmetry::tolerance * PatternSymmetry::tolerance))
+            return i;
+    }
+    std::cout << "Failed to find " << p.transpose() << std::endl;
+    for (const Point &v : m_baseVertices)
+        std::cout << "    candidate " << v.transpose() << std::endl;
+    throw std::runtime_error("Couldn't find corresponding base vertex.");
+}

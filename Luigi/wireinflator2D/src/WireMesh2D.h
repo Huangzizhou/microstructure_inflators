@@ -437,18 +437,18 @@ protected:
 
 // MHS on JUL29, 2015:
 // this is to streamline the symmetry operation calculations
-template <class EMesh> 
+template <class EMesh>
 class metaEMesh
 {
 public:
 	typedef typename EMesh::VertexType::CoordType CoordType;
 	typedef typename EMesh::VertexType::ScalarType ScalarType;
-	
+
 	metaEMesh(EMesh & em)
 	{
 		vcg::tri::Append<EMesh,EMesh>::MeshCopy(m_em, em, false, true);
 		// initialize other memebers here
-			
+
 		m_radius_ops.clear();
 		m_transl_ops.clear();
 		ParameterOperation op;
@@ -468,7 +468,7 @@ public:
 			op.nodes_displ.clear();
 			op.nodes_displ[i] = dx;
 			m_transl_ops.push_back(op);
-			
+
 			op.type = ParameterOperation::Translation;
 			op.nodes.clear();
 			op.nodes_displ.clear();
@@ -581,7 +581,7 @@ public:
 				if (j == i)
 				{
 					int k = findNodeIdx(flipPoint(m_em.vert[j].cP(), secondAxisDegree));
-					
+
 					// correct the radius symmetries
 					int currentOp = findRadiusOperationIdx(j);
 					int flippedOp = findRadiusOperationIdx(k);
@@ -598,16 +598,16 @@ public:
 					{
 						//std::cout<< std::endl << "F I AM HERE  " << i << "   REALLY HERE" << std::endl << std::endl;
 
-						// correct the traslation symmeteris
-						std::pair<int, ScalarType> currentOpSignPair = findTranslationOperationIdx(j, simDispDirection);	
+						// correct the translation symmetries
+						std::pair<int, ScalarType> currentOpSignPair = findTranslationOperationIdx(j, simDispDirection);
 						int        currentOpIdx = std::get<0>(currentOpSignPair);
-						ScalarType currentSign  = std::get<1>(currentOpSignPair);
+						//ScalarType currentSign  = std::get<1>(currentOpSignPair);
 						if (currentOpIdx >= 0)
 							m_transl_ops[currentOpIdx].nodes_displ.clear();
-						// correct the traslation symmeteris
-						currentOpSignPair = findTranslationOperationIdx(j, noDispDirection);	
+						// correct the translation symmetries
+						currentOpSignPair = findTranslationOperationIdx(j, noDispDirection);
 						currentOpIdx = std::get<0>(currentOpSignPair);
-						currentSign  = std::get<1>(currentOpSignPair);
+						//currentSign  = std::get<1>(currentOpSignPair);
 						if (currentOpIdx >= 0)
 							m_transl_ops[currentOpIdx].nodes_displ.clear();
 					}
@@ -673,7 +673,7 @@ protected:
 	{
 		// add the radius operations
 		addRadiusSymmetries(axisDegree);
-		
+
 		// add the translation operationsn
 		// swip to add "dx" symmetries
 		addAboutCoordAxisSymmetries(axisDegree, "dx");
@@ -683,12 +683,12 @@ protected:
 
 
 
-	
+
 	void addRadiusSymmetries(const int axisDegree)
 	{
 		// add the radius symmetries
 		for (size_t i = 0; i < m_em.vert.size(); ++i)
-		{	
+		{
 			size_t currentNode = i;
 			size_t flippedNode = findNodeIdx(flipPoint(m_em.vert[i].cP(), axisDegree));
 
@@ -714,7 +714,7 @@ protected:
 			std::pair<int, ScalarType>	 currentOpSignPair, flippedOpSignPair;
 			int							 currentOpIdx,      flippedOpIdx;
 			ScalarType					 currentSign,       flippedSign;
-			
+
 			vcg::Point2d currentDisp(0.0, 0.0);
 			if (axis == "dx")
 				currentDisp[0] = 1.0;
@@ -724,19 +724,19 @@ protected:
 
 			// ------------------------
 			// for the current node and disp find:
-			// a) the "index" in the operation list 
-			// b) the "sign" 
+			// a) the "index" in the operation list
+			// b) the "sign"
 			// such that:
 			// i:sign*disp is in m_transl_ops[index]
 			// vcg::Point2d currentDisp(1.0, 0.0);
-			currentOpSignPair = findTranslationOperationIdx(i, currentDisp);	
+			currentOpSignPair = findTranslationOperationIdx(i, currentDisp);
 			currentOpIdx = std::get<0>(currentOpSignPair);
 			currentSign  = std::get<1>(currentOpSignPair);
 
 			// if didn't find move to next node
 			if (currentOpIdx < 0)
 				continue;
-			
+
 			// find the flipped node and flipped disp
 			int j = findNodeIdx(flipPoint(m_em.vert[i].cP(), axisDegree));
 			vcg::Point2d flippedDisp = flipDisp(currentSign * currentDisp, axisDegree);
@@ -862,7 +862,7 @@ protected:
 
 		if (flag)
 			idx = i;
-		else 
+		else
 			return -1;
 
 		return idx;
@@ -910,7 +910,7 @@ protected:
 			}
 			if (flag == 1)
 				break;
-			
+
 			++counter;
 		}
 
@@ -919,13 +919,13 @@ protected:
 
 
 
-	
+
 };
 
 
 // Morteza: use this to override symmetry orbits.
 template <class EMesh>
-class WireMesh2DMorteza : public WireMesh2D<EMesh> 
+class WireMesh2DMorteza : public WireMesh2D<EMesh>
 {
 
 public:
@@ -933,7 +933,7 @@ public:
 	typedef typename EMesh::EdgeType        EdgeType;
 	typedef typename VertexType::ScalarType ScalarType;
 	typedef typename VertexType::CoordType  CoordType;
-	
+
 	WireMesh2DMorteza(void) {;}
 
 	WireMesh2DMorteza(EMesh & em)
@@ -947,7 +947,7 @@ public:
 	}
 
 	// MHS on JUL14, 2015:
-	// A new constructor with inSymmetryMode as the input ... 
+	// A new constructor with inSymmetryMode as the input ...
 	WireMesh2DMorteza(const std::string & edgeMeshPath, const int inSymmetryMode)
 	{
 		this->m_symmetry_mode = inSymmetryMode;
@@ -1160,7 +1160,7 @@ public:
 
 
 		std::vector<double> outParams;
-		std::vector<ParameterOperation> currentOperations = generateParameterOperations(currentSymmetry, em);	
+		std::vector<ParameterOperation> currentOperations = generateParameterOperations(currentSymmetry, em);
 
 		std::vector<std::pair<int, bool>> cMap = conversionMap(currentSymmetry, targetSymmetry, em);
 
@@ -1269,7 +1269,7 @@ protected:
 			case 0: // no symmetry
 				metaEM.addBaseSymmetry();
 				break;
-			case 1: // symmetry about y = 0 (or x-axis) only 
+			case 1: // symmetry about y = 0 (or x-axis) only
 				metaEM.addUpDownSymmetry();
 				metaEM.addBaseSymmetry();
 				break;
@@ -1342,7 +1342,7 @@ protected:
 
 	// MHS on JUL 23, 2015:
 	// the method generates a conversion map from parameters of currentSymmetry mode to parameters of targetSymmetry mode
-	// the map is a vector of <int, bool> pairs where 
+	// the map is a vector of <int, bool> pairs where
 	// pair->first  points to the parameter in the current parameter list
 	// pair->second specifies the direction 0: same 1: oposite
 	static std::vector<std::pair<int, bool>> conversionMap(const int currentSymmetry, const int targetSymmetry, EMesh & em)
@@ -1351,7 +1351,7 @@ protected:
 		std::vector<std::pair<int, bool>> conversion;
 		currentOperations = generateParameterOperations(currentSymmetry, em);
 		targetOperations  = generateParameterOperations(targetSymmetry,  em);
-		
+
 		int counter;
 		bool direction;
 		conversion.clear();
@@ -1397,7 +1397,7 @@ protected:
 						}
 						if (flag == 1)
 							break;
-						else 
+						else
 							++counter;
 					}
 				}
@@ -1408,7 +1408,7 @@ protected:
 			}
 			conversion.push_back(std::make_pair(counter, direction));
 		}
-		return conversion;	
+		return conversion;
 	}
 
 

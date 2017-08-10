@@ -21,6 +21,9 @@ $MICRO_DIR/isosurface_inflator/isosurface_cli orthotropic $pattern \
     -m $script_dir/meshing_opts.opt -O \
     --params "$initParams" $initMesh
 
+$MeshFEM/PeriodicHomogenization_cli -m $MICRO_DIR/materials/B9Creator.material -O $optMesh  > opt.homog.txt
+$MeshFEM/PeriodicHomogenization_cli -m $MICRO_DIR/materials/B9Creator.material -O $initMesh > init.homog.txt
+
 $MICRO_DIR/worst_case_stress/WCS_cli -m $MICRO_DIR/materials/B9Creator.material -O $optMesh  -o opt.wcs.msh
 $MICRO_DIR/worst_case_stress/WCS_cli -m $MICRO_DIR/materials/B9Creator.material -O $initMesh -o init.wcs.msh
 

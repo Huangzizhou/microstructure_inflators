@@ -9,10 +9,12 @@
 #include <MSHFieldWriter.hh>
 #include <SimplicialMesh.hh>
 #include <Future.hh>
+#include <algorithms/get_element_components.hh>
 #include <filters/remove_dangling_vertices.hh>
 #include <filters/remove_small_components.hh>
 #include <GlobalBenchmark.hh>
 #include <Parallelism.hh>
+#include <Utilities/apply.hh>
 
 #include "AutomaticDifferentiation.hh"
 #include "WireMesh.hh"
@@ -34,17 +36,11 @@
 #include "CGALClippedVolumeMesher.hh"
 #include "BoxIntersectionMesher.hh"
 #include "MidplaneMesher.hh"
-
-#if HAS_VCG
-#include "VCGSurfaceMesher.hh"
-#endif
+#include "IGLSurfaceMesherMC.hh"
 
 #include "IsosurfaceInflatorConfig.hh"
 
 using namespace std;
-
-template<class WMesh, class Mesher>
-class IsosurfaceInflatorImpl;
 
 // Postprocess:
 //    Snap to base cell and then reflect if necessary
@@ -55,7 +51,8 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                  vector<vector<Real>>      &normalShapeVelocities,
                  vector<Point>             &vertexNormals,
                  const IsosurfaceInflator::Impl &inflator,
-                 bool                      needsReflecting,
+                 bool                      meshedFullPeriodCell,
+                 bool                      requestFullPeriodCell,
                  const BBox<Point>         &meshCell,
                  const MeshingOptions      &opts);
 
@@ -74,7 +71,6 @@ public:
     // (via the virtual functions below).
     void inflate(const vector<Real> &params) {
         inflatedParams = params;
-        bool needsReflecting = generateFullPeriodCell && _mesherGeneratesOrthoCell();
 
         if (meshingOptions().debugLoadMeshPath.size()) {
             MeshIO::load(meshingOptions().debugLoadMeshPath, vertices, elements);
@@ -94,8 +90,8 @@ public:
 
         // Determine if meshed domain is 2D or 3D and postprocess accordingly
         BBox<Point> bbox(vertices);
-        if (std::abs(bbox.dimensions()[2]) < 1e-8) postProcess<2>(vertices, elements, normalShapeVelocities, vertexNormals, *this, needsReflecting, meshingCell(), meshingOptions());
-        else                                       postProcess<3>(vertices, elements, normalShapeVelocities, vertexNormals, *this, needsReflecting, meshingCell(), meshingOptions());
+        if (std::abs(bbox.dimensions()[2]) < 1e-8) postProcess<2>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions());
+        else                                       postProcess<3>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions());
 
         if (meshingOptions().debugSVelPath.size()) {
             MSHFieldWriter writer(meshingOptions().debugSVelPath, vertices, elements);
@@ -115,6 +111,9 @@ public:
 
     // Mesh the param (fills vertices, elements member arrays)
     virtual void meshPattern(const vector<Real> &params) = 0;
+
+    // Dump inflation graph
+    virtual void dumpInflationGraph(const string &path, const vector<Real> &params) const = 0;
 
     // Derivative of signed distance function with respect to evaluation point
     virtual vector<Point> signedDistanceGradient(const vector<Point> &evalPoints) const = 0;
@@ -139,7 +138,7 @@ public:
 
     // Whether the inflator generates only the orthotropic symmetry base cell
     // (by default--reflectiveInflator will override this)
-    virtual bool _mesherGeneratesOrthoCell() const = 0;
+    virtual bool _meshingOrthoCell() const = 0;
 
     // The meshing cell box.
     virtual BBox<Point> meshingCell() const = 0;
@@ -180,16 +179,17 @@ protected:
 };
 
 // The WMesh-dependent implementation details.
-// E.g.: WMesh = WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>,
-//       Mesher = CGALClippedVolumeMesher
-template<class WMesh, class Mesher>
+// E.g.: WMesh = WireMesh<Symmetry::Cubic<>>
+template<class WMesh>
 class IsosurfaceInflatorImpl : public IsosurfaceInflator::Impl {
 public:
     using Point = IsosurfaceInflator::Point;
     typedef PatternSignedDistance<Real, WMesh> PSD;
     typedef typename WMesh::PatternSymmetry PatternSymmetry;
-    IsosurfaceInflatorImpl(const string &wireMeshPath)
-            : wmesh(wireMeshPath), pattern(wmesh) { }
+    IsosurfaceInflatorImpl(const string &wireMeshPath, std::unique_ptr<MesherBase> &&m, size_t inflationNeighborhoodEdgeDist)
+        : wmesh(wireMeshPath, inflationNeighborhoodEdgeDist), pattern(wmesh), mesher(std::move(m)) {
+        mesher->periodic = !_meshingOrthoCell();
+    }
 
     virtual void meshPattern(const vector<Real> &params) override {
         // std::cout << "Meshing parameters:";
@@ -211,14 +211,19 @@ public:
         if (generateFullPeriodCell && !reflectiveInflator)
             pattern.setBoundingBox(Symmetry::TriplyPeriodic<>::representativeMeshCell<Real>());
 
-        mesher.mesh(pattern, this->vertices, this->elements);
+        mesher->mesh(pattern, this->vertices, this->elements);
         BENCHMARK_STOP_TIMER_SECTION("meshPattern");
         // cout << vertices.size() << " vertices, " << elements.size() << " elements" << endl;
     }
 
+    // Dump inflation graph
+    virtual void dumpInflationGraph(const string &path, const vector<Real> &params) const override {
+        wmesh.saveInflationGraph(path, params);
+    }
+
     // Note: when reflectiveInflator = false, the mesher generates the full
     // period cell.
-    virtual bool _mesherGeneratesOrthoCell() const override {
+    virtual bool _meshingOrthoCell() const override {
         return is_base_of<Symmetry::Orthotropic<typename PatternSymmetry::Tolerance>,
                 PatternSymmetry>::value
                && (reflectiveInflator || !generateFullPeriodCell);
@@ -350,8 +355,8 @@ public:
     virtual bool   isPositionParam(size_t p) const override { return wmesh.isPositionParam(p); }
     virtual bool   isBlendingParam(size_t p) const override { return wmesh.isBlendingParam(p); }
 
-    virtual       MeshingOptions &meshingOptions()       override { return mesher.meshingOptions; }
-    virtual const MeshingOptions &meshingOptions() const override { return mesher.meshingOptions; }
+    virtual       MeshingOptions &meshingOptions()       override { return mesher->meshingOptions; }
+    virtual const MeshingOptions &meshingOptions() const override { return mesher->meshingOptions; }
 
     // Printability checks/constraints
     virtual bool isPrintable(const std::vector<Real> &params) const override {
@@ -370,12 +375,13 @@ public:
 
     WMesh wmesh;
     PSD pattern;
-    Mesher mesher;
+    std::unique_ptr<MesherBase> mesher;
 protected:
     virtual void m_setParameters(const vector<Real> &params) override { pattern.setParameters(params, meshingOptions().jointBlendingMode); }
 };
 
 void IsosurfaceInflator::inflate(const vector<Real> &params) { m_imp->inflate(params); }
+void IsosurfaceInflator::dumpInflationGraph(const std::string &path, const std::vector<Real> &params) const { m_imp->dumpInflationGraph(path, params); }
 
 vector<Real> IsosurfaceInflator::defaultParameters()        const { return m_imp->defaultParameters(); }
 size_t       IsosurfaceInflator::numParams()                const { return m_imp->numParams(); }
@@ -386,8 +392,8 @@ bool         IsosurfaceInflator:: isBlendingParam(size_t p) const { return m_imp
 void IsosurfaceInflator::setGenerateFullPeriodCell(bool onoff) { m_imp->generateFullPeriodCell = onoff; }
 void IsosurfaceInflator::setReflectiveInflator(bool onoff) { m_imp->reflectiveInflator = onoff; }
 BaseCellType IsosurfaceInflator::baseCellType() const {
-    if      (m_imp->generateFullPeriodCell     ) return BaseCellType::TriplyPeriodic;
-    else if (m_imp->_mesherGeneratesOrthoCell()) return BaseCellType::Orthotropic;
+    if      (m_imp->generateFullPeriodCell) return BaseCellType::TriplyPeriodic;
+    else if (m_imp->_meshingOrthoCell())    return BaseCellType::Orthotropic;
     else throw std::runtime_error("Unknown/incompatible base cell type.");
 }
 
@@ -435,10 +441,13 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                  vector<vector<Real>>      &normalShapeVelocities,
                  vector<Point>             &vertexNormals,
                  const IsosurfaceInflator::Impl &inflator,
-                 bool                      needsReflecting,
+                 bool                      meshedFullPeriodCell, // whether (vertices, elements) is already a mesh of the full period cell
+                 bool                      requestFullPeriodCell,
                  const BBox<Point>         &meshCell,
                  const MeshingOptions      &opts)
 {
+    const bool needsReflecting = requestFullPeriodCell && !meshedFullPeriodCell;
+
     BENCHMARK_START_TIMER_SECTION("postProcess");
     {
         const size_t origSize = vertices.size();
@@ -467,7 +476,41 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                 MeshIO::save("debug.msh", vertices, elements);
                 throw;
             }
-            if (remove_small_components(*bcm, vertices, elements)) {
+
+            // Remove spurious small components. If this is already a full periodic
+            // mesh, we need to detect components on the periodically-stitched mesh to
+            // avoid discarding parts connected via the adjacent period cells.
+            std::vector<size_t> componentIndex;
+            std::vector<size_t> componentSize;
+            if (meshedFullPeriodCell) {
+                std::vector<MeshIO::IOElement> stitched_elements = elements;
+                using Pt = PointND<N>;
+                BBox<Point> meshBB(vertices);
+                BBox<Pt> cellND(truncateFrom3D<Pt>(meshBB.minCorner), truncateFrom3D<Pt>(meshBB.maxCorner));
+
+                auto pts = apply(vertices, [](const MeshIO::IOVertex &v) { return truncateFrom3D<Pt>(v.point); });
+                std::vector<PeriodicBoundaryMatcher::FaceMembership<N>> fm;
+                PeriodicBoundaryMatcher::determineCellBoundaryFaceMembership<N>(pts, cellND, fm, 0 /* epsilon */);
+                std::vector<std::vector<size_t>> nodeSets;
+                std::vector<size_t>              nodeSetForNode;
+                // Could be sped up by only matching boundary vertices
+                PeriodicBoundaryMatcher::match(pts, cellND, fm, nodeSets, nodeSetForNode);
+                // Relink periodic vertices to the first element of their corresponding node set.
+                for (auto &e : stitched_elements) {
+                    for (size_t &v : e) {
+                        size_t ns = nodeSetForNode.at(v);
+                        if (ns != PeriodicBoundaryMatcher::NONE) v = nodeSets.at(ns).front();
+                    }
+                }
+                auto dummy_vertices = vertices;
+                remove_dangling_vertices(dummy_vertices, stitched_elements);
+                get_element_components(stitched_elements, componentIndex, componentSize);
+            }
+            else {
+                get_element_components(elements, componentIndex, componentSize);
+            }
+
+            if (remove_small_components(componentIndex, componentSize, vertices, elements)) {
                 std::cout << "Removed " << bcm-> numVertices() - vertices.size() << " vertices"
                           <<    " and " << bcm->numSimplices() - elements.size() << " elements"
                           << " (small components)" << std::endl;
@@ -728,32 +771,32 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
 ////////////////////////////////////////////////////////////////////////////////
 // Factory/instantiations
 ////////////////////////////////////////////////////////////////////////////////
-IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness, const string &wireMeshPath) {
+IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness, const string &wireMeshPath, size_t inflationNeighborhoodEdgeDist) {
     if (!vertexThickness) throw runtime_error("Only per-vertex thickness is currently supported.");
     if (type == "cubic") {
-#if 0
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, CGALClippedVolumeMesher>(wireMeshPath);
+#if 1
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>>>(wireMeshPath, Future::make_unique<CGALClippedVolumeMesher>(), inflationNeighborhoodEdgeDist);
 #else
         throw std::runtime_error("Disabled");
 #endif
     }
     else if (type == "orthotropic") {
 #if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, CGALClippedVolumeMesher>(wireMeshPath);
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>>>(wireMeshPath, Future::make_unique<CGALClippedVolumeMesher>(), inflationNeighborhoodEdgeDist);
 #else
         throw std::runtime_error("Disabled");
 #endif
     }
     else if (type == "triply_periodic") {
-#if 0
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, CGALClippedVolumeMesher>(wireMeshPath);
+#if 1
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<CGALClippedVolumeMesher>(), inflationNeighborhoodEdgeDist);
 #else
         throw std::runtime_error("Disabled");
 #endif
     }
     else if (type == "cubic_preview")   {
-#if 0 && HAS_VCG
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, VCGSurfaceMesher>(wireMeshPath);
+#if 1
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>>>(wireMeshPath, Future::make_unique<IGLSurfaceMesherMC>(), inflationNeighborhoodEdgeDist);
         // Triangle mesh doesn't support our post-processing
         disablePostprocess();
 #else
@@ -762,7 +805,7 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
     }
     else if (type == "cubic_features")   {
 #if 0
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Cubic<>>, BoxIntersectionMesher>(wireMeshPath);
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>>>(wireMeshPath, Future::make_unique<BoxIntersectionMesher>(), inflationNeighborhoodEdgeDist);
         // Line mesh doesn't support our post-processing
         disablePostprocess();
 #else
@@ -772,7 +815,7 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
     }
     else if (type == "orthotropic_features")   {
 #if 0
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, BoxIntersectionMesher>(wireMeshPath);
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>>>(wireMeshPath, Future::make_unique<BoxIntersectionMesher>(), inflationNeighborhoodEdgeDist);
         disablePostprocess();
 #else
         throw std::runtime_error("Disabled");
@@ -781,42 +824,40 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
     else if (type == "triply_periodic_features")   {
         throw std::runtime_error("Disabled");
         // Output the sharp 1D features created by bounding box intersection.
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, BoxIntersectionMesher>(wireMeshPath);
+        // m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<BoxIntersectionMesher>(), inflationNeighborhoodEdgeDist);
         // Line mesh doesn't support our post-processing
         disablePostprocess();
     }
     else if (type == "triply_periodic_preview")   {
-#if 0 && HAS_VCG
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, VCGSurfaceMesher>(wireMeshPath);
+#if 1
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<IGLSurfaceMesherMC>(), inflationNeighborhoodEdgeDist);
         disablePostprocess();
 #else
         throw std::runtime_error("Disabled");
 #endif
     }
     else if (type == "2D_square") {
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Square<>>, MidplaneMesher>(wireMeshPath);
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Square<>>>(wireMeshPath, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
     }
     else if (type == "2D_orthotropic") {
 #if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Orthotropic<>>, MidplaneMesher>(
-                wireMeshPath);
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>>>(wireMeshPath, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
+#else
+        throw std::runtime_error("Disabled.");
+#endif
+    }
+    else if (type == "2D_doubly_periodic") {
+#if 1
+        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
 #else
         throw std::runtime_error("Disabled.");
 #endif
     }
     else if (type == "2D_parallelogram") {
 #if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Parallelogram<>>, MidplaneMesher>(
-                wireMeshPath);
+        //m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Parallelogram<>>, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
 #else
         throw std::runtime_error("Disabled.");
-#endif
-    }
-    else if (type == "2D_triply_periodic") {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::TriplyPeriodic<>>, MidplaneMesher>(wireMeshPath);
-#else
-        throw std::runtime_error("Disabled");
 #endif
     }
     else throw runtime_error("Unknown inflator type: " + type);
