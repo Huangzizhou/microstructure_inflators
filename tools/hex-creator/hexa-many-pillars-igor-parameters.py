@@ -26,8 +26,8 @@ l = parallelogram_side / 2.0
 
 s = 2 / math.sqrt(3)
 
-thickness = thickness_ratio * (pillar_area_ratio * s / num_pillars)
 triangle_side = triangle_side_ratio * s * math.sqrt(3)
+thickness = thickness_ratio * (pillar_area_ratio * triangle_side / num_pillars)
 
 num_upper_intervals = num_pillars - 1
 if num_upper_intervals > 0:
