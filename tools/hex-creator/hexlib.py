@@ -45,13 +45,19 @@ def min_distance_to_other_vertices(vertices, centroid_index):
     return min_distance
 
 
-def create_triangle_edges(triangle, n):
+def create_triangle_edges(triangle, n, offset=0.0):
     edges_descriptions = []
 
     for i in range(0, 3):
         segment_start = triangle[i % 3]
         segment_end = triangle[(i + 1) % 3]
-        create_subdivided_segment(segment_start, segment_end, n, edges_descriptions)
+
+        unit_vector = (segment_end - segment_start) / np.linalg.norm(segment_end - segment_start)
+
+        segment_start_offset = segment_start + unit_vector * offset
+        segment_end_offset = segment_end - unit_vector * offset
+
+        create_subdivided_segment(segment_start_offset, segment_end_offset, n, edges_descriptions)
 
     return edges_descriptions
 
@@ -298,12 +304,12 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
 
     offset_thickeness = len(parameters) - 2 * len(independent_vertices)
     for i in range(offset_thickeness, offset_thickeness + len(independent_vertices)):
-        #print "Thickness original parameter: " + str(parameters[i])
+        # print "Thickness original parameter: " + str(parameters[i])
         parameters[i] = vertices_thickness
 
     offset_bending = len(parameters) - len(independent_vertices)
     for i in range(offset_bending, offset_bending + len(independent_vertices)):
-        #print "Bending original parameter: " + str(parameters[i])
+        # print "Blending original parameter: " + str(parameters[i])
         parameters[i] = vertices_bending
 
     # Now, for the extra parameters, find vertices and apply customized thickness

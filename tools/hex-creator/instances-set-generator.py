@@ -8,7 +8,7 @@ from subprocess import call
 
 def max_thickness(n, s):
     min_void = 1e-2
-    return (s - min_void * (n - 1)) / (2 * n - 1)
+    return (s - min_void * (n - 1)) / n
 
 
 def hex_pillars_generator():
