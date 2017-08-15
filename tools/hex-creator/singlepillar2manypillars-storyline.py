@@ -87,7 +87,7 @@ for index, num_pillars in enumerate(pillar_values):
 
 # now, run homogenization on all instances created
 cwd = os.getcwd()
-cmd = [cwd + '/run-homogenization.py', str(folder_path), str(table_path)]
+cmd = [cwd + '/run-homogenization.py', str(folder_path), str(table_path), "../../materials/Russia.material"]
 call(cmd)
 
 # parse table file
@@ -113,14 +113,10 @@ for line in tableFile:
     annotes.append(note)
     p.append(fields[0])
 
-leftVertex = (-1.0, 0.0)
-topVertex = (0.35, 200)
-rightVertex = (1.0, 0.0)
-
 fig, ax = plt.subplots()
 
 ax.grid(True)
-triangle = hexlib.theoretical_triangle(200.0, 0.35, volume_fraction)
+triangle = hexlib.theoretical_triangle(1.0, 0.0, volume_fraction)
 polygon = plt.Polygon(triangle, fill=None, color='r')
 ax.add_patch(polygon)
 
@@ -153,7 +149,7 @@ fig2, ax2 = plt.subplots()
 
 # plt.axes()
 ax2.grid(True)
-rectangle = hexlib.theoretical_rectangle(200.0, 0.35, volume_fraction)
+rectangle = hexlib.theoretical_rectangle(1.0, 0.0, volume_fraction)
 polygon = plt.Polygon(rectangle, fill=None, color='b')
 ax2.add_patch(polygon)
 
