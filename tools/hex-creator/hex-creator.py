@@ -47,10 +47,10 @@ triangle_end = f - [s / 2.0, 0]
 unit_vector = (parallelogram_end - parallelogram_start) / np.linalg.norm(parallelogram_end - parallelogram_start)
 unit_vector_triangle = (triangle_end - triangle_start) / np.linalg.norm(triangle_end - triangle_start)
 
-parallelogram_start_offset = parallelogram_start + pillars_thickness/2 * unit_vector
-parallelogram_end_offset = parallelogram_end - pillars_thickness/2 * unit_vector
-triangle_start_offset = triangle_start + pillars_thickness/2 * unit_vector
-triangle_end_offset = triangle_end - pillars_thickness/2 * unit_vector
+parallelogram_start_offset = parallelogram_start + pillars_thickness * unit_vector
+parallelogram_end_offset = parallelogram_end - pillars_thickness * unit_vector
+triangle_start_offset = triangle_start + pillars_thickness * unit_vector
+triangle_end_offset = triangle_end - pillars_thickness * unit_vector
 
 # add new vertices and edges to current sets
 new_edges_description = hexlib.create_pillars([parallelogram_start_offset, parallelogram_end_offset], [triangle_start_offset, triangle_end_offset], num_pillars)
@@ -70,10 +70,10 @@ triangle_end = f + [s / 2.0, 0]
 unit_vector = (parallelogram_end - parallelogram_start) / np.linalg.norm(parallelogram_end - parallelogram_start)
 unit_vector_triangle = (triangle_end - triangle_start) / np.linalg.norm(triangle_end - triangle_start)
 
-parallelogram_start_offset = parallelogram_start + pillars_thickness/2 * unit_vector
-parallelogram_end_offset = parallelogram_end - pillars_thickness/2 * unit_vector
-triangle_start_offset = triangle_start + pillars_thickness/2 * unit_vector
-triangle_end_offset = triangle_end - pillars_thickness/2 * unit_vector
+parallelogram_start_offset = parallelogram_start + pillars_thickness * unit_vector
+parallelogram_end_offset = parallelogram_end - pillars_thickness * unit_vector
+triangle_start_offset = triangle_start + pillars_thickness * unit_vector
+triangle_end_offset = triangle_end - pillars_thickness * unit_vector
 
 # add new vertices and edges to current sets
 new_edges_description = hexlib.create_pillars([parallelogram_start_offset, parallelogram_end_offset], [triangle_start_offset, triangle_end_offset],
@@ -94,10 +94,10 @@ triangle_end = f + [0, math.sqrt(3) * s / 2.0]
 unit_vector = (parallelogram_end - parallelogram_start) / np.linalg.norm(parallelogram_end - parallelogram_start)
 unit_vector_triangle = (triangle_end - triangle_start) / np.linalg.norm(triangle_end - triangle_start)
 
-parallelogram_start_offset = parallelogram_start + pillars_thickness/2 * unit_vector
-parallelogram_end_offset = parallelogram_end - pillars_thickness/2 * unit_vector
-triangle_start_offset = triangle_start + pillars_thickness/2 * unit_vector
-triangle_end_offset = triangle_end - pillars_thickness/2 * unit_vector
+parallelogram_start_offset = parallelogram_start + pillars_thickness * unit_vector
+parallelogram_end_offset = parallelogram_end - pillars_thickness * unit_vector
+triangle_start_offset = triangle_start + pillars_thickness * unit_vector
+triangle_end_offset = triangle_end - pillars_thickness * unit_vector
 
 # add new vertices and edges to current sets
 new_edges_description = hexlib.create_pillars([parallelogram_start_offset, parallelogram_end_offset], [triangle_start_offset, triangle_end_offset],
@@ -113,7 +113,7 @@ for edge_description in new_edges_description:
 
 # Now, adding edges on the triangle
 triangle = [f + [0, math.sqrt(3) * s / 2.0], f - [s / 2.0, 0], f + [s / 2.0, 0]]
-new_edges_description = hexlib.create_triangle_edges(triangle, num_pillars, pillars_thickness/2)
+new_edges_description = hexlib.create_triangle_edges(triangle, num_pillars, pillars_thickness)
 hexlib.add_new_edges(new_edges_description, vertices, edges)
 
 # Now, transform to square every vertex we have:
@@ -166,4 +166,4 @@ hexlib.create_wire(vertices, edges, out_wire)
 
 print "Inflating ..."
 inflate_hexagonal_box_smarter(out_wire, str(pillars_thickness), str(0.00001), out_mesh,
-                              incenter_triangle_pairs + [[hypotenuse_nodes, float(pillars_thickness) * math.sqrt(2)], [triangle_vertices, 0.00001]])
+                              incenter_triangle_pairs + [[hypotenuse_nodes, float(pillars_thickness) * math.sqrt(2)], [triangle_vertices, 0.001]])
