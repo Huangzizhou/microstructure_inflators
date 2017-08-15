@@ -296,8 +296,8 @@ q3 = triangle_side_ratio * (b_yneg - a)
 q4 = q1 + (q3 - q1) * pillar_area_ratio
 
 # individual pillar area:
-thickness = thickness_ratio * (pillar_area_ratio * s / num_pillars)
-spacing = (pillar_area_ratio * triangle_side_ratio * s - thickness) / (num_pillars - 1) - thickness
+thickness = thickness_ratio * (pillar_area_ratio * triangle_side / num_pillars)
+spacing = (pillar_area_ratio * triangle_side - thickness) / (num_pillars - 1) - thickness
 
 # compute points on the left side
 # edges_descriptions_left = subdivide_segment_with_constant_pillar_spacing_and_thickness(q1, q4, num_pillars, thickness, spacing)
