@@ -91,13 +91,21 @@ def create_pillars_with_constant_spacing_and_thickness(line1, line2, pillar_area
                 triangles.append([beginning_pillar1, end_pillar2, beginning_pillar2])
 
             else:
-                pillar_edges.append([beginning_pillar1, resulting_bottom_edge[1]])
-                pillar_edges.append([resulting_bottom_edge[1], beginning_pillar2])
-                pillar_edges.append([resulting_bottom_edge[1], [beginning_pillar2[0], 0.0]])
+                if not resulting_bottom_edge:
 
-                triangles.append([beginning_pillar1, end_pillar1, resulting_bottom_edge[1]])
-                triangles.append([beginning_pillar1, resulting_bottom_edge[1], beginning_pillar2])
-                triangles.append([beginning_pillar2, resulting_bottom_edge[1], [beginning_pillar2[0], 0.0]])
+                    pillar_edges.append([beginning_pillar1, [beginning_pillar2[0], 0.0]])
+                    pillar_edges.append([[end_pillar1[0], 0.0], [end_pillar2[0], 0.0]])
+
+                    triangles.append([beginning_pillar1, beginning_pillar2, [beginning_pillar2[0], 0.0]])
+                    triangles.append([beginning_pillar1, [beginning_pillar1[0], 0.0], [beginning_pillar2[0], 0.0]])
+                else:
+                    pillar_edges.append([beginning_pillar1, resulting_bottom_edge[1]])
+                    pillar_edges.append([resulting_bottom_edge[1], beginning_pillar2])
+                    pillar_edges.append([resulting_bottom_edge[1], [beginning_pillar2[0], 0.0]])
+
+                    triangles.append([beginning_pillar1, end_pillar1, resulting_bottom_edge[1]])
+                    triangles.append([beginning_pillar1, resulting_bottom_edge[1], beginning_pillar2])
+                    triangles.append([beginning_pillar2, resulting_bottom_edge[1], [beginning_pillar2[0], 0.0]])
         else:
             if not resulting_top_edge:
                 pass
