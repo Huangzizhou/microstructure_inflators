@@ -15,7 +15,7 @@ if len(sys.argv) != 6:
 
 num_pillars = int(sys.argv[1])
 triangle_side = float(sys.argv[2])
-pillars_thickness = float(sys.argv[3]) / 2 # rest of the code assumes it is the radius
+pillars_thickness = float(sys.argv[3]) / 2  # rest of the code assumes it is the radius
 out_wire = sys.argv[4]
 out_mesh = sys.argv[5]
 parallelogram_side = 2.0
@@ -53,7 +53,8 @@ triangle_start_offset = triangle_start + pillars_thickness * unit_vector
 triangle_end_offset = triangle_end - pillars_thickness * unit_vector
 
 # add new vertices and edges to current sets
-new_edges_description = hexlib.create_pillars([parallelogram_start_offset, parallelogram_end_offset], [triangle_start_offset, triangle_end_offset], num_pillars)
+new_edges_description = hexlib.create_pillars([parallelogram_start_offset, parallelogram_end_offset],
+                                              [triangle_start_offset, triangle_end_offset], num_pillars)
 new_edges_description += [[triangle_start, triangle_start_offset], [triangle_end, triangle_end_offset]]
 hexlib.add_new_edges(new_edges_description, vertices, edges)
 
@@ -76,7 +77,8 @@ triangle_start_offset = triangle_start + pillars_thickness * unit_vector
 triangle_end_offset = triangle_end - pillars_thickness * unit_vector
 
 # add new vertices and edges to current sets
-new_edges_description = hexlib.create_pillars([parallelogram_start_offset, parallelogram_end_offset], [triangle_start_offset, triangle_end_offset],
+new_edges_description = hexlib.create_pillars([parallelogram_start_offset, parallelogram_end_offset],
+                                              [triangle_start_offset, triangle_end_offset],
                                               num_pillars)
 new_edges_description += [[triangle_start, triangle_start_offset], [triangle_end, triangle_end_offset]]
 hexlib.add_new_edges(new_edges_description, vertices, edges)
@@ -100,7 +102,8 @@ triangle_start_offset = triangle_start + pillars_thickness * unit_vector
 triangle_end_offset = triangle_end - pillars_thickness * unit_vector
 
 # add new vertices and edges to current sets
-new_edges_description = hexlib.create_pillars([parallelogram_start_offset, parallelogram_end_offset], [triangle_start_offset, triangle_end_offset],
+new_edges_description = hexlib.create_pillars([parallelogram_start_offset, parallelogram_end_offset],
+                                              [triangle_start_offset, triangle_end_offset],
                                               num_pillars)
 new_edges_description += [[triangle_start, triangle_start_offset], [triangle_end, triangle_end_offset]]
 hexlib.add_new_edges(new_edges_description, vertices, edges)
@@ -164,6 +167,21 @@ incenter_triangle_pairs = hexlib.add_polygons_incenters([transformed_triangle, r
 # print wire output
 hexlib.create_wire(vertices, edges, out_wire)
 
+
 print "Inflating ..."
+
+# Computing void thickness and necessary resolution
+thickness_void = (triangle_side - 2 * num_pillars * pillars_thickness) / (num_pillars - 1)
+min_resolution = 2 / thickness_void
+chosen_resolution = math.pow(2, math.ceil(math.log(min_resolution) / math.log(2)))
+
+if chosen_resolution < 64:
+    chosen_resolution = 64
+
+print "Thickness void: " + str(thickness_void)
+print "Minimum resolution: " + str(min_resolution)
+print "Chosen resolution: " + str(chosen_resolution)
+
 inflate_hexagonal_box_smarter(out_wire, str(pillars_thickness), str(0.00001), out_mesh,
-                              incenter_triangle_pairs + [[hypotenuse_nodes, float(pillars_thickness) * math.sqrt(2)], [triangle_vertices, 0.001]])
+                              incenter_triangle_pairs + [[hypotenuse_nodes, float(pillars_thickness) * math.sqrt(2)],
+                                                         [triangle_vertices, 0.001]], chosen_resolution)

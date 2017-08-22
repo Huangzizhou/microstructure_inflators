@@ -48,7 +48,7 @@ s = triangle_side
 
 num_upper_intervals = num_pillars - 1
 if num_upper_intervals > 0:
-    upper_spacing = (s - pillars_thickness) / (num_pillars-1)
+    upper_spacing = (s - pillars_thickness) / (num_pillars - 1)
 num_upper_points = int(math.floor(num_pillars / 2.0) + 1)
 
 # graph to be constructed
@@ -76,7 +76,7 @@ print "Constructing " + out_wire + " ..."
 # Add vertices and edges of the first simplex
 vertices.append(b)
 vertices.append(p1)
-p1_offset = [p1[0] + pillars_thickness/2, p1[1]]
+p1_offset = [p1[0] + pillars_thickness / 2, p1[1]]
 vertices.append(p1_offset)
 
 if (num_pillars % 2) == 1:
@@ -90,7 +90,8 @@ edges.append([1, 2])
 edges_descriptions = []
 
 if num_upper_intervals > 0:
-    hexlib.create_subdivided_segment_with_constant_spacing(p1_offset, p2, num_upper_points, upper_spacing, edges_descriptions)
+    hexlib.create_subdivided_segment_with_constant_spacing(p1_offset, p2, num_upper_points, upper_spacing,
+                                                           edges_descriptions)
     vertices_from_p1_to_p2 = hexlib.extract_vertices_from_edges_descriptions(edges_descriptions)
     hexlib.add_new_edges(edges_descriptions, vertices, edges)
 else:
@@ -98,16 +99,15 @@ else:
     vertices.append(p2)
 
 # adding edge between p2, b and p2,c
-edges.append([len(vertices)-1, 0])
+edges.append([len(vertices) - 1, 0])
 if (num_pillars % 2) == 1:
-    edges.append([len(vertices)-1, 2])
-
+    edges.append([len(vertices) - 1, 2])
 
 if num_upper_intervals > -1:
     pillar_triangles = []
     for index, top_point in enumerate(vertices_from_p1_to_p2):
-        if index == (len(vertices_from_p1_to_p2)-1):
-            if (num_pillars % 2) == 0: # if even number of nodes, last one does not have pillars
+        if index == (len(vertices_from_p1_to_p2) - 1):
+            if (num_pillars % 2) == 0:  # if even number of nodes, last one does not have pillars
                 continue
             else:
                 a1 = np.array([top_point[0] - pillars_thickness / 2, top_point[1]])
@@ -116,11 +116,11 @@ if num_upper_intervals > -1:
                 b1 = np.array([top_point[0] - pillars_thickness / 2, 0])
                 b2 = np.array([top_point[0], 0])
         else:
-            a1 = np.array([top_point[0] - pillars_thickness/2, top_point[1]])
+            a1 = np.array([top_point[0] - pillars_thickness / 2, top_point[1]])
             a2 = np.array([top_point[0] + pillars_thickness / 2, top_point[1]])
 
-            b1 = np.array([top_point[0] - pillars_thickness/2, 0])
-            b2 = np.array([top_point[0] + pillars_thickness/2, 0])
+            b1 = np.array([top_point[0] - pillars_thickness / 2, 0])
+            b2 = np.array([top_point[0] + pillars_thickness / 2, 0])
 
         triangle_left = [a1, b1, b2]
         triangle_right = [a1, b2, a2]
@@ -146,4 +146,18 @@ hexlib.create_wire(vertices, edges, out_wire)
 
 print "Inflating ..."
 
-hexlib.inflate_hexagonal_box_smarter(out_wire, 0.00001, 0.00001, out_mesh, upper_incenters_thickness_pairs + pillar_triangles_incenters_thickness_pairs)
+# Computing void thickness and necessary resolution
+thickness_void = (triangle_side - 2 * num_pillars * pillars_thickness) / (num_pillars - 1)
+min_resolution = 2 / thickness_void
+chosen_resolution = math.pow(2, math.ceil(math.log(min_resolution) / math.log(2)))
+
+if chosen_resolution < 64:
+    chosen_resolution = 64
+
+print "Thickness void: " + str(thickness_void)
+print "Minimum resolution: " + str(min_resolution)
+print "Chosen resolution: " + str(chosen_resolution)
+
+hexlib.inflate_hexagonal_box_smarter(out_wire, 0.00001, 0.00001, out_mesh,
+                                     upper_incenters_thickness_pairs + pillar_triangles_incenters_thickness_pairs,
+                                     chosen_resolution)

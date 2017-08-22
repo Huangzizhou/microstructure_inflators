@@ -1,11 +1,12 @@
 import math
 import os
 import re
+import json
 from subprocess import call
 
 import numpy as np
 
-Tolerance = 1e-4
+Tolerance = 1e-7
 
 
 def create_wire(vertices, edges, out_wire):
@@ -266,8 +267,25 @@ def extract_independent_vertices(vertices):
     return independent_vertices, independent_vertex_indices
 
 
+def create_custom_meshing_file(resolution):
+    custom_name = 'custom_meshing_file.json'
+    original_name = 'refined-meshing_opts.json'
+    coarsening = 2
+
+    with open(original_name) as original_file:
+        meshing_opts = json.load(original_file)
+
+        meshing_opts['marchingSquaresGridSize'] = int(2**coarsening * resolution)
+        meshing_opts['marchingSquaresCoarsening'] = int(coarsening)
+
+        with open(custom_name, 'w') as outfile:
+            json.dump(meshing_opts, outfile)
+
+    return custom_name
+
+
 def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bending, out_path,
-                                  custom_thickness_pairs=[]):
+                                  custom_thickness_pairs=[], resolution=64):
     # discover vertices
     vertices = []
     floats_pattern = re.compile(r'\-*\d+\.\d+')  # Compile a pattern to capture float values
@@ -332,8 +350,10 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
     parameters_file.write(parameters_string)
     parameters_file.close()
 
+    custom_meshing_path = create_custom_meshing_file(resolution)
+
     cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_doubly_periodic', input_path, '--params',
-           parameters_string, '-m', 'refined-meshing_opts.json', '-D', 'inflated.msh', '-R', 'replicated.msh', out_path]
+           parameters_string, '-m', custom_meshing_path, '-D', 'inflated.msh', '-R', 'replicated.msh', out_path]
     # print cmd
     call(cmd)
 

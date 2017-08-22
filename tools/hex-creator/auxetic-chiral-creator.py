@@ -349,4 +349,15 @@ hexlib.create_wire(vertices, edges, out_wire)
 
 print "Inflating ..."
 
-hexlib.inflate_hexagonal_box_smarter(out_wire, 0.00001, 0.00001, out_mesh, triangles_incenters_thickness_pairs)
+thickness_void = (triangle_side*pillar_area_ratio - num_pillars*thickness) / (num_pillars - 1)
+min_resolution = 2 / thickness_void
+chosen_resolution = math.pow(2, math.ceil(math.log(min_resolution) / math.log(2)))
+
+if chosen_resolution < 64:
+    chosen_resolution = 64
+
+print "Thickness void: " + str(thickness_void)
+print "Minimum resolution: " + str(min_resolution)
+print "Chosen resolution: " + str(chosen_resolution)
+
+hexlib.inflate_hexagonal_box_smarter(out_wire, 0.00001, 0.00001, out_mesh, triangles_incenters_thickness_pairs, chosen_resolution)
