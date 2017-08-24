@@ -12,33 +12,32 @@ MAX_TRIANGLE_SIDE = 0.99
 TRIANGLE_SIDE_EXPERIMENTS = 20
 TOLERANCE = 1e-7
 
-def compute_volume_info(experiment_type, p1, p2, p3, p4):
 
+def compute_volume_info(experiment_type, p1, p2, p3, p4):
     if experiment_type == "negative":
         height = 1 * math.sqrt(3) / 3.0
         s = 2 * height
 
-        volume_triangle = math.sqrt(3)/4 * (p1*s)**2
-        volume_pillars = p1*p3*p4*s * (1 - math.sqrt(3)/2*s*p1)
+        volume_triangle = math.sqrt(3) / 4 * (p1 * s) ** 2
+        volume_pillars = p1 * p3 * p4 * s * (1 - math.sqrt(3) / 2 * s * p1)
         volume = volume_triangle + volume_pillars
 
-        total_volume = math.sqrt(3)/4 * s**2
+        total_volume = math.sqrt(3) / 4 * s ** 2
 
         volume_fraction = volume / total_volume
 
     else:
-        r = p1*math.sqrt(3)/3
+        r = p1 * math.sqrt(3) / 3
         x = p1
 
         volume_triangle = r * p1
-        volume_pillars = 2*math.sqrt(3)/3 * (1-p1) * p1*p3*p4
+        volume_pillars = 2 * math.sqrt(3) / 3 * (1 - p1) * p1 * p3 * p4
 
-        volume_fraction = p1**2 + 2*(1-p1)*p1*p3*p4
+        volume_fraction = p1 ** 2 + 2 * (1 - p1) * p1 * p3 * p4
 
         volume = volume_triangle + volume_pillars
-        total_volume = math.sqrt(3)/3
-        assert abs(volume_fraction - volume/total_volume) <  TOLERANCE
-
+        total_volume = math.sqrt(3) / 3
+        assert abs(volume_fraction - volume / total_volume) < TOLERANCE
 
     print "Volume is: ", volume
     print "Volume fraction is ", volume_fraction
@@ -49,12 +48,12 @@ def compute_volume_info(experiment_type, p1, p2, p3, p4):
 def print_experiment_info(p1, p2, p3, p4):
     print "\nExperimenting with parameters: \n" \
           "p1: " + str(p1) + "\n" \
-          "p2: " + str(p2) + "\n" \
-          "p3: " + str(p3) + "\n" \
-          "p4: " + str(p4)
+                             "p2: " + str(p2) + "\n" \
+                                                "p3: " + str(p3) + "\n" \
+                                                                   "p4: " + str(p4)
+
 
 def compute_thickness(experiment_type, vol_frac, triangle_side_factor, chirality_factor, num_pillars):
-
     thickness_ratio = 0.0
 
     if experiment_type == "negative":
@@ -83,7 +82,7 @@ def compute_thickness(experiment_type, vol_frac, triangle_side_factor, chirality
     else:
         r = triangle_side_factor * math.sqrt(3) / 3
         x = triangle_side_factor
-        height = math.sqrt(3)/3 - r
+        height = math.sqrt(3) / 3 - r
 
         # compute volume to be used by pillars
         volume_triangle = r * triangle_side_factor
@@ -95,13 +94,14 @@ def compute_thickness(experiment_type, vol_frac, triangle_side_factor, chirality
             return -1.0
 
         # compute pillar area and thickness
-        triangle_side = 2*x
+        triangle_side = 2 * x
         pillar_area = triangle_side * chirality_factor
 
         thickness = volume_pillars / (num_pillars * height)
         thickness_ratio = thickness * num_pillars / pillar_area
 
-        direct_thickness_ratio = (vol_frac - triangle_side_factor**2) / (2*(1-triangle_side_factor)*triangle_side_factor*chirality_factor)
+        direct_thickness_ratio = (vol_frac - triangle_side_factor ** 2) / (
+        2 * (1 - triangle_side_factor) * triangle_side_factor * chirality_factor)
         assert abs(thickness_ratio - direct_thickness_ratio) < TOLERANCE
 
         if thickness_ratio > 1.0:
@@ -121,37 +121,56 @@ def run_experiment(experiment_type, triangle_side_factor, num_pillars, chirality
 def run_negative_poisson_experiment(triangle_side_factor, num_pillars, chirality_factor, thickness_ratio):
     print_experiment_info(triangle_side_factor, num_pillars, chirality_factor, thickness_ratio)
     name = folder_path + '/negative-poisson_p1-{}_p2-{}_p3-{}_p4-{}'.format(round(triangle_side_factor, 3),
-                                                                         round(num_pillars, 3),
-                                                                         round(chirality_factor, 3),
-                                                                         round(thickness_ratio, 3))
+                                                                            round(num_pillars, 3),
+                                                                            round(chirality_factor, 3),
+                                                                            round(thickness_ratio, 3))
 
+    lock_name = name + '.lock'
     mesh_name = name + '.msh'
 
     if os.path.isfile(mesh_name):
         print "Already computed"
         pass
+    elif os.path.isfile(lock_name):
+        print "Locked instance"
     else:
+        # lock experiment
+        open(lock_name, 'a').close()
+
         cmd = [cwd + '/auxetic-chiral-creator.py', str(triangle_side_factor), str(num_pillars), str(chirality_factor),
-           str(thickness_ratio), name + '.wire', mesh_name]
+               str(thickness_ratio), name + '.wire', mesh_name]
         subprocess.call(cmd)
+
+        # free experiment
+        os.remove(lock_name)
 
 
 def run_positive_poisson_experiment(triangle_side_factor, num_pillars, chirality_factor, thickness_ratio):
     print_experiment_info(triangle_side_factor, num_pillars, chirality_factor, thickness_ratio)
     name = folder_path + '/positive-poisson_p1-{}_p2-{}_p3-{}_p4-{}'.format(round(triangle_side_factor, 3),
-                                                                         round(num_pillars, 3),
-                                                                         round(chirality_factor, 3),
-                                                                         round(thickness_ratio, 3))
+                                                                            round(num_pillars, 3),
+                                                                            round(chirality_factor, 3),
+                                                                            round(thickness_ratio, 3))
 
+    lock_name = name + '.lock'
     mesh_name = name + '.msh'
 
     if os.path.isfile(mesh_name):
         print "Already computed"
         pass
+    elif os.path.isfile(lock_name):
+        print "Locked instance"
     else:
-        cmd = [cwd + '/hexa-many-pillars-igor-parameters.py', str(triangle_side_factor), str(num_pillars), str(chirality_factor),
-           str(thickness_ratio), name + '.wire', mesh_name]
+        # lock experiment
+        open(lock_name, 'a').close()
+
+        cmd = [cwd + '/hexa-many-pillars-igor-parameters.py', str(triangle_side_factor), str(num_pillars),
+               str(chirality_factor),
+               str(thickness_ratio), name + '.wire', mesh_name]
         subprocess.call(cmd)
+
+        # free experiment
+        os.remove(lock_name)
 
 
 parser = argparse.ArgumentParser(description='Sweep through different hexa-pillars structures.')

@@ -2,6 +2,7 @@ import math
 import os
 import re
 import json
+import uuid
 from subprocess import call
 
 import numpy as np
@@ -307,11 +308,13 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
 
     # run default_parameters binary to obtain default parameters
     cwd = os.getcwd()
-    with open('default-parameters.txt', 'w') as out_log:
+    unique_identifier = str(uuid.uuid1())
+    default_parameters_path = 'default-parameters-' + unique_identifier + '.txt'
+    with open(default_parameters_path, 'w') as out_log:
         cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_doubly_periodic', input_path]
         call(cmd, stdout=out_log)
 
-    with open('default-parameters.txt', 'r') as out_log:
+    with open(default_parameters_path, 'r') as out_log:
         # read outlog to obtain default parameters and modify them
         content = out_log.readlines()
         parameters = []
