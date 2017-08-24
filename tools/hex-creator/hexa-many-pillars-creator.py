@@ -147,7 +147,7 @@ hexlib.create_wire(vertices, edges, out_wire)
 print "Inflating ..."
 
 # Computing void thickness and necessary resolution
-thickness_void = (triangle_side - 2 * num_pillars * pillars_thickness) / (num_pillars - 1)
+thickness_void = (triangle_side - num_pillars * pillars_thickness) / (num_pillars - 1)
 min_resolution = 2 / thickness_void
 chosen_resolution = math.pow(2, math.ceil(math.log(min_resolution) / math.log(2)))
 
