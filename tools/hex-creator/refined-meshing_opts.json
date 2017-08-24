@@ -6,11 +6,11 @@
     "cellSize"                    : 0.15,
     "edgeSize"                    : 0.025,
     "cellRadiusEdgeRatio"         : 2.0,
-    "marchingSquaresGridSize"     : 1024,
+    "marchingSquaresGridSize"     : 512,
     "marchingCubesGridSize"       : 128,
 
     "maxArea"                     : 5e-4,
     "featureAngleThreshold"       : 0.7853981633974483,
     "forceMSGridSize"             : true,
-    "marchingSquaresCoarsening"   : 3
+    "marchingSquaresCoarsening"   : 2
 }
