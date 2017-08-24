@@ -19,6 +19,7 @@ if len(sys.argv) < 4:
     sys.exit(-1)
 
 dim = 2
+volume_fraction = 1.0
 
 materialPath = sys.argv[2]
 if os.path.isfile(materialPath):
@@ -125,7 +126,7 @@ elif chart_type == "rectangle":
     ax.grid(True)
 
     # draw theoretical rectangle
-    theoretical_rectangle = hexlib.theoretical_rectangle(200.0, 0.35, 1.0)
+    theoretical_rectangle = hexlib.theoretical_rectangle(baseE, baseNu, volume_fraction)
     polygon = plt.Polygon(theoretical_rectangle, fill=None, color='b')
     ax.add_patch(polygon)
 
@@ -142,14 +143,24 @@ else:
     fig, ax = plt.subplots()
 
     ax.grid(True)
-    triangle = hexlib.theoretical_triangle(baseE, baseNu, 1.0)
+    triangle = hexlib.theoretical_triangle(baseE, baseNu, volume_fraction)
     polygon = plt.Polygon(triangle, fill=None, color='r')
     ax.add_patch(polygon)
 
     ax.set_xlabel(r'$\nu$')
     ax.set_ylabel('E')
 
-    col = ax.scatter(x, y, c='red', marker='+', picker=True)
+    z1 = []
+    for index, pattern in enumerate(p):
+        color = 'red'
+        if alpha[index] > 1.0:
+            alpha[index] = 1.0 / alpha[index]
+        color_alpha = mcolors.to_rgba(color, alpha[index])
+        z1.append(color_alpha)
+
+    color_alpha = mcolors.to_rgba('red', alpha[index])
+
+    col = ax.scatter(x, y, c=z1, marker='+', picker=True)
 
     af = ipl.AnnoteFinder(x, y, annotes, ax=ax, color='r', start_showing=False)
     fig.canvas.mpl_connect('button_press_event', af)
@@ -175,7 +186,7 @@ else:
 
     # plt.axes()
     ax2.grid(True)
-    rectangle = hexlib.theoretical_rectangle(baseE, baseNu, 1.0)
+    rectangle = hexlib.theoretical_rectangle(baseE, baseNu, volume_fraction)
     polygon = plt.Polygon(rectangle, fill=None, color='b')
     ax2.add_patch(polygon)
 
@@ -183,7 +194,15 @@ else:
     ax2.set_xlabel('$\kappa$')
     ax2.set_ylabel(r'$\mu$')
 
-    col = ax2.scatter(x2, y2, c='blue', marker='o', picker=True)
+    z2 = []
+    for index, pattern in enumerate(p):
+        color = 'blue'
+        if alpha[index] > 1.0:
+            alpha[index] = 1.0 / alpha[index]
+        color_alpha = mcolors.to_rgba(color, alpha[index])
+        z2.append(color_alpha)
+
+    col = ax2.scatter(x2, y2, c=z2, marker='o', picker=True)
 
     af = ipl.AnnoteFinder(x2, y2, annotes, ax=ax2, color='b', start_showing=False)
     fig2.canvas.mpl_connect('button_press_event', af)
