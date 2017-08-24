@@ -4,14 +4,15 @@ import sys
 import subprocess
 import uuid
 
-if len(sys.argv) != 4:
-    print "usage: ./run-optimization.py <wire file> <params file> <volumetric fraction (limit to be considered)>"
-    print "example: ./run-optimization.py instance.wire instance.params"
+if len(sys.argv) != 5:
+    print "usage: ./run-optimization.py <wire file> <params file> <volumetric fraction (limit to be considered)> <meshing opts file>"
+    print "example: ./run-optimization.py instance.wire instance.params 1.0 refined-meshing_opts.json"
     sys.exit(-1)
 
 wire_path = sys.argv[1]
 params_path = sys.argv[2]
 vol_frac = float(sys.argv[3])
+meshing_file = sys.argv[4]
 #target_E = sys.argv[3]
 #target_Nu = sys.argv[4]
 
@@ -36,7 +37,7 @@ if not os.path.exists(folder_path):
 # Run inflation
 out_msh = folder_path + "/out.msh"
 cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_doubly_periodic', wire_path, out_msh, '--params', parameters_string,
-       '-m', 'refined-meshing_opts.json', '-D', 'inflated.msh', '-R', 'replicated.msh']
+       '-m', meshing_file, '-D', 'inflated.msh', '-R', 'replicated.msh']
 subprocess.call(cmd)
 
 # Compute elastic properties
@@ -81,9 +82,9 @@ print "  Young's: " + str(target_E)
 
 
 # Create job
-radiusBounds = [0.0001, 0.5]
+radiusBounds = [0.00001, 1.0]
 offsetBounds = [-0.5, 0.5]
-blendingBounds = [0.00001, 0.0001]
+blendingBounds = [0.00001, 0.1]
 
 parameters_string = ', '.join(str(param) for param in parameters)
 
@@ -97,8 +98,12 @@ with open(job_path, 'w') as out_job:
 
 # Run optimization
 cmd = ['../../worst_case_stress/WCSOptimization_cli', '-p', wire_path, '-m', '../../materials/Russia.material',
-       job_path, '-M', 'refined-meshing_opts.json', '--symmetry', 'doubly_periodic', '--vertexThickness',
-       '--WCSWeight', str(1e-300), '--JSWeight', str(1.0), '--TensorFitConstraint',
+       job_path, '-M', meshing_file, '--symmetry', 'doubly_periodic', '--vertexThickness',
+       '--WCSWeight', str(0),
+       '--JSWeight', str(100.0),
+       '--TensorFitConstraint',
+       '--proximityRegularizationWeight', str(1.0),
+       #'--JIsoWeight', str(1.0),
        '--solver', 'slsqp', '-o', folder_path + '/it', '--deformedCell', '1 0.5 0 0.8660']
 
 out_path = os.path.splitext(wire_path)[0] + '.log'
