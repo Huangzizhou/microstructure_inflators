@@ -280,8 +280,6 @@ m_getLerpPoint(size_t a, size_t b, Real sda, Real sdb,
                std::vector<Vector2d> &points,
                std::map<Edge, size_t> &edgePointMap)
 {
-    assert(sda * sdb <= 0); // one of them can be zero!
-
     // Relabel so that sda < sdb. This both implements unordered cell edge
     // lookup in edgePointMap and ensures that we get the *identical* floating
     // point result on the shared edge of two grids on adjacent faces of an
@@ -298,18 +296,51 @@ m_getLerpPoint(size_t a, size_t b, Real sda, Real sdb,
     auto key = std::make_pair(a, b);
     auto it = edgePointMap.find(key);
     if (it != edgePointMap.end()) return it->second;
-    // Linear approximation of zero crossing...
-    // f(x) = [(x - a) / (a - b)] * sdb + [1 - (x - a) / (a - b)] * sda
-    // f(x) = 0 ==> x = (sdb * a - sda * b) / (sdb - sda)
-    //                = alpha * a + (1 - alpha) * b
-    // where alpha = sdb / (sdb - sda)
-    // Assuming sdb and sda differ in sign, 0 <= alpha <= 1.
-    Real alpha = sdb / (sdb - sda);
+
+    auto va = vertexPosition(a);
+    auto vb = vertexPosition(b);
+
+    assert(sda != sdb);
+    Vector2d newPt;
+    // Explicitly handle cases where grid points lie on the contour.
+    bool needsLerp = true;
+    if (sda == 0) { newPt = va; needsLerp = false; }
+    if (sdb == 0) { newPt = vb; needsLerp = false; }
+
+    if (needsLerp) {
+        assert(sda * sdb < 0);
+        // Linear approximation of zero crossing...
+        // f(x) = [(x - a) / (a - b)] * sdb + [1 - (x - a) / (a - b)] * sda
+        // f(x) = 0 ==> x = (sdb * a - sda * b) / (sdb - sda)
+        //                = alpha * a + (1 - alpha) * b
+        // where alpha = sdb / (sdb - sda)
+        // Assuming sdb and sda differ in sign, 0 <= alpha <= 1.
+        Real alpha = sdb / (sdb - sda);
+        newPt = alpha  * va + (1 - alpha) * vb;
+
+        // Because neither gridpoint is on the contour (sda, sdb != 0), if
+        // "newPoint" coincides with a grid point, there was a roundoff error
+        // in the linear interpolation that has caused a topology error.
+        // Correct this topology error by constructing the closest possible
+        // double-precision-quantized point to va on segment (va, vb).
+        bool needsPerturbation = false;
+        Vector2d limitPoint, candidatePoint;
+        if (newPt == va) { limitPoint = va; candidatePoint = (va + vb) / 2; needsPerturbation = true; }
+        if (newPt == vb) { limitPoint = vb; candidatePoint = (va + vb) / 2; needsPerturbation = true; }
+        if (needsPerturbation) {
+            // Approach the limit point along (va, vb), stopping just before reaching it.
+            while (true) {
+                Vector2d newCandidate = (limitPoint + candidatePoint) / 2;
+                if (newCandidate == limitPoint) break;
+                candidatePoint = newCandidate;
+            }
+            newPt = candidatePoint;
+        }
+    }
 
     size_t newPointIdx = points.size();
     edgePointMap.emplace(key, newPointIdx);
-    points.emplace_back(alpha  * vertexPosition(a) +
-                   (1 - alpha) * vertexPosition(b));
+    points.emplace_back(newPt);
 
     return newPointIdx;
 }

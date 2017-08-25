@@ -23,6 +23,7 @@
 #include <BaseCellType.hh>
 #include "WireMesh.hh"
 #include "MeshingOptions.hh"
+#include <Parallelism.hh>
 
 class IsosurfaceInflator {
 public:

@@ -150,11 +150,14 @@ mesh(const SignedDistanceRegion<3>  &sdf,
     BENCHMARK_STOP_TIMER("Curve Cleanup");
 
 #if DEBUG_OUT
+    std::cout << "Simplified polygon sizes:" << std::endl;
+    for (auto &poly : polygons)
+        std::cout << "\t" << poly.size() << std::endl;
     MeshIO::save("cleaned_polygons.msh",
                  IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
 #endif
 
-    // Determine which polygon is touching the bbox (there must be exactly one):
+    // Determine which polygon is touching the bbox (there should be exactly one):
     // this is the only non-hole polygon.
     std::vector<bool> isHoleBdry;
     size_t numHoles = 0;
@@ -170,8 +173,8 @@ mesh(const SignedDistanceRegion<3>  &sdf,
         numHoles += isHole;
     }
 
-    // Actually, we can have more than one bbox-incident curve when a neigboring
-    // extends into this one.
+    // Actually, we can have more than one bbox-incident curve when a
+    // neigboring cell's geometry extends into this cell.
 #if 0
     if (polygons.size() - numHoles != 1) {
         throw std::runtime_error("Should have exactly one bbox-incident curve; got "

@@ -10,7 +10,8 @@ add_library(isosurface_inflator
 		MeshingOptions.cc
 		MidplaneMesher.cc
 		VCGSurfaceMesher.cc
-		IGLSurfaceMesherMC.cc)
+		IGLSurfaceMesherMC.cc
+        PostProcess.cc)
 
 target_include_directories(isosurface_inflator PUBLIC .)
 

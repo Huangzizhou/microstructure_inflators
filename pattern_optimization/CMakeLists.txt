@@ -51,6 +51,8 @@ if(CLIPPER_FOUND)
 	target_include_directories(inflators SYSTEM PUBLIC ${CLIPPER_INCLUDE_DIRS})
 	target_link_libraries(     inflators        ${CLIPPER_LIBRARIES})
 	target_compile_definitions(inflators PUBLIC -DHAS_CLIPPER)
+else()
+    message(STATUS "Clipper not found; disabling Luigi's Inflator")
 endif()
 
 ################################################################################
