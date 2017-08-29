@@ -112,15 +112,18 @@ def compute_thickness(experiment_type, vol_frac, triangle_side_factor, chirality
 
 
 def run_experiment(experiment_type, triangle_side_factor, num_pillars, chirality_factor, thickness_ratio):
+    volume, vol_frac = compute_volume_info(experiment_type, triangle_side_factor, num_pillars, chirality_factor, thickness_ratio)
+
     if experiment_type == "negative":
-        run_negative_poisson_experiment(triangle_side_factor, num_pillars, chirality_factor, thickness_ratio)
+        run_negative_poisson_experiment(vol_frac, triangle_side_factor, num_pillars, chirality_factor, thickness_ratio)
     else:
-        run_positive_poisson_experiment(triangle_side_factor, num_pillars, chirality_factor, thickness_ratio)
+        run_positive_poisson_experiment(vol_frac, triangle_side_factor, num_pillars, chirality_factor, thickness_ratio)
 
 
-def run_negative_poisson_experiment(triangle_side_factor, num_pillars, chirality_factor, thickness_ratio):
+def run_negative_poisson_experiment(vol_frac, triangle_side_factor, num_pillars, chirality_factor, thickness_ratio):
     print_experiment_info(triangle_side_factor, num_pillars, chirality_factor, thickness_ratio)
-    name = folder_path + '/negative-poisson_p1-{}_p2-{}_p3-{}_p4-{}'.format(round(triangle_side_factor, 3),
+    name = folder_path + '/negative-poisson_volfrac-{}_p1-{}_p2-{}_p3-{}_p4-{}'.format(round(vol_frac),
+                                                                            round(triangle_side_factor, 3),
                                                                             round(num_pillars, 3),
                                                                             round(chirality_factor, 3),
                                                                             round(thickness_ratio, 3))
@@ -147,7 +150,8 @@ def run_negative_poisson_experiment(triangle_side_factor, num_pillars, chirality
 
 def run_positive_poisson_experiment(triangle_side_factor, num_pillars, chirality_factor, thickness_ratio):
     print_experiment_info(triangle_side_factor, num_pillars, chirality_factor, thickness_ratio)
-    name = folder_path + '/positive-poisson_p1-{}_p2-{}_p3-{}_p4-{}'.format(round(triangle_side_factor, 3),
+    name = folder_path + '/positive-poisson_volfrac-{}_p1-{}_p2-{}_p3-{}_p4-{}'.format(round(vol_frac),
+                                                                            round(triangle_side_factor, 3),
                                                                             round(num_pillars, 3),
                                                                             round(chirality_factor, 3),
                                                                             round(thickness_ratio, 3))
@@ -240,4 +244,16 @@ if not args.vol_frac is None:
         print('Warning! Currently, it is necessary to provide chirality factor for experiments.')
 
 else:
-    print('Warning! Currently, it is necessary to provide volume fraction for experiments.')
+    if not args.chirality_factor is None:
+        chirality_factor = args.chirality_factor
+        print "Warning: testing in 3 dimensions with volfrac, triangle sides and pillars"
+
+        num_pillar_values = range(10, 60, 10)
+        for index, number_pillars in enumerate(num_pillar_values):
+            triangle_side_values = [1.5, 1.6, 1.7, 1.8, 1.9]
+            for index, triangle_side_factor in enumerate(triangle_side_values):
+                vol_frac_values = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99]
+                for vol_frac in vol_frac_values:
+                    test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
+    else:
+        print('Warning! Currently, it is necessary to provide chirality for experiments.')
