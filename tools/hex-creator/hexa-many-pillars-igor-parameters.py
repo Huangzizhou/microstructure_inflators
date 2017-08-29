@@ -131,8 +131,13 @@ print "Inflating ..."
 
 # Computing void thickness and necessary resolution
 thickness_void = (triangle_side*pillar_area_ratio - num_pillars*thickness) / (num_pillars - 1)
-min_resolution = 2 / thickness_void
+min_resolution = max(2 / thickness_void, 2 / thickness)
 chosen_resolution = math.pow(2, math.ceil(math.log(min_resolution) / math.log(2)))
+
+if chosen_resolution > 1024:
+        print "Resolution of " + str(chosen_resolution) + "is too big"
+        print "Skipping experiment!"
+        exit()
 
 if chosen_resolution < 64:
     chosen_resolution = 64
