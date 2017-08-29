@@ -7,7 +7,7 @@ from subprocess import call
 
 
 def max_thickness(n, s):
-    min_void = 1e-2
+    min_void = 1e-3
     return (s - min_void * (n - 1)) / n
 
 
@@ -33,6 +33,31 @@ def hex_pillars_generator():
                     continue
 
                 cmd = [cwd + '/hex-creator.py', str(num_pillars), str(triangle_side), str(thickness), wire_name,
+                       mesh_name]
+                call(cmd)
+
+def hexa_many_pillars_generator():
+    num_pillars_values = range(10, 50, 10)
+    triangle_side_values = np.arange(1.5, 1.9, 0.1)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+    for num_pillars in num_pillars_values:
+        for triangle_side in triangle_side_values:
+            max = max_thickness(num_pillars, triangle_side)
+            min = 1e-3
+
+            thickness_values = np.linspace(min, max, 10)
+
+            for thickness in thickness_values:
+                cwd = os.getcwd()
+                name = folder_path + '/hexagon-pillars-n{}-s{}-t{}'.format(num_pillars, triangle_side, thickness)
+                wire_name = name + '.wire'
+                mesh_name = name + '.msh'
+
+                if os.path.isfile(mesh_name):
+                    continue
+
+                cmd = [cwd + '/hexa-many-pillars-creator.py', str(triangle_side), str(num_pillars), str(thickness), wire_name,
                        mesh_name]
                 call(cmd)
 
@@ -200,7 +225,7 @@ folder_path = os.getcwd() + '/' + out_path
 generator_dictionary = {"four-leaf-clover": four_leaf_clover_generator,
                         "six-leaf-clover": six_leaf_clover_generator,
                         "hexagon-diamond": hex_diamond_generator,
-                        "hexagon-pillars": hex_pillars_generator,
+                        "hexagon-pillars": hexa_many_pillars_generator,
                         "auxetic-squar": auxetic_squar_generator,
                         "auxetic-diamond-squar": auxetic_diamond_squar_generator,
                         "auxetic-star": auxetic_squar_generator}
