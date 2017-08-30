@@ -224,7 +224,7 @@ def inflate_hexagonal_box(input_path, vertices_thickeness, out_path, vertices=[]
 
 
 def is_zero(number):
-    if (number < Tolerance):
+    if (abs(number) < Tolerance):
         return True
 
     return False
@@ -276,13 +276,61 @@ def create_custom_meshing_file(resolution):
     with open(original_name) as original_file:
         meshing_opts = json.load(original_file)
 
-        meshing_opts['marchingSquaresGridSize'] = int(2**coarsening * resolution)
+        meshing_opts['marchingSquaresGridSize'] = int(2 ** coarsening * resolution)
         meshing_opts['marchingSquaresCoarsening'] = int(coarsening)
 
         with open(custom_name, 'w') as outfile:
             json.dump(meshing_opts, outfile)
 
     return custom_name
+
+
+def generate_position_parameters(vertices):
+    parameters = []
+
+    for vertex in vertices:
+
+        # first, normalize vertex
+        normalized_vertex = [(vertex[0] + 1.0) / 2, (vertex[1] + 1.0) / 2]
+
+        # then, verify if each coordinate is free and, if so, compute parameter
+        if (not is_zero(normalized_vertex[0])) and (not is_zero(normalized_vertex[0] - 1.0)):
+            parameters.append(normalized_vertex[0])
+
+        if (not is_zero(normalized_vertex[1])) and (not is_zero(normalized_vertex[1] - 1.0)):
+            parameters.append(normalized_vertex[1])
+
+        # cause z is always at 0 coordinate
+        parameters.append(0.5)
+
+    return parameters
+
+
+def generate_parameters(independent_vertices, default_thickness, default_blending, custom_thickness_pairs):
+    parameters = generate_position_parameters(independent_vertices)
+
+    for i in range(0, len(independent_vertices)):
+        parameters.append(default_thickness)
+
+    for i in range(0, len(independent_vertices)):
+        parameters.append(default_blending)
+
+    offset_thickeness = len(parameters) - 2 * len(independent_vertices)
+
+    # Now, for the extra parameters, find vertices and apply customized thickness
+    for thickness_pair in custom_thickness_pairs:
+        custom_thickness = thickness_pair[1]
+        customized_nodes = thickness_pair[0]
+
+        for node in customized_nodes:
+            independent_vertex = independent_vertex_position(node)
+            index = find_vertex_in_list(independent_vertices, independent_vertex)
+            if index >= 0:
+                parameters[offset_thickeness + index] = custom_thickness
+            else:
+                print "[Warning] vertex with customized thickness not found"
+
+    return parameters
 
 
 def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bending, out_path,
@@ -306,45 +354,7 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
 
     independent_vertices, independent_vertex_indices = extract_independent_vertices(vertices)
 
-    # run default_parameters binary to obtain default parameters
-    cwd = os.getcwd()
-    unique_identifier = str(uuid.uuid1())
-    default_parameters_path = 'default-parameters-' + unique_identifier + '.txt'
-    with open(default_parameters_path, 'w') as out_log:
-        cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_doubly_periodic', input_path]
-        call(cmd, stdout=out_log)
-
-    with open(default_parameters_path, 'r') as out_log:
-        # read outlog to obtain default parameters and modify them
-        content = out_log.readlines()
-        parameters = []
-        for line_index in range(1, len(content)):
-            for element in content[line_index].split():
-                # print element
-                parameters.append(float(element))
-
-    offset_thickeness = len(parameters) - 2 * len(independent_vertices)
-    for i in range(offset_thickeness, offset_thickeness + len(independent_vertices)):
-        # print "Thickness original parameter: " + str(parameters[i])
-        parameters[i] = vertices_thickness
-
-    offset_bending = len(parameters) - len(independent_vertices)
-    for i in range(offset_bending, offset_bending + len(independent_vertices)):
-        # print "Blending original parameter: " + str(parameters[i])
-        parameters[i] = vertices_bending
-
-    # Now, for the extra parameters, find vertices and apply customized thickness
-    for thickness_pair in custom_thickness_pairs:
-        custom_thickness = thickness_pair[1]
-        customized_nodes = thickness_pair[0]
-
-        for node in customized_nodes:
-            independent_vertex = independent_vertex_position(node)
-            index = find_vertex_in_list(independent_vertices, independent_vertex)
-            if index >= 0:
-                parameters[offset_thickeness + index] = custom_thickness
-            else:
-                print "[Warning] vertex with customized thickness not found"
+    parameters = generate_parameters(independent_vertices, vertices_thickness, vertices_bending, custom_thickness_pairs)
 
     parameters_string = ' '.join(str(param) for param in parameters)
 
@@ -355,6 +365,7 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
 
     custom_meshing_path = create_custom_meshing_file(resolution)
 
+    cwd = os.getcwd()
     cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_doubly_periodic', input_path, '--params',
            parameters_string, '-m', custom_meshing_path, '-D', 'inflated.msh', '-R', 'replicated.msh', out_path]
     # print cmd
