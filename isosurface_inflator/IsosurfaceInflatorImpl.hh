@@ -171,10 +171,12 @@ public:
     }
 
     virtual void meshPattern(const std::vector<Real> &params) override {
-        // std::cout << "Meshing parameters:";
-        // for (auto p : params)
-        //     std::cout << "\t" << p;
-        // std::cout << std::endl;
+#if 0
+        std::cerr << "Meshing parameters:";
+        for (auto p : params)
+            std::cout << "\t" << p;
+        std::cerr << std::endl;
+#endif
 
         BENCHMARK_START_TIMER_SECTION("meshPattern");
         // Optional debugging graph output.
