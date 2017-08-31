@@ -67,6 +67,7 @@ void execute(const std::string &patchFilename, const std::string &meshingOptions
     if (N == 3) { mesher = std::make_unique<IGLSurfaceMesherMC>(); }
 
     if (!meshingOptions.empty()) { mesher->meshingOptions.load(meshingOptions); }
+    mesher->periodic = true;
     mesher->mesh(sdf, vertices, elements);
 
     MeshIO::save(outname, vertices, elements);
