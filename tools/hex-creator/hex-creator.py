@@ -55,7 +55,14 @@ triangle_end_offset = triangle_end - pillars_thickness * unit_vector
 # add new vertices and edges to current sets
 new_edges_description = hexlib.create_pillars([parallelogram_start_offset, parallelogram_end_offset],
                                               [triangle_start_offset, triangle_end_offset], num_pillars)
-new_edges_description += [[triangle_start, triangle_start_offset], [triangle_end, triangle_end_offset]]
+
+# save pillar nodes
+pillar_nodes = []
+for edge_description in new_edges_description:
+    pillar_nodes.append(edge_description[0])
+    pillar_nodes.append(edge_description[1])
+
+#new_edges_description += [[triangle_start, triangle_start_offset], [triangle_end, triangle_end_offset]]
 hexlib.add_new_edges(new_edges_description, vertices, edges)
 
 # Second side: create pillars of the bottom side (counter-clock orientation)
@@ -67,6 +74,8 @@ parallelogram_end = np.array([l + s / 2.0, 0])
 
 triangle_start = f - [s / 2.0, 0]
 triangle_end = f + [s / 2.0, 0]
+
+pillar_example = [[parallelogram_start, triangle_start]]
 
 unit_vector = (parallelogram_end - parallelogram_start) / np.linalg.norm(parallelogram_end - parallelogram_start)
 unit_vector_triangle = (triangle_end - triangle_start) / np.linalg.norm(triangle_end - triangle_start)
@@ -80,7 +89,13 @@ triangle_end_offset = triangle_end - pillars_thickness * unit_vector
 new_edges_description = hexlib.create_pillars([parallelogram_start_offset, parallelogram_end_offset],
                                               [triangle_start_offset, triangle_end_offset],
                                               num_pillars)
-new_edges_description += [[triangle_start, triangle_start_offset], [triangle_end, triangle_end_offset]]
+
+# save pillar nodes
+for edge_description in new_edges_description:
+    pillar_nodes.append(edge_description[0])
+    pillar_nodes.append(edge_description[1])
+
+#new_edges_description += [[triangle_start, triangle_start_offset], [triangle_end, triangle_end_offset]]
 hexlib.add_new_edges(new_edges_description, vertices, edges)
 
 # Third side: create pillars of the right side (counter-clock orientation)
@@ -105,8 +120,6 @@ triangle_end_offset = triangle_end - pillars_thickness * unit_vector
 new_edges_description = hexlib.create_pillars([parallelogram_start_offset, parallelogram_end_offset],
                                               [triangle_start_offset, triangle_end_offset],
                                               num_pillars)
-new_edges_description += [[triangle_start, triangle_start_offset], [triangle_end, triangle_end_offset]]
-hexlib.add_new_edges(new_edges_description, vertices, edges)
 
 # save nodes on hypotenuse
 hypotenuse_nodes = []
@@ -114,9 +127,14 @@ for edge_description in new_edges_description:
     hypotenuse_nodes.append(edge_description[0])
     hypotenuse_nodes.append(edge_description[1])
 
+#new_edges_description += [[triangle_start, triangle_start_offset], [triangle_end, triangle_end_offset]]
+hexlib.add_new_edges(new_edges_description, vertices, edges)
+
+
 # Now, adding edges on the triangle
 triangle = [f + [0, math.sqrt(3) * s / 2.0], f - [s / 2.0, 0], f + [s / 2.0, 0]]
-new_edges_description = hexlib.create_triangle_edges(triangle, num_pillars, pillars_thickness)
+new_edges_description = hexlib.create_triangle_edges(triangle, num_pillars, pillars_thickness, pillars_thickness)
+#new_edges_description = hexlib.create_triangle_edges(triangle, num_pillars, pillars_thickness)
 hexlib.add_new_edges(new_edges_description, vertices, edges)
 
 # Now, transform to square every vertex we have:
@@ -138,6 +156,23 @@ hypotenuse_nodes = np.asarray(resulting_hypotenuse_nodes.transpose())
 hypotenuse_nodes -= 1.0
 reflected_hypotenuse_nodes = hypotenuse_nodes[:, [1, 0]] * (-1)
 hypotenuse_nodes = hypotenuse_nodes.tolist() + reflected_hypotenuse_nodes.tolist()
+
+# saving vertices on pillars
+pillar_nodes = np.array(pillar_nodes)
+resulting_pillar_nodes = transformation_matrix * pillar_nodes.transpose()
+pillar_nodes = np.asarray(resulting_pillar_nodes.transpose())
+pillar_nodes -= 1.0
+reflected_pillar_nodes = pillar_nodes[:, [1, 0]] * (-1)
+pillar_nodes = pillar_nodes.tolist() + reflected_pillar_nodes.tolist()
+
+# transforming pillar example
+pillar_example = np.array(pillar_example)
+resulting_pillar_example = transformation_matrix * pillar_example.transpose()
+pillar_example = np.asarray(resulting_pillar_example.transpose())
+delta_y = abs(pillar_example[1][1] - pillar_example[0][1])
+norm_example = np.linalg.norm(pillar_example[1] - pillar_example[0])
+thickness_correction_factor = delta_y / norm_example
+print "Thickness correction factor: " + str(thickness_correction_factor)
 
 new_edges_description = []
 for edge in edges:
@@ -182,6 +217,6 @@ print "Thickness void: " + str(thickness_void)
 print "Minimum resolution: " + str(min_resolution)
 print "Chosen resolution: " + str(chosen_resolution)
 
-inflate_hexagonal_box_smarter(out_wire, str(pillars_thickness), str(0.00001), out_mesh,
+inflate_hexagonal_box_smarter(out_wire, str(0.00001), str(0.0000), out_mesh,
                               incenter_triangle_pairs + [[hypotenuse_nodes, float(pillars_thickness) * math.sqrt(2)],
-                                                         [triangle_vertices, 0.001]], chosen_resolution)
+                                                         [pillar_nodes, float(pillars_thickness)*thickness_correction_factor]], chosen_resolution)

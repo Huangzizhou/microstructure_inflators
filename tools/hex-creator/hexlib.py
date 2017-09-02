@@ -7,7 +7,7 @@ from subprocess import call
 
 import numpy as np
 
-Tolerance = 1e-7
+Tolerance = 1e-10
 
 
 def create_wire(vertices, edges, out_wire):
@@ -47,7 +47,7 @@ def min_distance_to_other_vertices(vertices, centroid_index):
     return min_distance
 
 
-def create_triangle_edges(triangle, n, offset=0.0):
+def create_triangle_edges(triangle, n, offset=0.0, thickness=0.0):
     edges_descriptions = []
 
     for i in range(0, 3):
@@ -59,7 +59,11 @@ def create_triangle_edges(triangle, n, offset=0.0):
         segment_start_offset = segment_start + unit_vector * offset
         segment_end_offset = segment_end - unit_vector * offset
 
-        create_subdivided_segment(segment_start_offset, segment_end_offset, n, edges_descriptions)
+
+        if thickness > 0.0:
+            create_subdivided_segment_pillars(segment_start_offset, segment_end_offset, n, edges_descriptions, thickness)
+        else:
+            create_subdivided_segment(segment_start_offset, segment_end_offset, n, edges_descriptions)
 
     return edges_descriptions
 
@@ -72,6 +76,29 @@ def create_subdivided_segment(segment_start, segment_end, n, edges_descriptions)
 
         edges_descriptions.append([last_point, new_point])
         last_point = new_point
+
+
+def create_subdivided_segment_pillars(segment_start, segment_end, n, edges_descriptions, thickness):
+    vector = segment_end - segment_start
+    unit_vector = vector / np.linalg.norm(vector)
+
+    # first point
+    pillar_start = segment_start - thickness * unit_vector
+    pillar_stop = segment_start + thickness * unit_vector
+    edges_descriptions.append([pillar_start, segment_start])
+    edges_descriptions.append([segment_start, pillar_stop])
+    last_point = pillar_stop
+
+    for t in range(1, n):
+        new_point = segment_start + 1.0 * t / (n - 1) * vector
+
+        pillar_start = new_point - thickness * unit_vector
+        pillar_stop = new_point + thickness * unit_vector
+
+        edges_descriptions.append([last_point, pillar_start])
+        edges_descriptions.append([pillar_start, new_point])
+        edges_descriptions.append([new_point, pillar_stop])
+        last_point = pillar_stop
 
 
 def create_subdivided_segment_with_constant_spacing(segment_start, segment_end, n, spacing, edges_descriptions):
