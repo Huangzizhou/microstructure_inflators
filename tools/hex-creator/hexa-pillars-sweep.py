@@ -6,7 +6,7 @@ import subprocess
 
 import numpy as np
 
-MAX_NUM_PILLARS = 40
+MAX_NUM_PILLARS = 20
 MIN_TRIANGLE_SIDE = 0.75
 MAX_TRIANGLE_SIDE = 0.99
 TRIANGLE_SIDE_EXPERIMENTS = 20
@@ -170,7 +170,7 @@ def run_positive_poisson_experiment(vol_frac, triangle_side_factor, num_pillars,
         # lock experiment
         open(lock_name, 'a').close()
 
-        cmd = [cwd + '/hexa-many-pillars-igor-parameters.py', str(triangle_side_factor), str(num_pillars),
+        cmd = [cwd + '/hex-creator-igor-parameters.py', str(triangle_side_factor), str(num_pillars),
                str(chirality_factor),
                str(thickness_ratio), name + '.wire', mesh_name]
         subprocess.call(cmd)
@@ -237,7 +237,7 @@ if not args.vol_frac is None:
 
                 triangle_side_values = np.linspace(MIN_TRIANGLE_SIDE, MAX_TRIANGLE_SIDE, TRIANGLE_SIDE_EXPERIMENTS)
                 for index, triangle_side_factor in enumerate(triangle_side_values):
-                    num_pillar_values = range(1, MAX_NUM_PILLARS + 1, 1)
+                    num_pillar_values = range(1, MAX_NUM_PILLARS + 1, 2)
                     for index, number_pillars in enumerate(num_pillar_values):
                         test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
 
