@@ -4,15 +4,16 @@ import sys
 import subprocess
 import uuid
 
-if len(sys.argv) != 5:
-    print "usage: ./run-optimization.py <wire file> <params file> <volumetric fraction (limit to be considered)> <meshing opts file>"
-    print "example: ./run-optimization.py instance.wire instance.params 1.0 refined-meshing_opts.json"
+if len(sys.argv) != 6:
+    print "usage: ./run-optimization.py <positive/negative> <wire file> <params file> <volumetric fraction (limit to be considered)> <meshing opts file>"
+    print "example: ./run-optimization.py positive instance.wire instance.params 1.0 refined-meshing_opts.json"
     sys.exit(-1)
 
-wire_path = sys.argv[1]
-params_path = sys.argv[2]
-vol_frac = float(sys.argv[3])
-meshing_file = sys.argv[4]
+type = sys.argv[1]
+wire_path = sys.argv[2]
+params_path = sys.argv[3]
+vol_frac = float(sys.argv[4])
+meshing_file = sys.argv[5]
 #target_E = sys.argv[3]
 #target_Nu = sys.argv[4]
 
@@ -67,10 +68,11 @@ nu_top = (k_top - mu_top) / (k_top + mu_top)
 E_top = 2 * mu_top * (1 + nu_top)
 
 target_E = initial_E
-target_Nu = (-target_E + E_top) / E_top
 
-#target_Nu = (1 + (initial_Nu - initial_E)) / 2.0
-#target_E = -target_Nu + 1.0
+if type == "positive":
+    target_Nu = (-target_E + E_top) / E_top
+else:
+    target_Nu = (target_E - E_top) / E_top
 
 print "Original properties: "
 print "  Poisson: " + str(initial_Nu)
