@@ -1,5 +1,7 @@
 #include "hexlib.h"
 
+typedef Vector2d Point;
+
 void usage(int exitVal) {
     cout << "Usage: HexaPillarsCreator p1 p2 p3 p4 out.wire out.msh" << endl;
     exit(exitVal);
@@ -51,16 +53,18 @@ int main(int argc, char *argv[])
     double triangle_side = triangle_side_factor * s * sqrt(3);
     double thickness = thickness_ratio * (pillar_area_ratio * triangle_side / num_pillars);
 
+    HexLib<double> hexlib;
+
     Matrix<double, 2, Dynamic> vertices;
     vector<vector<int>> edges;
     vector<pair<vector<Point>, double> > custom_pairs;
 
     cout << "Constructing " + out_wire + " ..." << endl;
-    generate_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
-            vertices, edges, custom_pairs);
+    hexlib.generate_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
+                                         vertices, edges, custom_pairs);
 
     // print wire output
-    create_wire(vertices, edges, out_wire);
+    hexlib.create_wire(vertices, edges, out_wire);
 
     cout << "Inflating ..." << endl;
 
@@ -82,7 +86,7 @@ int main(int argc, char *argv[])
     cout << "Minimum resolution: " << min_resolution <<  endl;
     cout << "Chosen resolution: " << chosen_resolution << endl;
 
-    inflate_hexagonal_box(out_wire, 0.00001, 0.00001, out_mesh, custom_pairs, chosen_resolution);
+    hexlib.inflate_hexagonal_box(out_wire, 0.00001, 0.00001, out_mesh, custom_pairs, chosen_resolution);
 
     return 0;
 }
