@@ -194,7 +194,12 @@ int main(int argc, const char *argv[])
     if (args["symmetry"].as<std::string>() == "square") {
         WireMesh<Symmetry::Square<>> wm(vertices, elements);
         writeJob(wm);
-    } else {
+    }
+    else if (args["symmetry"].as<std::string>() == "doubly_periodic" || args["symmetry"].as<std::string>() == "2D_doubly_periodic") {
+        WireMesh<Symmetry::TriplyPeriodic<>> wm(vertices, elements);
+        writeJob(wm);
+    }
+    else {
         WireMesh<Symmetry::Orthotropic<>> wm(vertices, elements);
         writeJob(wm);
     }
