@@ -7,6 +7,7 @@
 #include <stdexcept>
 
 #include <boost/program_options.hpp>
+#include <boost/algorithm/string.hpp>
 #include <Utilities/ci_string.hh>
 
 using po_vm = boost::program_options::variables_map;

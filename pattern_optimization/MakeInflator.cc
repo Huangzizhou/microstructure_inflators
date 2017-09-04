@@ -13,6 +13,8 @@
 #include "inflators/JamesInflatorWrapper.hh"
 #include "inflators/LuigiInflatorWrapper.hh"
 
+#include "inflators/HexaPillarsInflator.h"
+
 using namespace std;
 namespace po = boost::program_options;
 
@@ -97,6 +99,18 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
         else if (type == MeshIO::MESH_TET) infl = Future::make_unique<BoundaryPerturbationInflator<3>>(inVertices, inElements, 1e-10);
         else    throw std::runtime_error("Mesh must be triangle or tet.");
     }
+    else if (ci_string("HexaPillars") == name.c_str()) {
+        string params_string = extract_required<string>(opts, "params");
+
+        boost::trim(params_string);
+        vector<string> tokens;
+        boost::split(tokens, params_string, boost::is_any_of("\t "),
+                     boost::token_compress_on);
+        vector<Real> params;
+        for (string &s : tokens) params.push_back(std::stod(s));
+
+        infl = Future::make_unique<HexaPillarsInflator>(params, 10); //TODO, make number of pillars an input
+    }
     else throw runtime_error("Invalid inflator: " + name);
 
     bool orthoCell = extract_flag(opts, "ortho_cell");
@@ -147,6 +161,7 @@ po_vm filterInflatorOptions(const po_vm &opts) {
         "ortho_cell",
         "inflation_dump_path",
         "inflation_graph_radius",
+        "params",
     };
     po_vm filtered;
     for (const string &key : keys)
