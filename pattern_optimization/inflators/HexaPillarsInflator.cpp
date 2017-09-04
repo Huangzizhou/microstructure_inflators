@@ -1,11 +1,11 @@
 #include "HexaPillarsInflator.h"
-#include "../../tools/hex-creator/hexlib.h"
 
 using namespace std;
 
 HexaPillarsInflator::HexaPillarsInflator(const std::vector<Real> &initial_params, double p2) {
-    cout << "HexaPillarsInflator - enter" << endl;
+    using Point = Vector2d;
 
+    HexLib<double> hexlib;
     Matrix<double, 2, Dynamic> vertices;
     vector<vector<int>> edges;
     vector<pair<vector<Point>, double> > custom_pairs;
@@ -13,22 +13,22 @@ HexaPillarsInflator::HexaPillarsInflator(const std::vector<Real> &initial_params
 
     double triangle_side_factor = initial_params[0];
     unsigned num_pillars = p2;
-    double pillar_area_ratio = 1.0;
+    double pillar_area_ratio = 1.0; // always 1.0 for positive poisson ratios
     double thickness_ratio = initial_params[1];
 
     cout << "Constructing " + out_wire + " ..." << endl;
-    generate_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
-                                         vertices, edges, custom_pairs);
+    hexlib.generate_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
+                                        vertices, edges, custom_pairs);
 
-
-    create_wire(vertices, edges, out_wire);
+    hexlib.create_wire(vertices, edges, out_wire);
 
     // Create and save inflator
     m_infl = Future::make_unique<IsoinflatorWrapper<2>>(out_wire, "doubly_periodic", true, 2);
 
-
-    m_p1 = triangle_side_factor
-    cout << "HexaPillarsInflator - exit" << endl;
+    m_p1 = triangle_side_factor;
+    m_p2 = num_pillars;
+    m_p3 = pillar_area_ratio;
+    m_p4 = thickness_ratio;
 }
 
 void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
@@ -51,8 +51,8 @@ void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
     if (chosen_resolution > 1024)
         chosen_resolution = 1024;
 
-    if (chosen_resolution < 64)
-        chosen_resolution = 64;
+    if (chosen_resolution < 32)
+        chosen_resolution = 32;
 
     cout << "Thickness void: " << thickness_void << endl;
     cout << "Minimum resolution: " << min_resolution <<  endl;
@@ -84,7 +84,7 @@ void HexaPillarsInflator::m_inflate(const std::vector<Real> &params) {
     m_infl->inflate(hexaPillarsToFullParameters(params));
 
     m_p1 = params[0];
-    m_p3 = params[1];
+    m_p4 = params[1];
 }
 
 
@@ -94,62 +94,73 @@ bool HexaPillarsInflator::isPrintable(const std::vector<Real> &params) {
 
 
 std::vector<VectorField<Real, 2>> HexaPillarsInflator::volumeShapeVelocities() const {
-    //TODO: compute the derivatives of the old parameters with respect to the new ones.
-    // And use chain rule!
+    std::vector<VectorField<Real, 2>> original_velocities = m_infl->volumeShapeVelocities();
+    const size_t number_hexa_params = numParameters();
+    std::vector<VectorField<Real, 2>> result(number_hexa_params);
 
-    using PVec = Eigen::Matrix<Real, 3, 1>;
+    using PVec = Eigen::Matrix<Real, 2, 1>;
     using ADScalar = Eigen::AutoDiffScalar<PVec>;
 
     ADScalar p1(m_p1, 2, 0);
-    ADScalar p3(m_p3, 2, 1);
+    ADScalar p4(m_p4, 2, 1);
 
+    vector<ADScalar> input_params = {p1, p4};
+    vector<ADScalar> resulting_parameters =  hexaPillarsToFullParameters<ADScalar>(input_params);
 
-    for (int index=0; index<m_params.size(); index++) {
-        Real cur_param = m_params[index];
+    cout << "Creating partials: " << endl;
 
+    vector<vector<double>> partials(2);
+    partials[0].resize(resulting_parameters.size());
+    partials[1].resize(resulting_parameters.size());
 
+    for (int index_original = 0; index_original < resulting_parameters.size(); index_original++) {
+        ADScalar original_param = resulting_parameters[index_original];
+        Matrix<double, 2, 1, 0, 2, 1> original_param_derivatives = original_param.derivatives();
 
+        for (int index_hexa = 0; index_hexa < number_hexa_params; index_hexa++) {
+            partials[index_hexa][index_original] = original_param_derivatives(index_hexa);
+        }
     }
 
+    cout << "Computing velocities by chain rule: " << endl;
 
-    return m_infl->volumeShapeVelocities();
+    for (size_t index_hexa = 0; index_hexa < number_hexa_params; index_hexa++) {
+        auto &vvel = result[index_hexa]; // each element corresponds to the derivatives in each vertex wrt a fixed p_i (i = 1 or 4)
+        vvel.resizeDomain(vertices().size());
+        vvel.clear();
+
+        vector<double> partials_hexa_param = partials[index_hexa];
+
+        for (int index_original = 0; index_original < resulting_parameters.size(); index_original++) {
+            vvel += original_velocities[index_original] * partials_hexa_param[index_original];
+        }
+    }
+
+    return result;
 }
 
-template<typename T>
-std::vector<T> HexaPillarsInflator::hexaPillarsToFullParameters(const std::vector<T> &hexaPillarsParameters) {
-    Matrix<double, 2, Dynamic> vertices;
+template<typename TReal>
+std::vector<TReal> HexaPillarsInflator::hexaPillarsToFullParameters(const std::vector<TReal> &hexaPillarsParameters) const {
+    Matrix<TReal, 2, Dynamic> vertices;
     vector<vector<int>> edges;
-    vector<pair<vector<Point>, double> > custom_pairs;
+    vector<pair<vector<Eigen::Matrix<TReal, 2, 1>>, TReal> > custom_pairs;
+    HexLib<TReal> hexlib;
 
-    cout << "Entering hexaPillarsToFullParameters" << endl;
-
-    double triangle_side_factor = hexaPillarsParameters[0];
-    unsigned num_pillars = m_params[1]; //TODO: static_cast<unsigned>(hexaPillarsParameters[1]);
+    TReal triangle_side_factor = hexaPillarsParameters[0];
+    unsigned num_pillars = m_p2; //TODO: static_cast<unsigned>(hexaPillarsParameters[1]);
     double pillar_area_ratio = 1.0; //TODO: hexaPillarsParameters[2];
-    double thickness_ratio = hexaPillarsParameters[3];
+    TReal thickness_ratio = hexaPillarsParameters[1];
 
-    generate_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
+    hexlib.generate_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
                                          vertices, edges, custom_pairs);
 
-    vector<Point> vertices_vector;
+    vector<Eigen::Matrix<TReal, 2, 1>> vertices_vector;
     for (unsigned i=0; i<vertices.cols(); i++) {
         vertices_vector.push_back(vertices.col(i));
     }
 
-    //Check if vertices are the same as in the inflator
-    vector<MeshIO::IOVertex> inflator_vertices = m_infl->vertices();
-    for (unsigned i=0; i<inflator_vertices.size(); i++) {
-        Point3D inflator_point = inflator_vertices[i].point;
-        Point2D new_point = vertices_vector[i];
-
-        assert(abs(inflator_point(0) - new_point(0)) < 1e-7);
-        assert(abs(inflator_point(1) - new_point(1)) < 1e-7);
-    }
-
-    vector<Point> independent_vertices = extract_independent_vertices(vertices_vector);
-    vector<double> parameters = generate_parameters(independent_vertices, 1e-5, 1e-5, custom_pairs);
-
-    cout << "Exiting hexaPillarsToFullParameters" << endl;
+    vector<Eigen::Matrix<TReal, 2, 1>> independent_vertices = hexlib.extract_independent_vertices(vertices_vector);
+    vector<TReal> parameters = hexlib.generate_parameters(independent_vertices, 1e-5, 1e-5, custom_pairs);
 
     return parameters;
 }

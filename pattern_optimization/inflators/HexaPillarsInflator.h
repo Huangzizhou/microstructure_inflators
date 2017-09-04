@@ -15,6 +15,7 @@
 
 #include "../Inflator.hh"
 #include "IsoinflatorWrapper.hh"
+#include "../../tools/hex-creator/hexlib.h"
 
 #include <memory>
 #include <utility>
@@ -24,7 +25,7 @@
 
 class HexaPillarsInflator : public Inflator<2> {
 public:
-    HexaPillarsInflator(const std::vector<Real> &initial_params);
+    HexaPillarsInflator(const std::vector<Real> &initial_params, double p2);
     ~HexaPillarsInflator() { }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -55,7 +56,7 @@ private:
     // Queries
     ////////////////////////////////////////////////////////////////////////////
     virtual bool isParametric() const override { return true; }
-    virtual size_t numParameters() const override { return 4; }
+    virtual size_t numParameters() const override { return 2; }
 
     // If only one full parameter is controlled, p's type is given by inflator.
     // Otherwise, p is a metaparameter
@@ -83,7 +84,8 @@ private:
     // HexaPillarsInflator-specific
     ////////////////////////////////////////////////////////////////////////////
     // Effectively apply the change of variables matrix.
-    std::vector<Real> hexaPillarsToFullParameters(const std::vector<Real> &hexaPillarsParameters);
+    template<typename T>
+    std::vector<T> hexaPillarsToFullParameters(const std::vector<T> &hexaPillarsParameters) const;
     void configureResolution(const std::vector<Real> &params);
 
 
@@ -91,6 +93,6 @@ private:
     // Data members
     ////////////////////////////////////////////////////////////////////////////
     std::unique_ptr<IsoinflatorWrapper<2>> m_infl;
-    bool initialized;
+    Real m_p1, m_p2, m_p3, m_p4;
 };
 #endif /* end of include guard: HEXAPILLARSINFLATOR_HH */
