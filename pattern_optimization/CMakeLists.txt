@@ -17,11 +17,12 @@ add_library(inflators
 		inflators/IsoinflatorWrapper.cc
 		inflators/JamesInflatorWrapper.cc
 		inflators/LuigiInflatorWrapper.cc
-		inflators/BoundaryPerturbationInflator.cc)
+		inflators/BoundaryPerturbationInflator.cc
+		inflators/HexaPillarsInflator.cpp)
 set_target_properties(inflators PROPERTIES CXX_STANDARD 11)
 
 # MeshFEM library
-target_link_libraries(inflators MeshFEM)
+target_link_libraries(inflators MeshFEM json)
 
 ################################################################################
 # Optional libraries for inflation
