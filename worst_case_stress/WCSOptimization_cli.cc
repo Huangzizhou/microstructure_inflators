@@ -145,6 +145,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("JIsoRelWeight",po::value<double>(),                             "Use the relative isotropy fitting term with specified weight.")
         ("proximityRegularizationWeight", po::value<double>(),            "Use a quadratic proximity regularization term with the specified weight.")
         ("proximityRegularizationTarget", po::value<string>(),            "The target parameter values for the proximity regularization term (defaults to initial parameters.)")
+        ("proximityRegularizationZeroTarget",                             "Use 0 vector as target parameter of proximity regularization cost function term.")
         ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ("JIsoFixedTarget",                                               "Make JIso just fit to the closest isotropic tensor to the *original* tensor.")
         ;
@@ -204,8 +205,10 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     }
 
     if (vm.count("pattern") == 0) {
-        cout << "Error: must specify pattern mesh" << endl;
-        fail = true;
+        if (vm["inflator"].as<string>().compare("HexaPillars")) {
+            cout << "Error: must specify pattern mesh" << endl;
+            fail = true;
+        }
     }
 
     size_t d = vm["degree"].as<size_t>();
@@ -419,6 +422,10 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
             ifactory->PRegTermConfig::targetParams = parseParams(args["proximityRegularizationTarget"].as<string>());
             if (ifactory->PRegTermConfig::targetParams.size() != job->initialParams.size())
                 throw runtime_error("Invalid proximity regularization target parameter count");
+        }
+        if (args.count("proximityRegularizationZeroTarget")) {
+            vector<Real> zeroTargetParams(job->numParams(), 0.0);
+            ifactory->PRegTermConfig::IFConfigProximityRegularization::targetParams = zeroTargetParams;
         }
     }
 

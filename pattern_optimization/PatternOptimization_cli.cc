@@ -32,6 +32,8 @@
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/algorithm/string/trim.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include "optimizers/ceres.hh"
 #include "optimizers/dlib.hh"
@@ -93,6 +95,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("cell_size,c",  po::value<double>(),                                    "Inflation cell size (James' inflator only. Default: 5mm)")
         ("vertexThickness,V",                                                    "Use vertex thickness instead of edge thickness (3D only)")
         ("proximityRegularizationWeight", po::value<double>(),                   "Use a quadratic proximity regularization term with the specified weight.")
+        ("proximityRegularizationZeroTarget",                                    "Use 0 vector as target parameter of proximity regularization cost function term.")
         ;
 
     po::options_description constraintOptions;
@@ -213,9 +216,19 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled = false;
     if (args.count("proximityRegularizationWeight")) {
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled      = true;
-        ifactory->ObjectiveTerms::IFConfigProximityRegularization::targetParams = job->initialParams;
+
+        if (args.count("proximityRegularizationZeroTarget")) {
+            // Split up params.
+            vector<Real> targetParams(job->numParams(), 0.0);
+            ifactory->ObjectiveTerms::IFConfigProximityRegularization::targetParams = targetParams;
+        }
+        else {
+            ifactory->ObjectiveTerms::IFConfigProximityRegularization::targetParams = job->initialParams;
+        }
+
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::weight       = args["proximityRegularizationWeight"].as<double>();
     }
+
     ifactory->TensorFitTermConfig::targetS = targetS;
 
     ifactory->TFConstraintConfig ::enabled = false;
