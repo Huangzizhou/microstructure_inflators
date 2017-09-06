@@ -218,6 +218,11 @@ thickness_void = (triangle_side - 2 * num_pillars * thickness) / (num_pillars - 
 min_resolution = 2 / thickness_void
 chosen_resolution = math.pow(2, math.ceil(math.log(min_resolution) / math.log(2)))
 
+if chosen_resolution > 2048:
+        print "Resolution of " + str(chosen_resolution) + "is too big"
+        print "Skipping experiment!"
+        exit()
+
 if chosen_resolution < 64:
     chosen_resolution = 64
 
