@@ -6,7 +6,7 @@ import subprocess
 
 import numpy as np
 
-MAX_NUM_PILLARS = 20
+MAX_NUM_PILLARS = 30
 MIN_TRIANGLE_SIDE = 0.75
 MAX_TRIANGLE_SIDE = 0.99
 TRIANGLE_SIDE_EXPERIMENTS = 20
@@ -250,11 +250,11 @@ else:
         chirality_factor = args.chirality_factor
         print "Warning: testing in 3 dimensions with volfrac, triangle sides and pillars"
 
-        num_pillar_values = range(10, 60, 10)
+        num_pillar_values = range(10, 50, 10)
         for index, number_pillars in enumerate(num_pillar_values):
-            triangle_side_values = [0.75, 0.8, 0.85, 0.9, 0.95, 99]
+            triangle_side_values = [0.8, 0.82, 0.84, 0.86, 0.88, 0.90, 0.92, 0.94, 0.96, 0.98]
             for index, triangle_side_factor in enumerate(triangle_side_values):
-                vol_frac_values = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99]
+                vol_frac_values = [0.9, 0.92, 0.94, 0.96, 0.98]
                 for vol_frac in vol_frac_values:
                     test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
     else:
