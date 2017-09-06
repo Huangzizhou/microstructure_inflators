@@ -395,7 +395,7 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
     cwd = os.getcwd()
     cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_doubly_periodic', input_path, '--params',
            parameters_string, '-m', custom_meshing_path, '-D', 'inflated.msh', '-R', 'replicated.msh', out_path]
-    # print cmd
+    #print cmd
     call(cmd)
 
 
@@ -673,7 +673,7 @@ def rotate(theta_degrees, vertices):
     theta = math.radians(theta_degrees)
     R = np.matrix([[math.cos(theta), -math.sin(theta)], [math.sin(theta), math.cos(theta)]])
 
-    reflected_vertices = R * vertices.transpose()
+    reflected_vertices = R * np.array(vertices).transpose()
 
     return np.asarray(reflected_vertices.transpose())
 
