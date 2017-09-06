@@ -626,7 +626,7 @@ public:
 
         cout << cmd << endl;
 
-        system(cmd.c_str());
+        //system(cmd.c_str());
         execute_command(cmd);
     }
 
@@ -774,6 +774,330 @@ public:
         custom_pairs = upper_incenters_thickness_pairs;
         custom_pairs.insert(custom_pairs.end(), pillar_triangles_incenters_thickness_pairs.begin(),
                             pillar_triangles_incenters_thickness_pairs.end());
+    }
+
+    vector<vector<Point>> create_pillars(vector<Point> segment1, vector<Point> segment2, unsigned n) {
+        vector<vector<Point>> edges_descriptions;
+
+        // vectors representing each segment
+        Point vector1 = segment1[1] - segment1[0];
+        Point vector2 = segment2[1] - segment2[0];
+
+        for (unsigned t=0; t<n; t++) {
+            // compute position in segments 1 and 2 that will be linked
+            Point pos1 = segment1[0] + vector1 * 1.0 * t / (n - 1);
+            Point pos2 = segment2[0] + vector2 * 1.0 * t / (n - 1);
+
+            // create pillars, connecting segments 1 and 2 endpoints
+            edges_descriptions.push_back({pos1, pos2});
+        }
+
+        return edges_descriptions;
+    }
+
+    void create_subdivided_segment(Point segment_start, Point segment_end, unsigned n, vector<vector<Point>> &edges_descriptions) {
+        Point vector = segment_end - segment_start;
+        Point last_point = segment_start;
+
+        for (unsigned t=1; t<n; t++) {
+            Point new_point = segment_start + 1.0 * t / (n - 1) * vector;
+
+            edges_descriptions.push_back({last_point, new_point});
+            last_point = new_point;
+        }
+    }
+
+    void create_subdivided_segment_pillars(Point segment_start, Point segment_end, unsigned n, vector<vector<Point>> &edges_descriptions, TReal thickness) {
+        Point vector = segment_end - segment_start;
+        Point unit_vector = vector / vector.norm();
+
+        // first point
+        Point pillar_start = segment_start - thickness * unit_vector;
+        Point pillar_stop = segment_start + thickness * unit_vector;
+        edges_descriptions.push_back({pillar_start, segment_start});
+        edges_descriptions.push_back({segment_start, pillar_stop});
+        Point last_point = pillar_stop;
+
+        for (unsigned t=1; t<n; t++) {
+            Point new_point = segment_start + 1.0 * t / (n - 1) * vector;
+
+            pillar_start = new_point - thickness * unit_vector;
+            pillar_stop = new_point + thickness * unit_vector;
+
+            edges_descriptions.push_back({last_point, pillar_start});
+            edges_descriptions.push_back({pillar_start, new_point});
+            edges_descriptions.push_back({new_point, pillar_stop});
+            last_point = pillar_stop;
+        }
+
+    }
+
+    vector<vector<Point>> create_triangle_edges(Matrix<TReal, 2, 3> triangle, unsigned n, TReal offset=0.0, TReal thickness=0.0) {
+        vector<vector<Point>> edges_descriptions;
+        Point segment_start, segment_end, segment_start_offset, segment_end_offset;
+
+        for (unsigned i = 0; i<3; i++) {
+            segment_start = triangle.col(i % 3);
+            segment_end = triangle.col((i + 1) % 3);
+
+            Point unit_vector = (segment_end - segment_start) / (segment_end - segment_start).norm();
+
+            segment_start_offset = segment_start + unit_vector * offset;
+            segment_end_offset = segment_end - unit_vector * offset;
+
+            if (thickness > 0.0)
+                create_subdivided_segment_pillars(segment_start_offset, segment_end_offset, n, edges_descriptions, thickness);
+            else
+                create_subdivided_segment(segment_start_offset, segment_end_offset, n, edges_descriptions);
+
+        }
+
+        return edges_descriptions;
+    }
+
+
+
+    void generate_simpler_topology_and_thickness_info(TReal triangle_side_factor, unsigned num_pillars, double pillar_area_ratio,
+                                              TReal thickness_ratio, Matrix<TReal, 2, Dynamic> &vertices, vector<vector<int>> &edges,
+                                              vector<pair<vector<Point>, TReal> > &custom_pairs) {
+        double parallelogram_side = 2.0;
+        double l = parallelogram_side / 2.0;
+        double s = 2 / sqrt(3);
+        TReal triangle_side = triangle_side_factor * s * sqrt(3);
+        TReal thickness = thickness_ratio * (pillar_area_ratio * triangle_side / num_pillars) / 2; // using radius as thickness
+
+        using TPoint = Eigen::Matrix<TReal, 2, 1>;
+
+        unsigned num_upper_intervals = num_pillars - 1;
+        TReal upper_spacing = 0.0;
+        unsigned num_upper_points = 0;
+        if (num_upper_intervals > 0) {
+            upper_spacing = (triangle_side - thickness) / (num_pillars - 1);
+            num_upper_points = num_pillars / 2 + 1;
+        }
+
+        // define important vertices of simplex used to build entire parallelogram structure
+        TPoint origin;
+        origin << 0, 0;
+        TPoint triangle_centroid;
+        triangle_centroid << l, l * sqrt(3) / 3.0;
+
+        // First side: create pillars of the left side (counter-clock orientation)
+        //     /.
+        //    /  .
+        //   /.....
+        TPoint parallelogram_start;
+        parallelogram_start << (l + triangle_side / 2.0) / 2.0, (l + triangle_side / 2.0) * sqrt(3) / 2.0;
+        TPoint parallelogram_end;
+        parallelogram_end << (l - triangle_side / 2.0) / 2.0, (l - triangle_side / 2.0) * sqrt(3) / 2.0;
+
+        TReal radius = triangle_side * sqrt(3) / 6;
+        TPoint offset_point;
+        offset_point << 0, radius;
+        TPoint f = triangle_centroid - offset_point;
+
+        TPoint triangle_start;
+        TPoint triangle_end;
+        TPoint aux_point;
+        aux_point << 0, sqrt(3) * triangle_side / 2.0;
+        triangle_start << f + aux_point;
+        aux_point << triangle_side / 2.0, 0;
+        triangle_end = f - aux_point;
+
+        TPoint unit_vector;
+        TPoint unit_vector_triangle;
+        unit_vector << (parallelogram_end - parallelogram_start) / (parallelogram_end - parallelogram_start).norm();
+        unit_vector_triangle << (triangle_end - triangle_start) / (triangle_end - triangle_start).norm();
+
+        TPoint parallelogram_start_offset, parallelogram_end_offset, triangle_start_offset, triangle_end_offset;
+        parallelogram_start_offset = parallelogram_start + thickness * unit_vector;
+        parallelogram_end_offset = parallelogram_end - thickness * unit_vector;
+        triangle_start_offset = triangle_start + thickness * unit_vector;
+        triangle_end_offset = triangle_end - thickness * unit_vector;
+
+        // add new vertices and edges to current sets
+        vector<vector<Point>> new_edges_description = create_pillars({parallelogram_start_offset, parallelogram_end_offset},
+                                                      {triangle_start_offset, triangle_end_offset}, num_pillars);
+
+        // save pillar nodes
+        Matrix<TReal, 2, Dynamic> pillar_nodes;
+        for (unsigned index = 0; index < new_edges_description.size(); index++) {
+            vector<TPoint> edge_description = new_edges_description[index];
+
+            push_back(pillar_nodes, edge_description[0]);
+            push_back(pillar_nodes, edge_description[1]);
+        }
+
+        add_new_edges(new_edges_description, vertices, edges);
+
+
+        // Second side: create pillars of the bottom side (counter-clock orientation)
+        //     ..
+        //    .  .
+        //   ______
+        parallelogram_start << l - triangle_side / 2.0, 0;
+        parallelogram_end << l + triangle_side / 2.0, 0;
+
+        aux_point << triangle_side / 2.0, 0;
+        triangle_start = f - aux_point;
+        triangle_end = f + aux_point;
+
+        Matrix<TReal, 2, 2> pillar_example;
+        pillar_example << parallelogram_start, triangle_start;
+
+        unit_vector = (parallelogram_end - parallelogram_start) / (parallelogram_end - parallelogram_start).norm();
+        unit_vector_triangle = (triangle_end - triangle_start) / (triangle_end - triangle_start).norm();
+
+        parallelogram_start_offset = parallelogram_start + thickness * unit_vector;
+        parallelogram_end_offset = parallelogram_end - thickness * unit_vector;
+        triangle_start_offset = triangle_start + thickness * unit_vector;
+        triangle_end_offset = triangle_end - thickness * unit_vector;
+
+        // add new vertices and edges to current sets
+        new_edges_description = create_pillars({parallelogram_start_offset, parallelogram_end_offset},
+                                               {triangle_start_offset, triangle_end_offset},
+                                               num_pillars);
+
+        // save pillar nodes
+        for (unsigned int index = 0; index < new_edges_description.size(); index++) {
+            vector<TPoint> edge_description = new_edges_description[index];
+
+            push_back(pillar_nodes, edge_description[0]);
+            push_back(pillar_nodes, edge_description[1]);
+        }
+
+        add_new_edges(new_edges_description, vertices, edges);
+
+
+        // Third side: create pillars of the right side (counter-clock orientation)
+        //     .\
+        //    .  \
+        //   .....\
+
+        parallelogram_start << 2 * l - (l - triangle_side / 2.0) / 2, (l - triangle_side / 2.0) * sqrt(3) / 2;
+        parallelogram_end << 2 * l - (l + triangle_side / 2.0) / 2, (l + triangle_side / 2.0) * sqrt(3) / 2;
+
+        aux_point << triangle_side / 2.0, 0;
+        triangle_start = f + aux_point;
+        aux_point << 0, sqrt(3) * triangle_side / 2.0;
+        triangle_end = f + aux_point;
+
+        unit_vector = (parallelogram_end - parallelogram_start) / (parallelogram_end - parallelogram_start).norm();
+        unit_vector_triangle = (triangle_end - triangle_start) / (triangle_end - triangle_start).norm();
+
+        parallelogram_start_offset = parallelogram_start + thickness * unit_vector;
+        parallelogram_end_offset = parallelogram_end - thickness * unit_vector;
+        triangle_start_offset = triangle_start + thickness * unit_vector;
+        triangle_end_offset = triangle_end - thickness * unit_vector;
+
+        // add new vertices and edges to current sets
+        new_edges_description = create_pillars({parallelogram_start_offset, parallelogram_end_offset},
+                                                      {triangle_start_offset, triangle_end_offset},
+                                                      num_pillars);
+
+        // save nodes on hypotenuse
+        Matrix<TReal, 2, Dynamic> hypotenuse_nodes;
+        // save pillar nodes
+        for (unsigned int index = 0; index < new_edges_description.size(); index++) {
+            vector<TPoint> edge_description = new_edges_description[index];
+
+            push_back(hypotenuse_nodes, edge_description[0]);
+            push_back(hypotenuse_nodes, edge_description[1]);
+        }
+
+        add_new_edges(new_edges_description, vertices, edges);
+
+
+        // Now, adding edges on the triangle
+        aux_point << 0, sqrt(3) * triangle_side / 2.0;
+        Point aux_point2;
+        aux_point2 << triangle_side / 2.0, 0;
+        Matrix<TReal, 2, 3> triangle;
+        triangle << f + aux_point, f - aux_point2, f + aux_point2;
+        new_edges_description = create_triangle_edges(triangle, num_pillars, thickness, thickness);
+        add_new_edges(new_edges_description, vertices, edges);
+
+        // Now, transform to square every vertex we have:
+        Matrix<TReal, 2, 2> transformation_matrix;
+        transformation_matrix << 1.0, -0.577350269189626,
+                0.0, 1.154700538379251;
+        Matrix<TReal, 2, Dynamic> resulting_vertices = transformation_matrix * vertices;
+        vertices = resulting_vertices;
+
+        // Finally, transpose to origin and reflect through the diagonal 'y = -x'
+        offset_point << 1.0, 1.0;
+        Matrix<TReal, 2, Dynamic> translated_vertices = vertices.colwise() - offset_point;
+        Matrix<TReal, 2, Dynamic> reflected_vertices = reflect(135, translated_vertices);
+        vertices = translated_vertices;
+
+        // saving vertices on hypotenuses
+        Matrix<TReal, 2, Dynamic> resulting_hypotenuse_nodes = transformation_matrix * hypotenuse_nodes;
+        offset_point << 1.0, 1.0;
+        Matrix<TReal, 2, Dynamic> translated_hypotenuse_nodes = resulting_hypotenuse_nodes.colwise() - offset_point;
+        Matrix<TReal, 2, Dynamic> reflected_hypotenuse_nodes = reflect(135, translated_hypotenuse_nodes);
+        Matrix<TReal, Dynamic, Dynamic> complete_hypotenuse_nodes(hypotenuse_nodes.rows(), hypotenuse_nodes.cols() + reflected_hypotenuse_nodes.cols());
+        complete_hypotenuse_nodes << translated_hypotenuse_nodes, reflected_hypotenuse_nodes;
+        hypotenuse_nodes = complete_hypotenuse_nodes;
+
+        // saving vertices on pillars
+        Matrix<TReal, 2, Dynamic> resulting_pillar_nodes = transformation_matrix * pillar_nodes;
+        Matrix<TReal, 2, Dynamic> translated_pillar_nodes = resulting_pillar_nodes.colwise() - offset_point;
+        Matrix<TReal, 2, Dynamic> reflected_pillar_nodes = reflect(135, translated_pillar_nodes);
+        Matrix<TReal, Dynamic, Dynamic> complete_pillar_nodes(pillar_nodes.rows(), pillar_nodes.cols() + reflected_pillar_nodes.cols());
+        complete_pillar_nodes << translated_pillar_nodes, reflected_pillar_nodes;
+        pillar_nodes = complete_pillar_nodes;
+
+
+        // transforming pillar example
+        pillar_example = transformation_matrix * pillar_example;
+
+        TReal delta_y = abs(pillar_example.col(1)(1) - pillar_example.col(0)(1));
+        TReal norm_example = (pillar_example.col(1) - pillar_example.col(0)).norm();
+        TReal thickness_correction_factor = delta_y / norm_example;
+        cout << "Thickness correction factor: "  << thickness_correction_factor << endl;
+
+
+        new_edges_description.clear();
+        for (unsigned index=0; index < edges.size(); index++) {
+            vector<int> edge = edges[index];
+
+            int v1 = edge[0];
+            int v2 = edge[1];
+
+            Point reflected_vertex1 = reflected_vertices.col(v1);
+            Point reflected_vertex2 = reflected_vertices.col(v2);
+
+            new_edges_description.push_back({reflected_vertex1, reflected_vertex2});
+        }
+
+        add_new_edges(new_edges_description, vertices, edges);
+
+
+        // triangle is also transformed and reflected
+        Matrix<TReal, 2, Dynamic> resulting_triangle = transformation_matrix * triangle;
+        offset_point << 1.0, 1.0;
+        Matrix<TReal, 2, Dynamic> translated_triangle = resulting_triangle.colwise() - offset_point;
+        Matrix<TReal, 2, Dynamic> reflected_triangle = reflect(135, translated_triangle);
+        Matrix<TReal, 2, Dynamic> triangle_vertices;
+
+        vector<pair<vector<Point>, TReal> > incenter_triangle_pairs = add_polygons_incenters({translated_triangle, reflected_triangle}, vertices, edges);
+
+        // concatenate all custom pairs
+        custom_pairs = incenter_triangle_pairs;
+
+        vector<Point> hypotenuse_nodes_vector;
+        for (unsigned index=0; index<hypotenuse_nodes.cols(); index++) {
+            Point node =  hypotenuse_nodes.col(index);
+            hypotenuse_nodes_vector.push_back(node);
+        }
+        custom_pairs.push_back({hypotenuse_nodes_vector, thickness * sqrt(2)});
+
+        vector<Point> pillar_nodes_vector;
+        for (unsigned index=0; index<pillar_nodes.cols(); index++) {
+            Point node =  pillar_nodes.col(index);
+            pillar_nodes_vector.push_back(node);
+        }
+        custom_pairs.push_back({pillar_nodes_vector, thickness * thickness_correction_factor});
     }
 };
 #endif //MICROSTRUCTURES_HEXLIB_H

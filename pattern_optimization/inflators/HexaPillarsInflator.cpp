@@ -17,7 +17,7 @@ HexaPillarsInflator::HexaPillarsInflator(const std::vector<Real> &initial_params
     double thickness_ratio = initial_params[1];
 
     cout << "Constructing " + out_wire + " ..." << endl;
-    hexlib.generate_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
+    hexlib.generate_simpler_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
                                         vertices, edges, custom_pairs);
 
     hexlib.create_wire(vertices, edges, out_wire);
@@ -51,8 +51,8 @@ void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
     if (chosen_resolution > 1024)
         chosen_resolution = 1024;
 
-    if (chosen_resolution < 32)
-        chosen_resolution = 32;
+    if (chosen_resolution < 64)
+        chosen_resolution = 64;
 
     cout << "Thickness void: " << thickness_void << endl;
     cout << "Minimum resolution: " << min_resolution <<  endl;
@@ -151,7 +151,7 @@ std::vector<TReal> HexaPillarsInflator::hexaPillarsToFullParameters(const std::v
     double pillar_area_ratio = 1.0; //TODO: hexaPillarsParameters[2];
     TReal thickness_ratio = hexaPillarsParameters[1];
 
-    hexlib.generate_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
+    hexlib.generate_simpler_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
                                          vertices, edges, custom_pairs);
 
     vector<Eigen::Matrix<TReal, 2, 1>> vertices_vector;
