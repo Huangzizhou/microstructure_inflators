@@ -237,7 +237,7 @@ if not args.vol_frac is None:
 
                 triangle_side_values = np.linspace(MIN_TRIANGLE_SIDE, MAX_TRIANGLE_SIDE, TRIANGLE_SIDE_EXPERIMENTS)
                 for index, triangle_side_factor in enumerate(triangle_side_values):
-                    num_pillar_values = range(1, MAX_NUM_PILLARS + 1, 2)
+                    num_pillar_values = range(1, MAX_NUM_PILLARS + 1, 1)
                     for index, number_pillars in enumerate(num_pillar_values):
                         test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
 
@@ -262,10 +262,10 @@ else:
         for chirality_factor in chirality_factor_values:
             print "Warning: testing in 4 dimensions with volfrac, triangle sides, chirality and pillars"
 
-            num_pillar_values = range(10, 30, 10)
+            num_pillar_values = range(10, 50, 10)
             for index, number_pillars in enumerate(num_pillar_values):
-                triangle_side_values = [0.8, 0.9, 0.99]
+                triangle_side_values = [0.82, 0.9, 0.98]
                 for index, triangle_side_factor in enumerate(triangle_side_values):
-                    vol_frac_values = [0.7, 0.8, 0.9, 0.99]
+                    vol_frac_values = [0.9, 0.92, 0.94, 0.96, 0.98]
                     for vol_frac in vol_frac_values:
                         test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
