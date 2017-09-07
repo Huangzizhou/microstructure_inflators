@@ -336,8 +336,6 @@ pillar_nodes_custom_pairs = []
 for index, polygon, in enumerate(pillar_polygons):
     nodes = pillar_pairs[index]
 
-    print nodes
-
     if len(nodes) == 0:
         continue
 
@@ -347,7 +345,6 @@ for index, polygon, in enumerate(pillar_polygons):
     for i, transformed_polygon in enumerate(transformed_polygons):
         transformed_pair = transformed_pairs[i]
 
-        print "Uhul: " + str(transformed_pair)
         nodes_thickness = hexlib.min_distance_point_line(transformed_pair[0], [transformed_polygon[0], transformed_polygon[3]])
         pillar_nodes = [(transformed_polygon[0] + transformed_polygon[1])/2, (transformed_polygon[2] + transformed_polygon[3])/2]
 
