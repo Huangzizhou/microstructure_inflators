@@ -250,9 +250,9 @@ else:
         chirality_factor = args.chirality_factor
         print "Warning: testing in 3 dimensions with volfrac, triangle sides and pillars"
 
-        num_pillar_values = range(10, 50, 10)
+        num_pillar_values = range(10, 60, 10)
         for index, number_pillars in enumerate(num_pillar_values):
-            triangle_side_values = [0.8, 0.82, 0.84, 0.86, 0.88, 0.90, 0.92, 0.94, 0.96, 0.98]
+            triangle_side_values = [0.7, 0.72, 0.74, 0.76, 0.78, 0.8, 0.82, 0.84, 0.86, 0.88, 0.90, 0.92, 0.94, 0.96, 0.98]
             for index, triangle_side_factor in enumerate(triangle_side_values):
                 vol_frac_values = [0.9, 0.92, 0.94, 0.96, 0.98]
                 for vol_frac in vol_frac_values:
@@ -264,7 +264,7 @@ else:
 
             num_pillar_values = range(10, 50, 10)
             for index, number_pillars in enumerate(num_pillar_values):
-                triangle_side_values = [0.82, 0.9, 0.98]
+                triangle_side_values = [0.82, 0.86, 0.9, 0.94, 0.98]
                 for index, triangle_side_factor in enumerate(triangle_side_values):
                     vol_frac_values = [0.9, 0.92, 0.94, 0.96, 0.98]
                     for vol_frac in vol_frac_values:
