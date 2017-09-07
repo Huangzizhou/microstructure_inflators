@@ -15,6 +15,7 @@ struct BoundConstraints {
                      const std::vector<Real> &radiusBounds,
                      const std::vector<Real> &translationBounds,
                      const std::vector<Real> &blendingBounds,
+                     const std::vector<Real> &metaBounds,
                      const std::map<size_t, Real> &lb,
                      const std::map<size_t, Real> &ub) {
         size_t nparams = inflator.numParameters();
@@ -33,6 +34,7 @@ struct BoundConstraints {
                 case ParameterType::Thickness: lowerBound.at(p) =      radiusBounds.at(0); break;
                 case ParameterType::Offset:    lowerBound.at(p) = translationBounds.at(0); break;
                 case ParameterType::Blending:  lowerBound.at(p) =    blendingBounds.at(0); break;
+                case ParameterType::Meta:      lowerBound.at(p) =        metaBounds.at(0); break;
                 default: assert(false);
             }
         }
@@ -43,6 +45,7 @@ struct BoundConstraints {
                 case ParameterType::Thickness: upperBound.at(p) =      radiusBounds.at(1); break;
                 case ParameterType::Offset:    upperBound.at(p) = translationBounds.at(1); break;
                 case ParameterType::Blending:  upperBound.at(p) =    blendingBounds.at(1); break;
+                case ParameterType::Meta:      upperBound.at(p) =        metaBounds.at(1); break;
                 default: assert(false);
             }
         }

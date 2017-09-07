@@ -77,6 +77,9 @@ std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     if (pt.count("blendingBounds"))
         parseVector(pt.get_child("blendingBounds"), job->blendingBounds);
 
+    if (pt.count("metaBounds"))
+        parseVector(pt.get_child("metaBounds"), job->metaBounds);
+
     if (pt.count("paramConstraints") != 0) {
         auto constraints = pt.get_child("paramConstraints");
         for (const auto &val : constraints) {
