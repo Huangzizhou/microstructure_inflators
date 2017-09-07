@@ -100,6 +100,7 @@ public:
 
 
     std::vector<Real> initialParams, radiusBounds, translationBounds;
+    std::vector<std::string> metaParams;
     std::vector<Real> blendingBounds = { 10.0, 100.0 };
     // The ground-truth parameters can be stored here--they are written to the
     // job file for reference.

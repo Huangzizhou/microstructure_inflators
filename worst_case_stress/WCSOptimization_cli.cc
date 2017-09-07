@@ -108,6 +108,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("vertexThickness,V",                                              "Use vertex thickness instead of edge thickness (3D only)")
         ("cell_size,c",  po::value<double>(),                              "Inflation cell size (3D only)")
         ("params",       po::value<string>(),                              "Initial params (overrides those specified in job file).")
+        ("metaParams",  po::value<string>(),                               "Meta params (for Hexa Pillars, is used as: +/- num_pillars)")
         ("deformedCell", po::value<string>(),                              "Specify the Jacobian of a deformation linearly warping the pattern after meshing (scanline order; in 3D: xx xy xz yx yy yz zx zy zz)")
         ;
 
@@ -311,9 +312,20 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
         return pvals;
     };
 
+    auto parseMetaParams = [](string pstring) -> vector<string> {
+        boost::trim(pstring);
+        vector<string> tokens;
+        boost::split(tokens, pstring, boost::is_any_of("\t "),
+                     boost::token_compress_on);
+        return tokens;
+    };
+
     // If requested, override the initial parameters set in the job file
     if (args.count("params"))
         job->initialParams = parseParams(args["params"].as<string>());
+
+    if (args.count("metaParams"))
+        job->metaParams = parseMetaParams(args["metaParams"].as<string>());
 
     SField params = job->validatedInitialParams(inflator);
 

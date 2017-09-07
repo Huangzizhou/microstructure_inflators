@@ -101,6 +101,7 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
     }
     else if (ci_string("HexaPillars") == name.c_str()) {
         string params_string = extract_required<string>(opts, "params");
+        string meta_params_string = extract_required<string>(opts, "metaParams");
 
         boost::trim(params_string);
         vector<string> tokens;
@@ -109,7 +110,12 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
         vector<Real> params;
         for (string &s : tokens) params.push_back(std::stod(s));
 
-        infl = Future::make_unique<HexaPillarsInflator>(params, 10); //TODO, make number of pillars an input
+        boost::trim(meta_params_string);
+        vector<string> meta_params_tokens;
+        boost::split(meta_params_tokens, meta_params_string, boost::is_any_of("\t "),
+                     boost::token_compress_on);
+
+        infl = Future::make_unique<HexaPillarsInflator>(params, stoi(meta_params_tokens[1])); //TODO, make number of pillars an input
     }
     else throw runtime_error("Invalid inflator: " + name);
 
@@ -162,6 +168,7 @@ po_vm filterInflatorOptions(const po_vm &opts) {
         "inflation_dump_path",
         "inflation_graph_radius",
         "params",
+        "metaParams",
     };
     po_vm filtered;
     for (const string &key : keys)
