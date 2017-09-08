@@ -66,15 +66,15 @@ void MeshingOptions::load(const std::string &jsonPath) {
                                       "'; expected 'collapse' or 'resample'");
     }
 
-
     if (pt.count("jointBlendingMode")) {
         const std::string modeString = pt.get<std::string>("jointBlendingMode");
-        if (modeString == "HULL") {
+
+        if (boost::iequals(modeString, "HULL")) {
             jointBlendingMode = JointBlendMode::HULL;
         }
-        else if (modeString == "FULL") {
+        else if (boost::iequals(modeString, "FULL")) {
             jointBlendingMode = JointBlendMode::FULL;
         }
-        else { throw std::runtime_error("Unrecognize blending mode: " + modeString); }
+        else { throw std::runtime_error("Unrecognized blending mode: " + modeString); }
     }
 }

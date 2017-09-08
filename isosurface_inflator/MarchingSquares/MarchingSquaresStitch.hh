@@ -603,7 +603,8 @@ MarchingSquaresGrid::MarchingSquaresResult::MarchingSquaresResult(
         }
     }
 
-    mergeEdges(edgesToMerge, points, edges);
+    if (edgesToMerge.size() > 0)
+        mergeEdges(edgesToMerge, points, edges);
     size_t numPoints = points.size();
 
     const size_t none = std::numeric_limits<size_t>::max();

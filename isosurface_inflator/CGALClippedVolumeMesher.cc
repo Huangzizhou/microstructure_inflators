@@ -171,6 +171,9 @@ mesh(const SignedDistanceRegion<3> &sdf,
     }
 
     elements.reserve(c3t3.number_of_cells_in_complex());
+    if (c3t3.number_of_cells_in_complex() == 0) {
+        std::cerr << "WARNING: no elements in CGAL::make_mesh_3 result." << std::endl;
+    }
     for (auto it = c3t3.cells_in_complex_begin(); it != c3t3.cells_in_complex_end(); ++it) {
         elements.emplace_back(V[it->vertex(0)],
                               V[it->vertex(1)],
