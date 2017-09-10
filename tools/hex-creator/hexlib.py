@@ -806,3 +806,34 @@ def edge_intersection(edge_1, edge_2):
     x = det_2D(d, x_delta) / div
     y = det_2D(d, y_delta) / div
     return [x, y]
+
+def compute_volume_info(experiment_type, p1, p2, p3, p4):
+    if experiment_type == "negative":
+        height = 1 * math.sqrt(3) / 3.0
+        s = 2 * height
+
+        volume_triangle = math.sqrt(3) / 4 * (p1 * s) ** 2
+        volume_pillars = p1 * p3 * p4 * s * (1 - math.sqrt(3) / 2 * s * p1)
+        volume = volume_triangle + volume_pillars
+
+        total_volume = math.sqrt(3) / 4 * s ** 2
+
+        volume_fraction = volume / total_volume
+
+    else:
+        r = p1 * math.sqrt(3) / 3
+        x = p1
+
+        volume_triangle = r * p1
+        volume_pillars = 2 * math.sqrt(3) / 3 * (1 - p1) * p1 * p3 * p4
+
+        volume_fraction = p1 ** 2 + 2 * (1 - p1) * p1 * p3 * p4
+
+        volume = volume_triangle + volume_pillars
+        total_volume = math.sqrt(3) / 3
+        assert abs(volume_fraction - volume / total_volume) < Tolerance
+
+    print "Volume is: ", volume
+    print "Volume fraction is ", volume_fraction
+
+    return volume, volume_fraction
