@@ -6,44 +6,12 @@ import subprocess
 
 import numpy as np
 
+import hexlib
+
 MAX_NUM_PILLARS = 30
 MIN_TRIANGLE_SIDE = 0.75
 MAX_TRIANGLE_SIDE = 0.99
 TRIANGLE_SIDE_EXPERIMENTS = 20
-TOLERANCE = 1e-7
-
-
-def compute_volume_info(experiment_type, p1, p2, p3, p4):
-    if experiment_type == "negative":
-        height = 1 * math.sqrt(3) / 3.0
-        s = 2 * height
-
-        volume_triangle = math.sqrt(3) / 4 * (p1 * s) ** 2
-        volume_pillars = p1 * p3 * p4 * s * (1 - math.sqrt(3) / 2 * s * p1)
-        volume = volume_triangle + volume_pillars
-
-        total_volume = math.sqrt(3) / 4 * s ** 2
-
-        volume_fraction = volume / total_volume
-
-    else:
-        r = p1 * math.sqrt(3) / 3
-        x = p1
-
-        volume_triangle = r * p1
-        volume_pillars = 2 * math.sqrt(3) / 3 * (1 - p1) * p1 * p3 * p4
-
-        volume_fraction = p1 ** 2 + 2 * (1 - p1) * p1 * p3 * p4
-
-        volume = volume_triangle + volume_pillars
-        total_volume = math.sqrt(3) / 3
-        assert abs(volume_fraction - volume / total_volume) < TOLERANCE
-
-    print "Volume is: ", volume
-    print "Volume fraction is ", volume_fraction
-
-    return volume, volume_fraction
-
 
 def print_experiment_info(p1, p2, p3, p4):
     print "\nExperimenting with parameters: \n" \
@@ -102,7 +70,7 @@ def compute_thickness(experiment_type, vol_frac, triangle_side_factor, chirality
 
         direct_thickness_ratio = (vol_frac - triangle_side_factor ** 2) / (
         2 * (1 - triangle_side_factor) * triangle_side_factor * chirality_factor)
-        assert abs(thickness_ratio - direct_thickness_ratio) < TOLERANCE
+        assert abs(thickness_ratio - direct_thickness_ratio) < hexlib.Tolerance
 
         if thickness_ratio > 1.0:
             print "Skipping experiment since pillar area is smaller than necessary width."
@@ -112,7 +80,7 @@ def compute_thickness(experiment_type, vol_frac, triangle_side_factor, chirality
 
 
 def run_experiment(experiment_type, triangle_side_factor, num_pillars, chirality_factor, thickness_ratio):
-    volume, vol_frac = compute_volume_info(experiment_type, triangle_side_factor, num_pillars, chirality_factor, thickness_ratio)
+    volume, vol_frac = hexlib.compute_volume_info(experiment_type, triangle_side_factor, num_pillars, chirality_factor, thickness_ratio)
 
     print "Volume fraction: " + str(vol_frac)
 
@@ -204,7 +172,7 @@ def test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chiral
     if thickness_ratio >= 0.0:
         run_experiment(experiment_type, triangle_side_factor, number_pillars, chirality_factor, thickness_ratio)
 
-        compute_volume_info(experiment_type, triangle_side_factor, number_pillars, chirality_factor, thickness_ratio)
+        hexlib.compute_volume_info(experiment_type, triangle_side_factor, number_pillars, chirality_factor, thickness_ratio)
 
 
 # First, verify if volume fraction is set
@@ -258,13 +226,13 @@ else:
                 for vol_frac in vol_frac_values:
                     test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
     else:
-        chirality_factor_values = [0.6, 0.7, 0.8, 0.9]
+        chirality_factor_values = [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
         for chirality_factor in chirality_factor_values:
             print "Warning: testing in 4 dimensions with volfrac, triangle sides, chirality and pillars"
 
             num_pillar_values = range(10, 50, 10)
             for index, number_pillars in enumerate(num_pillar_values):
-                triangle_side_values = [0.82, 0.86, 0.9, 0.94, 0.98]
+                triangle_side_values = [0.82, 0.84, 0.86, 0.88, 0.90, 0.92, 0.94, 0.96, 0.98]
                 for index, triangle_side_factor in enumerate(triangle_side_values):
                     vol_frac_values = [0.9, 0.92, 0.94, 0.96, 0.98]
                     for vol_frac in vol_frac_values:
