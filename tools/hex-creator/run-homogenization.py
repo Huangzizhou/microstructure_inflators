@@ -50,7 +50,7 @@ for filename in os.listdir(input_folder):
         wire_content = out_log.readlines()
         for line in wire_content:
             if line.startswith('Homogenized Moduli:'):
-                pattern = re.compile(r'\-?\d+\.?\d*')  # Compile a pattern to capture float values
+                pattern = re.compile(r'\-?\d+\.?\d*e?-?\d*')  # Compile a pattern to capture float values
                 floats = [float(i) for i in pattern.findall(line)]  # Convert strings to float
 
                 youngs_module_x = floats[0]
