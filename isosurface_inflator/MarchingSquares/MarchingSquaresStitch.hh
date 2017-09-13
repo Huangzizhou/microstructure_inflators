@@ -62,6 +62,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef MARCHINGSQUARESSTITCH_HH
 #define MARCHINGSQUARESSTITCH_HH
+
+#define BENCHMARK
+
 #include <vector>
 #include <map>
 #include "Grid.hh"

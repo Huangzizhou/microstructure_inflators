@@ -54,7 +54,8 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                  bool                      meshedFullPeriodCell,
                  bool                      requestFullPeriodCell,
                  const BBox<Point>         &meshCell,
-                 const MeshingOptions      &opts);
+                 const MeshingOptions      &opts,
+                 bool cheapPostProcessing);
 
 class IsosurfaceInflator::Impl {
 public:
@@ -90,8 +91,8 @@ public:
 
         // Determine if meshed domain is 2D or 3D and postprocess accordingly
         BBox<Point> bbox(vertices);
-        if (std::abs(bbox.dimensions()[2]) < 1e-8) postProcess<2>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions());
-        else                                       postProcess<3>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions());
+        if (std::abs(bbox.dimensions()[2]) < 1e-8) postProcess<2>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions(), m_cheapPostProcessing);
+        else                                       postProcess<3>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions(), m_cheapPostProcessing);
 
         if (meshingOptions().debugSVelPath.size()) {
             MSHFieldWriter writer(meshingOptions().debugSVelPath, vertices, elements);
@@ -164,6 +165,7 @@ public:
     // when generateFullPeriodCell == true
     bool reflectiveInflator = true;
     bool m_noPostprocess = false; // for debugging
+    bool m_cheapPostProcessing = true; // only valid when using inflation alone
     vector<MeshIO::IOVertex>  vertices;
     vector<MeshIO::IOElement> elements;
     vector<vector<Real>>      normalShapeVelocities;
@@ -414,6 +416,10 @@ IsosurfaceInflator::trackSignedDistanceGradient(const IsosurfaceInflator::Point 
 void IsosurfaceInflator::disablePostprocess() { m_imp->m_noPostprocess = true; }
 void IsosurfaceInflator:: enablePostprocess() { m_imp->m_noPostprocess = false; }
 
+void IsosurfaceInflator::disableCheapPostprocess() { m_imp->m_cheapPostProcessing = false; }
+void IsosurfaceInflator:: enableCheapPostprocess() { m_imp->m_cheapPostProcessing = true; }
+
+
 // Printability checks/constraints
 bool IsosurfaceInflator::isPrintable(const std::vector<Real> &params) const { return m_imp->isPrintable(params); }
 Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
@@ -444,8 +450,8 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                  bool                      meshedFullPeriodCell, // whether (vertices, elements) is already a mesh of the full period cell
                  bool                      requestFullPeriodCell,
                  const BBox<Point>         &meshCell,
-                 const MeshingOptions      &opts)
-{
+                 const MeshingOptions      &opts,
+                 bool cheapPostProcessing) {
     const bool needsReflecting = requestFullPeriodCell && !meshedFullPeriodCell;
 
     BENCHMARK_START_TIMER_SECTION("postProcess");
@@ -492,7 +498,7 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                 std::vector<PeriodicBoundaryMatcher::FaceMembership<N>> fm;
                 PeriodicBoundaryMatcher::determineCellBoundaryFaceMembership<N>(pts, cellND, fm, 0 /* epsilon */);
                 std::vector<std::vector<size_t>> nodeSets;
-                std::vector<size_t>              nodeSetForNode;
+                std::vector<size_t> nodeSetForNode;
                 // Could be sped up by only matching boundary vertices
                 try {
                     PeriodicBoundaryMatcher::match(pts, cellND, fm, nodeSets, nodeSetForNode);
@@ -513,14 +519,13 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                 auto dummy_vertices = vertices;
                 remove_dangling_vertices(dummy_vertices, stitched_elements);
                 get_element_components(stitched_elements, componentIndex, componentSize);
-            }
-            else {
+            } else {
                 get_element_components(elements, componentIndex, componentSize);
             }
 
             if (remove_small_components(componentIndex, componentSize, vertices, elements)) {
-                std::cout << "Removed " << bcm-> numVertices() - vertices.size() << " vertices"
-                          <<    " and " << bcm->numSimplices() - elements.size() << " elements"
+                std::cout << "Removed " << bcm->numVertices() - vertices.size() << " vertices"
+                          << " and " << bcm->numSimplices() - elements.size() << " elements"
                           << " (small components)" << std::endl;
                 done = false; // Rebuild mesh and try again.
             }
@@ -533,7 +538,9 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
         if (N == 3) smartSnap3D(vertices, symBaseCellMesh, meshCell);
     }
     catch (std::exception &e) {
-        std::cerr << "WARNING: smartSnap3D failed--probably nonsmooth geometry at cell interface. Resorting to dumbSnap3D." << std::endl;
+        std::cerr
+                << "WARNING: smartSnap3D failed--probably nonsmooth geometry at cell interface. Resorting to dumbSnap3D."
+                << std::endl;
         std::cerr << "(" << e.what() << ")" << std::endl;
         dumbSnap3D(vertices, meshCell, opts.facetDistance);
     }
@@ -569,7 +576,7 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     // boundary vertices because of the intersection of the periodic pattern with
     // the meshing box).
     // This this is not the case if any non-cell-face triangle is incident
-    vector<bool>internalCellFaceVertex(symBaseCellMesh.numBoundaryVertices(), true);
+    vector<bool> internalCellFaceVertex(symBaseCellMesh.numBoundaryVertices(), true);
     for (auto bs : symBaseCellMesh.boundarySimplices()) {
         bool isCellFace = false;
         for (size_t d = 0; d < N; ++d) {
@@ -625,151 +632,154 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
 
     BENCHMARK_STOP_TIMER("SnapAndDetermineEvaluationPts");
 
-    BENCHMARK_START_TIMER("SignedDistanceGradientsAndPartials");
-    // sd(x, p) = 0
-    // grad_x(sd) . dx/dp + d(sd)/dp = 0,   grad_x(sd) = n |grad_x(sd)|
-    // ==>  v . n = -[ d(sd)/dp ] / |grad_x(sd)|
     vector<vector<Real>> vnp;
     vector<Point> sdGradX;
-    // try {
-    vnp = inflator.signedDistanceParamPartials(evaluationPoints);
-    sdGradX = inflator.signedDistanceGradient(evaluationPoints);
-    // }
-    // catch(...) {
-    //     MSHFieldWriter debug("debug.msh", vertices, elements);
-    //     BENCHMARK_STOP_TIMER_SECTION("SignedDistanceGradientsAndPartials");
-    //     BENCHMARK_STOP_TIMER_SECTION("postProcess");
-    //     throw;
-    // }
+    vector<Real> sdGradNorms(evaluationPoints.size());
+
+    if (!cheapPostProcessing) {
+
+        BENCHMARK_START_TIMER("SignedDistanceGradientsAndPartials");
+        // sd(x, p) = 0
+        // grad_x(sd) . dx/dp + d(sd)/dp = 0,   grad_x(sd) = n |grad_x(sd)|
+        // ==>  v . n = -[ d(sd)/dp ] / |grad_x(sd)|
+
+        // try {
+        vnp = inflator.signedDistanceParamPartials(evaluationPoints);
+        sdGradX = inflator.signedDistanceGradient(evaluationPoints);
+        // }
+        // catch(...) {
+        //     MSHFieldWriter debug("debug.msh", vertices, elements);
+        //     BENCHMARK_STOP_TIMER_SECTION("SignedDistanceGradientsAndPartials");
+        //     BENCHMARK_STOP_TIMER_SECTION("postProcess");
+        //     throw;
+        // }
 
 #if 0
-    {
-        // Debug the smoothing modulation field (is it causing bad signed
-        // distance partials?)
-        vector<Real> smoothness;
-        vector<size_t> closestVtx;
-        std::tie(smoothness, closestVtx) = inflator.smoothnessAtPoints(evaluationPoints);
-        assert(smoothness.size() == evaluationPoints.size());
         {
-            Real avg = 0.0;
-            for (Real s : smoothness) avg += s;
-            avg /= smoothness.size();
-            std::cout << "Average smoothness: " << avg << std::endl;
-        }
+            // Debug the smoothing modulation field (is it causing bad signed
+            // distance partials?)
+            vector<Real> smoothness;
+            vector<size_t> closestVtx;
+            std::tie(smoothness, closestVtx) = inflator.smoothnessAtPoints(evaluationPoints);
+            assert(smoothness.size() == evaluationPoints.size());
+            {
+                Real avg = 0.0;
+                for (Real s : smoothness) avg += s;
+                avg /= smoothness.size();
+                std::cout << "Average smoothness: " << avg << std::endl;
+            }
 
-        ScalarField<Real> smoothnessField(symBaseCellMesh.numBoundaryVertices()),
-                          closestVtxField(symBaseCellMesh.numBoundaryVertices());
-        smoothnessField.clear(), closestVtxField.clear();
-        for (auto bv : symBaseCellMesh.boundaryVertices()) {
-            size_t idx = evalPointIndex.at(bv.index());
-            if (idx > smoothness.size()) continue;
-            smoothnessField[bv.index()] = smoothness[idx];
-            closestVtxField[bv.index()] = closestVtx[idx];
-        }
+            ScalarField<Real> smoothnessField(symBaseCellMesh.numBoundaryVertices()),
+                              closestVtxField(symBaseCellMesh.numBoundaryVertices());
+            smoothnessField.clear(), closestVtxField.clear();
+            for (auto bv : symBaseCellMesh.boundaryVertices()) {
+                size_t idx = evalPointIndex.at(bv.index());
+                if (idx > smoothness.size()) continue;
+                smoothnessField[bv.index()] = smoothness[idx];
+                closestVtxField[bv.index()] = closestVtx[idx];
+            }
 
-        // Extract boundary vertices/elements for output
-        std::vector<MeshIO::IOVertex > outVertices;
-        std::vector<MeshIO::IOElement> outElements;
-        for (auto bv : symBaseCellMesh.boundaryVertices())
-            outVertices.push_back(vertices.at(bv.volumeVertex().index()));
-        for (auto bs : symBaseCellMesh.boundarySimplices()) {
-            outElements.emplace_back(bs.vertex(0).index(),
-                                     bs.vertex(1).index(),
-                                     bs.vertex(2).index());
+            // Extract boundary vertices/elements for output
+            std::vector<MeshIO::IOVertex > outVertices;
+            std::vector<MeshIO::IOElement> outElements;
+            for (auto bv : symBaseCellMesh.boundaryVertices())
+                outVertices.push_back(vertices.at(bv.volumeVertex().index()));
+            for (auto bs : symBaseCellMesh.boundarySimplices()) {
+                outElements.emplace_back(bs.vertex(0).index(),
+                                         bs.vertex(1).index(),
+                                         bs.vertex(2).index());
+            }
+            MSHFieldWriter writer("smoothness_debug.msh", outVertices, outElements);
+            writer.addField("smoothness", smoothnessField, DomainType::PER_NODE);
+            writer.addField("closest_vtx", closestVtxField, DomainType::PER_NODE);
         }
-        MSHFieldWriter writer("smoothness_debug.msh", outVertices, outElements);
-        writer.addField("smoothness", smoothnessField, DomainType::PER_NODE);
-        writer.addField("closest_vtx", closestVtxField, DomainType::PER_NODE);
-    }
 #endif
-
-    vector<Real> sdGradNorms(evaluationPoints.size());
-    for (size_t i = 0; i < evaluationPoints.size(); ++i) {
-        sdGradNorms[i] = sdGradX[i].norm();
-        // We evaluate on the boundary--there should be a well-defined normal
-        if (std::isnan(sdGradNorms[i]) || (std::abs(sdGradNorms[i]) < 1e-8)) {
-            std::cerr << "Undefined normal at evaluation point "
-                      << evaluationPoints[i] << std::endl;
-            BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");
-            BENCHMARK_STOP_TIMER_SECTION("postProcess");
-            //throw std::runtime_error("Normal undefined.");
-        }
-    }
-
-    for (auto &vn : vnp) {
-        for (size_t i = 0; i < vn.size(); ++i) {
-            vn[i] *= -1.0 / sdGradNorms[i];
-            if (std::isnan(vn[i])) {
-                ScalarField<Real> fail(vertices.size());
-                fail.clear();
-                for (const auto bv : symBaseCellMesh.boundaryVertices()) {
-                    size_t e = evalPointIndex.at(bv.index());
-                    if (e < evaluationPoints.size()) {
-                        if (std::isnan(vn.at(e))) fail[bv.volumeVertex().index()] = 1.0;
-                    }
-                }
-
-                MSHFieldWriter debug("debug.msh", vertices, elements);
-                debug.addField("fail", fail);
+        for (size_t i = 0; i < evaluationPoints.size(); ++i) {
+            sdGradNorms[i] = sdGradX[i].norm();
+            // We evaluate on the boundary--there should be a well-defined normal
+            if (std::isnan(sdGradNorms[i]) || (std::abs(sdGradNorms[i]) < 1e-8)) {
+                std::cerr << "Undefined normal at evaluation point "
+                          << evaluationPoints[i] << std::endl;
                 BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");
                 BENCHMARK_STOP_TIMER_SECTION("postProcess");
-                throw std::runtime_error("nan vn");
-                // assert(false);
+                //throw std::runtime_error("Normal undefined.");
             }
         }
-    }
-    BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");
 
-    BENCHMARK_START_TIMER("Reflecting");
-    // If the mesher only generates the orthotropic base cell, the mesh must
-    // be reflected to get the full period cell (if requested).
-    if (needsReflecting) {
-        vector<MeshIO::IOVertex>  reflectedVertices;
-        vector<MeshIO::IOElement> reflectedElements;
-        vector<size_t>   vertexOrigin;
-        vector<Isometry> vertexIsometry;
-        reflectXYZ(N, vertices, elements, onMinFace,
-                   reflectedVertices, reflectedElements,
-                   vertexOrigin, vertexIsometry);
+        for (auto &vn : vnp) {
+            for (size_t i = 0; i < vn.size(); ++i) {
+                vn[i] *= -1.0 / sdGradNorms[i];
+                if (std::isnan(vn[i])) {
+                    ScalarField<Real> fail(vertices.size());
+                    fail.clear();
+                    for (const auto bv : symBaseCellMesh.boundaryVertices()) {
+                        size_t e = evalPointIndex.at(bv.index());
+                        if (e < evaluationPoints.size()) {
+                            if (std::isnan(vn.at(e))) fail[bv.volumeVertex().index()] = 1.0;
+                        }
+                    }
 
-        // Copy over normal velocity and vertex normal data.
-        // So that we don't rely on consistent boundary vertex numbering
-        // (which is nevertheless guaranteed by our mesh datastructure),
-        // we store this data per-vertex (setting the data on internal
-        // vertices to 0).
-        normalShapeVelocities.assign(vnp.size(), vector<Real>(reflectedVertices.size()));
-        vertexNormals.assign(reflectedVertices.size(), Point::Zero());
-
-        for (size_t i = 0; i < reflectedVertices.size(); ++i) {
-            auto v = symBaseCellMesh.vertex(vertexOrigin[i]);
-            assert(v);
-            auto bv = v.boundaryVertex();
-            if (!bv || internalCellFaceVertex[bv.index()]) continue;
-            size_t evalIdx = evalPointIndex.at(bv.index());
-            assert(evalIdx < evaluationPoints.size());
-            // Transform normals by the reflection isometry and normalize
-            vertexNormals[i] = vertexIsometry[i].apply(sdGradX[evalIdx]) / sdGradNorms[evalIdx];
-            for (size_t p = 0; p < vnp.size(); ++p)
-                normalShapeVelocities[p][i] = vnp[p][evalIdx];
+                    MSHFieldWriter debug("debug.msh", vertices, elements);
+                    debug.addField("fail", fail);
+                    BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");
+                    BENCHMARK_STOP_TIMER_SECTION("postProcess");
+                    throw std::runtime_error("nan vn");
+                    // assert(false);
+                }
+            }
         }
+        BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");
 
-        reflectedVertices.swap(vertices);
-        reflectedElements.swap(elements);
-    }
-    else {
-        // Otherwise, we still need to copy over the normal shape velocities
-        normalShapeVelocities.assign(vnp.size(), vector<Real>(vertices.size()));
-        vertexNormals.assign(vertices.size(), Point::Zero());
-        for (auto bv : symBaseCellMesh.boundaryVertices()) {
-            size_t evalIdx = evalPointIndex[bv.index()];
-            if (evalIdx >= evalPointIndex.size()) continue;
-            size_t vi = bv.volumeVertex().index();
-            vertexNormals[vi] = sdGradX[evalIdx] / sdGradNorms[evalIdx];
-            for (size_t p = 0; p < vnp.size(); ++p)
-                normalShapeVelocities[p][vi] = vnp[p][evalIdx];
+        BENCHMARK_START_TIMER("Reflecting");
+        // If the mesher only generates the orthotropic base cell, the mesh must
+        // be reflected to get the full period cell (if requested).
+        if (needsReflecting) {
+            vector<MeshIO::IOVertex> reflectedVertices;
+            vector<MeshIO::IOElement> reflectedElements;
+            vector<size_t> vertexOrigin;
+            vector<Isometry> vertexIsometry;
+            reflectXYZ(N, vertices, elements, onMinFace,
+                       reflectedVertices, reflectedElements,
+                       vertexOrigin, vertexIsometry);
+
+            // Copy over normal velocity and vertex normal data.
+            // So that we don't rely on consistent boundary vertex numbering
+            // (which is nevertheless guaranteed by our mesh datastructure),
+            // we store this data per-vertex (setting the data on internal
+            // vertices to 0).
+            normalShapeVelocities.assign(vnp.size(), vector<Real>(reflectedVertices.size()));
+            vertexNormals.assign(reflectedVertices.size(), Point::Zero());
+
+            for (size_t i = 0; i < reflectedVertices.size(); ++i) {
+                auto v = symBaseCellMesh.vertex(vertexOrigin[i]);
+                assert(v);
+                auto bv = v.boundaryVertex();
+                if (!bv || internalCellFaceVertex[bv.index()]) continue;
+                size_t evalIdx = evalPointIndex.at(bv.index());
+                assert(evalIdx < evaluationPoints.size());
+                // Transform normals by the reflection isometry and normalize
+                vertexNormals[i] = vertexIsometry[i].apply(sdGradX[evalIdx]) / sdGradNorms[evalIdx];
+                for (size_t p = 0; p < vnp.size(); ++p)
+                    normalShapeVelocities[p][i] = vnp[p][evalIdx];
+            }
+
+            reflectedVertices.swap(vertices);
+            reflectedElements.swap(elements);
+        } else {
+            // Otherwise, we still need to copy over the normal shape velocities
+            normalShapeVelocities.assign(vnp.size(), vector<Real>(vertices.size()));
+            vertexNormals.assign(vertices.size(), Point::Zero());
+            for (auto bv : symBaseCellMesh.boundaryVertices()) {
+                size_t evalIdx = evalPointIndex[bv.index()];
+                if (evalIdx >= evalPointIndex.size()) continue;
+                size_t vi = bv.volumeVertex().index();
+                vertexNormals[vi] = sdGradX[evalIdx] / sdGradNorms[evalIdx];
+                for (size_t p = 0; p < vnp.size(); ++p)
+                    normalShapeVelocities[p][vi] = vnp[p][evalIdx];
+            }
         }
+        BENCHMARK_STOP_TIMER("Reflecting");
     }
-    BENCHMARK_STOP_TIMER("Reflecting");
 
     // static int _run_num = 0;
     // MeshIO::save("debug_" + std::to_string(_run_num++) + ".msh", vertices, elements);

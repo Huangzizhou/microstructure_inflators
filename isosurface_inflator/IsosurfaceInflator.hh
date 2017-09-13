@@ -24,6 +24,8 @@
 #include "WireMesh.hh"
 #include "MeshingOptions.hh"
 
+#define BENCHMARK
+
 class IsosurfaceInflator {
 public:
     typedef Eigen::Matrix<Real, 3, 1> Point;
@@ -73,6 +75,9 @@ public:
     // For debugging
     void disablePostprocess();
     void  enablePostprocess();
+
+    void disableCheapPostprocess();
+    void  enableCheapPostprocess();
 
     MeshingOptions &meshingOptions();
 
