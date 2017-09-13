@@ -252,6 +252,7 @@ hexlib.add_new_edges(edges_descriptions, vertices, edges)
 # transforming to final square shape
 vertices = np.array(vertices)
 transformation_matrix = 2./3 * np.matrix('1.0 -0.577350269189626; 0.0 1.154700538379251')
+#transformation_matrix = np.matrix('1.0 0.0; 0.0 1.0')
 resulting_vertices = transformation_matrix * vertices.transpose()
 vertices = np.asarray(resulting_vertices.transpose()) - 1.0
 
@@ -292,7 +293,7 @@ print "Inflating ..."
 
 #TODO: find, in microstructure, smaller and larger pillar tickness, so we can compute thickness void and real thickness with more precision
 thickness_void = (triangle_side*pillar_area_ratio - num_pillars*thickness) / (num_pillars - 1)
-min_resolution = max(2 / thickness_void, 2 / thickness)
+min_resolution = max(3 / thickness_void, 3 / thickness)
 chosen_resolution = 2 * math.pow(2, math.ceil(math.log(min_resolution) / math.log(2)))
 
 if chosen_resolution > 1024:
