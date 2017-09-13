@@ -126,7 +126,7 @@ for i in range(2, len(sys.argv)):
         else:
             p4.append(0)
 
-plotCharts(p1, 'viridis', 'p1: triangle side')
-plotCharts(p2, 'inferno', 'p2: number of pillars')
+plotCharts(p1, 'winter', 'p1: triangle side')
+plotCharts(p2, 'cool', 'p2: number of pillars')
 
 plt.show()
