@@ -56,9 +56,20 @@ def create_triangle_edges(triangle, n, offset=0.0, thickness=0.0):
 
         unit_vector = (segment_end - segment_start) / np.linalg.norm(segment_end - segment_start)
 
+        if n == 1:
+            middle_point = segment_start + (segment_end - segment_start) / 2
+            segment_start_offset = middle_point - thickness * unit_vector
+            segment_end_offset = middle_point + thickness * unit_vector
+
+            edges_descriptions.append([segment_start, segment_start_offset])
+            edges_descriptions.append([segment_start_offset, middle_point])
+            edges_descriptions.append([middle_point, segment_end_offset])
+            edges_descriptions.append([segment_end_offset, segment_end])
+
+            continue
+
         segment_start_offset = segment_start + unit_vector * offset
         segment_end_offset = segment_end - unit_vector * offset
-
 
         if thickness > 0.0:
             create_subdivided_segment_pillars(segment_start_offset, segment_end_offset, n, edges_descriptions, thickness)
@@ -120,6 +131,13 @@ def create_pillars(segment1, segment2, n):
     # vectors representing each segment
     vector1 = segment1[1] - segment1[0]
     vector2 = segment2[1] - segment2[0]
+
+    if n == 1:
+        pos1 = segment1[0] + vector1 / 2
+        pos2 = segment2[0] + vector2 / 2
+        edges_descriptions.append([pos1, pos2])
+
+        return edges_descriptions
 
     for t in range(0, n):
         # compute position in segments 1 and 2 that will be linked

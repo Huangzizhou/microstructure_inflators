@@ -206,9 +206,19 @@ hexlib.create_wire(vertices, edges, out_wire)
 print "Inflating ..."
 
 # Computing void thickness and necessary resolution
-thickness_void = (triangle_side - 2 * num_pillars * pillars_thickness) / (num_pillars - 1)
-min_resolution = 2 / thickness_void
-chosen_resolution = math.pow(2, math.ceil(math.log(min_resolution) / math.log(2)))
+if num_pillars == 1:
+    thickness_void = 0.0
+    min_resolution = max(2 / (2*pillars_thickness))
+    chosen_resolution = math.pow(2, math.ceil(math.log(min_resolution) / math.log(2)))
+else:
+    thickness_void = (triangle_side - 2 * num_pillars * pillars_thickness) / (num_pillars - 1)
+    min_resolution = max(2 / thickness_void, 2 / (2*pillars_thickness))
+    chosen_resolution = math.pow(2, math.ceil(math.log(min_resolution) / math.log(2)))
+
+if chosen_resolution > 2048:
+        print "Resolution of " + str(chosen_resolution) + " is too big"
+        print "Skipping experiment!"
+        exit()
 
 if chosen_resolution < 64:
     chosen_resolution = 64
