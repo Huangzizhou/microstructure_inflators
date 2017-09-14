@@ -416,6 +416,9 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
     #print cmd
     call(cmd)
 
+    if os.path.isfile(out_path):
+        open(out_path + '.done', 'a').close()
+
 
 def extract_vertices_from_edges_descriptions(edges_descriptions):
     extracted_vertices = []
@@ -824,6 +827,7 @@ def edge_intersection(edge_1, edge_2):
     x = det_2D(d, x_delta) / div
     y = det_2D(d, y_delta) / div
     return [x, y]
+
 
 def compute_volume_info(experiment_type, p1, p2, p3, p4):
     if experiment_type == "negative":

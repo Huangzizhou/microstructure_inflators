@@ -103,7 +103,8 @@ def run_negative_poisson_experiment(vol_frac, triangle_side_factor, num_pillars,
 
     if os.path.isfile(mesh_name):
         print "Already computed"
-        pass
+    elif os.path.isfile(mesh_name + '.done'):
+        print "Already computed (done file)"
     elif os.path.isfile(lock_name):
         print "Locked instance"
     else:
@@ -131,7 +132,8 @@ def run_positive_poisson_experiment(vol_frac, triangle_side_factor, num_pillars,
 
     if os.path.isfile(mesh_name):
         print "Already computed"
-        pass
+    elif os.path.isfile(mesh_name + '.done'):
+        print "Already computed (done file)"
     elif os.path.isfile(lock_name):
         print "Locked instance"
     else:
