@@ -222,9 +222,9 @@ else:
 
         num_pillar_values = [1,2,5] + range(10, 101, 10)
         for index, number_pillars in enumerate(num_pillar_values):
-            triangle_side_values = np.arange(0.7, 0.99, 0.01)
+            triangle_side_values = np.arange(0.5, 0.99, 0.01)
             for index, triangle_side_factor in enumerate(triangle_side_values):
-                vol_frac_values = np.arange(0.8, 0.98, 0.02)
+                vol_frac_values = np.arange(0.7, 0.99, 0.01)
                 for vol_frac in vol_frac_values:
                     test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
     else:
@@ -232,10 +232,10 @@ else:
         for chirality_factor in chirality_factor_values:
             print "Warning: testing in 4 dimensions with volfrac, triangle sides, chirality and pillars"
 
-            num_pillar_values = [1,2,5] + range(10, 50, 10)
+            num_pillar_values = [1,2,5] + range(10, 51, 10)
             for index, number_pillars in enumerate(num_pillar_values):
-                triangle_side_values = np.arange(0.8, 0.99, 0.01)
+                triangle_side_values = np.arange(0.7, 0.99, 0.01)
                 for index, triangle_side_factor in enumerate(triangle_side_values):
-                    vol_frac_values = [0.9, 0.92, 0.94, 0.96, 0.98]
+                    vol_frac_values = np.arange(0.7, 0.99, 0.01)
                     for vol_frac in vol_frac_values:
                         test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
