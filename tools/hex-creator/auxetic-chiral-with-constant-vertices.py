@@ -17,6 +17,7 @@ def translate_at(origin, offset, vertices, edges, edges_descriptions):
 
     return translated_vertices
 
+
 def rotate_at(center_of_rotation, degrees, vertices, edges, edges_descriptions):
     translated_vertices = vertices - center_of_rotation
     rotated_vertices = hexlib.rotate(degrees, translated_vertices) + center_of_rotation
@@ -27,6 +28,7 @@ def rotate_at(center_of_rotation, degrees, vertices, edges, edges_descriptions):
         edges_descriptions.append([v1, v2])
 
     return rotated_vertices
+
 
 def create_pillar_edge(edge):
     crossing_edge = [[-1.0, 0.0], [1.0, 0.0]]
@@ -90,9 +92,11 @@ if len(sys.argv) != 7:
     print "example: ./auxetic-chiral-with-constant-vertices.py 0.8 3 0.6 0.9 output.wire output.msh"
     sys.exit(-1)
 
-# . b
-#     . '  |  ' .
-# a._______|_______. c
+#       .b
+#      /\
+#     /  \
+#    /    \
+# a /______\ c
 #
 triangle_side_ratio = float(sys.argv[1])
 num_pillars = int(sys.argv[2])
@@ -102,6 +106,22 @@ out_wire = sys.argv[5]
 out_mesh = sys.argv[6]
 parallelogram_side = 3.0
 s = parallelogram_side / 3.0
+
+
+print "Computing volume information"
+triangle_height = s * math.sqrt(3)/2.0 - s * math.sqrt(3)/2.0 * (1-triangle_side_ratio)
+triangle_side = triangle_side_ratio * s
+thickness = thickness_ratio * (pillar_area_ratio * triangle_side / num_pillars)
+volume_triangle = triangle_side_ratio * triangle_height / 2
+volume_pillars = num_pillars * thickness * (s * math.sqrt(3)/2.0 * (1-triangle_side_ratio))
+
+volume_total = s ** 2 * math.sqrt(3) / 4
+
+print "volume fraction: " + str((volume_pillars + volume_triangle) / volume_total)
+
+hexlib_volume, hexlib_volfrac = hexlib.compute_volume_info("negative", triangle_side_ratio, num_pillars, pillar_area_ratio, thickness_ratio)
+
+print "hexlib volume fraction: " + str(hexlib_volfrac)
 
 print "Constructing " + out_wire + " ..."
 
@@ -131,10 +151,14 @@ q2_reflected = [q2[0], -q2[1]]
 thickness = thickness_ratio * (pillar_area_ratio * triangle_side / num_pillars)
 spacing = (pillar_area_ratio * triangle_side - thickness) / (num_pillars - 1) - thickness
 
+
+# CREATE VERTICES IN THE INITIAL (ORIGINAL) EQUILATERAL TRIANGLE
 edges_descriptions, original_pillar_polygons = create_pillars_with_constant_spacing_and_thickness(np.array([q2, q1]), np.array([q2_reflected, q1_reflected]), pillar_area_ratio, num_pillars, thickness, spacing)
 pillar_polygons += original_pillar_polygons
 hexlib.add_new_edges(edges_descriptions, vertices, edges)
 
+
+# CREATE BOTTOM-LEFT PART OF THE STRUCTURE
 edges_descriptions = []
 rotate_at(b, 60, vertices, edges, edges_descriptions)
 rotate_at(b, 120, vertices, edges, edges_descriptions)
@@ -157,6 +181,7 @@ for pillar_polygon in original_pillar_polygons:
     pillar_polygons += [rotated_60, rotated_120]
 
 
+# CREATE TOP-LEFT PART OF THE STRUCTURE
 center = np.array([2*s, s*math.sqrt(3)])
 translated_vertices = translate_at(b, center, vertices, edges, edges_descriptions)
 rotate_at(center, 60, translated_vertices, edges, edges_descriptions)
@@ -192,6 +217,8 @@ for pillar_polygon in original_pillar_polygons:
     rotated_300 = rotate_at(center, 300, translated_pillar_polygon, [], [])
     pillar_polygons += [translated_pillar_polygon, rotated_60, rotated_120, rotated_180, rotated_240, rotated_300]
 
+
+# CREATE TOP-RIGHT PART OF THE STRUCTURE
 center = np.array([3*s + s/2, 3.0/2*s*math.sqrt(3)])
 translated_vertices = translate_at(b, center, vertices, edges, edges_descriptions)
 rotate_at(center, 60, translated_vertices, edges, edges_descriptions)
@@ -205,6 +232,7 @@ for pillar_polygon in original_pillar_polygons:
     pillar_polygons += [translated_pillar_polygon, rotated_60, rotated_300]
 
 
+# CREATE BOTTOM PART OF THE STRUCTURE
 center = np.array([2*s, 0.0])
 translated_vertices = translate_at(b, center, vertices, edges, [])
 rotate_at(center, 120, translated_vertices, edges, edges_descriptions)
@@ -233,6 +261,7 @@ for pillar_polygon in original_pillar_polygons:
     pillar_polygons += [rotated_120, rotated_180, rotated_240]
 
 
+# CREATE RIGHT PART OF THE STRUCTURE
 center = np.array([3*s + s/2, s*math.sqrt(3)/2])
 translated_vertices = translate_at(b, center, vertices, edges, [])
 rotate_at(center, 180, translated_vertices, edges, edges_descriptions)
@@ -247,15 +276,17 @@ for pillar_polygon in original_pillar_polygons:
     rotated_300 = rotate_at(center, 300, translated_pillar_polygon, [], [])
     pillar_polygons += [rotated_180, rotated_240, rotated_300]
 
+
+# ADD ALL EDGES DESCRIPTIONS
 hexlib.add_new_edges(edges_descriptions, vertices, edges)
 
-# transforming to final square shape
+
+# TRANSFORM TO FINAL SQUARE SHAPE in [-1, 1] x [-1, 1] cell
 vertices = np.array(vertices)
 transformation_matrix = 2./3 * np.matrix('1.0 -0.577350269189626; 0.0 1.154700538379251')
 #transformation_matrix = np.matrix('1.0 0.0; 0.0 1.0')
 resulting_vertices = transformation_matrix * vertices.transpose()
 vertices = np.asarray(resulting_vertices.transpose()) - 1.0
-
 
 # deal with triangles
 for index, triangle in enumerate(triangles):
@@ -274,7 +305,6 @@ triangles += reflected_triangles
 vertices = list(vertices)
 incenters_thickness_pairs = hexlib.add_polygons_incenters(triangles, vertices, edges)
 
-
 # deal with pillars
 pillar_nodes_custom_pairs = []
 for index, pillar_polygon in enumerate(pillar_polygons):
@@ -286,7 +316,7 @@ for index, pillar_polygon in enumerate(pillar_polygons):
 
     pillar_nodes_custom_pairs.append([pillar_nodes, nodes_thickness])
 
-
+# FINALLY, CREATE WIRE
 hexlib.create_wire(vertices, edges, out_wire)
 
 print "Inflating ..."
