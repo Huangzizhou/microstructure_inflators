@@ -6,6 +6,7 @@ import re
 
 import matplotlib.pyplot as plt
 import interactiveplotlib as ipl
+import numpy as np
 
 import hexlib
 
@@ -20,12 +21,16 @@ def plotCharts(info, colormap='viridis', colormap_legend='info'):
     ax.set_xlabel(r'$\nu$')
     ax.set_ylabel('E')
 
+    max_info = max(info)
+    min_info = min(info)
+    ticks = list(np.linspace(min_info, max_info, 10))
+
     my_cmap = plt.cm.get_cmap(colormap)
     col = ax.scatter(x, y, c=info, marker='+', cmap=my_cmap, picker=True)
     af = ipl.AnnoteFinder(x, y, annotes, ax=ax, color='r', start_showing=False)
     fig.canvas.mpl_connect('button_press_event', af)
 
-    cbar = fig.colorbar(col, ticks=info)
+    cbar = fig.colorbar(col, ticks=ticks)
     cbar.ax.set_ylabel(colormap_legend)
 
     # Now, create a new plot showing shear and bulk modulus
@@ -53,7 +58,7 @@ def plotCharts(info, colormap='viridis', colormap_legend='info'):
     af = ipl.AnnoteFinder(x2, y2, annotes, ax=ax2, color='b', start_showing=False)
     fig2.canvas.mpl_connect('button_press_event', af)
 
-    cbar2 = fig2.colorbar(col2, ticks=info)
+    cbar2 = fig2.colorbar(col2, ticks=ticks)
     cbar2.ax.set_ylabel(colormap_legend)
 
 
@@ -128,5 +133,7 @@ for i in range(2, len(sys.argv)):
 
 plotCharts(p1, 'winter', 'p1: triangle side')
 plotCharts(p2, 'cool', 'p2: number of pillars')
+plotCharts(p3, 'viridis', 'p3: chirality')
+plotCharts(p4, 'spring', 'p4: thickness')
 
 plt.show()
