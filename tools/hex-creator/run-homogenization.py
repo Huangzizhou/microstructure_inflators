@@ -54,7 +54,7 @@ for filename in os.listdir(input_folder):
                 floats = [float(i) for i in pattern.findall(line)]  # Convert strings to float
 
                 youngs_module_x = floats[0]
-                youngs_module_y = floats[0]
+                youngs_module_y = floats[1]
                 youngs_module_avg = (youngs_module_x + youngs_module_y) / 2.0
 
                 poisson_ratio = floats[2]
