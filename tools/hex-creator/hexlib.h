@@ -29,7 +29,7 @@ using namespace Eigen;
 template <typename TReal>
 class HexLib {
 public:
-    typedef Eigen::Matrix<TReal, 2, 1> Point;
+    using Point = Eigen::Matrix<TReal, 2, 1>;
 
     HexLib() {}
     ~HexLib() {}
@@ -1098,6 +1098,400 @@ public:
             pillar_nodes_vector.push_back(node);
         }
         custom_pairs.push_back({pillar_nodes_vector, thickness * thickness_correction_factor});
+    }
+
+
+    void generate_auxetic_topology_and_thickness_info(TReal triangle_side_ratio, unsigned num_pillars, TReal pillar_area_ratio,
+                                                      TReal thickness_ratio, Matrix<TReal, 2, Dynamic> &vertices, vector<vector<int>> &edges,
+                                                      vector<pair<vector<Point>, TReal> > &custom_pairs) {
+        vector<vector<Point>> edges_descriptions;
+        double parallelogram_side = 3.0;
+        double s = parallelogram_side / 3.0;
+
+        vector<Matrix<TReal, 2, Dynamic> > triangles, pillar_polygons;
+
+        // define important vertices of simplex used to build entire parallelogram structure
+        Point origin, a, b, c;
+        origin << 0, 0;
+        a << 0, 0;
+        b << s/2.0, s * sqrt(3)/2.0;
+        c << s, 0;
+
+        // define vertices of triangle
+        TReal triangle_side = triangle_side_ratio * s;
+        TReal triangle_y_position = s * sqrt(3)/2.0 * (1-triangle_side_ratio);
+
+        Point q1, q2, q1_reflected, q2_reflected;
+        q1 << s/2.0 * (1-triangle_side_ratio), triangle_y_position;
+        q2 << s/2.0 * (1+triangle_side_ratio), triangle_y_position;
+
+        // reflect q1 and q2 against the x axis
+        q1_reflected << q1(0), -q1(1);
+        q2_reflected << q2(0), -q2(1);
+
+        TReal thickness = thickness_ratio * (pillar_area_ratio * triangle_side / num_pillars);
+        TReal spacing = (pillar_area_ratio * triangle_side - thickness) / (num_pillars - 1) - thickness;
+
+
+        // CREATE VERTICES IN THE INITIAL (ORIGINAL) EQUILATERAL TRIANGLE
+        create_pillars_with_constant_spacing_and_thickness({q2, q1}, {q2_reflected, q1_reflected}, pillar_area_ratio, num_pillars, thickness, spacing, edges_descriptions, pillar_polygons);
+        vector<Matrix<TReal, 2, Dynamic>> original_pillar_polygons;
+        std::copy(pillar_polygons.begin(), pillar_polygons.end(), std::back_insert_iterator<vector<Matrix<TReal, 2, Dynamic> > >(original_pillar_polygons));
+
+        add_new_edges(edges_descriptions, vertices, edges);
+
+        // CREATE BOTTOM-LEFT PART OF THE STRUCTURE
+        edges_descriptions.clear();
+        rotate_at(b, 60, vertices, edges, edges_descriptions);
+        rotate_at(b, 120, vertices, edges, edges_descriptions);
+
+        // do the same with hexagon vertices
+        Matrix<TReal, 2, 2> hexagon_vertices_matrix;
+        hexagon_vertices_matrix << q1, q2;
+        vector<vector<int>> hexagon_edges = {{0, 1}};
+        vector<vector<Point>> hexagon_edges_descriptions = {{q1, q2}};
+        rotate_at(b, 60, hexagon_vertices_matrix, hexagon_edges, hexagon_edges_descriptions);
+        rotate_at(b, 120, hexagon_vertices_matrix, hexagon_edges, hexagon_edges_descriptions);
+        vector<Point> hexagon_vertices = extract_vertices_from_edges_descriptions(hexagon_edges_descriptions);
+        Matrix<TReal, 2, 3> triangle;
+        triangle << hexagon_vertices[0], hexagon_vertices[1], hexagon_vertices[2];
+        triangles.push_back(triangle);
+        triangle << hexagon_vertices[0], hexagon_vertices[2], hexagon_vertices[3];
+        triangles.push_back(triangle);
+        vector<int> triangles_to_be_reflected = {0, 1};
+
+        // same with pillar polygons
+        for (unsigned index = 0; index < original_pillar_polygons.size(); index++) {
+            Matrix<TReal, 2, Dynamic> pillar_polygon = original_pillar_polygons[index];
+
+            vector<vector<Point>> empty_edges_descriptions;
+            Matrix<TReal, 2, Dynamic> rotated_60 = rotate_at(b, 60, pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_120 = rotate_at(b, 120, pillar_polygon, {}, empty_edges_descriptions);
+            pillar_polygons.push_back(rotated_60);
+            pillar_polygons.push_back(rotated_120);
+        }
+
+
+        // CREATE TOP-LEFT PART OF THE STRUCTURE
+        Point center;
+        center <<2*s, s*sqrt(3);
+        Matrix<TReal, 2, Dynamic> translated_vertices = translate_at(b, center, vertices, edges, edges_descriptions);
+        rotate_at(center, 60, translated_vertices, edges, edges_descriptions);
+        rotate_at(center, 120, translated_vertices, edges, edges_descriptions);
+        rotate_at(center, 180, translated_vertices, edges, edges_descriptions);
+        rotate_at(center, 240, translated_vertices, edges, edges_descriptions);
+        rotate_at(center, 300, translated_vertices, edges, edges_descriptions);
+
+        // do the same with hexagon vertices
+        hexagon_vertices = {q1, q2};
+        hexagon_vertices_matrix << q1, q2;
+        hexagon_edges = {{0, 1}};
+        hexagon_edges_descriptions.clear();
+        Matrix<TReal, 2, Dynamic> translated_hexagon_vertices = translate_at(b, center, hexagon_vertices_matrix, hexagon_edges, hexagon_edges_descriptions);
+        rotate_at(center, 60, translated_hexagon_vertices, hexagon_edges, hexagon_edges_descriptions);
+        rotate_at(center, 120, translated_hexagon_vertices, hexagon_edges, hexagon_edges_descriptions);
+        rotate_at(center, 180, translated_hexagon_vertices, hexagon_edges, hexagon_edges_descriptions);
+        rotate_at(center, 240, translated_hexagon_vertices, hexagon_edges, hexagon_edges_descriptions);
+        rotate_at(center, 300, translated_hexagon_vertices, hexagon_edges, hexagon_edges_descriptions);
+        rotate_at(center, 360, translated_hexagon_vertices, hexagon_edges, hexagon_edges_descriptions);
+        hexagon_vertices = extract_vertices_from_edges_descriptions(hexagon_edges_descriptions);
+        triangle << hexagon_vertices[0], hexagon_vertices[1], hexagon_vertices[2];
+        triangles.push_back(triangle);
+        triangle << hexagon_vertices[3], hexagon_vertices[4], hexagon_vertices[5];
+        triangles.push_back(triangle);
+        triangle << hexagon_vertices[0], hexagon_vertices[2], hexagon_vertices[5];
+        triangles.push_back(triangle);
+        triangle << hexagon_vertices[3], hexagon_vertices[5], hexagon_vertices[2];
+        triangles.push_back(triangle);
+
+        // same with pillar polygons
+        for (unsigned index = 0; index < original_pillar_polygons.size(); index++) {
+            Matrix<TReal, 2, Dynamic> pillar_polygon = original_pillar_polygons[index];
+
+            vector<vector<Point>> empty_edges_descriptions;
+
+            Matrix<TReal, 2, Dynamic> translated_pillar_polygon = translate_at(b, center, pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_60 = rotate_at(center, 60, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_120 = rotate_at(center, 120, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_180 = rotate_at(center, 180, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_240 = rotate_at(center, 240, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_300 = rotate_at(center, 300, translated_pillar_polygon, {}, empty_edges_descriptions);
+
+            pillar_polygons.push_back(translated_pillar_polygon);
+            pillar_polygons.push_back(rotated_60);
+            pillar_polygons.push_back(rotated_120);
+            pillar_polygons.push_back(rotated_180);
+            pillar_polygons.push_back(rotated_240);
+            pillar_polygons.push_back(rotated_300);
+        }
+
+        // CREATE TOP-RIGHT PART OF THE STRUCTURE
+        center << 3*s + s/2, 3.0/2*s*sqrt(3);
+        translated_vertices = translate_at(b, center, vertices, edges, edges_descriptions);
+        rotate_at(center, 60, translated_vertices, edges, edges_descriptions);
+        rotate_at(center, -60, translated_vertices, edges, edges_descriptions);
+
+        // same with pillar polygons
+        for (unsigned index = 0; index < original_pillar_polygons.size(); index++) {
+            Matrix<TReal, 2, Dynamic> pillar_polygon = original_pillar_polygons[index];
+
+            vector<vector<Point>> empty_edges_descriptions;
+
+            Matrix<TReal, 2, Dynamic> translated_pillar_polygon = translate_at(b, center, pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_60 = rotate_at(center, 60, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_300 = rotate_at(center, 300, translated_pillar_polygon, {}, empty_edges_descriptions);
+
+            pillar_polygons.push_back(translated_pillar_polygon);
+            pillar_polygons.push_back(rotated_60);
+            pillar_polygons.push_back(rotated_300);
+        }
+
+
+        // CREATE BOTTOM PART OF THE STRUCTURE
+        center << 2*s, 0.0;
+        vector<vector<Point>> empty_edges_descriptions;
+        translated_vertices = translate_at(b, center, vertices, edges, empty_edges_descriptions);
+        rotate_at(center, 120, translated_vertices, edges, edges_descriptions);
+        rotate_at(center, 180, translated_vertices, edges, edges_descriptions);
+        rotate_at(center, 240, translated_vertices, edges, edges_descriptions);
+
+        // do the same with hexagon vertices
+        hexagon_vertices = {q1, q2};
+        hexagon_vertices_matrix << q1, q2;
+        hexagon_edges = {{0, 1}};
+        hexagon_edges_descriptions.clear();
+        translated_hexagon_vertices = translate_at(b, center, hexagon_vertices_matrix, hexagon_edges, hexagon_edges_descriptions);
+        rotate_at(center, 120, translated_hexagon_vertices, hexagon_edges, hexagon_edges_descriptions);
+        rotate_at(center, 180, translated_hexagon_vertices, hexagon_edges, hexagon_edges_descriptions);
+        rotate_at(center, 240, translated_hexagon_vertices, hexagon_edges, hexagon_edges_descriptions);
+        hexagon_vertices = extract_vertices_from_edges_descriptions(hexagon_edges_descriptions);
+        triangle << hexagon_vertices[3], hexagon_vertices[4], hexagon_vertices[5];
+        triangles.push_back(triangle);
+        triangle << hexagon_vertices[3], hexagon_vertices[5], hexagon_vertices[2];
+        triangles.push_back(triangle);
+        triangles_to_be_reflected.push_back(6);
+        triangles_to_be_reflected.push_back(7);
+
+        // same with pillar polygons
+        for (unsigned index = 0; index < original_pillar_polygons.size(); index++) {
+            Matrix<TReal, 2, Dynamic> pillar_polygon = original_pillar_polygons[index];
+
+            vector<vector<Point>> empty_edges_descriptions;
+
+            Matrix<TReal, 2, Dynamic> translated_pillar_polygon = translate_at(b, center, pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_120 = rotate_at(center, 120, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_180 = rotate_at(center, 180, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_240 = rotate_at(center, 240, translated_pillar_polygon, {}, empty_edges_descriptions);
+
+            pillar_polygons.push_back(rotated_120);
+            pillar_polygons.push_back(rotated_180);
+            pillar_polygons.push_back(rotated_240);
+        }
+
+
+        // CREATE RIGHT PART OF THE STRUCTURE
+        center << 3*s + s/2, s*sqrt(3)/2;
+        translated_vertices = translate_at(b, center, vertices, edges, empty_edges_descriptions);
+        rotate_at(center, 180, translated_vertices, edges, edges_descriptions);
+        rotate_at(center, 240, translated_vertices, edges, edges_descriptions);
+        rotate_at(center, 300, translated_vertices, edges, edges_descriptions);
+
+        // same with pillar polygons
+        for (unsigned index = 0; index < original_pillar_polygons.size(); index++) {
+            Matrix<TReal, 2, Dynamic> pillar_polygon = original_pillar_polygons[index];
+
+            Matrix<TReal, 2, Dynamic> translated_pillar_polygon = translate_at(b, center, pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_180 = rotate_at(center, 180, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_240 = rotate_at(center, 240, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_300 = rotate_at(center, 300, translated_pillar_polygon, {}, empty_edges_descriptions);
+
+            pillar_polygons.push_back(rotated_180);
+            pillar_polygons.push_back(rotated_240);
+            pillar_polygons.push_back(rotated_300);
+        }
+
+        // ADD ALL EDGES DESCRIPTIONS
+        add_new_edges(edges_descriptions, vertices, edges);
+
+
+        // TRANSFORM TO FINAL SQUARE SHAPE in [-1, 1] x [-1, 1] cell
+        Matrix<TReal, 2, 2> transformation_matrix;
+        transformation_matrix << 1.0, -0.577350269189626,
+                0.0, 1.154700538379251;
+        transformation_matrix = 2.0/3.0 * transformation_matrix;
+        Matrix<TReal, 2, Dynamic> resulting_vertices = transformation_matrix * vertices;
+        Point offset;
+        offset << 1.0, 1.0;
+        vertices = resulting_vertices.colwise() - offset;
+
+        // deal with triangles
+        for (unsigned index = 0; index < triangles.size(); index++) {
+            Matrix<TReal, 2, Dynamic> triangle = triangles[index];
+            Matrix<TReal, 2, Dynamic> resulting_triangle = transformation_matrix * triangle;
+            triangle = resulting_triangle.colwise() - offset;
+            triangles[index] = triangle;
+        }
+
+        // reflect triangles
+        vector<Matrix<TReal, 2, Dynamic> > reflected_triangles;
+        for (unsigned index = 0; index < triangles_to_be_reflected.size(); index++) {
+            int triangle_index = triangles_to_be_reflected[index];
+            Matrix<TReal, 2, Dynamic> triangle = triangles[triangle_index];
+            Matrix<TReal, 2, Dynamic> resulting_triangle = reflect(135, triangle);
+            triangles.push_back(resulting_triangle);
+        }
+
+        vector<pair<vector<Point>, TReal>> incenters_thickness_pairs = add_polygons_incenters(triangles, vertices, edges);
+
+        // deal with pillars
+        vector<pair<vector<Point>, TReal>> pillar_nodes_custom_pairs;
+        for (unsigned index = 0; index < pillar_polygons.size(); index++) {
+            Matrix<TReal, 2, Dynamic> pillar_polygon = pillar_polygons[index];
+
+            Matrix<TReal, 2, Dynamic> resulting_pillar_polygon = transformation_matrix * pillar_polygon;
+            pillar_polygon = resulting_pillar_polygon.colwise() - offset;
+
+            TReal nodes_thickness = min_distance_point_line(pillar_polygon.col(0), {pillar_polygon.col(1), pillar_polygon.col(2)});
+            vector<Point> pillar_nodes = {pillar_polygon.col(0), pillar_polygon.col(3)};
+
+            pillar_nodes_custom_pairs.push_back({pillar_nodes, nodes_thickness});
+        }
+
+        custom_pairs = pillar_nodes_custom_pairs;
+        custom_pairs.insert(custom_pairs.end(), incenters_thickness_pairs.begin(), incenters_thickness_pairs.end());
+    }
+
+
+
+    Matrix<TReal, 2, Dynamic> translate_at(Point origin, Point offset, Matrix<TReal, 2, Dynamic> vertices, vector<vector<int>> edges, vector<vector<Point>> &edges_descriptions) {
+        Matrix<TReal, 2, Dynamic> translated_vertices = vertices.colwise() - origin;
+        translated_vertices = translated_vertices.colwise() + offset;
+
+        for (unsigned index = 0; index < edges.size(); index++) {
+            vector<int> edge = edges[index];
+
+            Point v1 = translated_vertices.col(edge[0]);
+            Point v2 = translated_vertices.col(edge[1]);
+
+            edges_descriptions.push_back({v1, v2});
+        }
+
+        return translated_vertices;
+    }
+
+
+    Matrix<TReal, 2, Dynamic> rotate_at(Point center_of_rotation, double degrees, Matrix<TReal, 2, Dynamic> vertices, vector<vector<int>> edges, vector<vector<Point>> &edges_descriptions) {
+        Matrix<TReal, 2, Dynamic> translated_vertices = vertices.colwise() - center_of_rotation;
+        Matrix<TReal, 2, Dynamic> rotated_vertices =
+                rotate(degrees, translated_vertices).colwise() + center_of_rotation;
+
+        for (unsigned index = 0; index < edges.size(); index++) {
+            vector<int> edge = edges[index];
+
+            Point v1 = rotated_vertices.col(edge[0]);
+            Point v2 = rotated_vertices.col(edge[1]);
+
+            edges_descriptions.push_back({v1, v2});
+        }
+
+        return rotated_vertices;
+    }
+
+    void det_2D(Point a, Point b) {
+        return a(0) * b(1) - a(1) * b(0);
+    }
+
+    Point edge_intersection(vector<Point> edge1, vector<Point> edge2) {
+        Matrix<TReal, 2, 2> M;
+
+        Point x_delta, y_delta;
+        x_delta << (edge1[0](0) - edge1[1](0)), (edge2[0](0) - edge2[1](0));
+        y_delta << (edge1[0](1) - edge1[1](1)), (edge2[0](1) - edge2[1](1));
+
+        M << x_delta, y_delta;
+
+        TReal div = M.determinant();
+
+        Matrix<TReal, 2, 2> edge1_matrix, edge2_matrix;
+        edge1_matrix << edge1[0], edge1[1];
+        edge2_matrix << edge2[0], edge2[1];
+
+        Point d;
+        d << edge1_matrix.determinant(), edge2_matrix.determinant();
+
+        Matrix<TReal, 2, 2> x_matrix, y_matrix;
+        x_matrix << d, x_delta;
+        y_matrix << d, y_delta;
+        TReal x = x_matrix.determinant() / div;
+        TReal y = y_matrix.determinant() / div;
+
+        Point result;
+        result << x, y;
+        return result;
+    }
+
+    vector<Point> create_pillar_edge(vector<Point> edge) {
+        Point left, right;
+        left << -1.0, 0.0;
+        right << 1.0, 0.0;
+
+        vector<Point> crossing_edge = {left, right};
+        Point edge_intersection_point = edge_intersection(edge, crossing_edge);
+        vector<Point> resulting_edge = {edge[0], edge_intersection_point};
+
+        return resulting_edge;
+    }
+
+
+    void create_pillars_with_constant_spacing_and_thickness(vector<Point> line1, vector<Point> line2, TReal pillar_area_ratio, TReal num_pillars, TReal thickness, TReal gap, vector<vector<Point>> &edges_descriptions, vector<Matrix<TReal, 2, Dynamic>> &pillar_polygons) {
+        Point unit_vector = (line1[1] - line1[0]) / (line1[1] - line1[0]).norm();
+
+        // initial points for each side
+        Point next_point1 = line1[0];
+        Point next_point2 = line2[1] + (line2[0] - line2[1]) * pillar_area_ratio;
+
+        Point end_pillar1;
+
+        for (unsigned index = 0; index < num_pillars; index++) {
+            Point beginning_pillar1 = next_point1;
+            Point midpoint_pillar1 = beginning_pillar1 + thickness * unit_vector / 2;
+            end_pillar1 = beginning_pillar1 + thickness * unit_vector;
+
+            Point beginning_pillar2 = next_point2;
+            Point midpoint_pillar2 = beginning_pillar2 + thickness * unit_vector / 2;
+            Point end_pillar2 = beginning_pillar2 + thickness * unit_vector;
+
+            vector<Point> top_edge1 = {beginning_pillar1, midpoint_pillar1};
+            vector<Point> top_edge2 = {midpoint_pillar1, end_pillar1};
+
+            vector<Point> pillar_edge = {midpoint_pillar1, midpoint_pillar2};
+            vector<Point> resulting_pillar_edge = create_pillar_edge(pillar_edge);
+
+            vector<vector<Point>> pillar_edges = {top_edge1, top_edge2, resulting_pillar_edge};
+
+            Matrix<TReal, 2, 4> polygon;
+            polygon << midpoint_pillar1, beginning_pillar1, beginning_pillar2, resulting_pillar_edge[1];
+            pillar_polygons.push_back(polygon);
+
+            next_point1 = end_pillar1 + gap * unit_vector;
+            next_point2 = end_pillar2 + gap * unit_vector;
+
+            if (index < num_pillars - 1) {
+                vector<Point> gap_edge = {end_pillar1, next_point1};
+                pillar_edges.push_back(gap_edge);
+            }
+
+            for (unsigned j = 0; j < pillar_edges.size(); j++) {
+                pillar_edge = pillar_edges[j];
+                if (!pillar_edge.empty())
+                    edges_descriptions.push_back(pillar_edge);
+            }
+        }
+
+        // need to add final edge connecting next_point1 to end of line1 (only if they differ)
+        vector<Point> final_edge = {end_pillar1, line1[1]};
+        edges_descriptions.push_back(final_edge);
+
     }
 };
 #endif //MICROSTRUCTURES_HEXLIB_H

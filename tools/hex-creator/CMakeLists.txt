@@ -29,3 +29,19 @@ target_link_libraries(HexaPillarsCreatorSimpler PUBLIC cli11 json)
 find_package(Boost 1.55 REQUIRED COMPONENTS filesystem system program_options thread)
 target_include_directories(HexaPillarsCreatorSimpler SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
 target_link_libraries(HexaPillarsCreatorSimpler PUBLIC ${Boost_LIBRARIES})
+
+# creator generating simpler wire structure
+add_executable(AuxeticHexaPillarsCreator AuxeticHexaPillarsCreator.cpp)
+set_target_properties(AuxeticHexaPillarsCreator PROPERTIES CXX_STANDARD 11)
+
+# Eigen3 library
+find_package(Eigen3 REQUIRED)
+target_link_libraries(AuxeticHexaPillarsCreator PUBLIC Eigen3::Eigen ${Boost_LIBRARIES})
+
+# Json
+target_link_libraries(AuxeticHexaPillarsCreator PUBLIC cli11 json)
+
+# Boost library
+find_package(Boost 1.55 REQUIRED COMPONENTS filesystem system program_options thread)
+target_include_directories(AuxeticHexaPillarsCreator SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
+target_link_libraries(AuxeticHexaPillarsCreator PUBLIC ${Boost_LIBRARIES})
