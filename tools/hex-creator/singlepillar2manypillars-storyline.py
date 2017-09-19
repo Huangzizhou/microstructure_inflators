@@ -60,14 +60,8 @@ name_pillars = folder_path + '/hexagon-pillars-n{}-s{}-t{}'.format(1, triangle_s
 wire_name = name_pillars + '.wire'
 mesh_name = name_pillars + '.msh'
 
-if not os.path.isfile(mesh_name):
-    cwd = os.getcwd()
-    cmd = [cwd + '/hexa-many-pillars-creator.py', str(triangle_side), str(1), str(initial_pillar_thickness),
-           wire_name, mesh_name]
-    call(cmd)
-
-# now, create descendants
-pillar_values = range(2, max_num_pillars + 1, 1)
+# creating pillar structures
+pillar_values = range(5, max_num_pillars + 1, 5)
 for index, num_pillars in enumerate(pillar_values):
     pillars_thickness = initial_pillar_thickness / num_pillars
 
@@ -81,7 +75,7 @@ for index, num_pillars in enumerate(pillar_values):
         continue
 
     cwd = os.getcwd()
-    cmd = [cwd + '/hexa-many-pillars-creator.py', str(triangle_side), str(num_pillars), str(pillars_thickness),
+    cmd = [cwd + '/hex-creator.py', str(num_pillars), str(triangle_side), str(pillars_thickness),
            wire_name, mesh_name]
     call(cmd)
 
