@@ -103,6 +103,10 @@ public:
     std::vector<std::string> metaParams;
     std::vector<Real> blendingBounds = { 10.0, 100.0 };
     std::vector<Real> metaBounds = { 0.01, 0.99 };
+    std::vector<Real> custom1Bounds = { 0.01, 0.99 };
+    std::vector<Real> custom2Bounds = { 0.01, 0.99 };
+    std::vector<Real> custom3Bounds = { 0.01, 0.99 };
+    std::vector<Real> custom4Bounds = { 0.01, 0.99 };
     // The ground-truth parameters can be stored here--they are written to the
     // job file for reference.
     std::vector<Real> trueParams;

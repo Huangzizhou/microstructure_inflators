@@ -64,12 +64,20 @@ private:
     // If only one full parameter is controlled, p's type is given by inflator.
     // Otherwise, p is a metaparameter
     virtual ParameterType parameterType(size_t p) const override {
-        //switch (p) {
-        //    case 0: return ParameterType::Custom1;
-        //    case 1: return ParameterType::Custom3;
-        //    case 2: return ParameterType::Custom4;
-        //    default: throw std::runtime_error("Custom parameter type in HexaPillarsInflator not recognizable.");
-        //}
+        if (m_structure_type == '-')
+            switch (p) {
+                case 0: return ParameterType::Custom1;
+                case 1: return ParameterType::Custom3;
+                case 2: return ParameterType::Custom4;
+                default: throw std::runtime_error("Custom parameter type in HexaPillarsInflator not recognizable.");
+            }
+        else {
+            switch (p) {
+                case 0: return ParameterType::Custom1;
+                case 1: return ParameterType::Custom4;
+                default: throw std::runtime_error("Custom parameter type in HexaPillarsInflator not recognizable.");
+            }
+        }
         return ParameterType::Meta;
     }
 

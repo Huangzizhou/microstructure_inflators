@@ -165,7 +165,7 @@ public:
     // when generateFullPeriodCell == true
     bool reflectiveInflator = true;
     bool m_noPostprocess = false; // for debugging
-    bool m_cheapPostProcessing = true; // only valid when using inflation alone
+    bool m_cheapPostProcessing = false; // only valid when using inflation alone
     vector<MeshIO::IOVertex>  vertices;
     vector<MeshIO::IOElement> elements;
     vector<vector<Real>>      normalShapeVelocities;

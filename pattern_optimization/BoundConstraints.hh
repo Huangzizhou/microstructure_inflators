@@ -16,6 +16,10 @@ struct BoundConstraints {
                      const std::vector<Real> &translationBounds,
                      const std::vector<Real> &blendingBounds,
                      const std::vector<Real> &metaBounds,
+                     const std::vector<Real> &custom1Bounds,
+                     const std::vector<Real> &custom2Bounds,
+                     const std::vector<Real> &custom3Bounds,
+                     const std::vector<Real> &custom4Bounds,
                      const std::map<size_t, Real> &lb,
                      const std::map<size_t, Real> &ub) {
         size_t nparams = inflator.numParameters();
@@ -35,6 +39,10 @@ struct BoundConstraints {
                 case ParameterType::Offset:    lowerBound.at(p) = translationBounds.at(0); break;
                 case ParameterType::Blending:  lowerBound.at(p) =    blendingBounds.at(0); break;
                 case ParameterType::Meta:      lowerBound.at(p) =        metaBounds.at(0); break;
+                case ParameterType::Custom1:      lowerBound.at(p) =        custom1Bounds.at(0); break;
+                case ParameterType::Custom2:      lowerBound.at(p) =        custom2Bounds.at(0); break;
+                case ParameterType::Custom3:      lowerBound.at(p) =        custom3Bounds.at(0); break;
+                case ParameterType::Custom4:      lowerBound.at(p) =        custom4Bounds.at(0); break;
                 default: assert(false);
             }
         }
@@ -46,6 +54,10 @@ struct BoundConstraints {
                 case ParameterType::Offset:    upperBound.at(p) = translationBounds.at(1); break;
                 case ParameterType::Blending:  upperBound.at(p) =    blendingBounds.at(1); break;
                 case ParameterType::Meta:      upperBound.at(p) =        metaBounds.at(1); break;
+                case ParameterType::Custom1:      upperBound.at(p) =        custom1Bounds.at(1); break;
+                case ParameterType::Custom2:      upperBound.at(p) =        custom2Bounds.at(1); break;
+                case ParameterType::Custom3:      upperBound.at(p) =        custom3Bounds.at(1); break;
+                case ParameterType::Custom4:      upperBound.at(p) =        custom4Bounds.at(1); break;
                 default: assert(false);
             }
         }

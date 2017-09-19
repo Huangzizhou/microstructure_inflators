@@ -80,6 +80,18 @@ std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     if (pt.count("metaBounds"))
         parseVector(pt.get_child("metaBounds"), job->metaBounds);
 
+    if (pt.count("custom1Bounds"))
+        parseVector(pt.get_child("custom1Bounds"), job->custom1Bounds);
+
+    if (pt.count("custom2Bounds"))
+        parseVector(pt.get_child("custom2Bounds"), job->custom2Bounds);
+
+    if (pt.count("custom3Bounds"))
+        parseVector(pt.get_child("custom3Bounds"), job->custom3Bounds);
+
+    if (pt.count("custom4Bounds"))
+        parseVector(pt.get_child("custom4Bounds"), job->custom4Bounds);
+
     if (pt.count("paramConstraints") != 0) {
         auto constraints = pt.get_child("paramConstraints");
         for (const auto &val : constraints) {
