@@ -25,7 +25,7 @@
 
 class HexaPillarsInflator : public Inflator<2> {
 public:
-    HexaPillarsInflator(const std::vector<Real> &initial_params, double p2);
+    HexaPillarsInflator(const std::vector<Real> &initial_params, double p2, char structure_type);
     ~HexaPillarsInflator() { }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -56,11 +56,20 @@ private:
     // Queries
     ////////////////////////////////////////////////////////////////////////////
     virtual bool isParametric() const override { return true; }
-    virtual size_t numParameters() const override { return 2; }
+    virtual size_t numParameters() const override {
+        unsigned num_parameters = m_structure_type == '+'? 2 : 3;
+        return num_parameters;
+    }
 
     // If only one full parameter is controlled, p's type is given by inflator.
     // Otherwise, p is a metaparameter
     virtual ParameterType parameterType(size_t p) const override {
+        //switch (p) {
+        //    case 0: return ParameterType::Custom1;
+        //    case 1: return ParameterType::Custom3;
+        //    case 2: return ParameterType::Custom4;
+        //    default: throw std::runtime_error("Custom parameter type in HexaPillarsInflator not recognizable.");
+        //}
         return ParameterType::Meta;
     }
 
@@ -94,5 +103,6 @@ private:
     ////////////////////////////////////////////////////////////////////////////
     std::unique_ptr<IsoinflatorWrapper<2>> m_infl;
     Real m_p1, m_p2, m_p3, m_p4;
+    char m_structure_type;
 };
 #endif /* end of include guard: HEXAPILLARSINFLATOR_HH */

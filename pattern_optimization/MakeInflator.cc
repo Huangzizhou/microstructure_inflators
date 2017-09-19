@@ -115,7 +115,7 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
         boost::split(meta_params_tokens, meta_params_string, boost::is_any_of("\t "),
                      boost::token_compress_on);
 
-        infl = Future::make_unique<HexaPillarsInflator>(params, stoi(meta_params_tokens[1])); //TODO, make number of pillars an input
+        infl = Future::make_unique<HexaPillarsInflator>(params, stoi(meta_params_tokens[1]), meta_params_tokens[0][0]);
     }
     else throw runtime_error("Invalid inflator: " + name);
 
