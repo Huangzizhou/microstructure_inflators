@@ -412,7 +412,7 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
 
     cwd = os.getcwd()
     cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_doubly_periodic', input_path, '--paramsFile',
-           parameters_file_path, '-m', custom_meshing_path, '-D', 'inflated.msh', '-R', 'replicated.msh', out_path]
+           parameters_file_path, '-m', custom_meshing_path, '--cheapPostprocessing' , '-D', 'inflated.msh', '-R', 'replicated.msh', out_path]
     #print cmd
     call(cmd)
 

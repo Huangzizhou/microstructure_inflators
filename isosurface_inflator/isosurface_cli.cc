@@ -39,6 +39,7 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
     po::options_description visible_opts;
     visible_opts.add_options()("help,h", "Produce this help message")
                               ("disablePostprocessing,d",                    " Disable post-processing of mesher output")
+                              ("cheapPostprocessing",                        " Cheap post-processing of mesher output")
                               ("dumpBaseUnitGraph,B", po::value<string>(),   " Output the base unit inflation graph to the specified path")
                               ("dumpInflationGraph,D", po::value<string>(),  " Output the inflation graph to the specified path")
                               ("dumpReplicatedGraph,R", po::value<string>(), " Output the replicated pattern graph to the specified path")
@@ -143,6 +144,7 @@ int main(int argc, char *argv[])
 
     if (args.count("mopts")) inflator.meshingOptions().load(args["mopts"].as<string>());
     if (args.count("disablePostprocessing")) inflator.disablePostprocess();
+    if (args.count("cheapPostprocessing")) inflator.enableCheapPostprocess();
     inflator.setReflectiveInflator(args.count("nonReflectiveInflator") == 0);
 
     if (args.count("dumpShapeVelocities")) inflator.meshingOptions().debugSVelPath = args["dumpShapeVelocities"].as<string>();
