@@ -222,9 +222,9 @@ else:
 
         num_pillar_values = [1,2,5]
         for index, number_pillars in enumerate(num_pillar_values):
-            triangle_side_values = np.arange(0.3, 0.99, 0.01)
+            triangle_side_values = np.arange(0.1, 0.99, 0.01)
             for index, triangle_side_factor in enumerate(triangle_side_values):
-                vol_frac_values = np.arange(0.4, 0.99, 0.01)
+                vol_frac_values = np.arange(0.2, 0.99, 0.01)
                 for vol_frac in vol_frac_values:
                     test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
 
