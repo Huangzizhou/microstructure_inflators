@@ -220,13 +220,38 @@ else:
         chirality_factor = args.chirality_factor
         print "Warning: testing in 3 dimensions with volfrac, triangle sides and pillars"
 
-        num_pillar_values = [1,2,5] + range(10, 101, 10)
+        num_pillar_values = [1,2,5]
+        for index, number_pillars in enumerate(num_pillar_values):
+            triangle_side_values = np.arange(0.3, 0.99, 0.01)
+            for index, triangle_side_factor in enumerate(triangle_side_values):
+                vol_frac_values = np.arange(0.4, 0.99, 0.01)
+                for vol_frac in vol_frac_values:
+                    test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
+
+        num_pillar_values = range(10, 31, 10)
         for index, number_pillars in enumerate(num_pillar_values):
             triangle_side_values = np.arange(0.5, 0.99, 0.01)
             for index, triangle_side_factor in enumerate(triangle_side_values):
-                vol_frac_values = np.arange(0.5, 0.99, 0.01)
+                vol_frac_values = np.arange(0.6, 0.99, 0.01)
                 for vol_frac in vol_frac_values:
                     test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
+
+        num_pillar_values = range(40, 61, 10)
+        for index, number_pillars in enumerate(num_pillar_values):
+            triangle_side_values = np.arange(0.6, 0.99, 0.01)
+            for index, triangle_side_factor in enumerate(triangle_side_values):
+                vol_frac_values = np.arange(0.7, 0.99, 0.01)
+                for vol_frac in vol_frac_values:
+                    test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
+
+        num_pillar_values = range(70, 101, 10)
+        for index, number_pillars in enumerate(num_pillar_values):
+            triangle_side_values = np.arange(0.7, 0.995, 0.005)
+            for index, triangle_side_factor in enumerate(triangle_side_values):
+                vol_frac_values = np.arange(0.8, 0.995, 0.005)
+                for vol_frac in vol_frac_values:
+                    test(experiment_type, vol_frac, triangle_side_factor, number_pillars, chirality_factor)
+
     else:
         chirality_factor_values = [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
         for chirality_factor in chirality_factor_values:
