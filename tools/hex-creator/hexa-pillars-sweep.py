@@ -259,7 +259,7 @@ else:
 
             num_pillar_values = [1,2,5] + range(10, 51, 10)
             for index, number_pillars in enumerate(num_pillar_values):
-                triangle_side_values = np.arange(0.7, 0.99, 0.01)
+                triangle_side_values = np.arange(0.6, 0.99, 0.01)
                 for index, triangle_side_factor in enumerate(triangle_side_values):
                     vol_frac_values = np.arange(0.7, 0.99, 0.01)
                     for vol_frac in vol_frac_values:

@@ -326,7 +326,7 @@ thickness_void = (triangle_side*pillar_area_ratio - num_pillars*thickness) / (nu
 min_resolution = max(3 / thickness_void, 3 / thickness)
 chosen_resolution = 2 * math.pow(2, math.ceil(math.log(min_resolution) / math.log(2)))
 
-if chosen_resolution > 1024:
+if chosen_resolution > 2048:
         print "Resolution of " + str(chosen_resolution) + "is too big"
         print "Skipping experiment!"
         exit()
@@ -339,11 +339,6 @@ print "Minimum resolution: " + str(min_resolution)
 print "Chosen resolution: " + str(chosen_resolution)
 
 hexlib.inflate_hexagonal_box_smarter(out_wire, 0.00001, 0.0, out_mesh, incenters_thickness_pairs + pillar_nodes_custom_pairs, chosen_resolution)
-
-
-
-
-
 
 
 
