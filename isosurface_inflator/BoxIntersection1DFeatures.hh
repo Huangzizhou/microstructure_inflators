@@ -148,11 +148,12 @@ void boxIntersection1DFeatures(const VolumeSDF &sdf,
         std::vector<std::pair<size_t, size_t>> newEdges;
         auto result = msquares.extractBoundaryPolygons(faceSlice, 0.0);
 
-        bool outputSignedDistance = false;
-        if (outputSignedDistance) {
+#if SDF_DEBUG_OUT
+        {
             auto embedder = [&](const Point2<Real> &p) -> MeshIO::IOVertex { return MeshIO::IOVertex(faceSlice.volumePoint(p)); };
             msquares.outputSignedDistanceField("sdFace_" + std::to_string(f) + ".msh", faceSlice, embedder);
         }
+#endif
 
         size_t offset = points.size();
         points.reserve(points.size() + result.points.size());
@@ -187,7 +188,7 @@ void boxIntersection1DFeatures(const VolumeSDF &sdf, size_t gridSize, size_t gri
     // (CGAL's feature format).
     for (const auto &s : segmentEdges) {
         assert(s.size());
-        polylines.push_back(std::vector<_Point>());
+        polylines.emplace_back();
         auto &line = polylines.back();
         line.reserve(s.size());
         size_t i = s[0].first; // for continuity validation

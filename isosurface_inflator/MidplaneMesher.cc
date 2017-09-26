@@ -10,6 +10,8 @@
 #include <PeriodicBoundaryMatcher.hh>
 #include <stdexcept>
 
+#include <Utilities/EdgeSoupAdaptor.hh>
+
 #include <boost/optional.hpp>
 
 #define     DEBUG_OUT 0
@@ -104,17 +106,18 @@ mesh(const SignedDistanceRegion<3>  &sdf,
     if (meshingOptions.curvatureAdaptive)
         computeCurvatureAdaptiveMinLen(polygons, slice, minLen, maxLen, variableMinLens);
 
+    using PolygonAdaptor = IOElementEdgeSoupFromClosedPolygonCollection<decltype(polygons)>;
+
 #if DEBUG_OUT
     std::cout << polygons.size() << " polygons. Sizes:" << std::endl;
     for (auto &poly : polygons)
         std::cout << "\t" << poly.size() << std::endl;
 
-    MeshIO::save("ms_polygons.msh",
-                 IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
+    MeshIO::save("ms_polygons.msh", PolygonAdaptor(polygons));
 #endif
 
     if (!msPolygonPath.empty())
-        MeshIO::save(msPolygonPath, IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
+        MeshIO::save(msPolygonPath, PolygonAdaptor(polygons));
 
     BENCHMARK_START_TIMER("Curve Cleanup");
     {
@@ -154,7 +157,7 @@ mesh(const SignedDistanceRegion<3>  &sdf,
     for (auto &poly : polygons)
         std::cout << "\t" << poly.size() << std::endl;
     MeshIO::save("cleaned_polygons.msh",
-                 IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
+                 PolygonAdaptor(polygons));
 #endif
 
     // Determine which polygon is touching the bbox (there should be exactly one):
@@ -196,7 +199,7 @@ mesh(const SignedDistanceRegion<3>  &sdf,
                 std::list<std::list<Point2D>> holePolygons(1, poly);
                 std::vector<MeshIO::IOVertex > holeVertices;
                 std::vector<MeshIO::IOElement> holeTriangles;
-                //MeshIO::save("polygons.msh", IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
+                //MeshIO::save("polygons.msh", PolygonAdaptor(polygons));
                 triangulatePSLC(holePolygons, std::vector<Point2D>(),
                                 holeVertices, holeTriangles, 1.0, "Q");
 
@@ -233,7 +236,7 @@ mesh(const SignedDistanceRegion<3>  &sdf,
     BENCHMARK_STOP_TIMER("Hole detection");
 
 
-    //MeshIO::save("polygons.msh", IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
+    //MeshIO::save("polygons.msh", PolygonAdaptor(polygons));
 
     if (polygons.size() == 0) return;
     triangulatePSLC(polygons, holePts, vertices, triangles,

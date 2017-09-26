@@ -134,9 +134,11 @@ mesh(const SignedDistanceRegion<3> &sdf,
     Point3d c;
     double r;
     sdf.boundingSphere(c, r);
-    // std::cout << "meshing bounding sphere, radius = " << r << ", c = " << c << std::endl;
-    // std::cout << "signed distance at sphere center: " << sdf.signedDistance(c) << std::endl;
-    // std::cout << "bounding box: " << sdf.boundingBox() << std::endl;
+#if 0
+    std::cout << "meshing bounding sphere, radius = " << r << ", c = " << c.transpose() << std::endl;
+    std::cout << "signed distance at sphere center: " << sdf.signedDistance(c) << std::endl;
+    std::cout << "bounding box: " << sdf.boundingBox() << std::endl;
+#endif
 
     Mesh_domain domain(cgal_sdfunc,
             K::Sphere_3(Point(c[0], c[1], c[2]), r * r), meshingOptions.domainErrorBound);

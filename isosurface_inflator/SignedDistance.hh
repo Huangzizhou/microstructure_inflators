@@ -280,6 +280,7 @@ public:
         m_c1 = p1, m_c2 = p2;
         m_r1 = r1, m_r2 = r2;
 
+        if (p2 == p1) throw std::runtime_error("Degenerate inflated edge");
         m_axisUnit = p2 - p1;
         m_axisLength = sqrt(m_axisUnit.squaredNorm());
         m_axisUnit /= m_axisLength;
