@@ -96,6 +96,11 @@ private:
     virtual void configureSubdivision(const std::string &algorithm, size_t levels) override { m_infl->configureSubdivision(algorithm, levels); }
     virtual void setOrthoBaseCell(bool ortho)            override { m_infl->setOrthoBaseCell(ortho); }
 
+    virtual Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
+    selfSupportingConstraints(const std::vector<double> &params) const override;
+    virtual Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
+    positioningConstraints(const std::vector<double> &params) const override;
+
 
     ////////////////////////////////////////////////////////////////////////////
     // HexaPillarsInflator-specific
