@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import math
+import os
 import sys
 import numpy as np
 import hexlib
@@ -252,6 +253,10 @@ if len(sys.argv) != 7:
           "<output wire> <output mesh>"
     print "example: ./auxetic-chiral-creator.py 0.8 3 0.6 0.9 output.wire output.msh"
     sys.exit(-1)
+
+# set scripts directory, so it can find all necessary files:
+pathname = os.path.dirname(sys.argv[0])
+hexlib.script_directory = os.path.abspath(pathname)
 
 # . b
 #     . '  |  ' .

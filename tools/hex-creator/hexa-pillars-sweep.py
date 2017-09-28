@@ -5,6 +5,7 @@ import os
 import subprocess
 
 import numpy as np
+import sys
 
 import hexlib
 
@@ -19,7 +20,6 @@ def print_experiment_info(p1, p2, p3, p4):
                              "p2: " + str(p2) + "\n" \
                                                 "p3: " + str(p3) + "\n" \
                                                                    "p4: " + str(p4)
-
 
 def compute_thickness(experiment_type, vol_frac, triangle_side_factor, chirality_factor, num_pillars):
     thickness_ratio = 0.0
@@ -111,7 +111,7 @@ def run_negative_poisson_experiment(vol_frac, triangle_side_factor, num_pillars,
         # lock experiment
         open(lock_name, 'a').close()
 
-        cmd = [cwd + '/auxetic-chiral-creator.py', str(triangle_side_factor), str(num_pillars), str(chirality_factor),
+        cmd = [hexlib.script_directory + '/auxetic-chiral-creator.py', str(triangle_side_factor), str(num_pillars), str(chirality_factor),
                str(thickness_ratio), name + '.wire', mesh_name]
         subprocess.call(cmd)
 
@@ -140,7 +140,7 @@ def run_positive_poisson_experiment(vol_frac, triangle_side_factor, num_pillars,
         # lock experiment
         open(lock_name, 'a').close()
 
-        cmd = [cwd + '/hex-creator-igor-parameters.py', str(triangle_side_factor), str(num_pillars),
+        cmd = [hexlib.script_directory  + '/hex-creator-igor-parameters.py', str(triangle_side_factor), str(num_pillars),
                str(chirality_factor),
                str(thickness_ratio), name + '.wire', mesh_name]
         subprocess.call(cmd)
@@ -148,6 +148,10 @@ def run_positive_poisson_experiment(vol_frac, triangle_side_factor, num_pillars,
         # free experiment
         os.remove(lock_name)
 
+
+# set scripts directory, so it can find all necessary files:
+pathname = os.path.dirname(sys.argv[0])
+hexlib.script_directory = os.path.abspath(pathname)
 
 parser = argparse.ArgumentParser(description='Sweep through different hexa-pillars structures.')
 parser.add_argument('--vol-frac', type=float, help='constant volume fraction to be used in experiments')
@@ -159,7 +163,6 @@ parser.add_argument('instances_folder', help='folder where to store mesh/wire/pa
 parser.add_argument('table_file', help='table with elasticity properties from experimented microstructures')
 
 args = parser.parse_args()
-cwd = os.getcwd()
 folder_path = args.instances_folder
 
 if not os.path.exists(folder_path):

@@ -9,6 +9,7 @@ import numpy as np
 
 Tolerance = 1e-10
 
+script_directory = os.getcwd()
 
 def create_wire(vertices, edges, out_wire):
     out_file = open(out_wire, 'w')
@@ -318,6 +319,9 @@ def create_custom_meshing_file(resolution):
     original_name = 'refined-meshing_opts.json'
     coarsening = 2
 
+    print script_directory
+    original_name = script_directory + "/" + original_name
+
     with open(original_name) as original_file:
         meshing_opts = json.load(original_file)
 
@@ -410,9 +414,10 @@ def inflate_hexagonal_box_smarter(input_path, vertices_thickness, vertices_bendi
 
     custom_meshing_path = create_custom_meshing_file(resolution)
 
-    cwd = os.getcwd()
+    cwd = script_directory
     cmd = [cwd + '/../../isosurface_inflator/isosurface_cli', '2D_doubly_periodic', input_path, '--paramsFile',
-           parameters_file_path, '-m', custom_meshing_path, '--cheapPostprocessing' , '-D', 'inflated.msh', '-R', 'replicated.msh', out_path]
+           parameters_file_path, '-m', custom_meshing_path, '--cheapPostprocessing' ,
+           '-D', 'inflated.msh', '-R', 'replicated.msh', out_path]
     #print cmd
     call(cmd)
 
