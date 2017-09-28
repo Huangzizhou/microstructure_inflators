@@ -14,6 +14,10 @@ def find_between(s, first, last):
     except ValueError:
         return ""
 
+# set scripts directory, so it can find all necessary files:
+pathname = os.path.dirname(sys.argv[0])
+script_directory = os.path.abspath(pathname)
+
 if len(sys.argv) < 3:
     print "usage: ./run-homogenization.py <input folder> <output table> <material>"
     print "example: ./run-homogenization.py instances table.txt"
@@ -24,11 +28,9 @@ output_table = sys.argv[2]
 if len(sys.argv) == 4:
     material = sys.argv[3]
 else:
-    material = '../../materials/B9Creator.material'
+    material = script_directory + '/../../materials/B9Creator.material'
 
-
-cwd = os.getcwd()
-deformed_cells_executable_path = cwd + '/../../../MeshFEM/DeformedCells_cli'
+deformed_cells_executable_path = script_directory + '/../../../MeshFEM/DeformedCells_cli'
 
 for filename in os.listdir(input_folder):
     if not filename.endswith('msh'):

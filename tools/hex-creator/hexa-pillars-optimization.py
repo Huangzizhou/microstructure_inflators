@@ -4,11 +4,16 @@ import os
 import sys
 import subprocess
 import uuid
+import hexlib
 
 if len(sys.argv) != 8:
     print "usage: ./hexa-pillars-optimization.py <+/-> <p1> <p2> <p3> <p4> <target Poisson ratio> <target Young's module>"
     print "example: ./hexa-pillars-optimization.py + 0.5 6 0.7 0.8 0.25 0.75"
     sys.exit(-1)
+
+# set scripts directory, so it can find all necessary files:
+pathname = os.path.dirname(sys.argv[0])
+hexlib.script_directory = os.path.abspath(pathname)
 
 type = sys.argv[1]
 p1 = sys.argv[2]
@@ -18,7 +23,7 @@ p4 = sys.argv[5]
 target_Nu = sys.argv[6]
 target_E = sys.argv[7]
 
-cwd = os.getcwd()
+cwd = hexlib.script_directory
 
 unique_identifier = str(uuid.uuid1())
 folder_path = 'temp-' + unique_identifier
@@ -33,7 +38,7 @@ subprocess.call(cmd)
 
 original_job_path = folder_path + '/original.job'
 custom_job_path = folder_path + '/custom.job'
-cmd = ['../../pattern_optimization/GenIsosurfaceJob', wire_name, '-e', str(target_E) + ',' + str(target_Nu),
+cmd = [hexlib.script_directory + '/../../pattern_optimization/GenIsosurfaceJob', wire_name, '-e', str(target_E) + ',' + str(target_Nu),
        '--symmetry', '2D_doubly_periodic']
 
 with open(original_job_path, 'w') as out_job:
@@ -66,16 +71,18 @@ else:
     meta_parameters_string = '-' + ', ' + str(int(p2))
 
 # Run optimization
-cmd = ['../../worst_case_stress/WCSOptimization_cli', custom_job_path,
+cmd = [hexlib.script_directory + '/../../worst_case_stress/WCSOptimization_cli', custom_job_path,
        '--params', parameters_string,
        '--metaParams', meta_parameters_string,
        '-i', 'HexaPillars',
-       '-m', '../../materials/Russia.material',
+       '-m', hexlib.script_directory + '/../../materials/Russia.material',
        '--vertexThickness',
        '--WCSWeight', str(0),
        '--JSWeight', str(10.0),
        #'--proximityRegularizationWeight', str(1.0),
+       #'--TensorFitConstraint',
        '--solver', 'levenberg_marquardt',
+       #'--solver', 'slsqp',
        '-o', folder_path + '/it',
        '--deformedCell', '1 0.5 0 0.8660']
 print cmd
@@ -89,10 +96,10 @@ for filename in os.listdir(folder_path):
         os.rename(folder_path + "/" + filename, folder_path + "/" + filename + ".msh")
 
 table_path = folder_path + '/table.txt'
-cmd = [cwd + '/run-homogenization.py', folder_path, table_path, "../../materials/Russia.material"]
+cmd = [cwd + '/run-homogenization.py', folder_path, table_path, hexlib.script_directory + "/../../materials/Russia.material"]
 subprocess.call(cmd)
 
 # plotting results
-cmd = [cwd + '/plot_luTable.py', 'all', "../../materials/Russia.material", table_path]
+cmd = [cwd + '/plot_luTable.py', 'all', hexlib.script_directory + "/../../materials/Russia.material", table_path]
 subprocess.call(cmd)
 
