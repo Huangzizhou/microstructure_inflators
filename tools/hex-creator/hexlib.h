@@ -1638,8 +1638,8 @@ public:
         }
 
         // need to add final edge connecting next_point1 to end of line1 (only if they differ)
-        vector<Point> final_edge = {end_pillar1, line1[1]};
-        edges_descriptions.push_back(final_edge);
+        //vector<Point> final_edge = {end_pillar1, line1[1]};
+        //edges_descriptions.push_back(final_edge);
 
     }
 };
