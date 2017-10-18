@@ -20,6 +20,8 @@ struct BoundConstraints {
                      const std::vector<Real> &custom2Bounds,
                      const std::vector<Real> &custom3Bounds,
                      const std::vector<Real> &custom4Bounds,
+                     const std::vector<Real> &custom5Bounds,
+                     const std::vector<Real> &custom6Bounds,
                      const std::map<size_t, Real> &lb,
                      const std::map<size_t, Real> &ub) {
         size_t nparams = inflator.numParameters();
@@ -43,6 +45,8 @@ struct BoundConstraints {
                 case ParameterType::Custom2:      lowerBound.at(p) =        custom2Bounds.at(0); break;
                 case ParameterType::Custom3:      lowerBound.at(p) =        custom3Bounds.at(0); break;
                 case ParameterType::Custom4:      lowerBound.at(p) =        custom4Bounds.at(0); break;
+                case ParameterType::Custom5:      lowerBound.at(p) =        custom5Bounds.at(0); break;
+                case ParameterType::Custom6:      lowerBound.at(p) =        custom6Bounds.at(0); break;
                 default: assert(false);
             }
         }
@@ -58,6 +62,8 @@ struct BoundConstraints {
                 case ParameterType::Custom2:      upperBound.at(p) =        custom2Bounds.at(1); break;
                 case ParameterType::Custom3:      upperBound.at(p) =        custom3Bounds.at(1); break;
                 case ParameterType::Custom4:      upperBound.at(p) =        custom4Bounds.at(1); break;
+                case ParameterType::Custom5:      upperBound.at(p) =        custom5Bounds.at(1); break;
+                case ParameterType::Custom6:      upperBound.at(p) =        custom6Bounds.at(1); break;
                 default: assert(false);
             }
         }

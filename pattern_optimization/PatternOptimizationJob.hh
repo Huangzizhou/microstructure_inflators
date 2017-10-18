@@ -107,6 +107,8 @@ public:
     std::vector<Real> custom2Bounds = { 0.01, 0.99 };
     std::vector<Real> custom3Bounds = { 0.01, 0.99 };
     std::vector<Real> custom4Bounds = { 0.01, 0.99 };
+    std::vector<Real> custom5Bounds = { 0.01, 0.99 };
+    std::vector<Real> custom6Bounds = { 0.01, 0.99 };
     // The ground-truth parameters can be stored here--they are written to the
     // job file for reference.
     std::vector<Real> trueParams;
