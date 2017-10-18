@@ -24,7 +24,7 @@
 #include "../isosurface_inflator/MeshingOptions.hh"
 
 // Meta parameters are for EqualityConstrainedInflator
-enum class ParameterType { Thickness, Offset, Blending, Meta, Custom1, Custom2, Custom3, Custom4 };
+enum class ParameterType { Thickness, Offset, Blending, Meta, Custom1, Custom2, Custom3, Custom4, Custom5, Custom6 };
 
 inline std::string parameterTypeString(const ParameterType &type) {
     switch(type) {
@@ -36,6 +36,8 @@ inline std::string parameterTypeString(const ParameterType &type) {
         case ParameterType::Custom2:      return "Custom2";
         case ParameterType::Custom3:      return "Custom3";
         case ParameterType::Custom4:      return "Custom4";
+        case ParameterType::Custom5:      return "Custom5";
+        case ParameterType::Custom6:      return "Custom6";
         default:                       return "Invalid";
     }
 }

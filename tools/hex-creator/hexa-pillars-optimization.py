@@ -6,9 +6,9 @@ import subprocess
 import uuid
 import hexlib
 
-if len(sys.argv) != 8:
-    print "usage: ./hexa-pillars-optimization.py <+/-> <p1> <p2> <p3> <p4> <target Poisson ratio> <target Young's module>"
-    print "example: ./hexa-pillars-optimization.py + 0.5 6 0.7 0.8 0.25 0.75"
+if len(sys.argv) < 8:
+    print "usage: ./hexa-pillars-optimization.py <+/-> <p1> <p2> <p3> <p4> (<p5> <p6>) <target Poisson ratio> <target Young's module>"
+    print "example: ./hexa-pillars-optimization.py + 0.5 6 0.7 0.8 0.8 0.9 0.25 0.75"
     sys.exit(-1)
 
 # set scripts directory, so it can find all necessary files:
@@ -20,8 +20,14 @@ p1 = sys.argv[2]
 p2 = sys.argv[3]
 p3 = sys.argv[4]
 p4 = sys.argv[5]
-target_Nu = sys.argv[6]
-target_E = sys.argv[7]
+if type == '-':
+    p5 = sys.argv[6]
+    p6 = sys.argv[7]
+    target_Nu = sys.argv[8]
+    target_E = sys.argv[9]
+else:
+    target_Nu = sys.argv[6]
+    target_E = sys.argv[7]
 
 cwd = hexlib.script_directory
 
@@ -51,13 +57,15 @@ with open(original_job_path) as original_file:
         job_opts['initial_params'] = [p1, p4]
         job_opts['meta_params'] = ['+', int(p2)]
     else:
-        job_opts['initial_params'] = [p1, p3, p4]
+        job_opts['initial_params'] = [p1, p3, p4, p5, p6]
         job_opts['meta_params'] = ['-', int(p2)]
 
     job_opts['metaBounds'] = [0.5, 0.95]
-    job_opts['custom1Bounds'] = [0.7, 0.98]
+    job_opts['custom1Bounds'] = [0.7, 0.99]
     job_opts['custom3Bounds'] = [0.5, 0.95]
-    job_opts['custom4Bounds'] = [0.5, 0.95]
+    job_opts['custom4Bounds'] = [0.5, 0.99]
+    job_opts['custom5Bounds'] = [0.5, 1.00]
+    job_opts['custom6Bounds'] = [0.5, 1.00]
 
 
     with open(custom_job_path, 'w') as outfile:
@@ -67,7 +75,7 @@ if type == "+":
     parameters_string = str(p1) + ', ' + str(p4)
     meta_parameters_string = '+' + ', ' + str(int(p2))
 else:
-    parameters_string = str(p1) + ', ' + str(p3) + ', ' + str(p4)
+    parameters_string = str(p1) + ', ' + str(p3) + ', ' + str(p4) + ', ' + str(p5) + ', ' + str(p6)
     meta_parameters_string = '-' + ', ' + str(int(p2))
 
 # Run optimization
@@ -102,4 +110,3 @@ subprocess.call(cmd)
 # plotting results
 cmd = [cwd + '/plot_luTable.py', 'all', hexlib.script_directory + "/../../materials/Russia.material", table_path]
 subprocess.call(cmd)
-

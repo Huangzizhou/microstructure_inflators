@@ -3,7 +3,7 @@
 typedef Vector2d APoint;
 
 void usage(int exitVal) {
-    cout << "Usage: AuxeticHexaPillarsCreator p1 p2 p3 p4 out.wire out.msh" << endl;
+    cout << "Usage: AuxeticHexaPillarsCreator p1 p2 p3 p4 p5 p6 out.wire out.msh" << endl;
     exit(exitVal);
 }
 
@@ -21,7 +21,9 @@ int main(int argc, char *argv[]) {
             ("triangle-side-factor", po::value<double>(), "triangle side factor")
             ("number-pillars", po::value<unsigned>(), "number of pillars")
             ("pillar-area-factor", po::value<double>(), "pillar area factor")
-            ("thickness-factor", po::value<double>(), "thickness factor")
+            ("min-thickness-factor", po::value<double>(), "min thickness factor")
+            ("max-thickness-factor", po::value<double>(), "max thickness factor")
+            ("ninja-factor", po::value<double>(), "ninja factor")
             ("output-wire", po::value<std::string>(), "output wire")
             ("output-mesh", po::value<std::string>(), "output msh");
 
@@ -29,7 +31,9 @@ int main(int argc, char *argv[]) {
     p.add("triangle-side-factor", 1);
     p.add("number-pillars", 1);
     p.add("pillar-area-factor", 1);
-    p.add("thickness-factor", 1);
+    p.add("min-thickness-factor", 1);
+    p.add("max-thickness-factor", 1);
+    p.add("ninja-factor", 1);
     p.add("output-wire", 1);
     p.add("output-mesh", 1);
 
@@ -37,7 +41,7 @@ int main(int argc, char *argv[]) {
     po::store(po::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
     po::notify(vm);
 
-    if (vm.count("help") || vm.size() != 6) {
+    if (vm.count("help") || vm.size() != 8) {
         usage(1);
         return 1;
     }
@@ -52,23 +56,65 @@ int main(int argc, char *argv[]) {
     double triangle_side_ratio = vm["triangle-side-factor"].as<double>();
     unsigned num_pillars = vm["number-pillars"].as<unsigned>();
     double pillar_area_ratio = vm["pillar-area-factor"].as<double>();
-    double thickness_ratio = vm["thickness-factor"].as<double>();
+    double min_thickness_ratio = vm["min-thickness-factor"].as<double>();
+    double max_thickness_ratio = vm["max-thickness-factor"].as<double>();
+    double ninja_factor = vm["ninja-factor"].as<double>();
     string out_wire = vm["output-wire"].as<string>();
     string out_mesh = vm["output-mesh"].as<string>();
+
+    double p1 = triangle_side_ratio;
+    double p2 = num_pillars;
+    double p3 = pillar_area_ratio;
+    double p4 = min_thickness_ratio;
+    double p5 = max_thickness_ratio;
+    double p6 = ninja_factor;
 
     double parallelogram_side = 3.0;
     double s = parallelogram_side / 3.0;
     double triangle_side = triangle_side_ratio * s;
     double triangle_y_position = s * sqrt(3)/2.0 * (1-triangle_side_ratio);
-    double thickness = thickness_ratio * (pillar_area_ratio * triangle_side / num_pillars);
-    double spacing = (pillar_area_ratio * triangle_side - thickness) / (num_pillars - 1) - thickness;
 
-    hexlib.generate_auxetic_topology_and_thickness_info(triangle_side_ratio, num_pillars, pillar_area_ratio, thickness_ratio, vertices, edges, custom_pairs);
+    // define important vertices of simplex used to build entire parallelogram structure
+    Eigen::Matrix<double, 2, 1> origin, a, b, c;
+    origin << 0, 0;
+    a << 0, 0;
+    b << s/2.0, s * sqrt(3)/2.0;
+    c << s, 0;
+
+    // define vertices of triangle
+    Eigen::Matrix<double, 2, 1> q1, q2, w, z;
+    Eigen::Matrix<double, 2, 1> q1_reflected, q2_reflected, w_reflected, z_reflected;
+    Eigen::Matrix<double, 2, 1> ba_unit, ab_unit;
+    q1 << s/2.0 * (1-triangle_side_ratio), triangle_y_position;
+    q2 << s/2.0 * (1+triangle_side_ratio), triangle_y_position;
+
+    w  << q2[0] - p1*p3*s, triangle_y_position;
+    ba_unit = (b - a) / (b-a).norm();
+    z = ba_unit * triangle_side_ratio*p3*s*(1-p6) + w;
+
+    q1_reflected << q2[0], -q2[1];
+    q2_reflected << q1[0], -q1[1];
+    w_reflected  << q2_reflected[0] + p1*p3*s , -triangle_y_position;
+    ab_unit = (a-b) / (a-b).norm();
+    z_reflected = ab_unit * triangle_side_ratio*p3*s*(1-p6) + w_reflected;
+
+    hexlib.generate_auxetic_topology_and_thickness_info(triangle_side_ratio, num_pillars, pillar_area_ratio, min_thickness_ratio, max_thickness_ratio, ninja_factor, vertices, edges, custom_pairs);
 
     // FINALLY, CREATE WIRE
     hexlib.create_wire(vertices, edges, out_wire);
 
-    double thickness_void = (triangle_side*pillar_area_ratio - num_pillars*thickness) / (num_pillars - 1);
+    // computing thickness and spacing
+    double pillar_area = (z - q2).norm();
+    double new_pillar_area = hexlib.get_pillar_area(triangle_side_ratio, num_pillars, pillar_area_ratio, min_thickness_ratio, max_thickness_ratio, ninja_factor);
+    if (abs(pillar_area - new_pillar_area) > TOLERANCE) {
+        cout << "WRONG COMPUTATION OF PILLAR AREA?" << endl;
+        exit(1);
+    }
+    assert(abs(pillar_area - new_pillar_area) < TOLERANCE);
+    double thickness = hexlib.get_thickness(min(min_thickness_ratio, max_thickness_ratio), max(min_thickness_ratio, max_thickness_ratio), 1, num_pillars, pillar_area);
+    double spacing = hexlib.get_spacing(min_thickness_ratio, max_thickness_ratio, num_pillars, pillar_area);
+
+    double thickness_void = spacing;
     double min_resolution =  2 / max(0.5, pillar_area_ratio) * max(3 / thickness_void, 3 / thickness);
     double chosen_resolution = pow(2, ceil(log(min_resolution) / log(2)));
 
