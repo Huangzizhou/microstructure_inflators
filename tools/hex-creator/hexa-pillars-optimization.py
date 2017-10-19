@@ -61,10 +61,10 @@ with open(original_job_path) as original_file:
         job_opts['meta_params'] = ['-', int(p2)]
 
     job_opts['metaBounds'] = [0.5, 0.95]
-    job_opts['custom1Bounds'] = [0.7, 0.99]
-    job_opts['custom3Bounds'] = [0.5, 0.95]
-    job_opts['custom4Bounds'] = [0.5, 0.99]
-    job_opts['custom5Bounds'] = [0.5, 1.00]
+    job_opts['custom1Bounds'] = [0.7, 0.98]
+    job_opts['custom3Bounds'] = [0.7, 0.95]
+    job_opts['custom4Bounds'] = [0.5, 0.92]
+    job_opts['custom5Bounds'] = [0.5, 0.98]
     job_opts['custom6Bounds'] = [0.5, 1.00]
 
 

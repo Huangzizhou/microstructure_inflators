@@ -1054,7 +1054,7 @@ public:
         TReal delta_y = abs(pillar_example.col(1)(1) - pillar_example.col(0)(1));
         TReal norm_example = (pillar_example.col(1) - pillar_example.col(0)).norm();
         TReal thickness_correction_factor = delta_y / norm_example;
-        cout << "Thickness correction factor: "  << thickness_correction_factor << endl;
+        //cout << "Thickness correction factor: "  << thickness_correction_factor << endl;
 
 
         new_edges_description.clear();
@@ -1130,7 +1130,7 @@ public:
             result = linear_coeff + (index - 1) * angular_coeff;
         }
 
-        cout << "Thickness: " << result << endl;
+        //cout << "Thickness: " << result << endl;
 
         return result;
     }
@@ -1142,8 +1142,8 @@ public:
         TReal angular_coeff, linear_coeff;
         TReal sum;
 
-        cout << "w_min: " << w_min << endl;
-        cout << "w_max: " << w_max << endl;
+        //cout << "w_min: " << w_min << endl;
+        //cout << "w_max: " << w_max << endl;
 
         if (num_pillars < 3) {
             TReal spacing = (total_pillar_region - w_min) / (num_pillars - 1) - w_min;
@@ -1157,7 +1157,7 @@ public:
 
             sum = (2*m - 1) * linear_coeff + angular_coeff * (1 -2*m + pow(m, 2));
 
-            cout << "sum: " << sum << endl;
+            //cout << "sum: " << sum << endl;
         }
         else {
             // even
@@ -1171,7 +1171,7 @@ public:
         // computes constant spacing
         TReal result = (total_pillar_region - sum) / (num_pillars - 1);
 
-        cout << "Spacing: " << result << endl;
+        //cout << "Spacing: " << result << endl;
         return result;
     }
 
