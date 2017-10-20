@@ -32,6 +32,13 @@ HexaPillarsInflator::HexaPillarsInflator(const std::vector<Real> &initial_params
         center_thickness_ratio = initial_params[3];
         ninja_factor = initial_params[4];
 
+        cout << "p1: " << triangle_side_factor << endl;
+        cout << "p2: " << num_pillars << endl;
+        cout << "p3: " << pillar_area_ratio <<  endl;
+        cout << "p4: " << thickness_ratio << endl;
+        cout << "p5: " << center_thickness_ratio <<  endl;
+        cout << "p6: " << ninja_factor << endl;
+
         cout << "Constructing " + out_wire + " ..." << endl;
         hexlib.generate_auxetic_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
                                                             center_thickness_ratio, ninja_factor, vertices, edges, custom_pairs);
@@ -63,6 +70,8 @@ void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
     double triangle_side, thickness;
     double thickness_void;
 
+    int chosen_resolution;
+
     if (m_structure_type == '+') {
         triangle_side_factor = params[0];
         num_pillars = m_p2;
@@ -80,6 +89,15 @@ void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
         cout << "p2: " << num_pillars << endl;
         cout << "p3: " << pillar_area_ratio <<  endl;
         cout << "p4: " << thickness_ratio << endl;
+
+        // Computing void thickness and necessary resolution
+        double multiplier =  1.0;
+        int min_resolution = multiplier * max(2 / thickness_void, 2 / thickness);
+        chosen_resolution = pow(2, ceil(log(min_resolution) / log(2)));
+
+        cout << "Multiplier: " << multiplier << endl;
+        cout << "Thickness void: " << thickness_void << endl;
+        cout << "Minimum resolution: " << min_resolution <<  endl;
     }
     else {
         triangle_side_factor = params[0];
@@ -95,7 +113,7 @@ void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
         triangle_side = triangle_side_factor * s;
         thickness = hexlib.get_thickness(min(thickness_ratio, center_thickness_ratio), max(thickness_ratio, center_thickness_ratio), 1, num_pillars, pillar_area);
         thickness_void = hexlib.get_spacing(thickness_ratio, center_thickness_ratio, num_pillars, pillar_area);
-
+        double thickness_ninja_void = triangle_side * pillar_area_ratio * ninja_factor; // trying to give some importance to the size of the whole between last pillar and beginning of neighbor triangle
 
         cout << "p1: " << triangle_side_factor << endl;
         cout << "p2: " << num_pillars << endl;
@@ -103,22 +121,23 @@ void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
         cout << "p4: " << thickness_ratio << endl;
         cout << "p5: " << center_thickness_ratio <<  endl;
         cout << "p6: " << ninja_factor << endl;
+
+        // Computing void thickness and necessary resolution
+        double multiplier =  3/max(0.5, pillar_area_ratio);
+        int min_resolution = multiplier * max(max(2 / thickness_void, 2 / thickness), 2 / thickness_ninja_void);
+        chosen_resolution = pow(2, ceil(log(min_resolution) / log(2)));
+
+        cout << "Multiplier: " << multiplier << endl;
+        cout << "Thickness void: " << thickness_void << endl;
+        cout << "Minimum resolution: " << min_resolution <<  endl;
     }
 
-    // Computing void thickness and necessary resolution
-    double multiplier =  (m_structure_type == '+') ? 1.0 : 3/max(0.5, pillar_area_ratio);
-    int min_resolution = multiplier * max(2 / thickness_void, 2 / thickness);
-    int chosen_resolution = pow(2, ceil(log(min_resolution) / log(2)));
-
-    if (chosen_resolution > 1024)
-        chosen_resolution = 1024;
+    if (chosen_resolution > 2048)
+        chosen_resolution = 2048;
 
     if (chosen_resolution < 256)
         chosen_resolution = 256;
 
-    cout << "Multiplier: " << multiplier << endl;
-    cout << "Thickness void: " << thickness_void << endl;
-    cout << "Minimum resolution: " << min_resolution <<  endl;
     cout << "Chosen resolution: " << chosen_resolution << endl;
 
     unsigned coarsening = 2;

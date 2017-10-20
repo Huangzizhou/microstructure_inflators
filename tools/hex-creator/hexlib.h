@@ -1466,6 +1466,23 @@ public:
             TReal nodes_thickness = min_distance_point_line(pillar_polygon.col(0), {pillar_polygon.col(1), pillar_polygon.col(2)});
             vector<Point> pillar_nodes = {pillar_polygon.col(0), pillar_polygon.col(3)};
 
+            // adjusting pillar so there is not much protuberance outside it (because of ninja factor)
+            Point pillar_direction = pillar_nodes[1] - pillar_nodes[0];
+            TReal norm_pillar_direction = (pillar_nodes[1] - pillar_nodes[0]).norm();
+            Point unit_pillar_direction = pillar_direction / norm_pillar_direction;
+            int v1 = find_vertex_in_list(vertices, pillar_nodes[0]);
+
+            Point new_vertex1;
+            if (norm_pillar_direction < nodes_thickness) {
+                new_vertex1 = pillar_nodes[0] + unit_pillar_direction * (norm_pillar_direction - 1e-5);
+            }
+            else {
+                new_vertex1 = pillar_nodes[0] + unit_pillar_direction * nodes_thickness;
+            }
+
+            pillar_nodes[0] = new_vertex1;
+            vertices.col(v1) = new_vertex1;
+
             pillar_nodes_custom_pairs.push_back({pillar_nodes, nodes_thickness});
         }
 
