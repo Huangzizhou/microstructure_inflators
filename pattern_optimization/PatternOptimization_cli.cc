@@ -199,13 +199,16 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
+    BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
+                          job->varLowerBounds, job->varUpperBounds);
+
     using TFConstraintConfig  = Constraints::IFConfigTensorFit<Simulator>;
     using TensorFitTermConfig = ObjectiveTerms::IFConfigTensorFit<Simulator>;
     using Iterate = Iterate<Simulator>;
     auto ifactory = make_iterate_factory<Iterate,
                                          TensorFitTermConfig,
                                          ObjectiveTerms::IFConfigProximityRegularization,
-                                         TFConstraintConfig>(inflator);
+                                         TFConstraintConfig>(inflator, bdcs);
 
     bool ignoreShear = args.count("ignoreShear");
     ifactory->TensorFitTermConfig::ignoreShear = ignoreShear;
@@ -226,8 +229,6 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     }
 
     auto imanager = make_iterate_manager(std::move(ifactory));
-    BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
-                          job->varLowerBounds, job->varUpperBounds);
 
     string solver = args["solver"].as<string>(),
            output = args["output"].as<string>();

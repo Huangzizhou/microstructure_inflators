@@ -313,6 +313,9 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
 
     SField params = job->validatedInitialParams(inflator);
 
+    PO::BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
+                              job->varLowerBounds, job->varUpperBounds);
+
     // TODO: Laplacian regularization term (probably only needed for boundary
     // perturbation version.
 
@@ -331,7 +334,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
          IsoFitRelConfig,
          PRegTermConfig,
          TFConstraintConfig,
-          PConstraintConfig>(inflator);
+          PConstraintConfig>(inflator, bdcs);
 
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
@@ -410,8 +413,6 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     }
 
     auto imanager = make_iterate_manager(std::move(ifactory));
-    PO::BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
-                              job->varLowerBounds, job->varUpperBounds);
 
     ////////////////////////////////////////////////////////////////////////////
     // Gradient component validation, if requested, bypasses optimization 

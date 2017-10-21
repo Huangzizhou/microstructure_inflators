@@ -18,7 +18,7 @@
 //      Problem: forwarding optional args to the iterate constructor is
 //      impossible then. Maybe we don't need it if we have a single iterate
 //      class, though.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  04/08/2016 00:15:28
@@ -29,6 +29,7 @@
 #include "PatternOptimizationIterate.hh"
 #include "ObjectiveTermNormalizations.hh"
 #include "Inflator.hh"
+#include "BoundConstraints.hh"
 #include <Future.hh>
 
 #include <random>
@@ -78,8 +79,8 @@ struct IterateFactory : public IFConfigs... {
     using Iterate = _Iterate;
     using _Inflator = Inflator<N>;
 
-    IterateFactory(_Inflator &inflator)
-        : m_inflator(inflator) { }
+    IterateFactory(_Inflator &inflator, const BoundConstraints &paramBnds)
+        : m_inflator(inflator), m_paramBnds(paramBnds) { }
 
     // Use previous iterate if evaluating the same point. Otherwise, attempt to
     // inflate the new parameters. Try three times to inflate, and if
@@ -110,7 +111,7 @@ struct IterateFactory : public IFConfigs... {
 
         std::unique_ptr<_Iterate> newIterate;
         bool success;
-        double relMagnitude = 0.01;
+        double relMagnitude = 0.0001;
         for (size_t i = 0; i < m_numInflationAttempts; ++i) {
             success = true;
             try {
@@ -119,16 +120,28 @@ struct IterateFactory : public IFConfigs... {
                 else {
                     // With the new isosurface inflator, failures are uncommon
                     // but do happen sometimes with bad parameters.
-                    // To prevent optimization from halting, try a relative
-                    // perturbation of the params.
-                    std::cerr << "Trying perturbed parameters..." << std::endl;
+                    // To prevent optimization from halting, try perturbing the
+                    // params.
+                    std::cerr << "Trying perturbed parameters:";
                     std::vector<double> perturbedParams(nParams);
                     std::random_device rd;
                     std::mt19937 gen(rd());
                     for (size_t p = 0; p < nParams; ++p) {
-                        std::uniform_real_distribution<> dis(-relMagnitude * params[p], relMagnitude * params[p]);
+                        double perturbationLB = -relMagnitude * params[p],
+                               perturbationUB =  relMagnitude * params[p];
+                        // If we have bounds on the parameter (we should...) we
+                        // can define a better perturbation interval
+                        if (m_paramBnds.hasLowerBound.at(p) &&
+                            m_paramBnds.hasUpperBound.at(p)) {
+                            double range = m_paramBnds.upperBound[p] - m_paramBnds.lowerBound[p];
+                            perturbationLB = std::max(m_paramBnds.lowerBound[p], params[p] - range * relMagnitude);
+                            perturbationUB = std::min(m_paramBnds.upperBound[p], params[p] + range * relMagnitude);
+                        }
+                        std::uniform_real_distribution<> dis(perturbationLB, perturbationUB);
                         perturbedParams[p] = params[p] + dis(gen);
+                        std::cerr << '\t' << perturbedParams[p];
                     }
+                    std::cerr << std::endl;
                     newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, &perturbedParams[0]);
                     newIterate->overwriteParams(nParams, params);
                     relMagnitude *= 5;
@@ -200,12 +213,15 @@ private:
     // TODO: it should be possible to clear all factored matrices and still
     // support estimation...
     bool m_allowEstimation        = false;
+    // We need to know the parameter bounds to generate a reasonable
+    // perturbation when attempting to recover from an inflation failure.
+    const BoundConstraints &m_paramBnds;
 };
 
 // Inflator template parameter is last so that it can be inferred...
 template<class _Iterate, class... IFConfigs>
-std::unique_ptr<IterateFactory<_Iterate, IFConfigs...>> make_iterate_factory(Inflator<_Iterate::_N> &inflator) {
-    return Future::make_unique<IterateFactory<_Iterate, IFConfigs...>>(inflator);
+std::unique_ptr<IterateFactory<_Iterate, IFConfigs...>> make_iterate_factory(Inflator<_Iterate::_N> &inflator, const BoundConstraints &paramBnds) {
+    return Future::make_unique<IterateFactory<_Iterate, IFConfigs...>>(inflator, paramBnds);
 }
 
 }
