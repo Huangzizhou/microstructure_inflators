@@ -95,7 +95,7 @@ cmd = [hexlib.script_directory + '/../../worst_case_stress/WCSOptimization_cli',
        #'--TensorFitConstraint',
        '--solver', 'levenberg_marquardt',
        #'--solver', 'slsqp',
-       '--nIters', 50,
+       '--nIters', str(50),
        '-o', folder_path + '/it',
        '--deformedCell', '1 0.5 0 0.8660']
 print cmd
