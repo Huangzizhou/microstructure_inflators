@@ -1698,6 +1698,54 @@ public:
         return pillar_area;
     }
 
+    TReal get_joint_void(TReal triangle_side_ratio, unsigned num_pillars, TReal pillar_area_ratio, TReal min_thickness_ratio,
+                         TReal max_thickness_ratio, TReal ninja_factor, TReal joint_thickness_factor, TReal joint_offset_factor) {
+
+        vector<vector<Point>> edges_descriptions;
+        double parallelogram_side = 3.0;
+        double s = parallelogram_side / 3.0;
+
+        TReal p1 = triangle_side_ratio;
+        TReal p2 = num_pillars;
+        TReal p3 = pillar_area_ratio;
+        TReal p4 = min_thickness_ratio;
+        TReal p5 = max_thickness_ratio;
+        TReal p6 = ninja_factor;
+        TReal p7 = joint_thickness_factor;
+        TReal p8 = joint_offset_factor;
+
+        Point origin, a, b, c;
+        origin << 0, 0;
+        a << 0, 0;
+        b << s/2.0, s * sqrt(3)/2.0;
+        c << s, 0;
+
+        // define vertices of triangle
+        TReal triangle_side = triangle_side_ratio * s;
+        TReal triangle_y_position = s * sqrt(3)/2.0 * (1-triangle_side_ratio);
+
+        Point q1, q2, w, z;
+        Point q1_reflected, q2_reflected, w_reflected, z_reflected;
+        Point ba_unit, ab_unit;
+        q1 << s/2.0 * (1-triangle_side_ratio), triangle_y_position;
+        q2 << s/2.0 * (1+triangle_side_ratio), triangle_y_position;
+
+        w  << q2[0] - p1*p3*s, triangle_y_position;
+        ba_unit = (b - a) / (b-a).norm();
+        z = ba_unit * p1*p3*s*(1-p6) + w;
+
+        q1_reflected << q2[0], -q2[1];
+        q2_reflected << q1[0], -q1[1];
+        w_reflected  << q2_reflected[0] + p1*p3*s , -triangle_y_position;
+        ab_unit = (a-b) / (a-b).norm();
+        z_reflected = ab_unit * p1*p3*s*(1-p6) + w_reflected;
+
+        Point pillar_direction = q2 - z_reflected;
+        TReal joint_offset = (pillar_direction).norm() / 2 * joint_offset_factor;
+
+        return joint_offset;
+    }
+
     void create_pillars_with_constant_spacing_and_thickness(vector<Point> line1, vector<Point> line2, TReal min_thickness_ratio, TReal max_thickness_ratio, TReal joint_thickness_factor, TReal joint_offset_factor, TReal pillar_area, unsigned num_pillars, vector<vector<Point>> &edges_descriptions, vector<Matrix<TReal, 2, Dynamic>> &pillar_polygons, vector<Matrix<TReal, 2, Dynamic>> &pillar_triangles) {
         Point unit_vector = (line1[1] - line1[0]) / (line1[1] - line1[0]).norm();
 

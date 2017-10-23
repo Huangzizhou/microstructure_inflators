@@ -57,7 +57,7 @@ private:
     ////////////////////////////////////////////////////////////////////////////
     virtual bool isParametric() const override { return true; }
     virtual size_t numParameters() const override {
-        unsigned num_parameters = m_structure_type == '+'? 2 : 5;
+        unsigned num_parameters = m_structure_type == '+'? 2 : 7;
         cout << "Number of parameters: " << num_parameters << endl;
         return num_parameters;
     }
@@ -72,6 +72,8 @@ private:
                 case 2: return ParameterType::Custom4;
                 case 3: return ParameterType::Custom5;
                 case 4: return ParameterType::Custom6;
+                case 5: return ParameterType::Custom7;
+                case 6: return ParameterType::Custom8;
                 default: throw std::runtime_error("Custom parameter type in HexaPillarsInflator not recognizable.");
             }
         else {
@@ -118,7 +120,7 @@ private:
     // Data members
     ////////////////////////////////////////////////////////////////////////////
     std::unique_ptr<IsoinflatorWrapper<2>> m_infl;
-    Real m_p1, m_p2, m_p3, m_p4, m_p5, m_p6;
+    Real m_p1, m_p2, m_p3, m_p4, m_p5, m_p6, m_p7, m_p8;
     char m_structure_type;
 };
 #endif /* end of include guard: HEXAPILLARSINFLATOR_HH */

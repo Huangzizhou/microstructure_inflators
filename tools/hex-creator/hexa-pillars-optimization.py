@@ -6,9 +6,9 @@ import subprocess
 import uuid
 import hexlib
 
-if len(sys.argv) < 8:
-    print "usage: ./hexa-pillars-optimization.py <+/-> <p1> <p2> <p3> <p4> (<p5> <p6>) <target Poisson ratio> <target Young's module>"
-    print "example: ./hexa-pillars-optimization.py + 0.5 6 0.7 0.8 0.8 0.9 0.25 0.75"
+if len(sys.argv) < 10:
+    print "usage: ./hexa-pillars-optimization.py <+/-> <p1> <p2> <p3> <p4> (<p5> <p6> <p7> <p8>) <target Poisson ratio> <target Young's module>"
+    print "example: ./hexa-pillars-optimization.py + 0.5 6 0.7 0.8 0.8 0.9 0.2 0.2 0.25 0.75"
     sys.exit(-1)
 
 # set scripts directory, so it can find all necessary files:
@@ -23,8 +23,10 @@ p4 = sys.argv[5]
 if type == '-':
     p5 = sys.argv[6]
     p6 = sys.argv[7]
-    target_Nu = sys.argv[8]
-    target_E = sys.argv[9]
+    p7 = sys.argv[8]
+    p8 = sys.argv[9]
+    target_Nu = sys.argv[10]
+    target_E = sys.argv[11]
 else:
     target_Nu = sys.argv[6]
     target_E = sys.argv[7]
@@ -57,7 +59,7 @@ with open(original_job_path) as original_file:
         job_opts['initial_params'] = [p1, p4]
         job_opts['meta_params'] = ['+', int(p2)]
     else:
-        job_opts['initial_params'] = [p1, p3, p4, p5, p6]
+        job_opts['initial_params'] = [p1, p3, p4, p5, p6, p7, p8]
         job_opts['meta_params'] = ['-', int(p2)]
 
     job_opts['metaBounds'] = [0.5, 0.95]
@@ -66,6 +68,8 @@ with open(original_job_path) as original_file:
     job_opts['custom4Bounds'] = [0.5, 0.96]
     job_opts['custom5Bounds'] = [0.5, 0.96]
     job_opts['custom6Bounds'] = [0.5, 1.00]
+    job_opts['custom7Bounds'] = [0.1, 0.9]
+    job_opts['custom8Bounds'] = [0.1, 0.9]
 
 
     with open(custom_job_path, 'w') as outfile:
@@ -75,7 +79,7 @@ if type == "+":
     parameters_string = str(p1) + ', ' + str(p4)
     meta_parameters_string = '+' + ', ' + str(int(p2))
 else:
-    parameters_string = str(p1) + ', ' + str(p3) + ', ' + str(p4) + ', ' + str(p5) + ', ' + str(p6)
+    parameters_string = str(p1) + ', ' + str(p3) + ', ' + str(p4) + ', ' + str(p5) + ', ' + str(p6) + ', ' + str(p7) + ', ' + str(p8)
     meta_parameters_string = '-' + ', ' + str(int(p2))
 
 # Run optimization

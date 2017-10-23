@@ -444,7 +444,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     auto imanager = PO::make_iterate_manager(std::move(ifactory));
     PO::BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds, job->metaBounds,
                               job->custom1Bounds, job->custom2Bounds, job->custom3Bounds, job->custom4Bounds,
-                              job->custom5Bounds, job->custom6Bounds,
+                              job->custom5Bounds, job->custom6Bounds, job->custom7Bounds, job->custom8Bounds,
                               job->varLowerBounds, job->varUpperBounds);
 
     ////////////////////////////////////////////////////////////////////////////

@@ -13,7 +13,8 @@ HexaPillarsInflator::HexaPillarsInflator(const std::vector<Real> &initial_params
 
     double triangle_side_factor, pillar_area_ratio, thickness_ratio;
     double center_thickness_ratio, ninja_factor; // new parameters
-    unsigned num_pillars = p2;;
+    double joint_thickness_factor, joint_offset_factor; // newest parameters
+    unsigned num_pillars = p2;
 
     m_structure_type = structure_type;
     if (m_structure_type == '+') {
@@ -31,6 +32,8 @@ HexaPillarsInflator::HexaPillarsInflator(const std::vector<Real> &initial_params
         thickness_ratio = initial_params[2];
         center_thickness_ratio = initial_params[3];
         ninja_factor = initial_params[4];
+        joint_thickness_factor = initial_params[5];
+        joint_offset_factor = initial_params[6];
 
         cout << "p1: " << triangle_side_factor << endl;
         cout << "p2: " << num_pillars << endl;
@@ -38,10 +41,13 @@ HexaPillarsInflator::HexaPillarsInflator(const std::vector<Real> &initial_params
         cout << "p4: " << thickness_ratio << endl;
         cout << "p5: " << center_thickness_ratio <<  endl;
         cout << "p6: " << ninja_factor << endl;
+        cout << "p7: " << joint_thickness_factor <<  endl;
+        cout << "p8: " << joint_offset_factor << endl;
 
         cout << "Constructing " + out_wire + " ..." << endl;
         hexlib.generate_auxetic_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
-                                                            center_thickness_ratio, ninja_factor, vertices, edges, custom_pairs);
+                                                            center_thickness_ratio, ninja_factor, joint_thickness_factor,
+                                                            joint_offset_factor, vertices, edges, custom_pairs);
     }
 
 
@@ -56,6 +62,8 @@ HexaPillarsInflator::HexaPillarsInflator(const std::vector<Real> &initial_params
     m_p4 = thickness_ratio;
     m_p5 = center_thickness_ratio;
     m_p6 = ninja_factor;
+    m_p7 = joint_thickness_factor;
+    m_p8 = joint_offset_factor;
 }
 
 void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
@@ -66,6 +74,7 @@ void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
     double thickness_ratio;
     double center_thickness_ratio;
     double ninja_factor;
+    double joint_thickness_factor, joint_offset_factor; // newest parameters
 
     double triangle_side, thickness;
     double thickness_void;
@@ -106,6 +115,8 @@ void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
         thickness_ratio = params[2];
         center_thickness_ratio = params[3];
         ninja_factor = params[4];
+        joint_thickness_factor = params[5];
+        joint_offset_factor = params[6];
 
         double parallelogram_side = 3.0;
         double s = parallelogram_side / 3.0;
@@ -114,6 +125,7 @@ void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
         thickness = hexlib.get_thickness(min(thickness_ratio, center_thickness_ratio), max(thickness_ratio, center_thickness_ratio), 1, num_pillars, pillar_area);
         thickness_void = hexlib.get_spacing(thickness_ratio, center_thickness_ratio, num_pillars, pillar_area);
         double thickness_ninja_void = triangle_side * pillar_area_ratio * ninja_factor; // trying to give some importance to the size of the whole between last pillar and beginning of neighbor triangle
+        double thickness_joint_void = hexlib.get_joint_void(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio, center_thickness_ratio, ninja_factor, joint_thickness_factor, joint_offset_factor);
 
         cout << "p1: " << triangle_side_factor << endl;
         cout << "p2: " << num_pillars << endl;
@@ -121,10 +133,12 @@ void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
         cout << "p4: " << thickness_ratio << endl;
         cout << "p5: " << center_thickness_ratio <<  endl;
         cout << "p6: " << ninja_factor << endl;
+        cout << "p7: " << joint_thickness_factor <<  endl;
+        cout << "p8: " << joint_offset_factor << endl;
 
         // Computing void thickness and necessary resolution
         double multiplier =  3/max(0.5, pillar_area_ratio);
-        int min_resolution = multiplier * max(max(2 / thickness_void, 2 / thickness), 2 / thickness_ninja_void);
+        int min_resolution = multiplier * max(max(max(2 / thickness_void, 2 / thickness), 2 / thickness_ninja_void), 2 / thickness_joint_void);
         chosen_resolution = pow(2, ceil(log(min_resolution) / log(2)));
 
         cout << "Multiplier: " << multiplier << endl;
@@ -175,6 +189,8 @@ void HexaPillarsInflator::m_inflate(const std::vector<Real> &params) {
         m_p4 = params[2];
         m_p5 = params[3];
         m_p6 = params[4];
+        m_p7 = params[5];
+        m_p8 = params[6];
     }
 
     cout << "Exiting m_inflate" << endl;
@@ -231,31 +247,35 @@ std::vector<VectorField<Real, 2>> HexaPillarsInflator::volumeShapeVelocities() c
         }
     }
     else {
-        using PVec = Eigen::Matrix<Real, 5, 1>;
+        using PVec = Eigen::Matrix<Real, 7, 1>;
         using ADScalar = Eigen::AutoDiffScalar<PVec>;
 
-        ADScalar p1(m_p1, 5, 0);
-        ADScalar p3(m_p3, 5, 1);
-        ADScalar p4(m_p4, 5, 2);
-        ADScalar p5(m_p5, 5, 3);
-        ADScalar p6(m_p6, 5, 4);
+        ADScalar p1(m_p1, 7, 0);
+        ADScalar p3(m_p3, 7, 1);
+        ADScalar p4(m_p4, 7, 2);
+        ADScalar p5(m_p5, 7, 3);
+        ADScalar p6(m_p6, 7, 4);
+        ADScalar p7(m_p7, 7, 5);
+        ADScalar p8(m_p8, 7, 6);
 
-        vector<ADScalar> input_params = {p1, p3, p4, p5, p6};
+        vector<ADScalar> input_params = {p1, p3, p4, p5, p6, p7, p8};
         vector<ADScalar> resulting_parameters =  hexaPillarsToFullParameters<ADScalar>(input_params);
 
         cout << "Creating partials: " << endl;
 
-        vector<vector<double>> partials(5);
+        vector<vector<double>> partials(7);
 
         partials[0].resize(resulting_parameters.size());
         partials[1].resize(resulting_parameters.size());
         partials[2].resize(resulting_parameters.size());
         partials[3].resize(resulting_parameters.size());
         partials[4].resize(resulting_parameters.size());
+        partials[5].resize(resulting_parameters.size());
+        partials[6].resize(resulting_parameters.size());
 
         for (int index_original = 0; index_original < resulting_parameters.size(); index_original++) {
             ADScalar original_param = resulting_parameters[index_original];
-            Matrix<double, 5, 1, 0, 5, 1> original_param_derivatives = original_param.derivatives();
+            Matrix<double, 7, 1, 0, 7, 1> original_param_derivatives = original_param.derivatives();
 
             for (int index_hexa = 0; index_hexa < number_hexa_params; index_hexa++) {
                 partials[index_hexa][index_original] = original_param_derivatives(index_hexa);
@@ -309,9 +329,12 @@ std::vector<TReal> HexaPillarsInflator::hexaPillarsToFullParameters(const std::v
         TReal thickness_ratio = hexaPillarsParameters[2];
         TReal center_thickness_ratio = hexaPillarsParameters[3];
         TReal ninja_factor = hexaPillarsParameters[4];
+        TReal joint_thickness_factor = hexaPillarsParameters[5];
+        TReal joint_offset_factor = hexaPillarsParameters[6];
 
         hexlib.generate_auxetic_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio,
                                                             thickness_ratio, center_thickness_ratio, ninja_factor,
+                                                            joint_thickness_factor, joint_offset_factor,
                                                             vertices, edges, custom_pairs);
     }
 

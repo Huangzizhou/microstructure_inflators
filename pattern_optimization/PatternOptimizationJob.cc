@@ -98,6 +98,12 @@ std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     if (pt.count("custom6Bounds"))
         parseVector(pt.get_child("custom6Bounds"), job->custom6Bounds);
 
+    if (pt.count("custom7Bounds"))
+        parseVector(pt.get_child("custom7Bounds"), job->custom5Bounds);
+
+    if (pt.count("custom8Bounds"))
+        parseVector(pt.get_child("custom8Bounds"), job->custom6Bounds);
+
     if (pt.count("paramConstraints") != 0) {
         auto constraints = pt.get_child("paramConstraints");
         for (const auto &val : constraints) {
