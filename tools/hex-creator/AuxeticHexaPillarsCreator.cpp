@@ -3,7 +3,7 @@
 typedef Vector2d APoint;
 
 void usage(int exitVal) {
-    cout << "Usage: AuxeticHexaPillarsCreator p1 p2 p3 p4 p5 p6 out.wire out.msh" << endl;
+    cout << "Usage: AuxeticHexaPillarsCreator p1 p2 p3 p4 p5 p6 p7 p8 out.wire out.msh" << endl;
     exit(exitVal);
 }
 
@@ -24,6 +24,8 @@ int main(int argc, char *argv[]) {
             ("min-thickness-factor", po::value<double>(), "min thickness factor")
             ("max-thickness-factor", po::value<double>(), "max thickness factor")
             ("ninja-factor", po::value<double>(), "ninja factor")
+            ("joint-thickness-factor", po::value<double>(), "joint thickness factor")
+            ("joint-offset-factor", po::value<double>(), "joint offset factor")
             ("output-wire", po::value<std::string>(), "output wire")
             ("output-mesh", po::value<std::string>(), "output msh");
 
@@ -34,6 +36,8 @@ int main(int argc, char *argv[]) {
     p.add("min-thickness-factor", 1);
     p.add("max-thickness-factor", 1);
     p.add("ninja-factor", 1);
+    p.add("joint-thickness-factor", 1);
+    p.add("joint-offset-factor", 1);
     p.add("output-wire", 1);
     p.add("output-mesh", 1);
 
@@ -41,7 +45,7 @@ int main(int argc, char *argv[]) {
     po::store(po::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
     po::notify(vm);
 
-    if (vm.count("help") || vm.size() != 8) {
+    if (vm.count("help") || vm.size() != 10) {
         usage(1);
         return 1;
     }
@@ -59,6 +63,8 @@ int main(int argc, char *argv[]) {
     double min_thickness_ratio = vm["min-thickness-factor"].as<double>();
     double max_thickness_ratio = vm["max-thickness-factor"].as<double>();
     double ninja_factor = vm["ninja-factor"].as<double>();
+    double joint_thickness_factor = vm["joint-thickness-factor"].as<double>();
+    double joint_offset_factor = vm["joint-offset-factor"].as<double>();
     string out_wire = vm["output-wire"].as<string>();
     string out_mesh = vm["output-mesh"].as<string>();
 
@@ -68,6 +74,8 @@ int main(int argc, char *argv[]) {
     double p4 = min_thickness_ratio;
     double p5 = max_thickness_ratio;
     double p6 = ninja_factor;
+    double p7 = joint_thickness_factor;
+    double p8 = joint_offset_factor;
 
     double parallelogram_side = 3.0;
     double s = parallelogram_side / 3.0;
@@ -98,7 +106,7 @@ int main(int argc, char *argv[]) {
     ab_unit = (a-b) / (a-b).norm();
     z_reflected = ab_unit * triangle_side_ratio*p3*s*(1-p6) + w_reflected;
 
-    hexlib.generate_auxetic_topology_and_thickness_info(triangle_side_ratio, num_pillars, pillar_area_ratio, min_thickness_ratio, max_thickness_ratio, ninja_factor, vertices, edges, custom_pairs);
+    hexlib.generate_auxetic_topology_and_thickness_info(triangle_side_ratio, num_pillars, pillar_area_ratio, min_thickness_ratio, max_thickness_ratio, ninja_factor, joint_thickness_factor, joint_offset_factor, vertices, edges, custom_pairs);
 
     // FINALLY, CREATE WIRE
     hexlib.create_wire(vertices, edges, out_wire);

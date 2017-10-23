@@ -1177,6 +1177,7 @@ public:
 
     void generate_auxetic_topology_and_thickness_info(TReal triangle_side_ratio, unsigned num_pillars, TReal pillar_area_ratio,
                                                       TReal min_thickness_ratio, TReal max_thickness_ratio, TReal ninja_factor,
+                                                      TReal joint_thickness_factor, TReal joint_offset_factor,
                                                       Matrix<TReal, 2, Dynamic> &vertices,
                                                       vector<vector<int>> &edges, vector<pair<vector<Point>, TReal> > &custom_pairs) {
         vector<vector<Point>> edges_descriptions;
@@ -1189,8 +1190,11 @@ public:
         TReal p4 = min_thickness_ratio;
         TReal p5 = max_thickness_ratio;
         TReal p6 = ninja_factor;
+        TReal p7 = joint_thickness_factor;
+        TReal p8 = joint_offset_factor;
 
         vector<Matrix<TReal, 2, Dynamic> > triangles, pillar_polygons;
+        vector<Matrix<TReal, 2, Dynamic> > pillar_triangles;
 
         // define important vertices of simplex used to build entire parallelogram structure
         Point origin, a, b, c;
@@ -1223,9 +1227,11 @@ public:
         TReal pillar_area = (z - q2).norm();
 
         // CREATE VERTICES IN THE INITIAL (ORIGINAL) EQUILATERAL TRIANGLE
-        create_pillars_with_constant_spacing_and_thickness({q2, z}, {z_reflected, q2_reflected}, min_thickness_ratio, max_thickness_ratio, pillar_area, num_pillars, edges_descriptions, pillar_polygons);
+        create_pillars_with_constant_spacing_and_thickness({q2, z}, {z_reflected, q2_reflected}, min_thickness_ratio, max_thickness_ratio, joint_thickness_factor, joint_offset_factor, pillar_area, num_pillars, edges_descriptions, pillar_polygons, pillar_triangles);
         vector<Matrix<TReal, 2, Dynamic>> original_pillar_polygons;
+        vector<Matrix<TReal, 2, Dynamic>> original_pillar_triangles;
         std::copy(pillar_polygons.begin(), pillar_polygons.end(), std::back_insert_iterator<vector<Matrix<TReal, 2, Dynamic> > >(original_pillar_polygons));
+        std::copy(pillar_triangles.begin(), pillar_triangles.end(), std::back_insert_iterator<vector<Matrix<TReal, 2, Dynamic> > >(original_pillar_triangles));
         edges_descriptions.push_back({z, q1});
         add_new_edges(edges_descriptions, vertices, edges);
 
@@ -1262,6 +1268,17 @@ public:
             Matrix<TReal, 2, Dynamic> rotated_120 = rotate_at(b, 120, pillar_polygon, {}, empty_edges_descriptions);
             pillar_polygons.push_back(rotated_60);
             pillar_polygons.push_back(rotated_120);
+        }
+
+        // same with pillar triangles
+        for (unsigned index = 0; index < original_pillar_triangles.size(); index++) {
+            Matrix<TReal, 2, Dynamic> pillar_polygon = original_pillar_triangles[index];
+
+            vector<vector<Point>> empty_edges_descriptions;
+            Matrix<TReal, 2, Dynamic> rotated_60 = rotate_at(b, 60, pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_120 = rotate_at(b, 120, pillar_polygon, {}, empty_edges_descriptions);
+            pillar_triangles.push_back(rotated_60);
+            pillar_triangles.push_back(rotated_120);
         }
 
 
@@ -1317,6 +1334,27 @@ public:
             pillar_polygons.push_back(rotated_300);
         }
 
+        // same with pillar triangles
+        for (unsigned index = 0; index < original_pillar_triangles.size(); index++) {
+            Matrix<TReal, 2, Dynamic> pillar_polygon = original_pillar_triangles[index];
+
+            vector<vector<Point>> empty_edges_descriptions;
+
+            Matrix<TReal, 2, Dynamic> translated_pillar_polygon = translate_at(b, center, pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_60 = rotate_at(center, 60, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_120 = rotate_at(center, 120, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_180 = rotate_at(center, 180, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_240 = rotate_at(center, 240, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_300 = rotate_at(center, 300, translated_pillar_polygon, {}, empty_edges_descriptions);
+
+            pillar_triangles.push_back(translated_pillar_polygon);
+            pillar_triangles.push_back(rotated_60);
+            pillar_triangles.push_back(rotated_120);
+            pillar_triangles.push_back(rotated_180);
+            pillar_triangles.push_back(rotated_240);
+            pillar_triangles.push_back(rotated_300);
+        }
+
         // CREATE TOP-RIGHT PART OF THE STRUCTURE
         center << 3*s + s/2, 3.0/2*s*sqrt(3);
         translated_vertices = translate_at(b, center, vertices, edges, edges_descriptions);
@@ -1353,6 +1391,21 @@ public:
             pillar_polygons.push_back(translated_pillar_polygon);
             pillar_polygons.push_back(rotated_60);
             pillar_polygons.push_back(rotated_300);
+        }
+
+        // same with pillar triangles
+        for (unsigned index = 0; index < original_pillar_triangles.size(); index++) {
+            Matrix<TReal, 2, Dynamic> pillar_polygon = original_pillar_triangles[index];
+
+            vector<vector<Point>> empty_edges_descriptions;
+
+            Matrix<TReal, 2, Dynamic> translated_pillar_polygon = translate_at(b, center, pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_60 = rotate_at(center, 60, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_300 = rotate_at(center, 300, translated_pillar_polygon, {}, empty_edges_descriptions);
+
+            pillar_triangles.push_back(translated_pillar_polygon);
+            pillar_triangles.push_back(rotated_60);
+            pillar_triangles.push_back(rotated_300);
         }
 
 
@@ -1394,6 +1447,22 @@ public:
             pillar_polygons.push_back(rotated_240);
         }
 
+        // same with pillar triangles
+        for (unsigned index = 0; index < original_pillar_triangles.size(); index++) {
+            Matrix<TReal, 2, Dynamic> pillar_polygon = original_pillar_triangles[index];
+
+            vector<vector<Point>> empty_edges_descriptions;
+
+            Matrix<TReal, 2, Dynamic> translated_pillar_polygon = translate_at(b, center, pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_120 = rotate_at(center, 120, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_180 = rotate_at(center, 180, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_240 = rotate_at(center, 240, translated_pillar_polygon, {}, empty_edges_descriptions);
+
+            pillar_triangles.push_back(rotated_120);
+            pillar_triangles.push_back(rotated_180);
+            pillar_triangles.push_back(rotated_240);
+        }
+
 
         // CREATE RIGHT PART OF THE STRUCTURE
         center << 3*s + s/2, s*sqrt(3)/2;
@@ -1431,6 +1500,21 @@ public:
             pillar_polygons.push_back(rotated_300);
         }
 
+        // same with pillar polygons
+        for (unsigned index = 0; index < original_pillar_triangles.size(); index++) {
+            Matrix<TReal, 2, Dynamic> pillar_polygon = original_pillar_triangles[index];
+
+            Matrix<TReal, 2, Dynamic> translated_pillar_polygon = translate_at(b, center, pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_180 = rotate_at(center, 180, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_240 = rotate_at(center, 240, translated_pillar_polygon, {}, empty_edges_descriptions);
+            Matrix<TReal, 2, Dynamic> rotated_300 = rotate_at(center, 300, translated_pillar_polygon, {}, empty_edges_descriptions);
+
+            pillar_triangles.push_back(rotated_180);
+            pillar_triangles.push_back(rotated_240);
+            pillar_triangles.push_back(rotated_300);
+        }
+
+
         // ADD ALL EDGES DESCRIPTIONS
         add_new_edges(edges_descriptions, vertices, edges);
 
@@ -1453,7 +1537,16 @@ public:
             triangles[index] = triangle;
         }
 
+        // deal with pillar triangles
+        for (unsigned index = 0; index < pillar_triangles.size(); index++) {
+            Matrix<TReal, 2, Dynamic> triangle = pillar_triangles[index];
+            Matrix<TReal, 2, Dynamic> resulting_triangle = transformation_matrix * triangle;
+            triangle = resulting_triangle.colwise() - offset;
+            pillar_triangles[index] = triangle;
+        }
+
         vector<pair<vector<Point>, TReal>> incenters_thickness_pairs = add_polygons_incenters(triangles, vertices, edges);
+        vector<pair<vector<Point>, TReal>> incenters_pillars_pairs = add_polygons_incenters(pillar_triangles, vertices, edges);
 
         // deal with pillars
         vector<pair<vector<Point>, TReal>> pillar_nodes_custom_pairs;
@@ -1488,9 +1581,8 @@ public:
 
         custom_pairs = pillar_nodes_custom_pairs;
         custom_pairs.insert(custom_pairs.end(), incenters_thickness_pairs.begin(), incenters_thickness_pairs.end());
+        custom_pairs.insert(custom_pairs.end(), incenters_pillars_pairs.begin(), incenters_pillars_pairs.end());
     }
-
-
 
     Matrix<TReal, 2, Dynamic> translate_at(Point origin, Point offset, Matrix<TReal, 2, Dynamic> vertices, vector<vector<int>> edges, vector<vector<Point>> &edges_descriptions) {
         Matrix<TReal, 2, Dynamic> translated_vertices = vertices.colwise() - origin;
@@ -1606,7 +1698,7 @@ public:
         return pillar_area;
     }
 
-    void create_pillars_with_constant_spacing_and_thickness(vector<Point> line1, vector<Point> line2, TReal min_thickness_ratio, TReal max_thickness_ratio, TReal pillar_area, unsigned num_pillars, vector<vector<Point>> &edges_descriptions, vector<Matrix<TReal, 2, Dynamic>> &pillar_polygons) {
+    void create_pillars_with_constant_spacing_and_thickness(vector<Point> line1, vector<Point> line2, TReal min_thickness_ratio, TReal max_thickness_ratio, TReal joint_thickness_factor, TReal joint_offset_factor, TReal pillar_area, unsigned num_pillars, vector<vector<Point>> &edges_descriptions, vector<Matrix<TReal, 2, Dynamic>> &pillar_polygons, vector<Matrix<TReal, 2, Dynamic>> &pillar_triangles) {
         Point unit_vector = (line1[1] - line1[0]) / (line1[1] - line1[0]).norm();
 
         // initial points for each side
@@ -1615,37 +1707,74 @@ public:
 
         Point end_pillar1;
 
+        Point pillar_direction = line2[0] - line1[0];
+        Point unit_pillar_direction = pillar_direction / (pillar_direction).norm();
+        TReal joint_offset = (pillar_direction).norm() / 2 * joint_offset_factor;
+
+        edges_descriptions.push_back({next_point1, next_point2});
+
         for (unsigned index = 0; index < num_pillars; index++) {
             TReal thickness = get_thickness(min_thickness_ratio,max_thickness_ratio, index+1, num_pillars, pillar_area);
+            TReal upper_thickness = thickness * joint_thickness_factor - 1e-5;
             TReal gap = get_spacing(min_thickness_ratio, max_thickness_ratio, num_pillars, pillar_area);
 
             Point beginning_pillar1 = next_point1;
             Point midpoint_pillar1 = beginning_pillar1 + thickness * unit_vector / 2;
             end_pillar1 = beginning_pillar1 + thickness * unit_vector;
 
+            Point offseted_beginning_pillar1 = beginning_pillar1 + unit_pillar_direction * (joint_offset + 1e-5);
+            Point offseted_end_pillar1 = end_pillar1 + unit_pillar_direction * (joint_offset + 1e-5);
+
+            // now, depending on joint_thickness_factor, adjust beggining_pillar1 and end_pillar1
+            Point new_beginning_pillar1 = midpoint_pillar1 - unit_vector * upper_thickness / 2;
+            Point new_end_pillar1 = midpoint_pillar1 + unit_vector * upper_thickness / 2;
+
+            if (edges_descriptions.size() > 0)
+                edges_descriptions[edges_descriptions.size() - 1][1] = new_beginning_pillar1;
+
             Point beginning_pillar2 = next_point2;
             Point midpoint_pillar2 = beginning_pillar2 + thickness * unit_vector / 2;
             Point end_pillar2 = beginning_pillar2 + thickness * unit_vector;
 
-            vector<Point> top_edge1 = {beginning_pillar1, midpoint_pillar1};
-            vector<Point> top_edge2 = {midpoint_pillar1, end_pillar1};
+            vector<Point> top_edge1 = {new_beginning_pillar1, new_end_pillar1};
 
             vector<Point> pillar_edge = {midpoint_pillar1, midpoint_pillar2};
             vector<Point> resulting_pillar_edge = create_pillar_edge(pillar_edge);
 
-            vector<vector<Point>> pillar_edges = {top_edge1, top_edge2, resulting_pillar_edge};
+            Point beginning_middle_pillar = resulting_pillar_edge[1] - thickness * unit_vector / 2;
+            Point end_middle_pillar = resulting_pillar_edge[1] + thickness * unit_vector / 2;
 
-            Matrix<TReal, 2, 4> polygon;
-            polygon << midpoint_pillar1, beginning_pillar1, beginning_pillar2, resulting_pillar_edge[1];
-            pillar_polygons.push_back(polygon);
+            vector<Point> auxiliar_pillar_edge1 = {offseted_beginning_pillar1, beginning_middle_pillar};
+            vector<Point> auxiliar_pillar_edge2 = {offseted_end_pillar1, end_middle_pillar};
+            vector<Point> resulting_auxiliar_pillar_edge1 = create_pillar_edge(auxiliar_pillar_edge1);
+            vector<Point> resulting_auxiliar_pillar_edge2 = create_pillar_edge(auxiliar_pillar_edge2);
+
+            vector<Point> crossing_edge = {new_beginning_pillar1, resulting_auxiliar_pillar_edge2[1]};
+
+            Matrix<TReal, 2, Dynamic> triangle1(2,3), triangle2(2,3), triangle3(2,3), triangle4(2,3);
+            triangle1 << resulting_auxiliar_pillar_edge1[1], crossing_edge[0], crossing_edge[1];
+            triangle2 << new_end_pillar1, crossing_edge[0], crossing_edge[1];
+            triangle3 << new_beginning_pillar1, resulting_auxiliar_pillar_edge1[0], resulting_auxiliar_pillar_edge1[1];
+            triangle4 << new_end_pillar1, resulting_auxiliar_pillar_edge2[0], resulting_auxiliar_pillar_edge2[1];
+            pillar_triangles.push_back(triangle1);
+            pillar_triangles.push_back(triangle2);
+            pillar_triangles.push_back(triangle3);
+            pillar_triangles.push_back(triangle4);
+
+            vector<vector<Point>> pillar_edges = {top_edge1};
 
             next_point1 = end_pillar1 + gap * unit_vector;
             next_point2 = end_pillar2 + gap * unit_vector;
 
+            vector<Point> gap_edge;
             if (index < num_pillars - 1) {
-                vector<Point> gap_edge = {end_pillar1, next_point1};
-                pillar_edges.push_back(gap_edge);
+                gap_edge = {new_end_pillar1, next_point1};
             }
+            else {
+                gap_edge = {new_end_pillar1, end_pillar1};
+            }
+            pillar_edges.push_back(gap_edge);
+
 
             for (unsigned j = 0; j < pillar_edges.size(); j++) {
                 pillar_edge = pillar_edges[j];
