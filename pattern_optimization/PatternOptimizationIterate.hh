@@ -156,12 +156,27 @@ struct Iterate : public IterateBase {
     // velocity vector fields
     OForm differential() const {
         OForm full;
+        std::cout << "COMPUTING DIFFERENTIAL: " << std::endl;
+
         for (const auto &term : m_objectiveTerms) {
             OForm contrib = term.second->diff_bdry();
             contrib *= term.second->normalizedWeight();
             if (full.domainSize() == 0) full  = contrib;
             else                        full += contrib;
         }
+
+        std::cout << "COMPUTING NORM OF DIFFERENTIAL: " << std::endl;
+        double diff_norm = 0.0;
+        for (unsigned vi = 0; vi < full.domainSize(); vi++) {
+            auto shape_derivative_vi = full(vi);
+
+            for (int j = 0; j < shape_derivative_vi.size(); j++) {
+                diff_norm += shape_derivative_vi[j] * shape_derivative_vi[j];
+            }
+        }
+        diff_norm = sqrt(diff_norm);
+        std::cout << "SHAPE DERIVATIVE NORM: " << diff_norm  << std::endl;
+
         return full;
     }
 
