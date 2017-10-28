@@ -58,6 +58,20 @@ struct ObjectiveTerm {
     // Partial derivatives with respect to pattern parameters inducing boundary
     // shape velocities bdrySVels
     virtual SField gradp(const std::vector<VField> &bdrySVels) const {
+        std::cout << "COMPUTING DIFFERENTIAL: " << std::endl;
+
+        std::cout << "COMPUTING NORM OF DIFFERENTIAL: " << std::endl;
+        double diff_norm = 0.0;
+        for (unsigned vi = 0; vi < m_differential.domainSize(); vi++) {
+            auto shape_derivative_vi = m_differential(vi);
+
+            for (int j = 0; j < shape_derivative_vi.size(); j++) {
+                diff_norm += shape_derivative_vi[j] * shape_derivative_vi[j];
+            }
+        }
+        diff_norm = sqrt(diff_norm);
+        std::cout << "SHAPE DERIVATIVE NORM: " << diff_norm  << std::endl;
+
         size_t np = bdrySVels.size();
         SField g(np);
         for (size_t p = 0; p < np; ++p)
