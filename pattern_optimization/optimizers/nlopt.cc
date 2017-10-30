@@ -10,6 +10,23 @@
 
 using namespace PatternOptimization;
 
+std::string nloptPrettyPrint(nlopt::result res) {
+    switch (res) {
+    case NLOPT_FAILURE: return "NLOPT_FAILURE";
+    case NLOPT_INVALID_ARGS: return "NLOPT_INVALID_ARGS";
+    case NLOPT_OUT_OF_MEMORY: return "NLOPT_OUT_OF_MEMORY";
+    case NLOPT_ROUNDOFF_LIMITED: return "NLOPT_ROUNDOFF_LIMITED";
+    case NLOPT_FORCED_STOP: return "NLOPT_FORCED_STOP";
+    case NLOPT_SUCCESS: return "NLOPT_SUCCESS";
+    case NLOPT_STOPVAL_REACHED: return "NLOPT_STOPVAL_REACHED";
+    case NLOPT_FTOL_REACHED: return "NLOPT_FTOL_REACHED";
+    case NLOPT_XTOL_REACHED: return "NLOPT_XTOL_REACHED";
+    case NLOPT_MAXEVAL_REACHED: return "NLOPT_MAXEVAL_REACHED";
+    case NLOPT_MAXTIME_REACHED: return "NLOPT_MAXTIME_REACHED";
+    default: return "UNDEF";
+    }
+}
+
 struct NLOptState {
     NLOptState(IterateManagerBase &im, nlopt::opt &opt) : im(im), best(std::numeric_limits<Real>::max()), opt(opt) { }
 
@@ -184,7 +201,7 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
     double minf = 0;
     try {
         nlopt::result result = opt.optimize(x, minf);
-        std::cout << "NLOpt terminated with result " << result << std::endl;
+        std::cout << "NLOpt terminated with result " << nloptPrettyPrint(result) << std::endl;
     }
     catch (std::exception &e) {
         std::cout << "NLOpt threw exception: " << e.what() << std::endl;

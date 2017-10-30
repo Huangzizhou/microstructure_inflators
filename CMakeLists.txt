@@ -7,7 +7,7 @@ project(Microstructures)
 
 # CMP0063: Honor visibility properties for all target types.
 if(POLICY CMP0063)
-	cmake_policy(SET CMP0063 NEW)
+    cmake_policy(SET CMP0063 NEW)
 endif()
 
 ################################################################################
@@ -39,6 +39,7 @@ set(CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}" CACHE STRING "Choose the type of buil
 
 # Color output
 include(UseColors)
+
 # Make sure warnings/errors are still colorized when using Ninja for building.
 add_definitions(-fdiagnostics-color=always)
 
@@ -60,8 +61,10 @@ add_library(cli11 INTERFACE)
 target_include_directories(cli11 SYSTEM INTERFACE ${THIRD_PARTY_DIR}/cli11)
 
 # json library
-add_library(json INTERFACE)
-target_include_directories(json SYSTEM INTERFACE ${THIRD_PARTY_DIR}/json)
+if(NOT TARGET json)
+    add_library(json INTERFACE)
+    target_include_directories(json SYSTEM INTERFACE ${THIRD_PARTY_DIR}/json)
+endif()
 
 ################################################################################
 # Sub-projects
