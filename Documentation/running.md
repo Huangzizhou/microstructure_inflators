@@ -72,7 +72,7 @@ This package implements the worst-case microstructure stress analysis and minimi
 
 - Choose **target properties** of material, like desired elasticity tensor $$C^*$$, Young's module, Poisson's ration and if it is isotropic. The target file is the single input of the method.
    
-  Also, this option let us set the initial parameters of the structure (like offset and vertices radius) and set constraints for them.
+  Also, this option let us set initial values for the parameters of the structure (like offset and vertices radius) and apply bound constraints on them.
 
   Here is an example of a `job.opt` serving as target:
   ```json
@@ -180,7 +180,8 @@ This package implements the worst-case microstructure stress analysis and minimi
 
 ### Use cases
 
-- In the example above, we are using a very low worst case low stress and keeping the compliance tensor at 1.0. This means we are giving more importance to achieving the targeted elasticity tensor than to reduce the worst case stress.
+- In the example above, we use a very low worst-case stress objective weight and set the compliance tensor-fitting weight at 1.0. This ensures worst-case stress is still reported at each iterate, but
+effectively ignores the stress levels when optimizing (focusing only on fitting the desired elasticity tensor).
 
 - A different configuration would be the following:
 ```bash
@@ -189,5 +190,39 @@ This package implements the worst-case microstructure stress analysis and minimi
         --ortho_cell --vertexThickness --WCSWeight 1.0 --JSWeight 0.0 --pnorm 8 --usePthRoot \
         --TensorFitConstraint  --solver slsqp -o itHighWCSWeight
 ```
-  In this configuration, we give more importance to the worst case stress in the objective function. Despite having a 0 weight, the compliance tensor will be correctly achieved because there is a constraint (`--TensorFitConstraint`) making sure this data is achieved.
+  This example minimizes the worst-case stress only (the compliance tensor does
+  not appear in the optimization objective). However, the target compliance
+  tensor will still be achieved due to the equality constrained imposed by
+  `--TensorFitConstraint`.
 
+### Per-iteration output statistics
+The optimizer outputs a list of statistics for each iterate it evaluates.
+The precise collection of statistics it reports depends on what objetive terms/constraints are included in the optimization.
+
+| Name | Description |
+|------|-------------|
+| `p`                             | Pattern parameter vector                                                                                                                                                                                                     |
+| `moduli`                        | Elastic moduli (assuming an orthotropic material): Young's moduli, followed by Poisson's ratios, followed by shear moduli                                                                                                    |
+| `anisotropy`                    | Anisotropy/Zener ratio (assuming a cubic material): the ratio of the actual shear modulus to the shear modulus of an isotropic material with the same Young's modulus and Poisson's ratio. This is 1 for isotropic tensors.  |
+| `printable`                     | Whether the 3D pattern is printable (1) or not (0). 2D iterates always print 1                                                                                                                                               |
+| `Rel elasticity tensor dist`    | $$\frac{\lVert E(\omega) - E^* \rVert_F}{\lVert E^* \rVert_F}$$                                                                                                                                                              |
+| `JFull`                         | The full combined objective being optimized (a weighted combination of the objective terms listed below)                                                                                                                     |
+| `TensorFit violation`           | If the tensor-fitting equality constraint is applied: residual $$S(\omega) - S^*$$ flattened into a 1D vector                                                                                                                |
+| `jacobian TensorFit row norms`  | If the tensor-fitting constraint is applied: norm of the gradient of each component of residual $$S(\omega) - S^*$$                                                                                                          |
+
+The following objective-specific terms may appear:
+
+| Name | Description |
+|------|-------------|
+| `JS`                       | Value of the compliance tensor-fitting objective: $$\lVert S(\omega) - S^*\rVert_F^2$$  |
+| `ProximityRegularization`  | Value of $$\lVert p - p^* \rVert^2$$, where $p^*$ are the "target" pattern parameters   |
+| `Max Ptwise WCS`           | The greatest worst-case stress level appearing anywhere in the mesh (Linf norm)         |
+| `WCS`                      | The worst-case stress objective value (Lp norm of worst-case stress field)              |
+
+For each objective present (JFull, JS, ProximityRegularization, WCS, etc.), the following statistics are printed:
+
+| Name | Description |
+|------|-------------|
+| `normalized <objective>`     | Objective value normalized by the value for the initial iterate.         |
+| `grad_p <objective>`         | Gradient of the objective with respect to each pattern parameter         |
+| ‖grad\_p &lt;objective&gt;‖  | Norm of the objective's gradient with respect to the pattern parameters  |
