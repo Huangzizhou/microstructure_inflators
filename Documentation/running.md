@@ -62,7 +62,7 @@ Now, we present the package containing the main applications used for pattern op
 **TODO:**
 - [ ] Describe `Isosurface_cli`
 
-## Worst-Case Stress Optimization
+## Worst-case stress optimization
 
 **Executable:** `worst_case_stress/WCSOptimization_cli`
 
@@ -196,6 +196,7 @@ effectively ignores the stress levels when optimizing (focusing only on fitting 
   `--TensorFitConstraint`.
 
 ### Per-iteration output statistics
+
 The optimizer outputs a list of statistics for each iterate it evaluates.
 The precise collection of statistics it reports depends on what objetive terms/constraints are included in the optimization.
 
