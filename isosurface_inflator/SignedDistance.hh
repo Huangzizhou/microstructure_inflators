@@ -386,7 +386,7 @@ public:
         // Closest point on conical frustum
         if (x < m_edgeLength) {
             // Rotate back and add to c1 to get the result.
-            return m_c1 + 
+            return m_c1 +
                    m_axisUnit *  ( m_cosTheta * x + m_sinTheta * m_r1)
                  + v_perp     * ((-m_sinTheta * x + m_cosTheta * m_r1) / v_perpComponent); // (v_perp not normalized)
         }
