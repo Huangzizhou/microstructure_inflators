@@ -166,9 +166,7 @@ public:
     typedef PatternSignedDistance<Real, WMesh> PSD;
     typedef typename WMesh::PatternSymmetry PatternSymmetry;
     IsosurfaceInflatorImpl(const std::string &wireMeshPath, std::unique_ptr<MesherBase> &&m, size_t inflationNeighborhoodEdgeDist)
-        : wmesh(wireMeshPath, inflationNeighborhoodEdgeDist), pattern(wmesh), mesher(std::move(m)) {
-        mesher->periodic = !_meshingOrthoCell();
-    }
+        : wmesh(wireMeshPath, inflationNeighborhoodEdgeDist), pattern(wmesh), mesher(std::move(m)) { }
 
     virtual void meshPattern(const std::vector<Real> &params) override {
 #if 0
@@ -191,6 +189,9 @@ public:
         // full TriplyPeriodic base cell.
         if (generateFullPeriodCell && !reflectiveInflator)
             pattern.setBoundingBox(Symmetry::TriplyPeriodic<>::representativeMeshCell<Real>());
+
+        mesher->meshInterfaceConsistently = !_meshingOrthoCell() ||
+                                            meshingOptions().forceConsistentInterfaceMesh;
 
         mesher->mesh(pattern, this->vertices, this->elements);
         BENCHMARK_STOP_TIMER_SECTION("meshPattern");

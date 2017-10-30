@@ -121,17 +121,17 @@ mesh(const SignedDistanceRegion<3>  &sdf,
 
     BENCHMARK_START_TIMER("Curve Cleanup");
     {
-        // Only remesh the cell boundary if we're doing "periodic" meshing
-        // (i.e. preventing Triangle from inserting Steiner points). Otherwise,
+        // Only remesh the cell boundary if we need to "meshInterfaceConsistently"
+        // (i.e. prevent Triangle from inserting Steiner points). Otherwise,
         // we'll let Triangle subdivide the boundary optimally.
         boost::optional<double> cellBdryEdgeLen;
-        if (this->periodic) cellBdryEdgeLen = meshingOptions.maxEdgeLenFromMaxArea() / 2;
+        if (this->meshInterfaceConsistently) cellBdryEdgeLen = meshingOptions.maxEdgeLenFromMaxArea() / 2;
 
         if (meshingOptions.curveSimplifier == MeshingOptions::COLLAPSE) {
             size_t i = 0;
             for (auto &poly : polygons) {
                 curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
-                        meshingOptions.featureAngleThreshold, this->periodic, cellBdryEdgeLen,
+                        meshingOptions.featureAngleThreshold, this->meshInterfaceConsistently, cellBdryEdgeLen,
                         variableMinLens.size() ? variableMinLens.at(i) : std::vector<double>(),
                         0.0 /* marching squares guarantees cell boundary vertex coords are exact */);
                 ++i;
@@ -241,7 +241,7 @@ mesh(const SignedDistanceRegion<3>  &sdf,
     if (polygons.size() == 0) return;
     triangulatePSLC(polygons, holePts, vertices, triangles,
                     meshingOptions.maxArea,
-                    (this->periodic ? "QY" : "Q"));
+                    (this->meshInterfaceConsistently ? "QY" : "Q"));
 
 #if DEBUG_OUT
     MeshIO::save("triangulated_polygon.msh", vertices, triangles);
