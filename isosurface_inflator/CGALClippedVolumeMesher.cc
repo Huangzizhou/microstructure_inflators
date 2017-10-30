@@ -157,6 +157,15 @@ mesh(const SignedDistanceRegion<3> &sdf,
     // std::cout << "Making mesh..." << std::endl;
     BENCHMARK_START_TIMER("make_mesh_3");
     C3t3 c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria);
+    // CGAL sometimes returns an empty mesh for some patterns due to
+    // insufficient initialization:
+    // https://github.com/CGAL/cgal/issues/2416
+    // For some reason this is considered "not a bug," and Laurent recommended
+    // the following workaround:
+    if (c3t3.number_of_facets() == 0) {
+        CGAL::internal::Mesh_3::init_c3t3(c3t3, domain, criteria, 20);
+        refine_mesh_3(c3t3, domain, criteria);
+    }
     BENCHMARK_STOP_TIMER("make_mesh_3");
 
     // Access triangulation directly
