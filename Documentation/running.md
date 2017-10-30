@@ -216,7 +216,7 @@ The following objective-specific terms may appear:
 | Name | Description |
 |------|-------------|
 | `JS`                       | Value of the compliance tensor-fitting objective: $$\lVert S(\omega) - S^*\rVert_F^2$$  |
-| `ProximityRegularization`  | Value of $$\lVert p - p^* \rVert^2$$, where $p^*$ are the "target" pattern parameters   |
+| `ProximityRegularization`  | Value of $$\lVert p - p^* \rVert^2$$, where $$p^*$$ are the "target" pattern parameters   |
 | `Max Ptwise WCS`           | The greatest worst-case stress level appearing anywhere in the mesh (Linf norm)         |
 | `WCS`                      | The worst-case stress objective value (Lp norm of worst-case stress field)              |
 
@@ -226,4 +226,4 @@ For each objective present (JFull, JS, ProximityRegularization, WCS, etc.), the 
 |------|-------------|
 | `normalized <objective>`     | Objective value normalized by the value for the initial iterate.         |
 | `grad_p <objective>`         | Gradient of the objective with respect to each pattern parameter         |
-| ‖grad\_p &lt;objective&gt;‖  | Norm of the objective's gradient with respect to the pattern parameters  |
+| <code>‖grad\_p &lt;objective&gt;‖</code>  | Norm of the objective's gradient with respect to the pattern parameters  |
