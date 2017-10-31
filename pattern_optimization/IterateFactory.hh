@@ -127,18 +127,18 @@ struct IterateFactory : public IFConfigs... {
                     std::random_device rd;
                     std::mt19937 gen(rd());
                     for (size_t p = 0; p < nParams; ++p) {
-                        double perturbationLB = -relMagnitude * params[p],
-                               perturbationUB =  relMagnitude * params[p];
+                        double perturbedLB = params[p] - relMagnitude * params[p],
+                               perturbedUB = params[p] + relMagnitude * params[p];
                         // If we have bounds on the parameter (we should...) we
-                        // can define a better perturbation interval
+                        // can define a better interval for the perturbed parameter
                         if (m_paramBnds.hasLowerBound.at(p) &&
                             m_paramBnds.hasUpperBound.at(p)) {
                             double range = m_paramBnds.upperBound[p] - m_paramBnds.lowerBound[p];
-                            perturbationLB = std::max(m_paramBnds.lowerBound[p], params[p] - range * relMagnitude);
-                            perturbationUB = std::min(m_paramBnds.upperBound[p], params[p] + range * relMagnitude);
+                            perturbedLB = std::max(m_paramBnds.lowerBound[p], params[p] - range * relMagnitude);
+                            perturbedUB = std::min(m_paramBnds.upperBound[p], params[p] + range * relMagnitude);
                         }
-                        std::uniform_real_distribution<> dis(perturbationLB, perturbationUB);
-                        perturbedParams[p] = params[p] + dis(gen);
+                        std::uniform_real_distribution<> dis(perturbedLB, perturbedUB);
+                        perturbedParams[p] = dis(gen);
                         std::cerr << '\t' << perturbedParams[p];
                     }
                     std::cerr << std::endl;
