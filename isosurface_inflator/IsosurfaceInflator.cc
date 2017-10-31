@@ -51,8 +51,8 @@ bool         IsosurfaceInflator:: isBlendingParam(size_t p) const { return m_imp
 void IsosurfaceInflator::setGenerateFullPeriodCell(bool onoff) { m_imp->generateFullPeriodCell = onoff; }
 void IsosurfaceInflator::setReflectiveInflator(bool onoff) { m_imp->reflectiveInflator = onoff; }
 BaseCellType IsosurfaceInflator::baseCellType() const {
-    if      (m_imp->generateFullPeriodCell) return BaseCellType::TriplyPeriodic;
-    else if (m_imp->_meshingOrthoCell())    return BaseCellType::Orthotropic;
+    if      (m_imp->_meshingFullPeriodCell()) return BaseCellType::TriplyPeriodic;
+    else if (m_imp->_meshingOrthoCell())      return BaseCellType::Orthotropic;
     else throw std::runtime_error("Unknown/incompatible base cell type.");
 }
 
