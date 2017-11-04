@@ -396,9 +396,10 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     }
 
     if (args.count("TensorFitConstraint")) {
-        ifactory->TFConstraintConfig::enabled     = true;
-        ifactory->TFConstraintConfig::targetS     = targetS;
-        ifactory->TFConstraintConfig::ignoreShear = args.count("ignoreShear");
+        ifactory->TFConstraintConfig::enabled             = true;
+        ifactory->TFConstraintConfig::targetS             = targetS;
+        ifactory->TFConstraintConfig::ignoreShear         = args.count("ignoreShear");
+        ifactory->TFConstraintConfig::orthotropicSymmetry = inflator.hasOrthotropicSymmetry();
     }
 
     if (args.count("PrintabilityConstraint")) {

@@ -91,6 +91,11 @@ public:
         throw std::runtime_error("This inflator doesn't implement self-supporting constraints.");
     }
 
+    virtual bool hasOrthotropicSymmetry() const {
+        std::cerr << "Warning: inflator doesn't implement hasOrthotropicSymmetry(); assuming true" << std::endl;
+        return true;
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     // Configuration
     ////////////////////////////////////////////////////////////////////////////

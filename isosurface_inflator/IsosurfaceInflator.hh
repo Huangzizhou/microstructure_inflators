@@ -71,6 +71,8 @@ public:
     bool isPositionParam(size_t p) const;
     bool isBlendingParam(size_t p) const;
 
+    bool hasOrthotropicSymmetry() const;
+
     // For debugging
     void disablePostprocess();
     void  enablePostprocess();

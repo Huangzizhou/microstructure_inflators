@@ -67,8 +67,15 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                 PeriodicBoundaryMatcher::determineCellBoundaryFaceMembership<N>(pts, cellND, fm, 0 /* epsilon */);
                 std::vector<std::vector<size_t>> nodeSets;
                 std::vector<size_t>              nodeSetForNode;
-                // Could be sped up by only matching boundary vertices
-                PeriodicBoundaryMatcher::match(pts, cellND, fm, nodeSets, nodeSetForNode);
+                try {
+                    // Could be sped up by only matching boundary vertices
+                    PeriodicBoundaryMatcher::match(pts, cellND, fm, nodeSets, nodeSetForNode);
+                }
+                catch (...) {
+                    std::cerr << "Dumping debug.msh" << std::endl;
+                    MeshIO::save("debug.msh", vertices, elements);
+                    throw;
+                }
                 // Relink periodic vertices to the first element of their corresponding node set.
                 for (auto &e : stitched_elements) {
                     for (size_t &v : e) {

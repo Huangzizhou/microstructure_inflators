@@ -223,9 +223,10 @@ void execute(const po::variables_map &args, const Job<_N> *job)
 
     ifactory->TFConstraintConfig ::enabled = false;
     if (args.count("TensorFitConstraint")) {
-        ifactory->TFConstraintConfig::enabled     = true;
-        ifactory->TFConstraintConfig::targetS     = targetS;
-        ifactory->TFConstraintConfig::ignoreShear = args.count("ignoreShear");
+        ifactory->TFConstraintConfig::enabled             = true;
+        ifactory->TFConstraintConfig::targetS             = targetS;
+        ifactory->TFConstraintConfig::ignoreShear         = args.count("ignoreShear");
+        ifactory->TFConstraintConfig::orthotropicSymmetry = inflator.hasOrthotropicSymmetry();
     }
 
     auto imanager = make_iterate_manager(std::move(ifactory));

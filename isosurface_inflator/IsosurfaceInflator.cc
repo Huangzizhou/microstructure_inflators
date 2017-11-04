@@ -48,6 +48,8 @@ bool         IsosurfaceInflator::isThicknessParam(size_t p) const { return m_imp
 bool         IsosurfaceInflator:: isPositionParam(size_t p) const { return m_imp->isPositionParam(p); }
 bool         IsosurfaceInflator:: isBlendingParam(size_t p) const { return m_imp->isBlendingParam(p); }
 
+bool IsosurfaceInflator::hasOrthotropicSymmetry() const { return m_imp->hasOrthotropicSymmetry(); }
+
 void IsosurfaceInflator::setGenerateFullPeriodCell(bool onoff) { m_imp->generateFullPeriodCell = onoff; }
 void IsosurfaceInflator::setReflectiveInflator(bool onoff) { m_imp->reflectiveInflator = onoff; }
 BaseCellType IsosurfaceInflator::baseCellType() const {

@@ -122,6 +122,8 @@ public:
     // Whether the inflator generates the full doubly- or triply-periodic mesh.
     virtual bool _meshingFullPeriodCell() const = 0;
 
+    virtual bool hasOrthotropicSymmetry() const = 0;
+
     // The meshing cell box.
     virtual BBox<Point> meshingCell() const = 0;
 
@@ -217,9 +219,12 @@ public:
     // Note: when reflectiveInflator = false, the mesher generates the full
     // period cell.
     virtual bool _meshingFullPeriodCell() const override {
-        return generateFullPeriodCell
-            || std::is_same<PatternSymmetry, Symmetry::TriplyPeriodic<typename PatternSymmetry::Tolerance>>::value
-            || std::is_same<PatternSymmetry, Symmetry::DoublyPeriodic<typename PatternSymmetry::Tolerance>>::value;
+        return generateFullPeriodCell || !hasOrthotropicSymmetry();
+    }
+
+    virtual bool hasOrthotropicSymmetry() const override {
+        return !(std::is_same<PatternSymmetry, Symmetry::TriplyPeriodic<typename PatternSymmetry::Tolerance>>::value
+              || std::is_same<PatternSymmetry, Symmetry::DoublyPeriodic<typename PatternSymmetry::Tolerance>>::value);
     }
 
     // The meshing cell box.

@@ -11,7 +11,7 @@ struct MeshingOptions {
     }
 
     // Joint blending mode:
-    JointBlendMode jointBlendingMode = JointBlendMode::HULL;
+    JointBlendMode jointBlendingMode = JointBlendMode::FULL;
 
     // CGAL volume mesher options
     double domainErrorBound          = 1e-5;
