@@ -10,3 +10,4 @@
             * [Use cases](Documentation/running.md#use-cases)
             * [Per-iteration output statistics](Documentation/running.md#per-iteration-output-statistics)
 * [FAQ](Documentation/faq.md)
+* [Notes on Worst-Case Optimization](Documentation/notes.md)
