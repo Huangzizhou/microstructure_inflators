@@ -16,15 +16,7 @@ INFLATOR FAILED: Couldn't find 1th periodic-identified node for minimal boundary
 
 If the inflation fails, you can try to increase the ` --inflation_graph_radius` parameters. This sets the number of neighboring edges that is taken into account when evaluating the SDF and meshing the boundary of a pattern.
 
-##### Reaching target tensor
-
-Try with `--solver slsqp --TensorFitConstraint` instead of `--JSWeight 1.0`. This will set the tensor matching as an vector equality constraint $$f(x) = 0$$, instead of trying to optimize a scalar $$\min \lVert f(x) \rVert_F$$. In the first form, SLSQP will try to enforce each term to be $$0$$, whereas in the second form, the contribution of each term are averaged out in the final sum.
-
-Note that in this form, there are no objective function to optimize, the solver is just trying to satisfy the constraints.
-
-It can also be helpful to specify the argument `--ProximityRegularization 1.0` as the objective function, penalizes parameters from straying too far from their original values (this probably prevents the solver from getting stuck in impossible configurations).
-
-##### Meshing options
+##### Coarsening and inflation failures
 
 A fairly uncommon cause of aperiodic meshes is the parameter `marchingSquaresCoarsening`. It can cause small contours to be missed on one side of the periodic boundary but not the other.
 The contour is detected at a coarser resolution (`2^marchingSquaresCoarsening` times coarser) and then the marching squares is only run at the full `marchingSquareGridSize` resolution around the detected contour.
@@ -33,7 +25,15 @@ In the meshing options file, it can be helpful to set `"marchingSquaresCoarsenin
 
 ![](img/coarsening_fail.png)
 
-##### Reaching non-orthotropic tensors
+##### Reaching a target elastic tensor
+
+Try with `--solver slsqp --TensorFitConstraint` instead of `--JSWeight 1.0`. This will set the tensor matching as an vector equality constraint $$f(x) = 0$$, instead of trying to optimize a scalar $$\min \lVert f(x) \rVert_F$$. In the first form, SLSQP will try to enforce each term to be $$0$$, whereas in the second form, the contribution of each term are averaged out in the final sum.
+
+Note that in this form, there are no objective function to optimize, the solver is just trying to satisfy the constraints.
+
+It can also be helpful to specify the argument `--ProximityRegularization 1.0` as the objective function, penalizes parameters from straying too far from their original values (this probably prevents the solver from getting stuck in impossible configurations).
+
+##### Achieving non-orthotropic tensors
 
 In a flattened 2D elasticity tensor, a orthotropic material will have the following non-zero entries:
 
@@ -62,4 +62,4 @@ With `"forceMSGridSize": true`, the boundary is extracted at the resolution spec
 
 Without `forceMSGridSize`, the marching square resolution is deduced from `maxArea`, and `maxArea` controls the both the interior resolution and the boundary extraction resolution (so that the boundary edges are roughly the same size as the interior edges triangle will create).
 
-Julian was using I was using `"forceMSGridSize": true` and `"marchingSquaresGridSize": 2048` for stress analysis.
+Julian was using `"forceMSGridSize": true` and `"marchingSquaresGridSize": 2048` for stress analysis, but lower resolutions such as 256 or 512 may already provide satisfactory results.
