@@ -31,7 +31,7 @@ Try with `--solver slsqp --TensorFitConstraint` instead of `--JSWeight 1.0`. Thi
 
 Note that in this form, there are no objective function to optimize, the solver is just trying to satisfy the constraints.
 
-It can also be helpful to specify the argument `--ProximityRegularization 1.0` as the objective function, penalizes parameters from straying too far from their original values (this probably prevents the solver from getting stuck in impossible configurations).
+It can also be helpful to specify the argument `--proximityRegularizationWeight 1.0` as the objective function, penalizes parameters from straying too far from their original values (this probably prevents the solver from getting stuck in impossible configurations).
 
 ##### Achieving non-orthotropic tensors
 
