@@ -319,11 +319,11 @@ struct Diagonal : public DoublyPeriodic<TOL>, SymmetryCRTP<Diagonal<TOL>> {
                 group.push_back(p); // Identity (stay in region 1)
 
                 group.push_back(p.compose(Isometry::permutation(Axis::X, Axis::Y))); // Region 1 to region 2 (swap x, y)
-                group.push_back(p.compose(Isometry:: reflection(Axis::X)             // Region 1 to region 3
-                                 .compose(Isometry:: reflection(Axis::Y))));
-                group.push_back(p.compose(Isometry:: reflection(Axis::X)             // Region 1 to region 4 (swap -x, y)
-                                 .compose(Isometry::permutation(Axis:X, Axis::Y)     // (swap x, y in reflected space, transform back)
-                                 .compose(Isometry:: reflection(Axis:X, Axis::Y)))));
+                group.push_back(p.compose(Isometry:: reflection(Axis::X))            // Region 1 to region 3: rotation by 180 degrees
+                                 .compose(Isometry:: reflection(Axis::Y)));
+                group.push_back(p.compose(Isometry:: reflection(Axis::X))            // Region 1 to region 4 (swap -x, y)
+                                 .compose(Isometry::permutation(Axis::X, Axis::Y))   // (swap x, y in reflected space, transform back)
+                                 .compose(Isometry:: reflection(Axis::X)));
             }
         }
 
