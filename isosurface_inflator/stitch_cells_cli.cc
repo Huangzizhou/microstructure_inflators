@@ -22,6 +22,7 @@ WireMeshBasePtr load_wire_mesh(const std::string &sym, const std::string &path) 
     TRY_SYMMETRY(Square, sym, path);
     TRY_SYMMETRY(Cubic, sym, path);
     TRY_SYMMETRY(Orthotropic, sym, path);
+    TRY_SYMMETRY(Diagonal, sym, path);
     TRY_KEY_VAL(DoublyPeriodic, Doubly_Periodic, sym, path);
     TRY_KEY_VAL(TriplyPeriodic, Triply_Periodic, sym, path);
     return nullptr;
