@@ -304,15 +304,26 @@ struct Diagonal : public DoublyPeriodic<TOL>, SymmetryCRTP<Diagonal<TOL>> {
         return p;
     }
 
+    // We need augment DoublyPeriodic's symmetry group with the operations
+    // taking region 1 into 2, 3, and 4 by reflections across the diagonals:
+    // +---+
+    // |\2/|
+    // |3*1|
+    // |/4\|
+    // +---+
     static std::vector<Isometry> symmetryGroup() {
         std::vector<Isometry> group;
         std::vector<Isometry> parentGroup = DoublyPeriodic<TOL>::symmetryGroup();
         for (const Isometry &p : parentGroup) {
             if (!p.affectsAxis(Axis::Z)) {
-                group.push_back(p); // X Y Z
+                group.push_back(p); // Identity (stay in region 1)
 
-                group.push_back(p.compose(Isometry::permutation(Axis::X, Axis::Y))); // Y X Z
-                group.push_back(p.compose(Isometry::permutation(Axis::Y, Axis::X)).compose(Isometry::reflection(Axis::X))); // Y -X Z
+                group.push_back(p.compose(Isometry::permutation(Axis::X, Axis::Y))); // Region 1 to region 2 (swap x, y)
+                group.push_back(p.compose(Isometry:: reflection(Axis::X)             // Region 1 to region 3
+                                 .compose(Isometry:: reflection(Axis::Y))));
+                group.push_back(p.compose(Isometry:: reflection(Axis::X)             // Region 1 to region 4 (swap -x, y)
+                                 .compose(Isometry::permutation(Axis:X, Axis::Y)     // (swap x, y in reflected space, transform back)
+                                 .compose(Isometry:: reflection(Axis:X, Axis::Y)))));
             }
         }
 
