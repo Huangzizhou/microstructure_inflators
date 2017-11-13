@@ -50,12 +50,12 @@ template<typename TOL = DEFAULT_TOL> struct Null;
 // TriplyPeriodic and Orthotropic symmetries have a box base cell,
 // Cubic and Diagonal symmetries have a tet base cell.
 template<class Sym> struct SymmetryTraits { };
-template<typename TOL> struct SymmetryTraits<TriplyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
-template<typename TOL> struct SymmetryTraits<DoublyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
-template<typename TOL> struct SymmetryTraits<Orthotropic<TOL>>    { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
-template<typename TOL> struct SymmetryTraits<Diagonal<TOL>>       { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
-template<typename TOL> struct SymmetryTraits<Cubic<TOL>>          { template<typename Real> using NodePositioner = TetNodePositioner<Real, TOL>; };
-template<typename TOL> struct SymmetryTraits<Square<TOL>>         { template<typename Real> using NodePositioner = TetNodePositioner<Real, TOL>; };
+template<typename TOL> struct SymmetryTraits<TriplyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
+template<typename TOL> struct SymmetryTraits<DoublyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
+template<typename TOL> struct SymmetryTraits<Orthotropic<TOL>>    { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
+template<typename TOL> struct SymmetryTraits<Diagonal<TOL>>       { template<typename Real> using NodePositioner = PrismNodePositioner<Real, TOL>; };
+template<typename TOL> struct SymmetryTraits<Cubic<TOL>>          { template<typename Real> using NodePositioner = TetNodePositioner  <Real, TOL>; };
+template<typename TOL> struct SymmetryTraits<Square<TOL>>         { template<typename Real> using NodePositioner = TetNodePositioner  <Real, TOL>; };
 
 // Implements some of the shared interface of the symmetry classes
 template<class Sym>
@@ -257,6 +257,7 @@ struct Orthotropic : public TriplyPeriodic<TOL>, SymmetryCRTP<Orthotropic<TOL>> 
 
 // Base unit the triangle (0, 0), (1, -1), (1, 1)
 // Symmetry group ??? x Translations
+// We mesh the half-space (x >= 0) since meshing within a prism is harder.
 template<typename TOL>
 struct Diagonal : public DoublyPeriodic<TOL>, SymmetryCRTP<Diagonal<TOL>> {
     typedef TOL Tolerance;
@@ -297,10 +298,16 @@ struct Diagonal : public DoublyPeriodic<TOL>, SymmetryCRTP<Diagonal<TOL>> {
         return DoublyPeriodic<TOL>::inBaseUnit(p) && isPositive<TOL>(p[0]);
     }
 
-    // All vertices in the diagonal base unit are independent.
+    // Find the location of the independent vertex linked to p. For vertices in
+    // the base cell's interior, this is just the vertex position itself. For
+    // vertices on the period cell face(s), the diagonal symmetries impose that
+    // the interface should have a reflective symmetry along the X and Y axes.
     template<typename Real>
     static Point3<Real> independentVertexPosition(Point3<Real> p) {
         assert(inBaseUnit(p));
+        if (isZero<TOL>(std::abs(p[0] - 1.0)) && isNegative<TOL>(p[1])) {
+            p[1] = -p[1];
+        }
         return p;
     }
 

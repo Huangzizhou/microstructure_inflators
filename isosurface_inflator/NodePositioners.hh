@@ -7,7 +7,7 @@
 //
 //      Positioners for two base units types are implemented: box (for triply
 //      periodic and orthotropic symmetry), and tet (for cubic symmetry).
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  07/20/2015 11:44:59
@@ -93,7 +93,7 @@ struct BoxNodePositioner {
                 if (m_ctype[i] == ComponentType::MaxFace)
                     assert(isZero<TOL>(p[i] - m_minCorner[i] - m_dimensions[i]));
             }
-            
+
         }
         assert(d == numDoFs());
     }
@@ -113,7 +113,8 @@ private:
 template<typename Real, typename TOL>
 struct TetNodePositioner {
     typedef Eigen::Matrix<Real, 4, 1> BaryCoords;
-    //  (0, 0, 0), (1, 0, 0), (1, 1, 0), (1, 1, 1)
+
+    // (0, 0, 0), (1, 0, 0), (1, 1, 0), (1, 1, 1)
     static int baseTetCornerPosition(size_t corner, size_t component) { return component < corner; }
     static BaryCoords barycentricCoordinates(const Point3<Real> &p) {
         return BaryCoords(1 - p[0], p[0] - p[1], p[1] - p[2], p[2]);
@@ -212,6 +213,200 @@ struct TetNodePositioner {
 private:
     size_t m_numAffectedBarycoords;
     size_t m_affectedBaryCoordIndices[4];
+};
+
+
+// Offsets must keep a point on the base prism simplex on which it
+// started (face, node, edge, prism interior). The positional degrees of
+// freedom are barycentric coordinates on the base triangle + z coordinate.
+//    b
+//   /|
+//  / |
+// a  c
+//  \ |
+//   \|
+//    d
+// - If a vertex is on a corner a,b,c,d then it has 0 dofs on the XY plane.
+// - If a vertex is on an edge, then it should be constrained to stay on this edge
+//   Moreover, vertices on the edge (b,c) need to have a vertical symmetry due to periodicity
+//   (this should happen thanks to `Symmetry::independentVertexPosition()`)
+template<typename Real, typename TOL>
+struct PrismNodePositioner {
+    typedef Eigen::Matrix<Real, 4, 1> BaryCoords;
+
+    // (0, 0), (1, 1), (1, 0), (1, -1)
+    static int baseCornerPosition(size_t corner, size_t component) {
+        static int coords [] = {
+            0, 0,
+            1, 1,
+            1, 0,
+            1, -1
+        };
+        return coords[2 * corner + component];
+    }
+
+    static BaryCoords barycentricCoordinates(const Point3<Real> &p) {
+        if (p[1] >= 0) {
+            return BaryCoords(1 - p[0], p[1], p[0] - p[1], 0);
+        } else {
+            return BaryCoords(1 - p[0], 0, p[0] + p[1], -p[1]);
+        }
+    }
+
+    PrismNodePositioner(const BBox<Point3<Real>> &cell, const Point3<Real> &p) { forPoint(cell, p); }
+
+    // Assumes point is within the base unit!
+    void forPoint(const BBox<Point3<Real>> &cell, const Point3<Real> &p) {
+        // XY plane
+        BaryCoords lambda = barycentricCoordinates(p);
+        m_numAffectedBarycoords = 0;
+        for (size_t c = 0; c < 4; ++c) {
+            if (!isZero<TOL>(lambda[c]))
+                m_affectedBaryCoordIndices[m_numAffectedBarycoords++] = c;
+        }
+        assert(m_numAffectedBarycoords > 0);
+
+        // Z coordinate
+        {
+            // Node can move in any coordinate it doesn't share with a min/max cell face.
+            if      (isZero<TOL>(p[2] - cell.minCorner[2])) m_ctype = ComponentType::MinFace;
+            else if (isZero<TOL>(p[2] - cell.maxCorner[2])) m_ctype = ComponentType::MaxFace;
+            else                                            m_ctype = ComponentType::Free;
+        }
+        m_minCorner = cell.minCorner[2];
+        m_extent = cell.dimensions()[2];
+    }
+
+    size_t numDoFsXY() const { return m_numAffectedBarycoords - 1; }
+    size_t numDoFsZ() const { return (m_ctype == ComponentType::Free); }
+    size_t numDoFs() const { return numDoFsXY() + numDoFsZ(); }
+
+    // Get the 3D position corresponding to the input degrees of freedom.
+    // Supports a different type since this method will be autodiff-ed
+    template<typename MyReal>
+    Point3<MyReal> getPosition(const MyReal *dofs) const {
+        Vector3<MyReal> pos(Vector3<MyReal>::Zero());
+
+        // XY plane
+        MyReal lastCoordinate = 0;
+        for (size_t i = 0; i < numDoFsXY(); ++i) {
+            size_t corner = m_affectedBaryCoordIndices[i];
+            pos[0] += dofs[i] * baseCornerPosition(corner, 0);
+            pos[1] += dofs[i] * baseCornerPosition(corner, 1);
+            lastCoordinate += dofs[i];
+        }
+        if (lastCoordinate > 1.0) {
+            std::cerr << "WARNING: node left base triangle (lastCoordinate = " << lastCoordinate << ")" << std::endl;
+            std::cerr << "DOFs: " << std::endl;
+            for (size_t i = 0; i < numDoFsXY(); ++i) {
+                std::cerr << dofs[i] << "\t";
+            }
+            std::cerr << std::endl;
+        }
+        lastCoordinate = 1.0 - lastCoordinate;
+        size_t corner = m_affectedBaryCoordIndices[m_numAffectedBarycoords - 1];
+        pos[0] += lastCoordinate * baseCornerPosition(corner, 0);
+        pos[1] += lastCoordinate * baseCornerPosition(corner, 1);
+        return pos;
+
+        // Z coordinate
+        size_t d = numDoFsXY();
+        {
+            pos[2] = m_minCorner;
+            if (m_ctype == ComponentType::Free)    pos[2] += dofs[d++] * m_extent;
+            if (m_ctype == ComponentType::MaxFace) pos[2] += m_extent;
+        }
+
+        assert(d == numDoFs());
+        return pos;
+    }
+
+    // Get the map from [params 1] to (x, y, z) position (the last column is an
+    // constant translation).
+    // "paramOffset" is the index of the first position parameter for this
+    // node.
+    Eigen::Matrix3Xd
+    getPositionMap(const size_t paramsSize, const size_t paramOffset) const {
+        assert(paramOffset + numDoFs() <= paramsSize);
+
+        Eigen::Matrix3Xd posMap(3, paramsSize + 1);
+        const size_t constTransCol = paramsSize;
+        posMap.setZero();
+
+        // XY plane
+        size_t lastCorner = m_affectedBaryCoordIndices[m_numAffectedBarycoords - 1];
+        // last nonzero barycentric coordinate is 1.0 - sum(previous)
+        posMap(0, constTransCol) = baseCornerPosition(lastCorner, 0);
+        posMap(1, constTransCol) = baseCornerPosition(lastCorner, 1);
+
+        for (size_t d = 0; d < numDoFs(); ++d) {
+            size_t corner = m_affectedBaryCoordIndices[d];
+            posMap(0, paramOffset + d) = baseCornerPosition(corner, 0) - baseCornerPosition(lastCorner, 0);
+            posMap(1, paramOffset + d) = baseCornerPosition(corner, 1) - baseCornerPosition(lastCorner, 1);
+        }
+
+        // Z coordinate
+        posMap(2, constTransCol) = m_minCorner;
+        size_t d = paramOffset + numDoFsXY();
+        {
+            if (m_ctype == ComponentType::   Free) posMap(2,           d++) += m_extent;
+            if (m_ctype == ComponentType::MaxFace) posMap(2, constTransCol) += m_extent;
+        }
+        assert(d == numDoFs() + paramOffset);
+
+        return posMap;
+    }
+
+    // Get the degrees of freedom corresponding to a 3D position. Assumes that
+    // the position lies within the space spanned by this positioner.
+    template<typename Real2>
+    void getDoFsForPoint(const Point3<Real> &p, Real2 *dofs) const {
+
+        // XY plane
+        auto b = barycentricCoordinates(p);
+        // Verify that b is in the base triangle.
+        for (size_t i = 0; i < 4; ++i) {
+            assert(isPositive<TOL>(b[i])), assert(isNegative<TOL>(b[i] - 1));
+        }
+        Real simplexWeight = 0.0;
+        for (size_t i = 0; i < m_numAffectedBarycoords; ++i) {
+            simplexWeight += b[m_affectedBaryCoordIndices[i]];
+            if (i < numDoFsXY()) {
+                dofs[i] = b[m_affectedBaryCoordIndices[i]];
+            }
+        }
+        // Verify that the point is within the expected simplex
+        assert(isZero<TOL>(simplexWeight - 1.0));
+
+        // Z coordinate
+        size_t d = numDoFsXY();
+        {
+            if (m_ctype == ComponentType::Free) {
+                dofs[d++] = (p[2] - m_minCorner) / m_extent;
+            } else {
+                // Verify that p lies in the expected subspace
+                if (m_ctype == ComponentType::MinFace) {
+                    assert(isZero<TOL>(p[2] - m_minCorner));
+                }
+                if (m_ctype == ComponentType::MaxFace) {
+                    assert(isZero<TOL>(p[2] - m_minCorner - m_extent));
+                }
+            }
+
+        }
+        assert(d == numDoFs());
+    }
+
+private:
+    // Barycentric coordinate for (x, y) position
+    size_t m_numAffectedBarycoords;
+    size_t m_affectedBaryCoordIndices[4];
+
+    // For the z coordinate
+    enum class ComponentType { MinFace, MaxFace, Free };
+    ComponentType m_ctype;
+    Real m_minCorner;
+    Real m_extent;
 };
 
 #endif /* end of include guard: NODEPOSITIONERS_HH */
