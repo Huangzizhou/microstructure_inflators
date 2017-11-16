@@ -272,10 +272,7 @@ replicatedGraph(const std::vector<Isometry> &isometries,
 
                 size_t match = result.first;
                 // Verify position maps agree for coinciding reflected vertices
-                // that originate from a different independent vtx
-                if ((rVertices[match].posMap - posMap).squaredNorm() >= 1e-8 &&
-                    m_indepVtxForBaseVtx.at(rVertices[match].origVertex) != m_indepVtxForBaseVtx.at(origVertex))
-                {
+                if ((rVertices[match].posMap - posMap).squaredNorm() >= 1e-8) {
                     std::cout << m_baseVertices.at(origVertex).transpose() << std::endl;
                     std::cout << rVertices[match].iso << std::endl;
                     std::cout << rVertices[match].posMap << std::endl;

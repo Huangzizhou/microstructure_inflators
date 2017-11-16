@@ -271,7 +271,7 @@ struct Diagonal : public DoublyPeriodic<TOL>, SymmetryCRTP<Diagonal<TOL>> {
 
     template<typename Real>
     static BBox<Point3<Real>> representativeMeshCell() {
-        return BBox<Point3<Real>>(Point3<Real>(0, -1, 0),
+        return BBox<Point3<Real>>(Point3<Real>(-1, -1, 0),
                                   Point3<Real>(1, 1, 0));
     }
 
@@ -289,13 +289,19 @@ struct Diagonal : public DoublyPeriodic<TOL>, SymmetryCRTP<Diagonal<TOL>> {
 
     template<typename Real>
     static bool inBaseUnit(const Point3<Real> &p) {
-        return DoublyPeriodic<TOL>::inBaseUnit(p) && isPositive<TOL>(p[0]) &&
-                (p[0] + tolerance >= p[1]) && (p[0] + tolerance >= -p[1]);
+        if (DoublyPeriodic<TOL>::inBaseUnit(p)) {
+            if ( isZero<TOL>(std::abs(p[0] - 1.0)) ) {
+                return isPositive<TOL>(p[1]);
+            } else {
+                return isPositive<TOL>(p[0]) && (p[0] + tolerance >= p[1]) && (p[0] + tolerance >= -p[1]);
+            }
+        }
+        return false;
     }
 
     template<typename Real>
     static bool inMeshingCell(const Point3<Real> &p) {
-        return DoublyPeriodic<TOL>::inBaseUnit(p) && isPositive<TOL>(p[0]);
+        return DoublyPeriodic<TOL>::inBaseUnit(p);
     }
 
     // Find the location of the independent vertex linked to p. For vertices in
@@ -305,8 +311,8 @@ struct Diagonal : public DoublyPeriodic<TOL>, SymmetryCRTP<Diagonal<TOL>> {
     template<typename Real>
     static Point3<Real> independentVertexPosition(Point3<Real> p) {
         assert(inBaseUnit(p));
-        if (isZero<TOL>(std::abs(p[0] - 1.0)) && isNegative<TOL>(p[1])) {
-            p[1] = -p[1];
+        if (isZero<TOL>(std::abs(p[0] - 1.0))) {
+            if (p[1] < 0) { p[1] = -p[1]; }
         }
         return p;
     }

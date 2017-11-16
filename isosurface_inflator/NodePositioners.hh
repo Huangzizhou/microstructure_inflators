@@ -261,8 +261,9 @@ struct PrismNodePositioner {
         BaryCoords lambda = barycentricCoordinates(p);
         m_numAffectedBarycoords = 0;
         for (size_t c = 0; c < 4; ++c) {
-            if (!isZero<TOL>(lambda[c]))
+            if (!isZero<TOL>(lambda[c])) {
                 m_affectedBaryCoordIndices[m_numAffectedBarycoords++] = c;
+            }
         }
         assert(m_numAffectedBarycoords > 0);
 
