@@ -290,11 +290,7 @@ struct Diagonal : public DoublyPeriodic<TOL>, SymmetryCRTP<Diagonal<TOL>> {
     template<typename Real>
     static bool inBaseUnit(const Point3<Real> &p) {
         if (DoublyPeriodic<TOL>::inBaseUnit(p)) {
-            if ( isZero<TOL>(std::abs(p[0] - 1.0)) ) {
-                return isPositive<TOL>(p[1]);
-            } else {
-                return isPositive<TOL>(p[0]) && (p[0] + tolerance >= p[1]) && (p[0] + tolerance >= -p[1]);
-            }
+            return isPositive<TOL>(p[0]) && (p[0] + tolerance >= p[1]) && (p[0] + tolerance >= -p[1]);
         }
         return false;
     }
