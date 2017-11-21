@@ -19,7 +19,7 @@ class MesherBase {
 public:
     virtual void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
-            std::vector<MeshIO::IOElement> &elements) = 0;
+            std::vector<MeshIO::IOElement> &elements) const = 0;
 
     MeshingOptions meshingOptions;
 

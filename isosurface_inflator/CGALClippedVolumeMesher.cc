@@ -50,7 +50,7 @@ private:
 void CGALClippedVolumeMesher::
 mesh(const SignedDistanceRegion<3> &sdf,
      std::vector<MeshIO::IOVertex> &vertices,
-     std::vector<MeshIO::IOElement> &elements)
+     std::vector<MeshIO::IOElement> &elements) const
 {
     using Mesh_domain = CGAL::Mesh_domain_with_polyline_features_3<
                             CGAL::Implicit_mesh_domain_3<ClippedSignedDistanceFunction, K>>;

@@ -18,8 +18,12 @@
 #include <type_traits>
 #include <GlobalBenchmark.hh>
 
+#include "rasterize.hh"
+
 #include "IsosurfaceInflatorConfig.hh"
 #include "PatternSignedDistance.hh"
+
+#include <boost/algorithm/string.hpp>
 
 class IsosurfaceInflator::Impl {
 public:
@@ -93,6 +97,10 @@ public:
 
     // Mesh the param (fills vertices, elements member arrays)
     virtual void meshPattern(const std::vector<Real> &params) = 0;
+
+    // Rasterize to a density field on a 2D/3D grid
+    // (Infer dimension from resolutionString, which specifies rasterization grid size along each dimension)
+    virtual void rasterize(const std::vector<Real> &params, const std::string &resolutionString, const std::string &outPath) = 0;
 
     // Dump inflation graph
     virtual void dumpInflationGraph(const std::string &path, const std::vector<Real> &params) const = 0;
@@ -201,6 +209,27 @@ public:
         mesher->mesh(pattern, this->vertices, this->elements);
         BENCHMARK_STOP_TIMER_SECTION("meshPattern");
         // cout << vertices.size() << " vertices, " << elements.size() << " elements" << endl;
+    }
+
+    // Rasterize to a indicator scalar field on a 2D/3D grid
+    // (Infer dimension from resolutionString, which specifies rasterization grid size along each dimension)
+    virtual void rasterize(const std::vector<Real> &params, const std::string &resolutionString, const std::string &outPath) override {
+        pattern.setParameters(params, meshingOptions().jointBlendingMode);
+
+        std::vector<MeshIO::IOVertex > vertices;
+        std::vector<MeshIO::IOElement> elements;
+        ScalarField<Real> indicator;
+
+
+        std::vector<std::string> sizeStrings;
+        boost::split(sizeStrings, resolutionString, boost::is_any_of(",x"));
+        std::vector<size_t> sizes;
+        for (auto &s : sizeStrings) sizes.push_back(std::stoul(s));
+        ::rasterize(pattern, sizes, vertices, elements, indicator);
+
+        auto type = (sizes.size() == 2) ? MeshIO::MESH_QUAD : MeshIO::MESH_HEX;
+        MSHFieldWriter writer(outPath, vertices, elements, type);
+        writer.addField("indicator", indicator, DomainType::PER_ELEMENT);
     }
 
     // Dump inflation graph

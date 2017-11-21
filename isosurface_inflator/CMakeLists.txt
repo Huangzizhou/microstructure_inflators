@@ -12,6 +12,7 @@ add_library(isosurface_inflator
         VCGSurfaceMesher.cc
         IGLSurfaceMesherMC.cc
         PostProcess.cc
+        rasterize.cc
 
         AutomaticDifferentiation.hh
         BoxIntersection1DFeatures.hh
@@ -46,6 +47,7 @@ add_library(isosurface_inflator
         VCGSurfaceMesher.hh
         WireMesh.hh
         WireMesh.inl
+        rasterize.hh
 )
 
 target_include_directories(isosurface_inflator PUBLIC .)

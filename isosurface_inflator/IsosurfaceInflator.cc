@@ -42,6 +42,8 @@ using namespace std;
 void IsosurfaceInflator::inflate(const vector<Real> &params) { m_imp->inflate(params); }
 void IsosurfaceInflator::dumpInflationGraph(const std::string &path, const std::vector<Real> &params) const { m_imp->dumpInflationGraph(path, params); }
 
+void IsosurfaceInflator::rasterize(const vector<Real> &params, const std::string &resolution, const std::string &outPath) { m_imp->rasterize(params, resolution, outPath); }
+
 vector<Real> IsosurfaceInflator::defaultParameters()        const { return m_imp->defaultParameters(); }
 size_t       IsosurfaceInflator::numParams()                const { return m_imp->numParams(); }
 bool         IsosurfaceInflator::isThicknessParam(size_t p) const { return m_imp->isThicknessParam(p); }

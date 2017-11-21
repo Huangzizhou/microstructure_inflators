@@ -37,6 +37,8 @@ public:
     void inflate(const std::vector<Real> &params);
     std::vector<Real> defaultParameters() const;
 
+    void rasterize(const std::vector<Real> &params, const std::string &resolution, const std::string &outPath);
+
     // Configure whether the full period cell is generated. E.g. in the case of
     // orthotropic symmetry, controls whether the representative eighth-cell is
     // reflected into the full cell.

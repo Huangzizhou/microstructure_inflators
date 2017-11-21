@@ -7,7 +7,7 @@ void IGLSurfaceMesherMC::
 mesh(const SignedDistanceRegion<3> &sdf,
      std::vector<MeshIO::IOVertex> &vertices,
      std::vector<MeshIO::IOElement> &elements,
-     const double isolevel)
+     const double isolevel) const
 {
     size_t gs = meshingOptions.marchingCubesGridSize;
     const auto bbox = sdf.boundingBox();
@@ -67,7 +67,7 @@ mesh(const SignedDistanceRegion<3> &sdf,
 void IGLSurfaceMesherMC::
 mesh(const SignedDistanceRegion<3> &/* sdf */,
      std::vector<MeshIO::IOVertex> &/* vertices */,
-     std::vector<MeshIO::IOElement> &/* elements */, const double /* isolevel */)
+     std::vector<MeshIO::IOElement> &/* elements */, const double /* isolevel */) const
 {
     throw std::runtime_error("LIBIGL unavailable");
 }
