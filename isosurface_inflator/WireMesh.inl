@@ -275,12 +275,12 @@ replicatedGraph(const std::vector<Isometry> &isometries,
                 // that originate from a different independent vtx
                 if ((rVertices[match].posMap - posMap).squaredNorm() >= 1e-8)
                 {
-                    std::cout << m_baseVertices.at(rVertices[match].origVertex).transpose() << std::endl;
-                    std::cout << m_baseVertices.at(origVertex).transpose() << std::endl;
-                    std::cout << rVertices[match].iso << std::endl;
-                    std::cout << rVertices[match].posMap << std::endl;
-                    std::cout << isometry << std::endl;
-                    std::cout << posMap << std::endl;
+                    std::cerr << m_baseVertices.at(rVertices[match].origVertex).transpose() << std::endl;
+                    std::cerr << m_baseVertices.at(origVertex).transpose() << std::endl;
+                    std::cerr << rVertices[match].iso << std::endl;
+                    std::cerr << rVertices[match].posMap << std::endl;
+                    std::cerr << isometry << std::endl;
+                    std::cerr << posMap << std::endl;
                     assert(false && "Conflicting maps");
                 }
                 // Verify repeated vertices originate from same independent vtx
