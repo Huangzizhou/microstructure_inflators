@@ -222,14 +222,19 @@ private:
 //    b
 //   /|
 //  / |
-// a  c
+// a  d
 //  \ |
 //   \|
-//    d
+//    c
 // - If a vertex is on a corner a,b,c,d then it has 0 dofs on the XY plane.
 // - If a vertex is on an edge, then it should be constrained to stay on this edge
-//   Moreover, vertices on the edge (b,c) need to have a vertical symmetry due to periodicity
-//   (this should happen thanks to `Symmetry::independentVertexPosition()`)
+// - Parameters are assigned to vertices on edge (b, c) to ensure reflectional symmetry is
+//   preserved when parameters are linked (by `Symmetry::independentVertexPosition()`):
+//   increasing the parameter shared by the vertex pair (v_upper, v_lower)
+//   moves v_upper up and v_lower down.
+//   This happens automatically due to the vertex ordering above: the single
+//   parameter assigned to vertices on this edge is a barycentric coordinate for the
+//   first vertex in the edge segment (i.e. b for the segment b-d and c for the segment c-d).
 template<typename Real, typename TOL>
 struct PrismNodePositioner {
     typedef Eigen::Matrix<Real, 4, 1> BaryCoords;
@@ -239,17 +244,17 @@ struct PrismNodePositioner {
         static int coords [] = {
             0, 0,
             1, 1,
-            1, 0,
-            1, -1
+            1, -1,
+            1, 0
         };
         return coords[2 * corner + component];
     }
 
     static BaryCoords barycentricCoordinates(const Point3<Real> &p) {
         if (p[1] >= 0) {
-            return BaryCoords(1 - p[0], p[1], p[0] - p[1], 0);
+            return BaryCoords(1 - p[0], p[1], 0, p[0] - p[1]);
         } else {
-            return BaryCoords(1 - p[0], 0, p[0] + p[1], -p[1]);
+            return BaryCoords(1 - p[0], 0, -p[1], p[0] + p[1]);
         }
     }
 
@@ -340,7 +345,7 @@ struct PrismNodePositioner {
         posMap(0, constTransCol) = baseCornerPosition(lastCorner, 0);
         posMap(1, constTransCol) = baseCornerPosition(lastCorner, 1);
 
-        for (size_t d = 0; d < numDoFs(); ++d) {
+        for (size_t d = 0; d < numDoFsXY(); ++d) {
             size_t corner = m_affectedBaryCoordIndices[d];
             posMap(0, paramOffset + d) = baseCornerPosition(corner, 0) - baseCornerPosition(lastCorner, 0);
             posMap(1, paramOffset + d) = baseCornerPosition(corner, 1) - baseCornerPosition(lastCorner, 1);
