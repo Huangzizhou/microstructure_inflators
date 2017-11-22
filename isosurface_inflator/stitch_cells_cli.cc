@@ -42,6 +42,12 @@ void execute(const std::string &patchFilename, const std::string &meshingOptions
         return;
     }
 
+    // Create mesher and load meshing options
+    std::unique_ptr<MesherBase> mesher;
+    if (N == 2) { mesher = std::make_unique<MidplaneMesher>(); }
+    if (N == 3) { mesher = std::make_unique<IGLSurfaceMesherMC>(); }
+    if (!meshingOptions.empty()) { mesher->meshingOptions.load(meshingOptions); }
+
     // Assign topologies and parameters to each cell
     NDCubeArray<WireMeshBasePtr, N, 3> topologyGrid;
     NDCubeArray<std::vector<double>, N, 3> parameterGrid;
@@ -58,18 +64,11 @@ void execute(const std::string &patchFilename, const std::string &meshingOptions
     auto params = swm.paramsFromParamGrid(parameterGrid);
 
     PatternSignedDistance<double, StitchedWireMesh<N>> sdf(swm);
-
-    // Note: JointBlendMode could be set differently in MeshingOptions
-    sdf.setParameters(params, JointBlendMode::HULL);
+    sdf.setParameters(params, mesher->meshingOptions.jacobian, mesher->meshingOptions.jointBlendingMode);
 
     std::vector<MeshIO::IOVertex > vertices;
     std::vector<MeshIO::IOElement> elements;
 
-    std::unique_ptr<MesherBase> mesher;
-    if (N == 2) { mesher = std::make_unique<MidplaneMesher>(); }
-    if (N == 3) { mesher = std::make_unique<IGLSurfaceMesherMC>(); }
-
-    if (!meshingOptions.empty()) { mesher->meshingOptions.load(meshingOptions); }
     mesher->meshInterfaceConsistently = true;
     mesher->mesh(sdf, vertices, elements);
 

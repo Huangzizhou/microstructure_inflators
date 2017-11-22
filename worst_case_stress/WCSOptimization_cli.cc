@@ -272,12 +272,19 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
         boost::trim(jacobianString);
         boost::split(jacobianComponents, jacobianString, boost::is_any_of("\t "),
                 boost::token_compress_on);
-        if (jacobianComponents.size() != _N * _N)
+        if (jacobianComponents.size() != _N * _N) {
             throw runtime_error("Invalid deformation jacobian");
+        }
         for (size_t i = 0; i < _N; ++i) {
             for (size_t j = 0; j < _N; ++j) {
                 jacobian(i, j) = stod(jacobianComponents[_N * i + j]);
             }
+        }
+
+        Eigen::Matrix<Real, 3, 3> meshing_jacobian = inflator.meshingOptions().jacobian;
+        std::cerr << meshing_jacobian << std::endl << std::endl;
+        if (!meshing_jacobian.topLeftCorner<_N, _N>().isApprox(jacobian)) {
+            std::cerr << "-- Warning: different Jacobian specified in the meshing options and the --deformedCell arguments." << std::endl << std::endl;
         }
 
         // Apply the appropriate transformation to analyze the deformed cell's

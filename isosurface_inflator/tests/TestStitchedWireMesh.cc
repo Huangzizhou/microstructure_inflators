@@ -42,7 +42,7 @@ void execute(const std::vector<std::string> &topologyPaths) {
     PatternSignedDistance<double, StitchedWireMesh<N>> sdf(swm);
 
     // Note: JointBlendMode could be set differently in MeshingOptions
-    sdf.setParameters(params, JointBlendMode::HULL);
+    sdf.setParameters(params, Eigen::Matrix3d(), JointBlendMode::HULL);
 
     std::vector<MeshIO::IOVertex > vertices;
     std::vector<MeshIO::IOElement> elements;

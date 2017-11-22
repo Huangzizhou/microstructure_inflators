@@ -196,7 +196,7 @@ public:
         if (config.dumpReplicatedGraph()) { wmesh.saveReplicatedBaseUnit(config.replicatedGraphPath); }
         if (config.dumpBaseUnitGraph())   { wmesh.saveBaseUnit(          config.baseUnitGraphPath); }
 
-        pattern.setParameters(params, meshingOptions().jointBlendingMode);
+        pattern.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode);
 
         // Change the pattern's meshing domain if we're forcing meshing of the
         // full TriplyPeriodic base cell.
@@ -214,7 +214,7 @@ public:
     // Rasterize to a indicator scalar field on a 2D/3D grid
     // (Infer dimension from resolutionString, which specifies rasterization grid size along each dimension)
     virtual void rasterize(const std::vector<Real> &params, const std::string &resolutionString, const std::string &outPath) override {
-        pattern.setParameters(params, meshingOptions().jointBlendingMode);
+        pattern.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode);
 
         std::vector<MeshIO::IOVertex > vertices;
         std::vector<MeshIO::IOElement> elements;
@@ -326,7 +326,7 @@ public:
         params.reserve(params.size());
         for (size_t p = 0; p < nParams; ++p)
             params.emplace_back(inflatedParams[p], nParams, p);
-        patternAutodiff.setParameters(params, meshingOptions().jointBlendingMode);
+        patternAutodiff.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode);
 
         auto evalAtPtIdx = [&](size_t e) {
             ADScalar sd = patternAutodiff.signedDistance(evalPoints[e].template cast<ADScalar>().eval());
@@ -399,7 +399,9 @@ public:
     PSD pattern;
     std::unique_ptr<MesherBase> mesher;
 protected:
-    virtual void m_setParameters(const std::vector<Real> &params) override { pattern.setParameters(params, meshingOptions().jointBlendingMode); }
+    virtual void m_setParameters(const std::vector<Real> &params) override {
+        pattern.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode);
+    }
 };
 
 #endif /* end of include guard: ISOSURFACEINFLATORIMPL_HH */

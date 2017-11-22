@@ -23,7 +23,8 @@ void MeshingOptions::load(const std::string &jsonPath) {
         "curveSimplifier",
         "forceMaxBdryEdgeLen",
         "jointBlendingMode",
-        "forceConsistentInterfaceMesh"
+        "forceConsistentInterfaceMesh",
+        "jacobian"
     };
     // Validate keys
     for (const auto &v : pt) {
@@ -80,5 +81,26 @@ void MeshingOptions::load(const std::string &jsonPath) {
             jointBlendingMode = JointBlendMode::FULL;
         }
         else { throw std::runtime_error("Unrecognized blending mode: " + modeString); }
+    }
+    if (pt.count("jacobian")) {
+        std::vector<double> x;
+        for (auto& item : pt.get_child("jacobian")) {
+            x.push_back(item.second.get_value<double>());
+        }
+        if (x.size() == 4) {
+            jacobian <<
+                x[0], x[1], 0,
+                x[2], x[3], 0,
+                0   , 0   , 1;
+        } else if (x.size() == 9) {
+            // We read data as row-major matrix, but Eigen matrices default
+            // to column-major storage, hence the transpose
+            std::copy_n(x.data(), 9, jacobian.data());
+            jacobian.transposeInPlace();
+        } else {
+            throw std::runtime_error("Invalid Jacobian matrix size: " + std::to_string(x.size()));
+        }
+    } else {
+        jacobian.setIdentity();
     }
 }
