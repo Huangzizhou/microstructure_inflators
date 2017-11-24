@@ -10,7 +10,7 @@ target_link_libraries(HexaPillarsCreator PUBLIC Eigen3::Eigen ${Boost_LIBRARIES}
 target_link_libraries(HexaPillarsCreator PUBLIC cli11 json)
 
 # Boost library
-find_package(Boost 1.55 REQUIRED COMPONENTS filesystem system program_options thread)
+find_package(Boost 1.65 REQUIRED COMPONENTS filesystem system program_options thread)
 target_include_directories(HexaPillarsCreator SYSTEM PUBLIC ${Boost_INCLUDE_DIRS})
 target_link_libraries(HexaPillarsCreator PUBLIC ${Boost_LIBRARIES})
 
