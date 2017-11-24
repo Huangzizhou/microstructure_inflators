@@ -1,0 +1,85 @@
+################################################################################
+cmake_minimum_required(VERSION 3.1)
+project(Microstructures_External)
+################################################################################
+
+include(ExternalProject)
+
+################################################################################
+# Platform-specific options
+################################################################################
+
+cmake_host_system_information(RESULT MY_HOSTNAME QUERY HOSTNAME)
+if(MY_HOSTNAME MATCHES "log-*")
+    set(DISABLE_CXX11_ABI_DEFAULT ON)
+else()
+    set(DISABLE_CXX11_ABI_DEFAULT OFF)
+endif()
+option(DISABLE_CXX11_ABI_GCC "Don't use GCC's new C++11 ABI; needed to prevent linker errors with libraries compiled with the old ABI" ${DISABLE_CXX11_ABI_DEFAULT})
+
+if(DISABLE_CXX11_ABI_GCC)
+  set(CMAKE_EXTRA_ARGS "-DCMAKE_CXX_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0")
+  set(MAKE_EXTRA_ARGS "_GLIBCXX_USE_CXX11_ABI=0")
+else()
+  set(CMAKE_EXTRA_ARGS "")
+  set(MAKE_EXTRA_ARGS "")
+endif()
+
+################################################################################
+# Ceres Solver
+################################################################################
+
+set(CERES_VERSION "1.13.0")
+set(CERES_URL http://ceres-solver.org/ceres-solver-${CERES_VERSION}.tar.gz)
+set(CERES_MD5 cd568707571c92af3d69c1eb28d63d72)
+set(CERES_DIR "${CMAKE_CURRENT_LIST_DIR}/ceres")
+
+ExternalProject_Add(ceres_external
+    PREFIX "${CERES_DIR}"
+    URL ${CERES_URL}
+    URL_MD5 ${CERES_MD5}
+    LIST_SEPARATOR |
+    CMAKE_ARGS
+        "-DMINIGLOG:BOOL=OFF"
+        "-DCMAKE_INSTALL_PREFIX=${CERES_DIR}/"
+        "-DEIGEN_INCLUDE_DIR_HINTS:PATH=$ENV{EIGEN_INC}"
+        "-DSUITESPARSE_INCLUDE_DIR_HINTS:LIST=$ENV{SUITESPARSE_INC}|$ENV{TBB_INC}"
+        "-DSUITESPARSE_LIBRARY_DIR_HINTS:LIST=$ENV{SUITESPARSE_LIB}|$ENV{TBB_LIB}"
+        "-DGLOG_INCLUDE_DIR_HINTS:PATH=$ENV{GLOG_INC}"
+        "-DGLOG_LIBRARY_DIR_HINTS:PATH=$ENV{GLOG_LIB}"
+        "${CMAKE_EXTRA_ARGS}"
+)
+
+################################################################################
+# Matheval
+################################################################################
+
+set(MATHEVAL_VERSION "1.0.2") # 1.1.11 doesn't work on the HPC cluster
+set(MATHEVAL_URL http://ftp.gnu.org/gnu/libmatheval/libmatheval-${MATHEVAL_VERSION}.tar.gz)
+set(MATHEVAL_MD5 6ba40aba212629142506f96b7a7dac7f)
+set(MATHEVAL_DIR "${CMAKE_CURRENT_LIST_DIR}/matheval")
+
+ExternalProject_Add(matheval_external
+    PREFIX "${MATHEVAL_DIR}"
+    URL ${MATHEVAL_URL}
+    URL_MD5 ${MATHEVAL_MD5}
+    CONFIGURE_COMMAND ${MATHEVAL_DIR}/src/matheval_external/configure --prefix=${MATHEVAL_DIR}
+    BUILD_COMMAND ${MAKE} ${MAKE_EXTRA_ARGS}
+)
+
+################################################################################
+# NLopt
+################################################################################
+
+set(NLOPT_VERSION "2.4.2")
+set(NLOPT_URL http://ab-initio.mit.edu/nlopt/nlopt-${NLOPT_VERSION}.tar.gz)
+set(NLOPT_MD5 d0b8f139a4acf29b76dbae69ade8ac54)
+set(NLOPT_DIR "${CMAKE_CURRENT_LIST_DIR}/nlopt")
+
+ExternalProject_Add(nlopt_external
+    PREFIX "${NLOPT_DIR}"
+    URL ${NLOPT_URL}
+    URL_MD5 ${NLOPT_MD5}
+    CONFIGURE_COMMAND ${NLOPT_DIR}/src/nlopt_external/configure --prefix=${NLOPT_DIR} --with-cxx --without-python --without-guile --without-matlab
+    BUILD_COMMAND ${MAKE} ${MAKE_EXTRA_ARGS}
+)

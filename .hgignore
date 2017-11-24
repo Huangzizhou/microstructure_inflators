@@ -13,6 +13,10 @@ build/*
 node_modules/
 cmake-build-*/
 
+3rdparty/ceres
+3rdparty/matheval
+3rdparty/nlopt
+
 sequential_laminates/homogenization.pdf
 sequential_laminates/IsotropicFit/results/
 sequential_laminates/results/
