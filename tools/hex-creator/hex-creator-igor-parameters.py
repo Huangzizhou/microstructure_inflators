@@ -9,9 +9,9 @@ import hexlib
 from hexlib import inflate_hexagonal_box_smarter
 
 if len(sys.argv) != 7:
-    print "usage: ./hex-creator.py <size of triangles> <num of pillars> <relative size of pillar area (chirality)> <relative thickness (of pillars)> " \
-          "<output wire> <output mesh>"
-    print "example: ./hex-creator.py 0.8 3 0.6 0.9 output.wire output.msh"
+    print("usage: ./hex-creator.py <size of triangles> <num of pillars> <relative size of pillar area (chirality)> <relative thickness (of pillars)> " \
+          "<output wire> <output mesh>")
+    print("example: ./hex-creator.py 0.8 3 0.6 0.9 output.wire output.msh")
     sys.exit(-1)
 
 # set scripts directory, so it can find all necessary files:
@@ -43,7 +43,7 @@ edges = []
 origin = np.array([0, 0])
 triangle_centroid = np.array([l, l * math.sqrt(3) / 3.0])
 
-print "Constructing " + out_wire + " ..."
+print("Constructing " + out_wire + " ...")
 
 # First side: create pillars of the left side (counter-clock orientation)
 #     /.
@@ -185,7 +185,7 @@ pillar_example = np.asarray(resulting_pillar_example.transpose())
 delta_y = abs(pillar_example[1][1] - pillar_example[0][1])
 norm_example = np.linalg.norm(pillar_example[1] - pillar_example[0])
 thickness_correction_factor = delta_y / norm_example
-print "Thickness correction factor: " + str(thickness_correction_factor)
+#print("Thickness correction factor: " + str(thickness_correction_factor))
 
 new_edges_description = []
 for edge in edges:
@@ -216,7 +216,7 @@ incenter_triangle_pairs = hexlib.add_polygons_incenters([transformed_triangle, r
 hexlib.create_wire(vertices, edges, out_wire)
 
 
-print "Inflating ..."
+print("Inflating ...")
 
 # Computing void thickness and necessary resolution
 if num_pillars == 1:
@@ -229,16 +229,16 @@ else:
     chosen_resolution = math.pow(2, math.ceil(math.log(min_resolution) / math.log(2)))
 
 if chosen_resolution > 2048:
-        print "Resolution of " + str(chosen_resolution) + " is too big"
-        print "Skipping experiment!"
+        print("Resolution of " + str(chosen_resolution) + " is too big")
+        print("Skipping experiment!")
         exit()
 
 if chosen_resolution < 64:
     chosen_resolution = 64
 
-print "Thickness void: " + str(thickness_void)
-print "Minimum resolution: " + str(min_resolution)
-print "Chosen resolution: " + str(chosen_resolution)
+print("Thickness void: " + str(thickness_void))
+print("Minimum resolution: " + str(min_resolution))
+print("Chosen resolution: " + str(chosen_resolution))
 
 inflate_hexagonal_box_smarter(out_wire, str(0.00001), str(0.0000), out_mesh,
                               incenter_triangle_pairs + [[hypotenuse_nodes, float(thickness) * math.sqrt(2)],
