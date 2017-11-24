@@ -26,7 +26,6 @@
 
 #include <MeshIO.hh>
 #include <TriMesh.hh>
-#include <filters/subdivide.hh>
 
 #include "PatternOptimizationConfig.hh"
 #include "ObjectiveTerm.hh"

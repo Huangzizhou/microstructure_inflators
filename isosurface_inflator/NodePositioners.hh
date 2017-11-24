@@ -215,47 +215,38 @@ private:
     size_t m_affectedBaryCoordIndices[4];
 };
 
-
 // Offsets must keep a point on the base prism simplex on which it
 // started (face, node, edge, prism interior). The positional degrees of
 // freedom are barycentric coordinates on the base triangle + z coordinate.
-//    b
+//    c
 //   /|
 //  / |
-// a  d
+// a  +
 //  \ |
 //   \|
-//    c
-// - If a vertex is on a corner a,b,c,d then it has 0 dofs on the XY plane.
-// - If a vertex is on an edge, then it should be constrained to stay on this edge
+//    b
+// - If a vertex is on a corner a,b,c then it has 0 dofs on the XY plane.
+// - If a vertex is on an edge, then it is constrained to stay on the edge
 // - Parameters are assigned to vertices on edge (b, c) to ensure reflectional symmetry is
 //   preserved when parameters are linked (by `Symmetry::independentVertexPosition()`):
 //   increasing the parameter shared by the vertex pair (v_upper, v_lower)
 //   moves v_upper up and v_lower down.
-//   This happens automatically due to the vertex ordering above: the single
-//   parameter assigned to vertices on this edge is a barycentric coordinate for the
-//   first vertex in the edge segment (i.e. b for the segment b-d and c for the segment c-d).
-template<typename Real, typename TOL>
+template<typename Real, typename TOL, bool VerticalInterfaceSymmetry = false>
 struct PrismNodePositioner {
-    typedef Eigen::Matrix<Real, 4, 1> BaryCoords;
+    typedef Eigen::Matrix<Real, 3, 1> BaryCoords;
 
-    // (0, 0), (1, 1), (1, 0), (1, -1)
+    // (0, 0), (1, -1), (1, 1)
     static int baseCornerPosition(size_t corner, size_t component) {
         static int coords [] = {
             0, 0,
-            1, 1,
             1, -1,
-            1, 0
+            1, 1
         };
         return coords[2 * corner + component];
     }
 
     static BaryCoords barycentricCoordinates(const Point3<Real> &p) {
-        if (p[1] >= 0) {
-            return BaryCoords(1 - p[0], p[1], 0, p[0] - p[1]);
-        } else {
-            return BaryCoords(1 - p[0], 0, -p[1], p[0] + p[1]);
-        }
+        return BaryCoords(1 - p[0], (p[0] - p[1]) / 2.0, (p[0] + p[1]) / 2.0);
     }
 
     PrismNodePositioner(const BBox<Point3<Real>> &cell, const Point3<Real> &p) { forPoint(cell, p); }
@@ -265,12 +256,30 @@ struct PrismNodePositioner {
         // XY plane
         BaryCoords lambda = barycentricCoordinates(p);
         m_numAffectedBarycoords = 0;
-        for (size_t c = 0; c < 4; ++c) {
+        for (size_t c = 0; c < 3; ++c) {
             if (!isZero<TOL>(lambda[c])) {
                 m_affectedBaryCoordIndices[m_numAffectedBarycoords++] = c;
             }
         }
         assert(m_numAffectedBarycoords > 0);
+        m_isInterfaceMidpoint = false;
+        if (VerticalInterfaceSymmetry && isZero<TOL>(lambda[0]) && (m_numAffectedBarycoords == 2)) {
+            // Point is on the vertical cell interface; we need to assign the
+            // positional DoF in a way that ensures vertical symmetry across
+            // y = 0 is maintained when symmetric pairs are linked to the same
+            // variable.
+            // We do this by defining the DoF as corner (1, -1)'s barycentric
+            // coordinate if y < 0 and (1, 1)'s barycentric coordinate if y > 0.
+            // In other words, we choose the larger of the two barycentric
+            // coordinates as the variable.
+            // If y = 0 (barycentric coordinates equal), we must remove the DoF.
+            Real l = lambda[m_affectedBaryCoordIndices[0]];
+            if (isZero<TOL>(l - 0.5)) {
+                m_numAffectedBarycoords = 1; // remove the degree of freedom
+                m_isInterfaceMidpoint = true; // flag this as the interface midpoint node so that we know how to position it.
+            }
+            if (l < 0.5) std::swap(m_affectedBaryCoordIndices[0], m_affectedBaryCoordIndices[1]);
+        }
 
         // Z coordinate
         {
@@ -291,7 +300,7 @@ struct PrismNodePositioner {
     // Supports a different type since this method will be autodiff-ed
     template<typename MyReal>
     Point3<MyReal> getPosition(const MyReal *dofs) const {
-        Vector3<MyReal> pos(Vector3<MyReal>::Zero());
+        Point3<MyReal> pos(Vector3<MyReal>::Zero());
 
         // XY plane
         MyReal lastCoordinate = 0;
@@ -314,6 +323,13 @@ struct PrismNodePositioner {
         pos[0] += lastCoordinate * baseCornerPosition(corner, 0);
         pos[1] += lastCoordinate * baseCornerPosition(corner, 1);
         return pos;
+
+        // The above code incorrectly positions the interface midpoint at
+        // corner b; manually position it.
+        if (VerticalInterfaceSymmetry && m_isInterfaceMidpoint) {
+            assert(numDoFsXY() == 0);
+            pos = Point3<MyReal>(1, 0, 0);
+        }
 
         // Z coordinate
         size_t d = numDoFsXY();
@@ -351,6 +367,14 @@ struct PrismNodePositioner {
             posMap(1, paramOffset + d) = baseCornerPosition(corner, 1) - baseCornerPosition(lastCorner, 1);
         }
 
+        // The above code incorrectly positions the interface midpoint at
+        // corner b; manually position it.
+        if (VerticalInterfaceSymmetry && m_isInterfaceMidpoint) {
+            assert(numDoFsXY() == 0);
+            posMap(0, constTransCol) = 1;
+            posMap(1, constTransCol) = 0;
+        }
+
         // Z coordinate
         posMap(2, constTransCol) = m_minCorner;
         size_t d = paramOffset + numDoFsXY();
@@ -367,11 +391,10 @@ struct PrismNodePositioner {
     // the position lies within the space spanned by this positioner.
     template<typename Real2>
     void getDoFsForPoint(const Point3<Real> &p, Real2 *dofs) const {
-
         // XY plane
         auto b = barycentricCoordinates(p);
         // Verify that b is in the base triangle.
-        for (size_t i = 0; i < 4; ++i) {
+        for (size_t i = 0; i < 3; ++i) {
             assert(isPositive<TOL>(b[i])), assert(isNegative<TOL>(b[i] - 1));
         }
         Real simplexWeight = 0.0;
@@ -407,6 +430,10 @@ private:
     // Barycentric coordinate for (x, y) position
     size_t m_numAffectedBarycoords;
     size_t m_affectedBaryCoordIndices[4];
+
+    // When enforcing VerticalInterfaceSymmetry, the midpoint has no variables
+    // and must be positioned manually.
+    bool   m_isInterfaceMidpoint;
 
     // For the z coordinate
     enum class ComponentType { MinFace, MaxFace, Free };
