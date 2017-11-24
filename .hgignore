@@ -9,6 +9,7 @@ syntax: glob
 *.orig
 
 .idea/*
+.vscode/
 build/*
 node_modules/
 cmake-build-*/

@@ -70,7 +70,7 @@ target_link_libraries(isosurface_inflator MeshFEM)
 # CGAL library
 find_package(CGAL REQUIRED COMPONENTS Core)
 find_package(Boost 1.48 REQUIRED thread system)
-target_link_libraries(isosurface_inflator CGAL::CGAL CGAL::CGAL_Core)
+target_link_libraries(isosurface_inflator CGAL::CGAL CGAL::CGAL_Core ${Boost_LIBRARIES})
 target_include_directories(isosurface_inflator SYSTEM PRIVATE
     ${CGAL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${GMP_INCLUDE_DIR} ${MPFR_INCLUDE_DIR})
 
