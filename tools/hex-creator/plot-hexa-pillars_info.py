@@ -11,7 +11,7 @@ import numpy as np
 import hexlib
 
 
-def plotCharts(info, colormap='viridis', colormap_legend='info'):
+def plotCharts(info, colormap='viridis', colormap_legend='info', prefix = "temp-fig"):
 
     fig, ax = plt.subplots()
     ax.grid(True)
@@ -32,6 +32,8 @@ def plotCharts(info, colormap='viridis', colormap_legend='info'):
 
     cbar = fig.colorbar(col, ticks=ticks)
     cbar.ax.set_ylabel(colormap_legend)
+
+    fig.savefig(prefix + '-poissonXyoungs.png')
 
     # Now, create a new plot showing shear and bulk modulus
     x2 = []
@@ -60,6 +62,8 @@ def plotCharts(info, colormap='viridis', colormap_legend='info'):
 
     cbar2 = fig2.colorbar(col2, ticks=ticks)
     cbar2.ax.set_ylabel(colormap_legend)
+    
+    fig2.savefig(prefix + '-bulkXyoungs.png')
 
 
 if len(sys.argv) < 3:
@@ -95,6 +99,7 @@ p1 = []
 p2 = []
 p3 = []
 p4 = []
+volfrac = []
 for i in range(2, len(sys.argv)):
     tablePath = sys.argv[i]
     tableFile = open(tablePath)
@@ -107,6 +112,12 @@ for i in range(2, len(sys.argv)):
         p.append(fields[0])
 
         # parse parameters
+        m = re.search('volfrac-(.+?)_', fields[5])
+        if m:
+            volfrac.append(float(m.group(1)))
+        else:
+            volfrac.append(0.0)
+        
         m = re.search('p1-(.+?)_', fields[5])
         if m:
             p1.append(float(m.group(1)))
@@ -131,9 +142,10 @@ for i in range(2, len(sys.argv)):
         else:
             p4.append(0)
 
-plotCharts(p1, 'winter', 'p1: triangle side')
-plotCharts(p2, 'cool', 'p2: number of pillars')
-plotCharts(p3, 'viridis', 'p3: chirality')
-plotCharts(p4, 'spring', 'p4: thickness')
+plotCharts(volfrac, 'winter', 'volume fraction', 'volfrac-')
+plotCharts(p1, 'winter', 'p1: triangle side', 'p1-')
+plotCharts(p2, 'cool', 'p2: number of pillars', 'p2-')
+plotCharts(p3, 'viridis', 'p3: chirality', 'p3-')
+plotCharts(p4, 'spring', 'p4: thickness', 'p4-')
 
 plt.show()
