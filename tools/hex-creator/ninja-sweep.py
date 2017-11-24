@@ -55,11 +55,11 @@ folder_path = sys.argv[1]
 if not os.path.exists(folder_path):
     os.makedirs(folder_path)
 
-chirality_factor_values = [0.8, 0.83, 0.85, 0.88, 0.9, 0.93, 0.95]
+chirality_factor_values = [0.78, 0.8, 0.83, 0.85, 0.88, 0.9, 0.93, 0.95]
 for chirality_factor in chirality_factor_values:
-    ninja_factor_values = [0.7, 0.8, 0.9, 1.0]
+    ninja_factor_values = [0.7, 0.8, 0.9, 0.95, 1.0]
     for ninja_factor in ninja_factor_values:
-        num_pillar_values = [5]
+        num_pillar_values = [5, 10]
         for index, number_pillars in enumerate(num_pillar_values):
             triangle_side_values = np.arange(0.9, 0.99, 0.02)
             for index, triangle_side_factor in enumerate(triangle_side_values):
