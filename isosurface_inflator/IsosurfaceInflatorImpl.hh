@@ -27,7 +27,7 @@
 
 class IsosurfaceInflator::Impl {
 public:
-    virtual std::vector<Real>  defaultParameters() const = 0;
+    virtual std::vector<Real> defaultParameters(Real thickness = 0.07) const = 0;
     virtual size_t                numParams() const = 0;
     virtual bool   isThicknessParam(size_t p) const = 0;
     virtual bool    isPositionParam(size_t p) const = 0;
@@ -376,7 +376,7 @@ public:
 
     virtual ~IsosurfaceInflatorImpl() { }
 
-    virtual std::vector<Real> defaultParameters() const override { return wmesh.defaultParameters(); }
+    virtual std::vector<Real> defaultParameters(Real t) const override { return wmesh.defaultParameters(t); }
     virtual size_t               numParams() const override { return wmesh.numParams(); }
     virtual bool  isThicknessParam(size_t p) const override { return wmesh.isThicknessParam(p); }
     virtual bool   isPositionParam(size_t p) const override { return wmesh.isPositionParam(p); }

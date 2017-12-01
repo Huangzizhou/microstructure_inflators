@@ -11,7 +11,7 @@ Try the following:
 cd MeshFEM
 cd examples/cantilever
 zsh gen.sh # Create meshed bar at various resolutions
-../../Simulate_cli -m $MICRO_DIR/materials/B9Creator.material  bar_tet_0.msh -b cantilever.bc -o 
+../../Simulate_cli -m $MICRO_DIR/materials/B9Creator.material  bar_tet_0.msh -b cantilever.bc -o
  sim.msh
 ```
 
@@ -71,7 +71,7 @@ This package implements the worst-case microstructure stress analysis and minimi
 ### Main parameters
 
 - Choose **target properties** of material, like desired elasticity tensor $$C^*$$, Young's module, Poisson's ration and if it is isotropic. The target file is the single input of the method.
-   
+
   Also, this option let us set initial values for the parameters of the structure (like offset and vertices radius) and apply bound constraints on them.
 
   Here is an example of a `job.opt` serving as target:
@@ -83,7 +83,7 @@ This package implements the worst-case microstructure stress analysis and minimi
         "young":   10,
         "poisson": 0.35
     },
-    "initial_params": [0.6809516712393716, 0.6280027237433981, 0.5640910410666709, 0.4337430787476562, 
+    "initial_params": [0.6809516712393716, 0.6280027237433981, 0.5640910410666709, 0.4337430787476562,
         0.08129922564391019, 0.1842173643713042, 0.1325967598554578, 0.1750543806991497,
         0.1945952629563027, 0.009638340078114519, 0.01, 0.01, 0.00826325588295466, 0.009238195522149741],
     "radiusBounds": [0.04, 0.2],
@@ -93,7 +93,7 @@ This package implements the worst-case microstructure stress analysis and minimi
   ```
 
   Notice that setting as target only the `young` and `poisson` values is enough because we are dealing with an isotropic target. However, we can also set a general elasticity tensor and make the type as `"anisotropic"`. See the two examples below, where one is for 2D cases and the second for 3D cases.
-  
+
   Examples:
     - 2D:
     ```json
@@ -143,9 +143,9 @@ This package implements the worst-case microstructure stress analysis and minimi
     }
     ```
 
-    
+
 - Choose the **pattern** to be used with `-p <parameter>`. The parameter should be a file containing information about the topology of the structure, like a graph, containing vertices and how they are linked by edges. Examples can be found in `microstructures/patterns/3D/reference_wires`.
-  
+
   In order to visualize the pattern, you can convert the file (`.wire`) extension into a `.msh` file, which makes it possible to use `gmsh` on it. To make the conversion, use the executable in `MeshFEM` repository called `mesh_convert` as shown below:
   ```bash
   ./mesh_convert input.wire output.msh
@@ -159,8 +159,8 @@ This package implements the worst-case microstructure stress analysis and minimi
 
 - Set the **weights** for elements considered in the objective function. The most common parameters are:
   - `--WCSWeight <parameter>` decides the weight given for minimizing the worst case stress in the mesh.
-    ($$J_{wcs} = (\int_\Omega s^p)^{\frac{1}{p}}$$, where $$p$$ can also be set with `--usePthRoot` and `--pnorm <parameter>` options. See below)
-    
+    ($$J_{wcs} = (\int_\Omega s^p)^{\frac{1}{p}}$$, where $$p$$ can also be set with `--usePthRoot` and `--pnorm <parameter>` options. See below).
+
   - `--JSWeight <parameter>` decides the weight given to $$\lVert S(w) - S^* \rVert$$, where $$ S^* $$ is the desired compliance tensor. There is also a constraint $$C(w) = C^*$$ in the optimization problem that can be set using option `--TensorFitConstraint`.
 
 - Choose the **norm** used for the worst case stress, by using `--pnorm <parameter>` plus `--usePthRoot` options.
@@ -185,7 +185,7 @@ effectively ignores the stress levels when optimizing (focusing only on fitting 
 
 - A different configuration would be the following:
 ```bash
-./WCSOptimization_cli -p $MICRO_DIR/Documentation/examples/octa_cell.obj -m $MICRO_DIR/materials/B9Creator.material \    
+./WCSOptimization_cli -p $MICRO_DIR/Documentation/examples/octa_cell.obj -m $MICRO_DIR/materials/B9Creator.material \
         target_tensor_job.opt  -M 2d_meshing_opts.opt \
         --ortho_cell --vertexThickness --WCSWeight 1.0 --JSWeight 0.0 --pnorm 8 --usePthRoot \
         --TensorFitConstraint  --solver slsqp -o itHighWCSWeight

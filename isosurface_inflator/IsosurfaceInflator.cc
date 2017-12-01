@@ -44,7 +44,7 @@ void IsosurfaceInflator::dumpInflationGraph(const std::string &path, const std::
 
 void IsosurfaceInflator::rasterize(const vector<Real> &params, const std::string &resolution, const std::string &outPath) { m_imp->rasterize(params, resolution, outPath); }
 
-vector<Real> IsosurfaceInflator::defaultParameters()        const { return m_imp->defaultParameters(); }
+vector<Real> IsosurfaceInflator::defaultParameters(Real t)  const { return m_imp->defaultParameters(t); }
 size_t       IsosurfaceInflator::numParams()                const { return m_imp->numParams(); }
 bool         IsosurfaceInflator::isThicknessParam(size_t p) const { return m_imp->isThicknessParam(p); }
 bool         IsosurfaceInflator:: isPositionParam(size_t p) const { return m_imp->isPositionParam(p); }
