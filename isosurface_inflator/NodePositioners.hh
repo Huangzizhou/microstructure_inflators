@@ -322,7 +322,6 @@ struct PrismNodePositioner {
         size_t corner = m_affectedBaryCoordIndices[m_numAffectedBarycoords - 1];
         pos[0] += lastCoordinate * baseCornerPosition(corner, 0);
         pos[1] += lastCoordinate * baseCornerPosition(corner, 1);
-        return pos;
 
         // The above code incorrectly positions the interface midpoint at
         // corner b; manually position it.
