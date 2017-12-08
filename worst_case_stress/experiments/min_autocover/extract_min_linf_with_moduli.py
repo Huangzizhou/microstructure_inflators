@@ -74,5 +74,11 @@ minLinfStress = LinfStress[minLinfIdx]
 
 reduction = minLinfStress / LinfStress[0]
 
+if reduction > 1:
+    # If the initial iterate doesn't meet our filtering tresholds but a (higher
+    # stress) optimized structure does, don't report a stress increase.
+    LinfStress[0] = minLinfStress
+    reduction = 1
+
 # file, reduction, init_stress, opt_stress, Y, nu, params
 print "\t".join(map(str, [fname, reduction, LinfStress[0], minLinfStress, targetM[0], targetM[3]] + params[minLinfIdx]))

@@ -119,6 +119,14 @@ public:
         return params;
     }
 
+    // TODO: test that parametersForPeriodCellGraph and periodCellGraph are inverses
+    virtual void parametersForPeriodCellGraph(
+        const std::vector<Point3<double>> &points,
+        const std::vector<Edge> &edges,
+        const std::vector<double> &thicknesses,
+        const std::vector<double> &blendingParams,
+        std::vector<double> &params) const = 0;
+
     // TODO: MAKE CONFIGURABLE.
     std::vector<double> defaultThicknessParams() const {
         return std::vector<double>(numThicknessParams(), 0.07);
@@ -133,6 +141,8 @@ public:
     bool  isPositionParam(size_t p) const { validateParamIdx(p); return p < numPositionParams(); }
     bool isThicknessParam(size_t p) const { validateParamIdx(p); return (p >= numPositionParams()) && (p < numPositionParams() + numThicknessParams()); }
     bool  isBlendingParam(size_t p) const { validateParamIdx(p); return p >= numPositionParams() + numThicknessParams(); };
+
+    virtual bool isPrintable(const std::vector<Real> &params, bool verticalInterfacesSupported = false) const = 0;
 
     virtual void inflationGraph(const std::vector<double> &params,
                                 std::vector<Point3<double>> &points,
@@ -245,6 +255,27 @@ public:
         return positionParams;
     }
 
+    virtual void parametersForPeriodCellGraph(
+            const std::vector<Point3<double>> &points,
+            const std::vector<Edge> &/* edges */,
+            const std::vector<double> &thicknesses,
+            const std::vector<double> &blendingParams,
+            std::vector<double> &params) const override {
+        params.assign(numParams(), 0);
+        assert(points.size() == m_periodCellVtx.size());
+        for (size_t i = 0; i < m_periodCellVtx.size(); ++i) {
+            const auto &pcv = m_periodCellVtx[i];
+            if (!pcv.iso.isIdentity()) continue;
+            size_t bi = pcv.origVertex;
+            size_t offset = m_baseVertexVarOffsets[bi].position;
+            assert(offset < params.size());
+            m_baseVertexPositioners[bi].getDoFsForPoint(points.at(i),
+                                                        &params[offset]);
+            params.at(m_baseVertexVarOffsets[bi].thickness) = thicknesses.at(i);
+            params.at(m_baseVertexVarOffsets[bi].blending) = blendingParams.at(i);
+        }
+    }
+
     virtual void inflationGraph(const std::vector<double> &params,
                                 std::vector<Point3<double>> &points,
                                 std::vector<Edge> &edges,
@@ -349,7 +380,14 @@ public:
             points.emplace_back(pm * paramVec);
     }
 
-    bool isPrintable(const std::vector<Real> &params) const {
+    // verticalInterfacesSupported: whether to assume the vertical interface nodes are supported
+    // When working with tilings (StitchedWireMesh), the averaging stitching operation
+    // break printability. However, this operation never makes the interface nodes
+    // unprintable (since the lowest interface node was supported before
+    // averaging and only moves up during averaging). To correctly analyze printability
+    // in this case (while looking only at a single period cell at a time), we
+    // must manually specify that the vertical interfaces are supported.
+    bool isPrintable(const std::vector<Real> &params, bool verticalInterfacesSupported = false) const override {
         if (thicknessType() != ThicknessType::Vertex)
             throw std::runtime_error("Only Per-Vertex Thickness Supported");
 
@@ -380,7 +418,13 @@ public:
 
         std::queue<size_t> bfsQueue;
         for (size_t i = 0; i < numPoints; ++i) {
-            if (zCoords[i] < minZ + tol) {
+            bool s = zCoords[i] < minZ + tol;
+            s |= verticalInterfacesSupported &&
+                 ((std::abs(points[i][0] - 1) < PatternSymmetry::tolerance) ||
+                  (std::abs(points[i][0] + 1) < PatternSymmetry::tolerance) ||
+                  (std::abs(points[i][1] - 1) < PatternSymmetry::tolerance) ||
+                  (std::abs(points[i][1] + 1) < PatternSymmetry::tolerance));
+            if (s) {
                 bfsQueue.push(i);
                 supported[i] = true;
             }

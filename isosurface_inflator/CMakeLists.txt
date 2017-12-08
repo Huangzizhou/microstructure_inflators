@@ -144,3 +144,8 @@ set_target_properties(TestWireMesh PROPERTIES CXX_STANDARD 11)
 add_executable(TestStitchedWireMesh tests/TestStitchedWireMesh.cc)
 target_link_libraries(TestStitchedWireMesh isosurface_inflator)
 set_target_properties(TestStitchedWireMesh PROPERTIES CXX_STANDARD 11)
+
+add_executable(lookup_and_stitch lookup_and_stitch.cc)
+target_link_libraries(lookup_and_stitch isosurface_inflator)
+set_target_properties(lookup_and_stitch PROPERTIES CXX_STANDARD 11)
+target_include_directories(lookup_and_stitch SYSTEM PRIVATE ${LIBIGL_INCLUDE_DIRS})
