@@ -110,11 +110,11 @@ public:
     virtual std::vector<double> defaultPositionParams() const = 0;
 
     // Position parameters come first, followed by thickness and blending
-    std::vector<double> defaultParameters() const {
+    std::vector<double> defaultParameters(double thickness = 0.07) const {
         std::vector<double> params;
         params.reserve(numParams());
         params = defaultPositionParams();
-        auto dtp = defaultThicknessParams(); params.insert(params.end(), dtp.begin(), dtp.end());
+        auto dtp = defaultThicknessParams(thickness); params.insert(params.end(), dtp.begin(), dtp.end());
         auto dbp =  defaultBlendingParams(); params.insert(params.end(), dbp.begin(), dbp.end());
         return params;
     }
@@ -128,8 +128,8 @@ public:
         std::vector<double> &params) const = 0;
 
     // TODO: MAKE CONFIGURABLE.
-    std::vector<double> defaultThicknessParams() const {
-        return std::vector<double>(numThicknessParams(), 0.07);
+    std::vector<double> defaultThicknessParams(double thickness = 0.07) const {
+        return std::vector<double>(numThicknessParams(), thickness);
     }
 
     std::vector<double> defaultBlendingParams() const {
