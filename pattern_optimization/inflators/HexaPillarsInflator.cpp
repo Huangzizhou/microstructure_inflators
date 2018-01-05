@@ -87,7 +87,6 @@ void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
         pillar_area_ratio = m_p3;
         thickness_ratio = params[1];
 
-        double parallelogram_side = 2.0;
         double s = 2 / sqrt(3);
         triangle_side = triangle_side_factor * s * sqrt(3);
         thickness = thickness_ratio * (pillar_area_ratio * triangle_side / num_pillars);
@@ -169,7 +168,6 @@ void HexaPillarsInflator::m_inflate(const std::vector<Real> &params) {
 
     vector<Point2D> vertices_vector;
     for (unsigned i=0; i<vertices.size(); i++) {
-        Point3D point3D = vertices[i].point;
         Point2D point2D = vertices[i].point.head(2);
         vertices_vector.push_back(point2D);
     }
@@ -223,11 +221,11 @@ std::vector<VectorField<Real, 2>> HexaPillarsInflator::volumeShapeVelocities() c
         partials[0].resize(resulting_parameters.size());
         partials[1].resize(resulting_parameters.size());
 
-        for (int index_original = 0; index_original < resulting_parameters.size(); index_original++) {
+        for (unsigned index_original = 0; index_original < resulting_parameters.size(); index_original++) {
             ADScalar original_param = resulting_parameters[index_original];
             Matrix<double, 2, 1, 0, 2, 1> original_param_derivatives = original_param.derivatives();
 
-            for (int index_hexa = 0; index_hexa < number_hexa_params; index_hexa++) {
+            for (unsigned index_hexa = 0; index_hexa < number_hexa_params; index_hexa++) {
                 partials[index_hexa][index_original] = original_param_derivatives(index_hexa);
             }
         }
@@ -241,7 +239,7 @@ std::vector<VectorField<Real, 2>> HexaPillarsInflator::volumeShapeVelocities() c
 
             vector<double> partials_hexa_param = partials[index_hexa];
 
-            for (int index_original = 0; index_original < resulting_parameters.size(); index_original++) {
+            for (unsigned index_original = 0; index_original < resulting_parameters.size(); index_original++) {
                 vvel += original_velocities[index_original] * partials_hexa_param[index_original];
             }
         }
@@ -273,11 +271,11 @@ std::vector<VectorField<Real, 2>> HexaPillarsInflator::volumeShapeVelocities() c
         partials[5].resize(resulting_parameters.size());
         partials[6].resize(resulting_parameters.size());
 
-        for (int index_original = 0; index_original < resulting_parameters.size(); index_original++) {
+        for (unsigned index_original = 0; index_original < resulting_parameters.size(); index_original++) {
             ADScalar original_param = resulting_parameters[index_original];
             Matrix<double, 7, 1, 0, 7, 1> original_param_derivatives = original_param.derivatives();
 
-            for (int index_hexa = 0; index_hexa < number_hexa_params; index_hexa++) {
+            for (unsigned index_hexa = 0; index_hexa < number_hexa_params; index_hexa++) {
                 partials[index_hexa][index_original] = original_param_derivatives(index_hexa);
             }
         }
@@ -291,7 +289,7 @@ std::vector<VectorField<Real, 2>> HexaPillarsInflator::volumeShapeVelocities() c
 
             vector<double> partials_hexa_param = partials[index_hexa];
 
-            for (int index_original = 0; index_original < resulting_parameters.size(); index_original++) {
+            for (unsigned index_original = 0; index_original < resulting_parameters.size(); index_original++) {
                 vvel += original_velocities[index_original] * partials_hexa_param[index_original];
             }
         }

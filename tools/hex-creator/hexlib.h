@@ -868,14 +868,6 @@ public:
 
         using TPoint = Eigen::Matrix<TReal, 2, 1>;
 
-        unsigned num_upper_intervals = num_pillars - 1;
-        TReal upper_spacing = 0.0;
-        unsigned num_upper_points = 0;
-        if (num_upper_intervals > 0) {
-            upper_spacing = (triangle_side - thickness) / (num_pillars - 1);
-            num_upper_points = num_pillars / 2 + 1;
-        }
-
         // define important vertices of simplex used to build entire parallelogram structure
         TPoint origin;
         origin << 0, 0;
@@ -1185,13 +1177,13 @@ public:
         double s = parallelogram_side / 3.0;
 
         TReal p1 = triangle_side_ratio;
-        TReal p2 = num_pillars;
+        //TReal p2 = num_pillars;
         TReal p3 = pillar_area_ratio;
-        TReal p4 = min_thickness_ratio;
-        TReal p5 = max_thickness_ratio;
+        //TReal p4 = min_thickness_ratio;
+        //TReal p5 = max_thickness_ratio;
         TReal p6 = ninja_factor;
-        TReal p7 = joint_thickness_factor;
-        TReal p8 = joint_offset_factor;
+        //TReal p7 = joint_thickness_factor;
+        //TReal p8 = joint_offset_factor;
 
         vector<Matrix<TReal, 2, Dynamic> > triangles, pillar_polygons;
         vector<Matrix<TReal, 2, Dynamic> > pillar_triangles;
@@ -1204,7 +1196,7 @@ public:
         c << s, 0;
 
         // define vertices of triangle
-        TReal triangle_side = triangle_side_ratio * s;
+        //TReal triangle_side = triangle_side_ratio * s;
         TReal triangle_y_position = s * sqrt(3)/2.0 * (1-triangle_side_ratio);
 
         Point q1, q2, w, z;
@@ -1706,13 +1698,13 @@ public:
         double s = parallelogram_side / 3.0;
 
         TReal p1 = triangle_side_ratio;
-        TReal p2 = num_pillars;
+        //TReal p2 = num_pillars;
         TReal p3 = pillar_area_ratio;
-        TReal p4 = min_thickness_ratio;
-        TReal p5 = max_thickness_ratio;
+        //TReal p4 = min_thickness_ratio;
+        //TReal p5 = max_thickness_ratio;
         TReal p6 = ninja_factor;
-        TReal p7 = joint_thickness_factor;
-        TReal p8 = joint_offset_factor;
+        //TReal p7 = joint_thickness_factor;
+        //TReal p8 = joint_offset_factor;
 
         Point origin, a, b, c;
         origin << 0, 0;
@@ -1721,7 +1713,6 @@ public:
         c << s, 0;
 
         // define vertices of triangle
-        TReal triangle_side = triangle_side_ratio * s;
         TReal triangle_y_position = s * sqrt(3)/2.0 * (1-triangle_side_ratio);
 
         Point q1, q2, w, z;

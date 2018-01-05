@@ -69,17 +69,16 @@ int main(int argc, char *argv[]) {
     string out_mesh = vm["output-mesh"].as<string>();
 
     double p1 = triangle_side_ratio;
-    double p2 = num_pillars;
+    //double p2 = num_pillars;
     double p3 = pillar_area_ratio;
-    double p4 = min_thickness_ratio;
-    double p5 = max_thickness_ratio;
+    //double p4 = min_thickness_ratio;
+    //double p5 = max_thickness_ratio;
     double p6 = ninja_factor;
-    double p7 = joint_thickness_factor;
-    double p8 = joint_offset_factor;
+    //double p7 = joint_thickness_factor;
+    //double p8 = joint_offset_factor;
 
     double parallelogram_side = 3.0;
     double s = parallelogram_side / 3.0;
-    double triangle_side = triangle_side_ratio * s;
     double triangle_y_position = s * sqrt(3)/2.0 * (1-triangle_side_ratio);
 
     // define important vertices of simplex used to build entire parallelogram structure

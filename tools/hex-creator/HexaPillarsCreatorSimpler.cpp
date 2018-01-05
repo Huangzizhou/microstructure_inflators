@@ -47,8 +47,6 @@ int main(int argc, char *argv[]) {
     string out_wire = vm["output-wire"].as<string>();
     string out_mesh = vm["output-mesh"].as<string>();
 
-    double parallelogram_side = 2.0;
-
     double s = 2 / sqrt(3);
     double triangle_side = triangle_side_ratio * s * sqrt(3);
     double thickness = thickness_ratio * (pillar_area_ratio * triangle_side / num_pillars);
