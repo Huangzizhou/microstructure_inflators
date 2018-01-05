@@ -872,7 +872,8 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
 #endif
     }
     else if (type == "2D_parallelogram") {
-#if 1
+#if 0
+        //TODO: remove every partial implementation of 2D_parallelogram from code
         //m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Parallelogram<>>, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
 #else
         throw std::runtime_error("Disabled.");
