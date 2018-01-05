@@ -347,6 +347,33 @@ inflators/EqualityConstrainedInflator.cc.s:
 	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f pattern_optimization/CMakeFiles/inflators.dir/build.make pattern_optimization/CMakeFiles/inflators.dir/inflators/EqualityConstrainedInflator.cc.s
 .PHONY : inflators/EqualityConstrainedInflator.cc.s
 
+inflators/HexaPillarsInflator.o: inflators/HexaPillarsInflator.cpp.o
+
+.PHONY : inflators/HexaPillarsInflator.o
+
+# target to build an object file
+inflators/HexaPillarsInflator.cpp.o:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f pattern_optimization/CMakeFiles/inflators.dir/build.make pattern_optimization/CMakeFiles/inflators.dir/inflators/HexaPillarsInflator.cpp.o
+.PHONY : inflators/HexaPillarsInflator.cpp.o
+
+inflators/HexaPillarsInflator.i: inflators/HexaPillarsInflator.cpp.i
+
+.PHONY : inflators/HexaPillarsInflator.i
+
+# target to preprocess a source file
+inflators/HexaPillarsInflator.cpp.i:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f pattern_optimization/CMakeFiles/inflators.dir/build.make pattern_optimization/CMakeFiles/inflators.dir/inflators/HexaPillarsInflator.cpp.i
+.PHONY : inflators/HexaPillarsInflator.cpp.i
+
+inflators/HexaPillarsInflator.s: inflators/HexaPillarsInflator.cpp.s
+
+.PHONY : inflators/HexaPillarsInflator.s
+
+# target to generate assembly for a file
+inflators/HexaPillarsInflator.cpp.s:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f pattern_optimization/CMakeFiles/inflators.dir/build.make pattern_optimization/CMakeFiles/inflators.dir/inflators/HexaPillarsInflator.cpp.s
+.PHONY : inflators/HexaPillarsInflator.cpp.s
+
 inflators/IsoinflatorWrapper.o: inflators/IsoinflatorWrapper.cc.o
 
 .PHONY : inflators/IsoinflatorWrapper.o
@@ -567,6 +594,9 @@ help:
 	@echo "... inflators/EqualityConstrainedInflator.o"
 	@echo "... inflators/EqualityConstrainedInflator.i"
 	@echo "... inflators/EqualityConstrainedInflator.s"
+	@echo "... inflators/HexaPillarsInflator.o"
+	@echo "... inflators/HexaPillarsInflator.i"
+	@echo "... inflators/HexaPillarsInflator.s"
 	@echo "... inflators/IsoinflatorWrapper.o"
 	@echo "... inflators/IsoinflatorWrapper.i"
 	@echo "... inflators/IsoinflatorWrapper.s"
