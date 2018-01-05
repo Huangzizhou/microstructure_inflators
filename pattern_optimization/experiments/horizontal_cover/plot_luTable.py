@@ -66,7 +66,7 @@ random.shuffle(colorNames)
 colorNames = itertools.chain(initialColors, colorNames)
 colors = itertools.cycle(colorNames)
 
-allPatterns = set(p)
+allPatterns = sorted(set(p))
 colorMap = {}
 legend_patches = []
 for pattern in allPatterns:
