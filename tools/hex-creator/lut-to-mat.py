@@ -91,7 +91,7 @@ with open(table_path, 'r') as table_file:
             else:
                 p3 = 0.0
 
-            m = re.search('p4-(.+?)_', row[5])
+            m = re.search('p4-(.+?).msh', row[5])
             if m:
                 p4 = float(m.group(1))
             else:
