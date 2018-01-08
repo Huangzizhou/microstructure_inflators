@@ -55,8 +55,8 @@ public:
 
         // Determine if meshed domain is 2D or 3D and postprocess accordingly
         BBox<Point> bbox(vertices);
-        if (std::abs(bbox.dimensions()[2]) < 1e-8) postProcess<2>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions(), m_cheapPostProcessing);
-        else                                       postProcess<3>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions(), m_cheapPostProcessing);
+        if (std::abs(bbox.dimensions()[2]) < 1e-8) postProcess<2>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions(), m_cheapPostProcessing, m_nonPeriodicity);
+        else                                       postProcess<3>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions(), m_cheapPostProcessing, m_nonPeriodicity);
 
         if (meshingOptions().debugSVelPath.size()) {
             MSHFieldWriter writer(meshingOptions().debugSVelPath, vertices, elements);
@@ -157,6 +157,8 @@ public:
     // The params that were most recently inflated (to which
     // (vertices, elements) correspond).
     std::vector<Real> inflatedParams;
+
+    bool m_nonPeriodicity = false; // use together with NonPeriodic symmetry
 protected:
     // Manually set the parameters in PatternSignedDistance instance
     // (useful if bypassing meshing for debugging).
@@ -172,7 +174,10 @@ public:
     typedef PatternSignedDistance<Real, WMesh> PSD;
     typedef typename WMesh::PatternSymmetry PatternSymmetry;
     IsosurfaceInflatorImpl(const std::string &wireMeshPath, std::unique_ptr<MesherBase> &&m, size_t inflationNeighborhoodEdgeDist)
-        : wmesh(wireMeshPath, inflationNeighborhoodEdgeDist), pattern(wmesh), mesher(std::move(m)) { }
+        : wmesh(wireMeshPath, inflationNeighborhoodEdgeDist), pattern(wmesh), mesher(std::move(m)) {
+
+        m_nonPeriodicity = std::is_same<PatternSymmetry, Symmetry::NonPeriodic<typename PatternSymmetry::Tolerance>>::value;
+    }
 
     virtual void meshPattern(const std::vector<Real> &params) override {
 #if 0

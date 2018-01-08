@@ -137,6 +137,7 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
         {"cubic",           [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>         >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
         {"orthotropic",     [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>   >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
         {"diagonal",        [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Diagonal<>      >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
+        {"non_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::NonPeriodic<>>>(wireMeshPath, std::move(mesher), 0); }},
         {"triply_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
         {"doubly_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::DoublyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
         {"square",          [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Square<>        >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }}

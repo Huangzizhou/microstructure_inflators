@@ -22,7 +22,8 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                  bool                      requestFullPeriodCell,
                  const BBox<Point>         &meshCell,
                  const MeshingOptions      &opts,
-                 bool cheapPostProcessing) {
+                 bool cheapPostProcessing,
+                 bool nonPeriodicity) {
     const bool needsReflecting = requestFullPeriodCell && !meshedFullPeriodCell;
 
     BENCHMARK_START_TIMER_SECTION("postProcess");
@@ -40,7 +41,21 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
 
     using SMesh = SimplicialMesh<N>;
     std::unique_ptr<SMesh> bcm;
-    {
+    if (nonPeriodicity) {
+        // TODO: how to adapt this post processing to non periodic structures
+        std::cout << "[NonPeriodic symmetry] Skip removal of small elements because of periodicty checking ..." << std::endl;
+
+        try {
+            bcm = Future::make_unique<SMesh>(elements, vertices.size());
+        }
+        catch (...) {
+            std::cerr << "Exception while building mesh" << std::endl;
+            std::cerr << "Dumping debug.msh" << std::endl;
+            MeshIO::save("debug.msh", vertices, elements);
+            throw;
+        }
+    }
+    else {
         bool done = false;
         while (!done) {
             try {
@@ -105,42 +120,48 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
 
     SMesh &symBaseCellMesh = *bcm;
 
-    try {
-        if (N == 3) smartSnap3D(vertices, symBaseCellMesh, meshCell);
+    if (nonPeriodicity) {
+        // TODO: how to adapt this post processing to non periodic structures
+        std::cout << "[NonPeriodic symmetry] Skip snapping check ..." << std::endl;
     }
-    catch (std::exception &e) {
-        std::cerr
-                << "WARNING: smartSnap3D failed--probably nonsmooth geometry at cell interface. Resorting to dumbSnap3D."
-                << std::endl;
-        std::cerr << "(" << e.what() << ")" << std::endl;
-        dumbSnap3D(vertices, meshCell, opts.facetDistance);
-    }
-    BBox<Point3D> snappedBB(vertices);
-    if (N == 2) {
-        // We don't care about the z-depth of the bounding box
-        snappedBB.minCorner[2] = meshCell.minCorner[2];
-        snappedBB.maxCorner[2] = meshCell.maxCorner[2];
-    }
-    if (snappedBB != meshCell) {
-        std::cerr << "snappedBB: " << snappedBB << std::endl;
-        std::cerr << "meshCell: " << meshCell << std::endl;
-        std::cerr << "Failed to snap mesh. Dumping debug.msh" << std::endl;
-        MeshIO::save("debug.msh", vertices, elements);
-        throw std::runtime_error("Snapping failed.");
-    }
+    else {
+        try {
+            if (N == 3) smartSnap3D(vertices, symBaseCellMesh, meshCell);
+        }
+        catch (std::exception &e) {
+            std::cerr
+                    << "WARNING: smartSnap3D failed--probably nonsmooth geometry at cell interface. Resorting to dumbSnap3D."
+                    << std::endl;
+            std::cerr << "(" << e.what() << ")" << std::endl;
+            dumbSnap3D(vertices, meshCell, opts.facetDistance);
+        }
+        BBox<Point3D> snappedBB(vertices);
+        if (N == 2) {
+            // We don't care about the z-depth of the bounding box
+            snappedBB.minCorner[2] = meshCell.minCorner[2];
+            snappedBB.maxCorner[2] = meshCell.maxCorner[2];
+        }
+        if (snappedBB != meshCell) {
+            std::cerr << "snappedBB: " << snappedBB << std::endl;
+            std::cerr << "meshCell: " << meshCell << std::endl;
+            std::cerr << "Failed to snap mesh. Dumping debug.msh" << std::endl;
+            MeshIO::save("debug.msh", vertices, elements);
+            throw std::runtime_error("Snapping failed.");
+        }
 
-    using FM = PeriodicBoundaryMatcher::FaceMembership<3>;
-    onMinFace.assign(3, std::vector<bool>(vertices.size(), false));
-    onMaxFace.assign(3, std::vector<bool>(vertices.size(), false));
-    std::vector<FM> faceMembership;
-    for (size_t i = 0; i < vertices.size(); ++i) {
-        FM fm(vertices[i], meshCell, 0); // zero tolerance!
-        onMinFace[0][i] = fm.onMinFace(0), onMaxFace[0][i] = fm.onMaxFace(0);
-        onMinFace[1][i] = fm.onMinFace(1), onMaxFace[1][i] = fm.onMaxFace(1);
-        onMinFace[2][i] = fm.onMinFace(2), onMaxFace[2][i] = fm.onMaxFace(2);
+        using FM = PeriodicBoundaryMatcher::FaceMembership<3>;
+        onMinFace.assign(3, std::vector<bool>(vertices.size(), false));
+        onMaxFace.assign(3, std::vector<bool>(vertices.size(), false));
+        std::vector<FM> faceMembership;
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            FM fm(vertices[i], meshCell, 0); // zero tolerance!
+            onMinFace[0][i] = fm.onMinFace(0), onMaxFace[0][i] = fm.onMaxFace(0);
+            onMinFace[1][i] = fm.onMinFace(1), onMaxFace[1][i] = fm.onMaxFace(1);
+            onMinFace[2][i] = fm.onMinFace(2), onMaxFace[2][i] = fm.onMaxFace(2);
+        }
     }
-
     // MeshIO::save("post_snap.msh", vertices, elements);
+
 
     // Mark internal cell-face vertices: vertices on the meshing cell
     // boundary that actually lie inside the object (i.e. they are only mesh
@@ -148,20 +169,30 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     // the meshing box).
     // This this is not the case if any non-cell-face triangle is incident
     vector<bool> internalCellFaceVertex(symBaseCellMesh.numBoundaryVertices(), true);
-    for (auto bs : symBaseCellMesh.boundarySimplices()) {
-        bool isCellFace = false;
-        for (size_t d = 0; d < N; ++d) {
-            bool onMin = true, onMax = true;
-            for (auto bv : bs.vertices()) {
-                onMin &= onMinFace[d].at(bv.volumeVertex().index());
-                onMax &= onMaxFace[d].at(bv.volumeVertex().index());
-            }
-            isCellFace |= (onMin | onMax);
-        }
-        if (isCellFace) continue;
+    if (nonPeriodicity) {
+        // TODO: how to adapt this post processing to non periodic structures
+        std::cout << "[NonPeriodic symmetry] Skip verification of bondary internal cells, since entire boundary corresponds to actual boundary ..." << std::endl;
 
-        for (auto bv : bs.vertices())
-            internalCellFaceVertex.at(bv.index()) = false;
+        for (unsigned face_vertex_index = 0; face_vertex_index < symBaseCellMesh.numBoundaryVertices(); face_vertex_index++) {
+            internalCellFaceVertex[face_vertex_index] = false;
+        }
+    }
+    else {
+        for (auto bs : symBaseCellMesh.boundarySimplices()) {
+            bool isCellFace = false;
+            for (size_t d = 0; d < N; ++d) {
+                bool onMin = true, onMax = true;
+                for (auto bv : bs.vertices()) {
+                    onMin &= onMinFace[d].at(bv.volumeVertex().index());
+                    onMax &= onMaxFace[d].at(bv.volumeVertex().index());
+                }
+                isCellFace |= (onMin | onMax);
+            }
+            if (isCellFace) continue;
+
+            for (auto bv : bs.vertices())
+                internalCellFaceVertex.at(bv.index()) = false;
+        }
     }
 
     // Compute parameter shape velocities on all (true) boundary vertices
@@ -369,7 +400,8 @@ template void postProcess<2, Eigen::Matrix<Real, 3, 1>>(
                  bool                                    requestFullPeriodCell,
                  const BBox<Eigen::Matrix<Real, 3, 1>>  &meshCell,
                  const MeshingOptions                   &opts,
-                 bool cheapPostProcessing);
+                 bool cheapPostProcessing,
+                 bool nonPeriodicity);
 
 template void postProcess<3, Eigen::Matrix<Real, 3, 1>>(
                  std::vector<MeshIO::IOVertex>          &vertices,
@@ -381,4 +413,5 @@ template void postProcess<3, Eigen::Matrix<Real, 3, 1>>(
                  bool                                    requestFullPeriodCell,
                  const BBox<Eigen::Matrix<Real, 3, 1>>  &meshCell,
                  const MeshingOptions                   &opts,
-                 bool cheapPostProcessing);
+                 bool cheapPostProcessing,
+                 bool nonPeriodicity);

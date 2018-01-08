@@ -37,6 +37,7 @@ namespace Symmetry {
 enum class NodeType : unsigned int { Vertex = 0, Edge = 1, Face = 2, Interior = 3 };
 
 // Forward declarations of Symmetry types.
+template<typename TOL = DEFAULT_TOL> struct NonPeriodic;
 template<typename TOL = DEFAULT_TOL> struct TriplyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct DoublyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct Orthotropic;
@@ -51,6 +52,7 @@ template<typename TOL = DEFAULT_TOL> struct Null;
 // TriplyPeriodic and Orthotropic symmetries have a box base cell,
 // Cubic and Diagonal symmetries have a tet base cell.
 template<class Sym> struct SymmetryTraits { };
+template<typename TOL> struct SymmetryTraits<NonPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<TriplyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<DoublyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Orthotropic<TOL>>    { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
@@ -96,6 +98,53 @@ struct OptionalFMod2<T, true> {
 ////////////////////////////////////////////////////////////////////////////////
 // Symmetry class definitions
 ////////////////////////////////////////////////////////////////////////////////
+// Base unit is a full period cell: [-1, 1]^3
+template<typename TOL>
+struct NonPeriodic : SymmetryCRTP<NonPeriodic<TOL>> {
+    typedef TOL Tolerance;
+    // Disambiguate CRTP instances
+    typedef SymmetryCRTP<NonPeriodic<TOL>> CRTP;
+    using CRTP::nodePositioner;
+    using CRTP::nodeType;
+
+    static constexpr double tolerance = double(TOL::num) / double(TOL::den);
+
+    // TODO: where is this used exactly and how this changes execution? Should I scale every non periodic structure to the cube position?
+    // In non periodic structures, it does not matter what is the representative mesh cell.
+    template<typename Real>
+    static BBox<Point3<Real>> representativeMeshCell() {
+        float max = 1.0; //changes performance, since resolution seems to be kept the same
+        return BBox<Point3<Real>>(Point3<Real>(-max, -max, -max),
+                                  Point3<Real>(max, max, max));
+    }
+
+    template<typename Real>
+    static Point3<Real> mapToBaseUnit(Point3<Real> p) {
+        return p;
+    }
+
+    template<typename Real>
+    static bool inBaseUnit(const Point3<Real> &p) {
+        return true;
+    }
+
+    template<typename Real>
+    static bool inMeshingCell(const Point3<Real> &p) {
+        return inBaseUnit(p);
+    }
+
+    template<typename Real>
+    static Point3<Real> independentVertexPosition(Point3<Real> p) {
+        return p;
+    }
+
+    // Only identity is used for non periodic wires
+    static std::vector<Isometry> symmetryGroup() {
+        std::vector<Isometry> group(1, Isometry()); // Add identity element
+        return group;
+    }
+};
+
 // Base unit is a full period cell: [-1, 1]^3
 template<typename TOL>
 struct TriplyPeriodic : SymmetryCRTP<TriplyPeriodic<TOL>> {
