@@ -11,7 +11,7 @@ struct MeshingOptions {
     }
 
     // Joint blending mode:
-    JointBlendMode jointBlendingMode = JointBlendMode::HULL;
+    JointBlendMode jointBlendingMode = JointBlendMode::FULL;
 
     // CGAL volume mesher options
     double domainErrorBound          = 1e-5;
@@ -22,11 +22,11 @@ struct MeshingOptions {
     double edgeSize                  = 0.025;
     double cellRadiusEdgeRatio       = 2.0;
 
-    // Cell face 2D mesher options
-    size_t marchingSquaresGridSize = 256;
-
     // VCG Marching cubes options
     size_t marchingCubesGridSize = 128;
+
+    // 3D features extraction/2D mesher options
+    size_t marchingSquaresGridSize = 256;
 
     // Coarsening levels used in adaptive marching squares:
     // Initially sample at a grid 2^marchingSquaresCoarsening times coarser,
@@ -81,6 +81,14 @@ struct MeshingOptions {
         if (m_forceMaxBdryEdgeLen) return m_forcedMaxBdryEdgeLen;
         else return maxEdgeLenFromMaxArea();
     }
+
+    // Manually enforce a consistent mesh on the cell interface, ensuring that
+    // the boundary mesh on the interface depends only on the interface
+    // geometry and can stitched with a neighbor whenever the geometry matches.
+    // This option is only supported for 2D patterns and is  NOT needed for
+    // homogenization; it should only be needed, e.g., when one wishes to
+    // stitch a square-symmetric cell with a 90-degree-rotated copy of itself.
+    bool forceConsistentInterfaceMesh = false;
 
     void load(const std::string &jsonPath);
 

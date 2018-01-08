@@ -134,9 +134,11 @@ mesh(const SignedDistanceRegion<3> &sdf,
     Point3d c;
     double r;
     sdf.boundingSphere(c, r);
-    // std::cout << "meshing bounding sphere, radius = " << r << ", c = " << c << std::endl;
-    // std::cout << "signed distance at sphere center: " << sdf.signedDistance(c) << std::endl;
-    // std::cout << "bounding box: " << sdf.boundingBox() << std::endl;
+#if 0
+    std::cout << "meshing bounding sphere, radius = " << r << ", c = " << c.transpose() << std::endl;
+    std::cout << "signed distance at sphere center: " << sdf.signedDistance(c) << std::endl;
+    std::cout << "bounding box: " << sdf.boundingBox() << std::endl;
+#endif
 
     Mesh_domain domain(cgal_sdfunc,
             K::Sphere_3(Point(c[0], c[1], c[2]), r * r), meshingOptions.domainErrorBound);
@@ -155,6 +157,15 @@ mesh(const SignedDistanceRegion<3> &sdf,
     // std::cout << "Making mesh..." << std::endl;
     BENCHMARK_START_TIMER("make_mesh_3");
     C3t3 c3t3 = CGAL::make_mesh_3<C3t3>(domain, criteria);
+    // CGAL sometimes returns an empty mesh for some patterns due to
+    // insufficient initialization:
+    // https://github.com/CGAL/cgal/issues/2416
+    // For some reason this is considered "not a bug," and Laurent recommended
+    // the following workaround:
+    if (c3t3.number_of_facets() == 0) {
+        CGAL::internal::Mesh_3::init_c3t3(c3t3, domain, criteria, 20);
+        refine_mesh_3(c3t3, domain, criteria);
+    }
     BENCHMARK_STOP_TIMER("make_mesh_3");
 
     // Access triangulation directly
@@ -165,12 +176,15 @@ mesh(const SignedDistanceRegion<3> &sdf,
     size_t i = 0;
     for (auto it = tr.finite_vertices_begin(); it != tr.finite_vertices_end(); ++it) {
         V[it] = i++;
-        Point p = it->point().point();
+        auto p = it->point();
         vertices.emplace_back(CGAL::to_double(p.x()), CGAL::to_double(p.y()),
                 CGAL::to_double(p.z()));
     }
 
     elements.reserve(c3t3.number_of_cells_in_complex());
+    if (c3t3.number_of_cells_in_complex() == 0) {
+        std::cerr << "WARNING: no elements in CGAL::make_mesh_3 result." << std::endl;
+    }
     for (auto it = c3t3.cells_in_complex_begin(); it != c3t3.cells_in_complex_end(); ++it) {
         elements.emplace_back(V[it->vertex(0)],
                               V[it->vertex(1)],

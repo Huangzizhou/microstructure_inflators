@@ -694,8 +694,11 @@ private:
                         std::vector<Edge> &edges,
                         std::vector<Real> &thicknesses,
                         std::vector<Real> &blendingParams) const {
-        if (params.size() != numParams())
+        if (params.size() != numParams()) {
+            std::cout << "Params size: " << params.size() << std::endl;
+            std::cout << "Expected size: " << numParams() << std::endl;
             throw std::runtime_error("Invalid number of params.");
+        }
 
         edges = graphEdges;
 

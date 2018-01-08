@@ -352,7 +352,7 @@ def generate_position_parameters(vertices):
             parameters.append(normalized_vertex[1])
 
         # cause z is always at 0 coordinate
-        parameters.append(0.5)
+        #parameters.append(0.5)
 
     return parameters
 

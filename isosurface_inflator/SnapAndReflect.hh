@@ -213,7 +213,7 @@ smartSnap3D(std::vector<MeshIO::IOVertex> &vertices, const TMesh &mesh, const BB
 
 // For when smartSnap3D fails...
 // Tolerance "epsilon" should be based on CGAL meshing parametrs
-void dumbSnap3D(std::vector<MeshIO::IOVertex> &vertices,
+inline void dumbSnap3D(std::vector<MeshIO::IOVertex> &vertices,
                 const BBox<Point3D> &cell, const Real epsilon) {
     for (auto &v : vertices) {
         for (size_t c = 0; c < 3; ++c) {

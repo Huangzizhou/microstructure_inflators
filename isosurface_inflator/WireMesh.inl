@@ -2,6 +2,7 @@
 #include <iterator>
 #include <type_traits>
 #include <Utilities/apply.hh>
+#include <CollisionGrid.hh>
 
 // Set from embedded graph
 template<class Sym>
@@ -238,6 +239,11 @@ replicatedGraph(const std::vector<Isometry> &isometries,
 
     const double tol = m_tolerance();
 
+    // Choose a cell size on the order of epsilon, but prevent cell sizes so
+    // small as to cause index overflows for objects of size up to 100x100
+    // centered at the origin: max int ~10^9 ==> cellSize > 10^-7
+    CollisionGrid<double, Point> cgrid(std::max(tol, 1e-7));
+
     for (size_t ei = 0; ei < m_baseEdges.size(); ++ei) {
         const auto &e = m_baseEdges[ei];
         const size_t u = e.first, v = e.second;
@@ -255,25 +261,26 @@ replicatedGraph(const std::vector<Isometry> &isometries,
             // Create a new replicated vertex at "p" unless p coincides
             // with an existing one. Return resulting unique vertex's index
             auto createUniqueVtx = [&](const size_t origVertex, const Point &p, const Eigen::Matrix3Xd &posMap) {
-                // Find and return vertex index if it already exists.
-                for (size_t i = 0; i < rVertices.size(); ++i) {
-                    if (rVertices[i].sqDistTo(p) < tol) {
-                        // Verify position maps agree for coinciding reflected vertices
-                        if ((rVertices[i].posMap - posMap).squaredNorm() >= 1e-8) {
-                            std::cout << rVertices[i].posMap << std::endl;
-                            std::cout << posMap << std::endl;
-                            assert(false && "Conflicting maps");
-                        }
-                        // Verify repeated vertices originate from same independent vtx
-                        assert(m_indepVtxForBaseVtx.at(rVertices[i].origVertex) ==
-                               m_indepVtxForBaseVtx.at(origVertex));
-                        return i;
-                    }
+                auto result = cgrid.getClosestPoint(p, tol);
+                if (result.first < 0) {
+                    // Create new replicated vertex at "p" if none exists
+                    size_t newVtxIdx = rVertices.size();
+                    rVertices.emplace_back(p, origVertex, isometry, posMap);
+                    cgrid.addPoint(p, newVtxIdx);
+                    return newVtxIdx;
                 }
-                // Create new reflected vertex at "p" otherwise
-                size_t newVtxIdx = rVertices.size();
-                rVertices.emplace_back(p, origVertex, isometry, posMap);
-                return newVtxIdx;
+
+                size_t match = result.first;
+                // Verify position maps agree for coinciding reflected vertices
+                if ((rVertices[match].posMap - posMap).squaredNorm() >= 1e-8) {
+                    std::cout << rVertices[match].posMap << std::endl;
+                    std::cout << posMap << std::endl;
+                    assert(false && "Conflicting maps");
+                }
+                // Verify repeated vertices originate from same independent vtx
+                assert(m_indepVtxForBaseVtx.at(rVertices[match].origVertex) ==
+                        m_indepVtxForBaseVtx.at(origVertex));
+                return match;
             };
 
             size_t mappedUIdx = createUniqueVtx(u, mappedPu, isometry.xformMap(uPosMap)),
@@ -286,7 +293,8 @@ replicatedGraph(const std::vector<Isometry> &isometries,
                 // (unless this is a triply periodic pattern where base edges
                 // on the period cell boundary are redundant)
                 assert(((ret.first->origEdge == ei) ||
-                        std::is_same<Symmetry::TriplyPeriodic<typename PatternSymmetry::Tolerance>, PatternSymmetry>::value));
+                        std::is_same<Symmetry::TriplyPeriodic<typename PatternSymmetry::Tolerance>, PatternSymmetry>::value ||
+                        std::is_same<Symmetry::DoublyPeriodic<typename PatternSymmetry::Tolerance>, PatternSymmetry>::value));
             }
         }
     }

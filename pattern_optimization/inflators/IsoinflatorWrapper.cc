@@ -148,6 +148,11 @@ Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
 IsoinflatorWrapper<N>::selfSupportingConstraints(const std::vector<double> &params) const {
     return m_inflator->selfSupportingConstraints(params);
 }
+template<size_t N>
+bool
+IsoinflatorWrapper<N>::hasOrthotropicSymmetry() const {
+    return m_inflator->hasOrthotropicSymmetry();
+}
 
 template<size_t N>
 Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>

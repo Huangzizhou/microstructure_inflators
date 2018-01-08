@@ -22,7 +22,7 @@ namespace PatternOptimization {
                 // We convert by simply negating the constraint matrix:
 
                 // Note: this means the violation reported should be negated.
-                m_C = -it.positioningConstraints();
+                //m_C = -it.positioningConstraints();
 
                 const auto &params = it.params();
                 assert(size_t(m_C.cols()) == params.size() + 1);

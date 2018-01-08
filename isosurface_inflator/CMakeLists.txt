@@ -10,7 +10,8 @@ add_library(isosurface_inflator
 		MeshingOptions.cc
 		MidplaneMesher.cc
 		VCGSurfaceMesher.cc
-		IGLSurfaceMesherMC.cc)
+		IGLSurfaceMesherMC.cc
+        PostProcess.cc)
 
 target_include_directories(isosurface_inflator PUBLIC .)
 
@@ -32,6 +33,7 @@ target_link_libraries(isosurface_inflator MeshFEM)
 # CGAL library
 find_package(CGAL REQUIRED COMPONENTS Core)
 target_link_libraries(isosurface_inflator CGAL::CGAL)
+target_include_directories(isosurface_inflator SYSTEM PRIVATE ${CGAL_INCLUDE_DIRS})
 
 ################################################################################
 # Optional libraries
@@ -77,6 +79,10 @@ set_target_properties(stitch_cells_cli PROPERTIES CXX_STANDARD 14)
 add_executable(VisualizeQuantities VisualizeQuantities.cc)
 target_link_libraries(VisualizeQuantities isosurface_inflator)
 set_target_properties(VisualizeQuantities PROPERTIES CXX_STANDARD 11)
+
+add_executable(VisualizeQuantities2D VisualizeQuantities2D.cc)
+target_link_libraries(VisualizeQuantities2D isosurface_inflator)
+set_target_properties(VisualizeQuantities2D PROPERTIES CXX_STANDARD 11)
 
 add_executable(PrintabilityCheck PrintabilityCheck.cc)
 target_link_libraries(PrintabilityCheck isosurface_inflator)

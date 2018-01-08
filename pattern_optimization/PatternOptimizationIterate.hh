@@ -66,10 +66,13 @@ struct Iterate : public IterateBase {
 
         // Printability check and constraints
         m_printable = inflator.isPrintable(m_params);
-        m_selfSupportingConstraints = inflator.selfSupportingConstraints(m_params);
-
-        // Positioning constraints (cannot fall out of simplex or base unit)
-        m_positioningConstraints = inflator.positioningConstraints(m_params);
+        try {
+            m_selfSupportingConstraints = inflator.selfSupportingConstraints(m_params);
+            m_hasSelfSupportingConstraints = true;
+        }
+        catch (...) {
+            m_hasSelfSupportingConstraints = false;
+        }
 
         // std::cout << "Inflating" << std::endl;
         BENCHMARK_START_TIMER_SECTION("Inflate");
@@ -156,14 +159,12 @@ struct Iterate : public IterateBase {
     // velocity vector fields
     OForm differential() const {
         OForm full;
-
         for (const auto &term : m_objectiveTerms) {
             OForm contrib = term.second->diff_bdry();
             contrib *= term.second->normalizedWeight();
             if (full.domainSize() == 0) full  = contrib;
             else                        full += contrib;
         }
-
         return full;
     }
 
@@ -375,15 +376,9 @@ struct Iterate : public IterateBase {
     //      C [p] >= 0
     //        [1]
     Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> selfSupportingConstraints() const {
+        if (!m_hasSelfSupportingConstraints)
+            throw std::runtime_error("This inflator didn't provide self-supporting constraints.");
         return m_selfSupportingConstraints;
-    }
-
-    // Return the positioning inequality constraints in the form of a matrix
-    // acting on a homogenous parameter vector:
-    //      C [p] >= 0
-    //        [1]
-    Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> positioningConstraints() const {
-        return m_positioningConstraints;
     }
 
     // Tell this iterate that it was inflated with a different set of paramters
@@ -408,7 +403,7 @@ protected:
 
     bool m_printable;
     Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> m_selfSupportingConstraints;
-    Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> m_positioningConstraints;
+    bool m_hasSelfSupportingConstraints;
 
     ObjectiveTermMap m_objectiveTerms; 
     ConstraintMap    m_constraints; 

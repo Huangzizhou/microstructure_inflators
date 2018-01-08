@@ -10,6 +10,8 @@
 #include <PeriodicBoundaryMatcher.hh>
 #include <stdexcept>
 
+#include <Utilities/EdgeSoupAdaptor.hh>
+
 #include <boost/optional.hpp>
 
 #define     DEBUG_OUT 0
@@ -104,28 +106,32 @@ mesh(const SignedDistanceRegion<3>  &sdf,
     if (meshingOptions.curvatureAdaptive)
         computeCurvatureAdaptiveMinLen(polygons, slice, minLen, maxLen, variableMinLens);
 
+    using PolygonAdaptor = IOElementEdgeSoupFromClosedPolygonCollection<decltype(polygons)>;
+
 #if DEBUG_OUT
     std::cout << polygons.size() << " polygons. Sizes:" << std::endl;
     for (auto &poly : polygons)
         std::cout << "\t" << poly.size() << std::endl;
 
-    MeshIO::save("ms_polygons.msh",
-                 IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
+    MeshIO::save("ms_polygons.msh", PolygonAdaptor(polygons));
 #endif
+
+    if (!msPolygonPath.empty())
+        MeshIO::save(msPolygonPath, PolygonAdaptor(polygons));
 
     BENCHMARK_START_TIMER("Curve Cleanup");
     {
-        // Only remesh the cell boundary if we're doing "periodic" meshing
-        // (i.e. preventing Triangle from inserting Steiner points). Otherwise,
+        // Only remesh the cell boundary if we need to "meshInterfaceConsistently"
+        // (i.e. prevent Triangle from inserting Steiner points). Otherwise,
         // we'll let Triangle subdivide the boundary optimally.
         boost::optional<double> cellBdryEdgeLen;
-        if (this->periodic) cellBdryEdgeLen = meshingOptions.maxEdgeLenFromMaxArea() / 2;
+        if (this->meshInterfaceConsistently) cellBdryEdgeLen = meshingOptions.maxEdgeLenFromMaxArea() / 2;
 
         if (meshingOptions.curveSimplifier == MeshingOptions::COLLAPSE) {
             size_t i = 0;
             for (auto &poly : polygons) {
                 curveCleanup<2>(poly, slice.boundingBox(), minLen, maxLen,
-                        meshingOptions.featureAngleThreshold, this->periodic, cellBdryEdgeLen,
+                        meshingOptions.featureAngleThreshold, this->meshInterfaceConsistently, cellBdryEdgeLen,
                         variableMinLens.size() ? variableMinLens.at(i) : std::vector<double>(),
                         0.0 /* marching squares guarantees cell boundary vertex coords are exact */);
                 ++i;
@@ -147,11 +153,14 @@ mesh(const SignedDistanceRegion<3>  &sdf,
     BENCHMARK_STOP_TIMER("Curve Cleanup");
 
 #if DEBUG_OUT
+    std::cout << "Simplified polygon sizes:" << std::endl;
+    for (auto &poly : polygons)
+        std::cout << "\t" << poly.size() << std::endl;
     MeshIO::save("cleaned_polygons.msh",
-                 IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
+                 PolygonAdaptor(polygons));
 #endif
 
-    // Determine which polygon is touching the bbox (there must be exactly one):
+    // Determine which polygon is touching the bbox (there should be exactly one):
     // this is the only non-hole polygon.
     std::vector<bool> isHoleBdry;
     size_t numHoles = 0;
@@ -167,8 +176,8 @@ mesh(const SignedDistanceRegion<3>  &sdf,
         numHoles += isHole;
     }
 
-    // Actually, we can have more than one bbox-incident curve when a neigboring
-    // extends into this one.
+    // Actually, we can have more than one bbox-incident curve when a
+    // neigboring cell's geometry extends into this cell.
 #if 0
     if (polygons.size() - numHoles != 1) {
         throw std::runtime_error("Should have exactly one bbox-incident curve; got "
@@ -190,7 +199,7 @@ mesh(const SignedDistanceRegion<3>  &sdf,
                 std::list<std::list<Point2D>> holePolygons(1, poly);
                 std::vector<MeshIO::IOVertex > holeVertices;
                 std::vector<MeshIO::IOElement> holeTriangles;
-                //MeshIO::save("polygons.msh", IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
+                //MeshIO::save("polygons.msh", PolygonAdaptor(polygons));
                 triangulatePSLC(holePolygons, std::vector<Point2D>(),
                                 holeVertices, holeTriangles, 1.0, "Q");
 
@@ -212,9 +221,8 @@ mesh(const SignedDistanceRegion<3>  &sdf,
 
                 if (maxDist == std::numeric_limits<double>::lowest())
                     throw std::runtime_error("Couldn't find point inside hole " + std::to_string(i));
-                if (maxDist <= 0)
-                    std::cerr << "WARNING: hole point inside object (nonpostive signed distance)" << std::endl;
-                holePts.push_back(bestCandidate);
+                if (maxDist <= 0) std::cerr << "WARNING: hole point inside object (nonpostive signed distance)" << std::endl;
+                else holePts.push_back(bestCandidate);
 #if DEBUG_OUT
                 std::cerr << "Found hole point: " << bestCandidate << std::endl;
                 std::cerr << "signed distance at hole point: " << maxDist << std::endl;
@@ -223,14 +231,17 @@ mesh(const SignedDistanceRegion<3>  &sdf,
         }
     }
 
-    assert(holePts.size() == numHoles);
+    if (holePts.size() != numHoles)
+        std::cerr << "WARNING: couldn't find all holes" << std::endl;
     BENCHMARK_STOP_TIMER("Hole detection");
 
 
-    //MeshIO::save("polygons.msh", IOElementEdgeSoupFromClosedPolygonList<Point2D>(polygons));
+    //MeshIO::save("polygons.msh", PolygonAdaptor(polygons));
+
+    if (polygons.size() == 0) return;
     triangulatePSLC(polygons, holePts, vertices, triangles,
                     meshingOptions.maxArea,
-                    (this->periodic ? "QY" : "Q"));
+                    (this->meshInterfaceConsistently ? "QY" : "Q"));
 
 #if DEBUG_OUT
     MeshIO::save("triangulated_polygon.msh", vertices, triangles);
@@ -359,4 +370,16 @@ void computeCurvatureAdaptiveMinLen(const std::list<std::list<Point2D>> &polygon
         for (size_t i = 0; i < lengths.domainSize(); ++i)
             vml[i] = lengths[i];
     }
+}
+
+void MidplaneMesher::dumpSDF(const SignedDistanceRegion<3>  &sdf,
+                             const std::string &path) {
+    auto bb = sdf.boundingBox();
+    size_t gridSizeX = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[0]),
+           gridSizeY = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[1]);
+    MarchingSquaresGrid msquares(gridSizeX, gridSizeY,
+                                 meshingOptions.marchingSquaresCoarsening);
+
+    MidplaneSlice slice(sdf);
+    msquares.outputSignedDistanceField(path, slice);
 }

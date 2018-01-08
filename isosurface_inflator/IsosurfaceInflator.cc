@@ -3,24 +3,23 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <type_traits>
+#include <algorithm>
+#include <map>
 
 #include <MeshIO.hh>
 #include <MSHFieldWriter.hh>
 #include <SimplicialMesh.hh>
 #include <Future.hh>
-#include <algorithms/get_element_components.hh>
-#include <filters/remove_dangling_vertices.hh>
-#include <filters/remove_small_components.hh>
-#include <GlobalBenchmark.hh>
-#include <Parallelism.hh>
 #include <Utilities/apply.hh>
 
-#include "AutomaticDifferentiation.hh"
 #include "WireMesh.hh"
 #include "PatternSignedDistance.hh"
-#include "SnapAndReflect.hh"
 #include "Isometries.hh"
+
+#include "../pattern_optimization/ShapeVelocityInterpolator.hh"
+#include <LinearElasticity.hh>
+
+#include "IsosurfaceInflatorImpl.hh"
 
 #define DEBUG_EVALPTS 0
 
@@ -38,349 +37,7 @@
 #include "MidplaneMesher.hh"
 #include "IGLSurfaceMesherMC.hh"
 
-#include "IsosurfaceInflatorConfig.hh"
-
 using namespace std;
-
-// Postprocess:
-//    Snap to base cell and then reflect if necessary
-//    Compute vertex normals and normal shape velocities
-template<size_t N, class Point>
-void postProcess(vector<MeshIO::IOVertex>  &vertices,
-                 vector<MeshIO::IOElement> &elements,
-                 vector<vector<Real>>      &normalShapeVelocities,
-                 vector<Point>             &vertexNormals,
-                 const IsosurfaceInflator::Impl &inflator,
-                 bool                      meshedFullPeriodCell,
-                 bool                      requestFullPeriodCell,
-                 const BBox<Point>         &meshCell,
-                 const MeshingOptions      &opts,
-                 bool cheapPostProcessing);
-
-class IsosurfaceInflator::Impl {
-public:
-    virtual vector<Real>  defaultParameters() const = 0;
-    virtual size_t                numParams() const = 0;
-    virtual bool   isThicknessParam(size_t p) const = 0;
-    virtual bool    isPositionParam(size_t p) const = 0;
-    virtual bool    isBlendingParam(size_t p) const = 0;
-
-    virtual       MeshingOptions &meshingOptions()       = 0;
-    virtual const MeshingOptions &meshingOptions() const = 0;
-
-    // Delegates to derived IsosurfaceInflatorImpl for WMesh-dependent stuff
-    // (via the virtual functions below).
-    void inflate(const vector<Real> &params) {
-        inflatedParams = params;
-
-        if (meshingOptions().debugLoadMeshPath.size()) {
-            MeshIO::load(meshingOptions().debugLoadMeshPath, vertices, elements);
-            // The normal/signed computation expects parameters to have been set
-            m_setParameters(params);
-        }
-        else {
-            meshPattern(params);
-        }
-
-        // Terminate after initial meshing, for debugging.
-        if (m_noPostprocess) return;
-
-        // std::cout << "Meshed params:";
-        // for (Real p : params) std::cout << "\t" << p;
-        // std::cout << std::endl;
-
-        // Determine if meshed domain is 2D or 3D and postprocess accordingly
-        BBox<Point> bbox(vertices);
-        if (std::abs(bbox.dimensions()[2]) < 1e-8) postProcess<2>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions(), m_cheapPostProcessing);
-        else                                       postProcess<3>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions(), m_cheapPostProcessing);
-
-        if (meshingOptions().debugSVelPath.size()) {
-            MSHFieldWriter writer(meshingOptions().debugSVelPath, vertices, elements);
-            VectorField<Real, 3> normals(vertices.size());
-            for (size_t i = 0; i < vertices.size(); ++i)
-                normals(i) = vertexNormals[i];
-            writer.addField("normals", normals, DomainType::PER_NODE);
-
-            ScalarField<Real> vn(vertices.size());
-            for (size_t p = 0; p < normalShapeVelocities.size(); ++p) {
-                for (size_t i = 0; i < vertices.size(); ++i)
-                    vn(i) = normalShapeVelocities[p][i];
-                writer.addField("svel " + std::to_string(p), vn, DomainType::PER_NODE);
-            }
-        }
-    }
-
-    // Mesh the param (fills vertices, elements member arrays)
-    virtual void meshPattern(const vector<Real> &params) = 0;
-
-    // Dump inflation graph
-    virtual void dumpInflationGraph(const string &path, const vector<Real> &params) const = 0;
-
-    // Derivative of signed distance function with respect to evaluation point
-    virtual vector<Point> signedDistanceGradient(const vector<Point> &evalPoints) const = 0;
-
-    // Derivative of signed distance function wrt each pattern parameter
-    virtual vector<vector<Real>> signedDistanceParamPartials(const vector<Point> &evalPoints) const = 0;
-
-    // Determine the degree of smoothing at each evaluation point (for debugging purposes)
-    virtual std::pair<vector<Real>,vector<size_t>> smoothnessAtPoints(const vector<Point> &evalPoints) const = 0;
-
-    // Debug the signed distance gradient, e.g. to diagnose nonzero z components
-    // of 2D normals
-    virtual Point trackSignedDistanceGradient(const Point &pt) const = 0;
-
-    // Printability checks/constraints
-    virtual bool isPrintable(const std::vector<Real> &params) const = 0;
-    virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
-    selfSupportingConstraints(const std::vector<Real> &params) const = 0;
-
-    virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
-    positioningConstraints(const std::vector<Real> &params) const = 0;
-
-    // Whether the inflator generates only the orthotropic symmetry base cell
-    // (by default--reflectiveInflator will override this)
-    virtual bool _meshingOrthoCell() const = 0;
-
-    // The meshing cell box.
-    virtual BBox<Point> meshingCell() const = 0;
-
-    void clear() {
-        vertices.clear(), elements.clear();
-        normalShapeVelocities.clear();
-        vertexNormals.clear();
-        inflatedParams.clear();
-    }
-
-    virtual ~Impl() { }
-
-    ////////////////////////////////////////////////////////////////////////////
-    // "Private" data memebers
-    ////////////////////////////////////////////////////////////////////////////
-    // Chooses whether the full period cell is created in cases where the
-    // representative cell is smaller (e.g. orthotropic patterns, whose base
-    // cell is 1/8th the period cell).
-    bool generateFullPeriodCell = true;
-    // Chooses whether we mesh only the symmetry base cell and reflect to the
-    // full period cell if necessary (default), or we mesh the full period cell
-    // when generateFullPeriodCell == true
-    bool reflectiveInflator = true;
-    bool m_noPostprocess = false; // for debugging
-    bool m_cheapPostProcessing = false; // only valid when using inflation alone
-    vector<MeshIO::IOVertex>  vertices;
-    vector<MeshIO::IOElement> elements;
-    vector<vector<Real>>      normalShapeVelocities;
-    vector<Point>             vertexNormals;
-
-    // The params that were most recently inflated (to which
-    // (vertices, elements) correspond).
-    vector<Real> inflatedParams;
-protected:
-    // Manually set the parameters in PatternSignedDistance instance
-    // (useful if bypassing meshing for debugging).
-    virtual void m_setParameters(const vector<Real> &params) = 0;
-};
-
-// The WMesh-dependent implementation details.
-// E.g.: WMesh = WireMesh<Symmetry::Cubic<>>
-template<class WMesh>
-class IsosurfaceInflatorImpl : public IsosurfaceInflator::Impl {
-public:
-    using Point = IsosurfaceInflator::Point;
-    typedef PatternSignedDistance<Real, WMesh> PSD;
-    typedef typename WMesh::PatternSymmetry PatternSymmetry;
-    IsosurfaceInflatorImpl(const string &wireMeshPath, std::unique_ptr<MesherBase> &&m, size_t inflationNeighborhoodEdgeDist)
-        : wmesh(wireMeshPath, inflationNeighborhoodEdgeDist), pattern(wmesh), mesher(std::move(m)) {
-        mesher->periodic = !_meshingOrthoCell();
-    }
-
-    virtual void meshPattern(const vector<Real> &params) override {
-        // std::cout << "Meshing parameters:";
-        // for (auto p : params)
-        //     std::cout << "\t" << p;
-        // std::cout << std::endl;
-
-        BENCHMARK_START_TIMER_SECTION("meshPattern");
-        // Optional debugging graph output.
-        const auto &config = IsosurfaceInflatorConfig::get();
-        if (config.dumpInflationGraph())  { wmesh.saveInflationGraph(    config.inflationGraphPath, params); }
-        if (config.dumpReplicatedGraph()) { wmesh.saveReplicatedBaseUnit(config.replicatedGraphPath); }
-        if (config.dumpBaseUnitGraph())   { wmesh.saveBaseUnit(          config.baseUnitGraphPath); }
-
-        pattern.setParameters(params, meshingOptions().jointBlendingMode);
-
-        // Change the pattern's meshing domain if we're forcing meshing of the
-        // full TriplyPeriodic base cell.
-        if (generateFullPeriodCell && !reflectiveInflator)
-            pattern.setBoundingBox(Symmetry::TriplyPeriodic<>::representativeMeshCell<Real>());
-
-        mesher->mesh(pattern, this->vertices, this->elements);
-        BENCHMARK_STOP_TIMER_SECTION("meshPattern");
-        // cout << vertices.size() << " vertices, " << elements.size() << " elements" << endl;
-    }
-
-    // Dump inflation graph
-    virtual void dumpInflationGraph(const string &path, const vector<Real> &params) const override {
-        wmesh.saveInflationGraph(path, params);
-    }
-
-    // Note: when reflectiveInflator = false, the mesher generates the full
-    // period cell.
-    virtual bool _meshingOrthoCell() const override {
-        return is_base_of<Symmetry::Orthotropic<typename PatternSymmetry::Tolerance>,
-                PatternSymmetry>::value
-               && (reflectiveInflator || !generateFullPeriodCell);
-    }
-
-    // The meshing cell box.
-    virtual BBox<Point> meshingCell() const override { return PatternSymmetry::template representativeMeshCell<Real>(); }
-
-    // Derivative of signed distance function with respect to evaluation point
-    // (autodiff-based).
-    virtual vector<Point> signedDistanceGradient(const vector<Point> &evalPoints) const override {
-        vector<Point> distGradX(evalPoints.size());
-#if !SKIP_SVEL
-        // Scalar supporting 3D spatial gradient
-        using ADScalar = Eigen::AutoDiffScalar<Vector3<Real>>;
-        using Pt = Point3<ADScalar>;
-        const size_t nEvals = evalPoints.size();
-
-        auto evalAtPtIdx = [&](size_t p) {
-            Pt x(ADScalar(evalPoints[p][0], 3, 0),
-                 ADScalar(evalPoints[p][1], 3, 1),
-                 ADScalar(evalPoints[p][2], 3, 2));
-            ADScalar dist = pattern.signedDistance(x);
-            distGradX[p]  = dist.derivatives();
-        };
-
-#if USE_TBB
-        tbb::parallel_for(
-                tbb::blocked_range<size_t>(0, nEvals),
-                [&](const tbb::blocked_range<size_t> &r) {
-                    for (size_t p = r.begin(); p < r.end(); ++p) evalAtPtIdx(p);
-                });
-#else
-        for (size_t p = 0; p < nEvals; ++p) evalAtPtIdx(p);
-#endif
-#else   // SKIP_SVEL
-        for (auto &p : distGradX)
-            p = Point(1, 0, 0);
-#endif // !SKIP_SVEL
-        return distGradX;
-    }
-
-    virtual Point trackSignedDistanceGradient(const Point &pt) const override {
-#if !SKIP_SVEL
-        // Scalar supporting 3D spatial gradient
-        using ADScalar = Eigen::AutoDiffScalar<Vector3<Real>>;
-        using Pt = Point3<ADScalar>;
-        Pt x(ADScalar(pt[0], 3, 0),
-             ADScalar(pt[1], 3, 1),
-             ADScalar(pt[2], 3, 2));
-        ADScalar dist = pattern.template signedDistance<ADScalar, true>(x);
-        return dist.derivatives();
-#else
-        return Point(1, 0, 0);
-#endif
-    }
-
-    // Derivative of signed distance function with respect to each pattern
-    // parameter (autodiff-based).
-    virtual vector<vector<Real>> signedDistanceParamPartials(const vector<Point> &evalPoints) const override {
-        const size_t nEvals = evalPoints.size(),
-                nParams = pattern.numParams();
-        vector<vector<Real>> partials(nParams, vector<Real>(nEvals));
-#if !SKIP_SVEL
-        // Scalar supporting derivatives with respect to each pattern parameter
-        using PVec = Eigen::Matrix<Real, Eigen::Dynamic, 1>;
-        using ADScalar = Eigen::AutoDiffScalar<PVec>;
-
-        assert(inflatedParams.size() == nParams);
-
-        PatternSignedDistance<ADScalar, WMesh> patternAutodiff(wmesh);
-        vector<ADScalar> params;
-        params.reserve(params.size());
-        for (size_t p = 0; p < nParams; ++p)
-            params.emplace_back(inflatedParams[p], nParams, p);
-        patternAutodiff.setParameters(params, meshingOptions().jointBlendingMode);
-
-        auto evalAtPtIdx = [&](size_t e) {
-            ADScalar sd = patternAutodiff.signedDistance(evalPoints[e].template cast<ADScalar>().eval());
-            Real sdOrig = pattern.signedDistance(evalPoints[e]);
-            if (std::abs(stripAutoDiff(sd) - sdOrig) > 1.25e-2) {
-                throw std::runtime_error("Incorrect signed distance computed by autodiff version: differ by " + std::to_string(std::abs(stripAutoDiff(sd) - sdOrig)));
-            }
-
-            for (size_t p = 0; p < nParams; ++p) {
-                partials[p][e] = sd.derivatives()[p];
-                if (std::isnan(partials[p][e])) {
-                    std::cerr << "nan sd partial " << p << " at evaluation point "
-                              << evalPoints[e] << std::endl;
-                    std::cerr << "sd at pt:\t" << pattern.signedDistance(evalPoints[e]) << std::endl;
-                    std::cerr << "autodiff sd at pt:\t" << sd << std::endl;
-                    // throw std::runtime_error("nan sd");
-                }
-            }
-        };
-#if USE_TBB
-        tbb::parallel_for(
-                tbb::blocked_range<size_t>(0, nEvals),
-                [&](const tbb::blocked_range<size_t> &r) {
-                    for (size_t e = r.begin(); e < r.end(); ++e) evalAtPtIdx(e);
-                });
-#else
-        for (size_t e = 0; e < nEvals; ++e) evalAtPtIdx(e);
-#endif
-#endif // !SKIP_SVEL
-        return partials;
-    }
-
-    // Determine the degree of smoothing at each evaluation point (for debugging purposes)
-    virtual std::pair<vector<Real>,vector<size_t>> smoothnessAtPoints(const vector<Point> &evalPoints) const override {
-        vector<Real> smoothness;
-        vector<size_t> closestVtx;
-        smoothness.reserve(evalPoints.size()), closestVtx.reserve(evalPoints.size());
-        for (const auto &pt : evalPoints) {
-            Real s;
-            size_t vtx;
-            std::tie(s, vtx) = pattern.smoothnessAndClosestVtx(pt);
-            smoothness.push_back(s);
-            closestVtx.push_back(vtx);
-        }
-        return std::make_pair(smoothness, closestVtx);
-    }
-
-    virtual ~IsosurfaceInflatorImpl() { }
-
-    virtual vector<Real> defaultParameters() const override { return wmesh.defaultParameters(); }
-    virtual size_t               numParams() const override { return wmesh.numParams(); }
-    virtual bool  isThicknessParam(size_t p) const override { return wmesh.isThicknessParam(p); }
-    virtual bool   isPositionParam(size_t p) const override { return wmesh.isPositionParam(p); }
-    virtual bool   isBlendingParam(size_t p) const override { return wmesh.isBlendingParam(p); }
-
-    virtual       MeshingOptions &meshingOptions()       override { return mesher->meshingOptions; }
-    virtual const MeshingOptions &meshingOptions() const override { return mesher->meshingOptions; }
-
-    // Printability checks/constraints
-    virtual bool isPrintable(const std::vector<Real> &params) const override {
-        return wmesh.isPrintable(params);
-    }
-
-    virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
-    selfSupportingConstraints(const std::vector<Real> &params) const override {
-        return wmesh.selfSupportingConstraints(params);
-    }
-
-    virtual Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
-    positioningConstraints(const std::vector<Real> &params) const override {
-        return wmesh.positioningConstraints(params);
-    }
-
-    WMesh wmesh;
-    PSD pattern;
-    std::unique_ptr<MesherBase> mesher;
-protected:
-    virtual void m_setParameters(const vector<Real> &params) override { pattern.setParameters(params, meshingOptions().jointBlendingMode); }
-};
 
 void IsosurfaceInflator::inflate(const vector<Real> &params) { m_imp->inflate(params); }
 void IsosurfaceInflator::dumpInflationGraph(const std::string &path, const std::vector<Real> &params) const { m_imp->dumpInflationGraph(path, params); }
@@ -391,11 +48,13 @@ bool         IsosurfaceInflator::isThicknessParam(size_t p) const { return m_imp
 bool         IsosurfaceInflator:: isPositionParam(size_t p) const { return m_imp->isPositionParam(p); }
 bool         IsosurfaceInflator:: isBlendingParam(size_t p) const { return m_imp->isBlendingParam(p); }
 
+bool IsosurfaceInflator::hasOrthotropicSymmetry() const { return m_imp->hasOrthotropicSymmetry(); }
+
 void IsosurfaceInflator::setGenerateFullPeriodCell(bool onoff) { m_imp->generateFullPeriodCell = onoff; }
 void IsosurfaceInflator::setReflectiveInflator(bool onoff) { m_imp->reflectiveInflator = onoff; }
 BaseCellType IsosurfaceInflator::baseCellType() const {
-    if      (m_imp->generateFullPeriodCell) return BaseCellType::TriplyPeriodic;
-    else if (m_imp->_meshingOrthoCell())    return BaseCellType::Orthotropic;
+    if      (m_imp->_meshingFullPeriodCell()) return BaseCellType::TriplyPeriodic;
+    else if (m_imp->_meshingOrthoCell())      return BaseCellType::Orthotropic;
     else throw std::runtime_error("Unknown/incompatible base cell type.");
 }
 
@@ -419,7 +78,6 @@ void IsosurfaceInflator:: enablePostprocess() { m_imp->m_noPostprocess = false; 
 void IsosurfaceInflator::disableCheapPostprocess() { m_imp->m_cheapPostProcessing = false; }
 void IsosurfaceInflator:: enableCheapPostprocess() { m_imp->m_cheapPostProcessing = true; }
 
-
 // Printability checks/constraints
 bool IsosurfaceInflator::isPrintable(const std::vector<Real> &params) const { return m_imp->isPrintable(params); }
 Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
@@ -429,7 +87,8 @@ IsosurfaceInflator::selfSupportingConstraints(const std::vector<Real> &params) c
 
 Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
 IsosurfaceInflator::positioningConstraints(const std::vector<Real> &params) const {
-    return m_imp->positioningConstraints(params);
+    //TODO: fix this
+    //return m_imp->positioningConstraints(params);
 }
 
 MeshingOptions &IsosurfaceInflator::meshingOptions() { return m_imp->meshingOptions(); }
@@ -438,447 +97,53 @@ IsosurfaceInflator::~IsosurfaceInflator() {
     delete m_imp;
 }
 
-// Postprocess:
-//    Snap to base cell and then reflect if necessary
-//    Compute vertex normals and normal shape velocities
-template<size_t N, class Point>
-void postProcess(vector<MeshIO::IOVertex>  &vertices,
-                 vector<MeshIO::IOElement> &elements,
-                 vector<vector<Real>>      &normalShapeVelocities,
-                 vector<Point>             &vertexNormals,
-                 const IsosurfaceInflator::Impl &inflator,
-                 bool                      meshedFullPeriodCell, // whether (vertices, elements) is already a mesh of the full period cell
-                 bool                      requestFullPeriodCell,
-                 const BBox<Point>         &meshCell,
-                 const MeshingOptions      &opts,
-                 bool cheapPostProcessing) {
-    const bool needsReflecting = requestFullPeriodCell && !meshedFullPeriodCell;
-
-    BENCHMARK_START_TIMER_SECTION("postProcess");
-    {
-        const size_t origSize = vertices.size();
-        remove_dangling_vertices(vertices, elements);
-        if (vertices.size() != origSize)
-            std::cerr << "WARNING: removed " << origSize - vertices.size() << " dangling vertices." << std::endl;
-    }
-
-    // MeshIO::save("pre_snap.msh", vertices, elements);
-
-    BENCHMARK_START_TIMER("SnapAndDetermineEvaluationPts");
-    vector<vector<bool>> onMinFace, onMaxFace;
-
-    using SMesh = SimplicialMesh<N>;
-    std::unique_ptr<SMesh> bcm;
-    {
-        bool done = false;
-        while (!done) {
-            try {
-                bcm = Future::make_unique<SMesh>(elements, vertices.size());
-                done = true;
-            }
-            catch (...) {
-                std::cerr << "Exception while building mesh" << std::endl;
-                std::cerr << "Dumping debug.msh" << std::endl;
-                MeshIO::save("debug.msh", vertices, elements);
-                throw;
-            }
-
-            // Remove spurious small components. If this is already a full periodic
-            // mesh, we need to detect components on the periodically-stitched mesh to
-            // avoid discarding parts connected via the adjacent period cells.
-            std::vector<size_t> componentIndex;
-            std::vector<size_t> componentSize;
-            if (meshedFullPeriodCell) {
-                std::vector<MeshIO::IOElement> stitched_elements = elements;
-                using Pt = PointND<N>;
-                BBox<Point> meshBB(vertices);
-                BBox<Pt> cellND(truncateFrom3D<Pt>(meshBB.minCorner), truncateFrom3D<Pt>(meshBB.maxCorner));
-
-                auto pts = apply(vertices, [](const MeshIO::IOVertex &v) { return truncateFrom3D<Pt>(v.point); });
-                std::vector<PeriodicBoundaryMatcher::FaceMembership<N>> fm;
-                PeriodicBoundaryMatcher::determineCellBoundaryFaceMembership<N>(pts, cellND, fm, 0 /* epsilon */);
-                std::vector<std::vector<size_t>> nodeSets;
-                std::vector<size_t> nodeSetForNode;
-                // Could be sped up by only matching boundary vertices
-                try {
-                    PeriodicBoundaryMatcher::match(pts, cellND, fm, nodeSets, nodeSetForNode);
-                }
-                catch (...) {
-                    std::cerr << "Exception while post processing mesh" << std::endl;
-                    std::cerr << "Dumping debug.msh" << std::endl;
-                    MeshIO::save("debug.msh", vertices, elements);
-                    throw;
-                }
-                // Relink periodic vertices to the first element of their corresponding node set.
-                for (auto &e : stitched_elements) {
-                    for (size_t &v : e) {
-                        size_t ns = nodeSetForNode.at(v);
-                        if (ns != PeriodicBoundaryMatcher::NONE) v = nodeSets.at(ns).front();
-                    }
-                }
-                auto dummy_vertices = vertices;
-                remove_dangling_vertices(dummy_vertices, stitched_elements);
-                get_element_components(stitched_elements, componentIndex, componentSize);
-            } else {
-                get_element_components(elements, componentIndex, componentSize);
-            }
-
-            if (remove_small_components(componentIndex, componentSize, vertices, elements)) {
-                std::cout << "Removed " << bcm->numVertices() - vertices.size() << " vertices"
-                          << " and " << bcm->numSimplices() - elements.size() << " elements"
-                          << " (small components)" << std::endl;
-                done = false; // Rebuild mesh and try again.
-            }
-        }
-    }
-
-    SMesh &symBaseCellMesh = *bcm;
-
-    try {
-        if (N == 3) smartSnap3D(vertices, symBaseCellMesh, meshCell);
-    }
-    catch (std::exception &e) {
-        std::cerr
-                << "WARNING: smartSnap3D failed--probably nonsmooth geometry at cell interface. Resorting to dumbSnap3D."
-                << std::endl;
-        std::cerr << "(" << e.what() << ")" << std::endl;
-        dumbSnap3D(vertices, meshCell, opts.facetDistance);
-    }
-    BBox<Point3D> snappedBB(vertices);
-    if (N == 2) {
-        // We don't care about the z-depth of the bounding box
-        snappedBB.minCorner[2] = meshCell.minCorner[2];
-        snappedBB.maxCorner[2] = meshCell.maxCorner[2];
-    }
-    if (snappedBB != meshCell) {
-        std::cerr << "snappedBB: " << snappedBB << std::endl;
-        std::cerr << "meshCell: " << meshCell << std::endl;
-        std::cerr << "Failed to snap mesh. Dumping debug.msh" << std::endl;
-        MeshIO::save("debug.msh", vertices, elements);
-        throw std::runtime_error("Snapping failed.");
-    }
-
-    using FM = PeriodicBoundaryMatcher::FaceMembership<3>;
-    onMinFace.assign(3, std::vector<bool>(vertices.size(), false));
-    onMaxFace.assign(3, std::vector<bool>(vertices.size(), false));
-    std::vector<FM> faceMembership;
-    for (size_t i = 0; i < vertices.size(); ++i) {
-        FM fm(vertices[i], meshCell, 0); // zero tolerance!
-        onMinFace[0][i] = fm.onMinFace(0), onMaxFace[0][i] = fm.onMaxFace(0);
-        onMinFace[1][i] = fm.onMinFace(1), onMaxFace[1][i] = fm.onMaxFace(1);
-        onMinFace[2][i] = fm.onMinFace(2), onMaxFace[2][i] = fm.onMaxFace(2);
-    }
-
-    // MeshIO::save("post_snap.msh", vertices, elements);
-
-    // Mark internal cell-face vertices: vertices on the meshing cell
-    // boundary that actually lie inside the object (i.e. they are only mesh
-    // boundary vertices because of the intersection of the periodic pattern with
-    // the meshing box).
-    // This this is not the case if any non-cell-face triangle is incident
-    vector<bool> internalCellFaceVertex(symBaseCellMesh.numBoundaryVertices(), true);
-    for (auto bs : symBaseCellMesh.boundarySimplices()) {
-        bool isCellFace = false;
-        for (size_t d = 0; d < N; ++d) {
-            bool onMin = true, onMax = true;
-            for (auto bv : bs.vertices()) {
-                onMin &= onMinFace[d].at(bv.volumeVertex().index());
-                onMax &= onMaxFace[d].at(bv.volumeVertex().index());
-            }
-            isCellFace |= (onMin | onMax);
-        }
-        if (isCellFace) continue;
-
-        for (auto bv : bs.vertices())
-            internalCellFaceVertex.at(bv.index()) = false;
-    }
-
-    // Compute parameter shape velocities on all (true) boundary vertices
-    vector<Point> evaluationPoints;
-    // Tie the boundary vertices to the associated data evaluation point
-    vector<size_t> evalPointIndex(symBaseCellMesh.numBoundaryVertices(),
-                                  numeric_limits<size_t>::max());
-    for (auto bv : symBaseCellMesh.boundaryVertices()) {
-        if (internalCellFaceVertex.at(bv.index())) continue;
-        evalPointIndex[bv.index()] = evaluationPoints.size();
-        evaluationPoints.push_back(vertices.at(bv.volumeVertex().index()));
-    }
-
-#if DEBUG_EVALPTS
-    {
-        MSHFieldWriter debug("debug_evalpts.msh", vertices, elements);
-        for (size_t d = 0; d < N; ++d) {
-            ScalarField<Real> minFaceIndicator(vertices.size()), maxFaceIndicator(vertices.size());
-            for (size_t i = 0; i < vertices.size(); ++i) {
-                minFaceIndicator[i] = onMinFace[d].at(i) ? 1.0 : 0.0;
-                maxFaceIndicator[i] = onMaxFace[d].at(i) ? 1.0 : 0.0;
-            }
-            debug.addField("onMinFace[" + std::to_string(d) + "]", minFaceIndicator);
-            debug.addField("onMaxFace[" + std::to_string(d) + "]", maxFaceIndicator);
-        }
-        ScalarField<Real> evalPtIndicator(vertices.size());
-        ScalarField<Real> icfv(vertices.size());
-        evalPtIndicator.clear();
-        icfv.clear();
-        for (auto bv : symBaseCellMesh.boundaryVertices()) {
-            if (evalPointIndex[bv.index()] < evaluationPoints.size())
-                evalPtIndicator[bv.volumeVertex().index()] = 1.0;
-            icfv[bv.volumeVertex().index()] = internalCellFaceVertex.at(bv.index()) ? 1.0 : 0.0;
-        }
-        debug.addField("isEvalPoint", evalPtIndicator);
-        debug.addField("internalCellFaceVertex", icfv);
-    }
-#endif
-
-    BENCHMARK_STOP_TIMER("SnapAndDetermineEvaluationPts");
-
-    vector<vector<Real>> vnp;
-    vector<Point> sdGradX;
-    vector<Real> sdGradNorms(evaluationPoints.size());
-
-    if (!cheapPostProcessing) {
-
-        BENCHMARK_START_TIMER("SignedDistanceGradientsAndPartials");
-        // sd(x, p) = 0
-        // grad_x(sd) . dx/dp + d(sd)/dp = 0,   grad_x(sd) = n |grad_x(sd)|
-        // ==>  v . n = -[ d(sd)/dp ] / |grad_x(sd)|
-
-        // try {
-        vnp = inflator.signedDistanceParamPartials(evaluationPoints);
-        sdGradX = inflator.signedDistanceGradient(evaluationPoints);
-        // }
-        // catch(...) {
-        //     MSHFieldWriter debug("debug.msh", vertices, elements);
-        //     BENCHMARK_STOP_TIMER_SECTION("SignedDistanceGradientsAndPartials");
-        //     BENCHMARK_STOP_TIMER_SECTION("postProcess");
-        //     throw;
-        // }
-
-#if 0
-        {
-            // Debug the smoothing modulation field (is it causing bad signed
-            // distance partials?)
-            vector<Real> smoothness;
-            vector<size_t> closestVtx;
-            std::tie(smoothness, closestVtx) = inflator.smoothnessAtPoints(evaluationPoints);
-            assert(smoothness.size() == evaluationPoints.size());
-            {
-                Real avg = 0.0;
-                for (Real s : smoothness) avg += s;
-                avg /= smoothness.size();
-                std::cout << "Average smoothness: " << avg << std::endl;
-            }
-
-            ScalarField<Real> smoothnessField(symBaseCellMesh.numBoundaryVertices()),
-                              closestVtxField(symBaseCellMesh.numBoundaryVertices());
-            smoothnessField.clear(), closestVtxField.clear();
-            for (auto bv : symBaseCellMesh.boundaryVertices()) {
-                size_t idx = evalPointIndex.at(bv.index());
-                if (idx > smoothness.size()) continue;
-                smoothnessField[bv.index()] = smoothness[idx];
-                closestVtxField[bv.index()] = closestVtx[idx];
-            }
-
-            // Extract boundary vertices/elements for output
-            std::vector<MeshIO::IOVertex > outVertices;
-            std::vector<MeshIO::IOElement> outElements;
-            for (auto bv : symBaseCellMesh.boundaryVertices())
-                outVertices.push_back(vertices.at(bv.volumeVertex().index()));
-            for (auto bs : symBaseCellMesh.boundarySimplices()) {
-                outElements.emplace_back(bs.vertex(0).index(),
-                                         bs.vertex(1).index(),
-                                         bs.vertex(2).index());
-            }
-            MSHFieldWriter writer("smoothness_debug.msh", outVertices, outElements);
-            writer.addField("smoothness", smoothnessField, DomainType::PER_NODE);
-            writer.addField("closest_vtx", closestVtxField, DomainType::PER_NODE);
-        }
-#endif
-        for (size_t i = 0; i < evaluationPoints.size(); ++i) {
-            sdGradNorms[i] = sdGradX[i].norm();
-            // We evaluate on the boundary--there should be a well-defined normal
-            if (std::isnan(sdGradNorms[i]) || (std::abs(sdGradNorms[i]) < 1e-8)) {
-                std::cerr << "Undefined normal at evaluation point "
-                          << evaluationPoints[i] << std::endl;
-                BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");
-                BENCHMARK_STOP_TIMER_SECTION("postProcess");
-                //throw std::runtime_error("Normal undefined.");
-            }
-        }
-
-        for (auto &vn : vnp) {
-            for (size_t i = 0; i < vn.size(); ++i) {
-                vn[i] *= -1.0 / sdGradNorms[i];
-                if (std::isnan(vn[i])) {
-                    ScalarField<Real> fail(vertices.size());
-                    fail.clear();
-                    for (const auto bv : symBaseCellMesh.boundaryVertices()) {
-                        size_t e = evalPointIndex.at(bv.index());
-                        if (e < evaluationPoints.size()) {
-                            if (std::isnan(vn.at(e))) fail[bv.volumeVertex().index()] = 1.0;
-                        }
-                    }
-
-                    MSHFieldWriter debug("debug.msh", vertices, elements);
-                    debug.addField("fail", fail);
-                    BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");
-                    BENCHMARK_STOP_TIMER_SECTION("postProcess");
-                    throw std::runtime_error("nan vn");
-                    // assert(false);
-                }
-            }
-        }
-        BENCHMARK_STOP_TIMER("SignedDistanceGradientsAndPartials");
-
-        BENCHMARK_START_TIMER("Reflecting");
-        // If the mesher only generates the orthotropic base cell, the mesh must
-        // be reflected to get the full period cell (if requested).
-        if (needsReflecting) {
-            vector<MeshIO::IOVertex> reflectedVertices;
-            vector<MeshIO::IOElement> reflectedElements;
-            vector<size_t> vertexOrigin;
-            vector<Isometry> vertexIsometry;
-            reflectXYZ(N, vertices, elements, onMinFace,
-                       reflectedVertices, reflectedElements,
-                       vertexOrigin, vertexIsometry);
-
-            // Copy over normal velocity and vertex normal data.
-            // So that we don't rely on consistent boundary vertex numbering
-            // (which is nevertheless guaranteed by our mesh datastructure),
-            // we store this data per-vertex (setting the data on internal
-            // vertices to 0).
-            normalShapeVelocities.assign(vnp.size(), vector<Real>(reflectedVertices.size()));
-            vertexNormals.assign(reflectedVertices.size(), Point::Zero());
-
-            for (size_t i = 0; i < reflectedVertices.size(); ++i) {
-                auto v = symBaseCellMesh.vertex(vertexOrigin[i]);
-                assert(v);
-                auto bv = v.boundaryVertex();
-                if (!bv || internalCellFaceVertex[bv.index()]) continue;
-                size_t evalIdx = evalPointIndex.at(bv.index());
-                assert(evalIdx < evaluationPoints.size());
-                // Transform normals by the reflection isometry and normalize
-                vertexNormals[i] = vertexIsometry[i].apply(sdGradX[evalIdx]) / sdGradNorms[evalIdx];
-                for (size_t p = 0; p < vnp.size(); ++p)
-                    normalShapeVelocities[p][i] = vnp[p][evalIdx];
-            }
-
-            reflectedVertices.swap(vertices);
-            reflectedElements.swap(elements);
-        } else {
-            // Otherwise, we still need to copy over the normal shape velocities
-            normalShapeVelocities.assign(vnp.size(), vector<Real>(vertices.size()));
-            vertexNormals.assign(vertices.size(), Point::Zero());
-            for (auto bv : symBaseCellMesh.boundaryVertices()) {
-                size_t evalIdx = evalPointIndex[bv.index()];
-                if (evalIdx >= evalPointIndex.size()) continue;
-                size_t vi = bv.volumeVertex().index();
-                vertexNormals[vi] = sdGradX[evalIdx] / sdGradNorms[evalIdx];
-                for (size_t p = 0; p < vnp.size(); ++p)
-                    normalShapeVelocities[p][vi] = vnp[p][evalIdx];
-            }
-        }
-        BENCHMARK_STOP_TIMER("Reflecting");
-    }
-
-    // static int _run_num = 0;
-    // MeshIO::save("debug_" + std::to_string(_run_num++) + ".msh", vertices, elements);
-    BENCHMARK_STOP_TIMER_SECTION("postProcess");
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Factory/instantiations
 ////////////////////////////////////////////////////////////////////////////////
 IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness, const string &wireMeshPath, size_t inflationNeighborhoodEdgeDist) {
     if (!vertexThickness) throw runtime_error("Only per-vertex thickness is currently supported.");
-    if (type == "cubic") {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>>>(wireMeshPath, Future::make_unique<CGALClippedVolumeMesher>(), inflationNeighborhoodEdgeDist);
-#else
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "orthotropic") {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>>>(wireMeshPath, Future::make_unique<CGALClippedVolumeMesher>(), inflationNeighborhoodEdgeDist);
-#else
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "triply_periodic") {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<CGALClippedVolumeMesher>(), inflationNeighborhoodEdgeDist);
-#else
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "cubic_preview")   {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>>>(wireMeshPath, Future::make_unique<IGLSurfaceMesherMC>(), inflationNeighborhoodEdgeDist);
-        // Triangle mesh doesn't support our post-processing
-        disablePostprocess();
-#else
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "cubic_features")   {
-#if 0
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>>>(wireMeshPath, Future::make_unique<BoxIntersectionMesher>(), inflationNeighborhoodEdgeDist);
-        // Line mesh doesn't support our post-processing
-        disablePostprocess();
-#else
-        // Output the sharp 1D features created by bounding box intersection.
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "orthotropic_features")   {
-#if 0
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>>>(wireMeshPath, Future::make_unique<BoxIntersectionMesher>(), inflationNeighborhoodEdgeDist);
-        disablePostprocess();
-#else
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "triply_periodic_features")   {
-        throw std::runtime_error("Disabled");
-        // Output the sharp 1D features created by bounding box intersection.
-        // m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<BoxIntersectionMesher>(), inflationNeighborhoodEdgeDist);
-        // Line mesh doesn't support our post-processing
-        disablePostprocess();
-    }
-    else if (type == "triply_periodic_preview")   {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<IGLSurfaceMesherMC>(), inflationNeighborhoodEdgeDist);
-        disablePostprocess();
-#else
-        throw std::runtime_error("Disabled");
-#endif
-    }
-    else if (type == "2D_square") {
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Square<>>>(wireMeshPath, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
-    }
-    else if (type == "2D_orthotropic") {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>>>(wireMeshPath, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
-#else
-        throw std::runtime_error("Disabled.");
-#endif
-    }
-    else if (type == "2D_doubly_periodic") {
-#if 1
-        m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
-#else
-        throw std::runtime_error("Disabled.");
-#endif
-    }
-    else if (type == "2D_parallelogram") {
-#if 0
-        //TODO: remove every partial implementation of 2D_parallelogram from code
-        //m_imp = new IsosurfaceInflatorImpl<WireMesh<ThicknessType::Vertex, Symmetry::Parallelogram<>>, Future::make_unique<MidplaneMesher>(), inflationNeighborhoodEdgeDist);
-#else
-        throw std::runtime_error("Disabled.");
-#endif
-    }
-    else throw runtime_error("Unknown inflator type: " + type);
-}
+    string name = type;
+    transform(name.begin(), name.end(), name.begin(), ::tolower);
 
+    // Decode symmetry type and mesher from the inflator name, which is
+    // composed of three parts:
+    // 1) a possible "2D_" prefix indicating a 2D inflator; this will set the mesher to MidplaneMesher
+    // 2) a symmetry type
+    // 3) a possible suffix selecting a custom mesher (only valid for 3D inflators):
+    //      "_preview"  (mesh with marching cubes instead of CGAL)
+    //      "_features" (mesh only the sharp feature curves that will be passed to CGAL)
+    std::unique_ptr<MesherBase> mesher;
+    size_t pos;
+    bool shouldDisablePostprocess = false;
+    if (name.find("2d_") == 0) {
+        mesher = Future::make_unique<MidplaneMesher>();
+        name = name.substr(3, string::npos);
+    }
+    else if ((pos = name.find("_preview")) != string::npos) {
+        mesher = Future::make_unique<IGLSurfaceMesherMC>();
+        name = name.substr(0, pos);
+        shouldDisablePostprocess = true;
+    }
+    else if ((pos = name.find("_features")) != string::npos) {
+        mesher = Future::make_unique<BoxIntersectionMesher>();
+        name = name.substr(0, pos);
+        shouldDisablePostprocess = true;
+    }
+
+    // The default mesher for 3D is CGAL.
+    if (!mesher) mesher = Future::make_unique<CGALClippedVolumeMesher>();
+
+    map<string, function<void()>> makeImplForSymmetry = {
+        {"cubic",           [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>         >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
+        {"orthotropic",     [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>   >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
+        {"diagonal",        [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Diagonal<>      >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
+        {"triply_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
+        {"doubly_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::DoublyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
+        {"square",          [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Square<>        >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }}
+    };
+
+    if (makeImplForSymmetry.count(name) == 0) throw std::runtime_error("Invalid inflator name: '" + type + "'");
+    makeImplForSymmetry[name]();
+
+    if (shouldDisablePostprocess) disablePostprocess();
+}

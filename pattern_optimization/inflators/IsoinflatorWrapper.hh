@@ -53,6 +53,7 @@ public:
     virtual Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
     positioningConstraints(const std::vector<double> &params) const override;
 
+    virtual bool hasOrthotropicSymmetry() const override;
 
     ////////////////////////////////////////////////////////////////////////////
     // Configuration

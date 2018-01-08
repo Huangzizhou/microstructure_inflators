@@ -77,6 +77,8 @@
 #include <MSHFieldWriter.hh>
 #include <GlobalBenchmark.hh>
 
+#include <queue>
+
 class MarchingSquaresGrid : public Grid2D {
 public:
     MarchingSquaresGrid(size_t Nx, size_t Ny, size_t clevels = 0) : Grid2D(Nx, Ny, BBox<Vector2D>()) {
@@ -95,7 +97,7 @@ public:
         // Assumptions (which hold for marching squares edge soup):
         // 1)  Input is manifold
         // 2)  All polygons are closed
-        MarchingSquaresResult(std::vector<Vector2d> &&p, const std::vector<Edge> &edges,
+        MarchingSquaresResult(std::vector<Vector2d> &&p, std::vector<Edge> &&edges,
                               const std::vector<int> &borderMarkers);
 
         size_t numEdges() const {
@@ -269,7 +271,7 @@ MarchingSquaresGrid::extractBoundaryPolygons(
         }
     }
 
-    return MarchingSquaresResult(std::move(points), edges, borderMarkers);
+    return MarchingSquaresResult(std::move(points), std::move(edges), borderMarkers);
 }
 
 // Get the point linearly interpolating between corner vertices a and b based on
@@ -283,8 +285,6 @@ m_getLerpPoint(size_t a, size_t b, Real sda, Real sdb,
                std::vector<Vector2d> &points,
                std::map<Edge, size_t> &edgePointMap)
 {
-    assert(sda * sdb <= 0); // one of them can be zero!
-
     // Relabel so that sda < sdb. This both implements unordered cell edge
     // lookup in edgePointMap and ensures that we get the *identical* floating
     // point result on the shared edge of two grids on adjacent faces of an
@@ -301,18 +301,54 @@ m_getLerpPoint(size_t a, size_t b, Real sda, Real sdb,
     auto key = std::make_pair(a, b);
     auto it = edgePointMap.find(key);
     if (it != edgePointMap.end()) return it->second;
-    // Linear approximation of zero crossing...
-    // f(x) = [(x - a) / (a - b)] * sdb + [1 - (x - a) / (a - b)] * sda
-    // f(x) = 0 ==> x = (sdb * a - sda * b) / (sdb - sda)
-    //                = alpha * a + (1 - alpha) * b
-    // where alpha = sdb / (sdb - sda)
-    // Assuming sdb and sda differ in sign, 0 <= alpha <= 1.
-    Real alpha = sdb / (sdb - sda);
+
+    auto va = vertexPosition(a);
+    auto vb = vertexPosition(b);
+
+    assert(sda != sdb);
+    Vector2d newPt;
+    // Explicitly handle cases where grid points lie on the contour.
+    bool needsLerp = true;
+    if (sda == 0) { newPt = va; needsLerp = false; }
+    if (sdb == 0) { newPt = vb; needsLerp = false; }
+
+    if (needsLerp) {
+        assert(sda * sdb < 0);
+        // Linear approximation of zero crossing...
+        // f(x) = [(x - a) / (a - b)] * sdb + [1 - (x - a) / (a - b)] * sda
+        // f(x) = 0 ==> x = (sdb * a - sda * b) / (sdb - sda)
+        //                = alpha * a + (1 - alpha) * b
+        // where alpha = sdb / (sdb - sda)
+        // Assuming sdb and sda differ in sign, 0 <= alpha <= 1.
+        Real alpha = sdb / (sdb - sda);
+        newPt = alpha  * va + (1 - alpha) * vb;
+
+        // Because neither gridpoint is on the contour (sda, sdb != 0), if
+        // "newPoint" coincides with a grid point, there was a roundoff error
+        // in the linear interpolation that has caused a topology error.
+        // Correct this topology error by constructing the closest possible
+        // double-precision-quantized point to va on segment (va, vb).
+        bool needsPerturbation = false;
+        Vector2d limitPoint, candidatePoint;
+        if (newPt == va) { limitPoint = va; candidatePoint = (va + vb) / 2; needsPerturbation = true; }
+        if (newPt == vb) { limitPoint = vb; candidatePoint = (va + vb) / 2; needsPerturbation = true; }
+        if (needsPerturbation) {
+            // Approach the limit point along (va, vb), stopping just before reaching it.
+            while (true) {
+                Vector2d newCandidate = (limitPoint + candidatePoint) / 2;
+                if (newCandidate == limitPoint) break;
+                candidatePoint = newCandidate;
+            }
+            newPt = candidatePoint;
+        }
+    }
+    // else {
+    //     std::cout << " exact gridpoint crossing at " << va.transpose() << std::endl;
+    // }
 
     size_t newPointIdx = points.size();
     edgePointMap.emplace(key, newPointIdx);
-    points.emplace_back(alpha  * vertexPosition(a) +
-                   (1 - alpha) * vertexPosition(b));
+    points.emplace_back(newPt);
 
     return newPointIdx;
 }
@@ -486,6 +522,63 @@ bool MarchingSquaresGrid::m_closeBoundary(std::vector<Vector2d> &points,
     return true;
 }
 
+inline
+void mergeEdges(const std::vector<std::pair<size_t, size_t>> &edgesToMerge,
+                std::vector<Vector2d> &p,
+                std::vector<std::pair<size_t, size_t>> &edges) {
+    // "edgesToMerge" represents a graph connecting vertices that should be
+    // merged into a single vertex.
+    // We extract the connected components of this graph
+    const size_t numPts = p.size();
+    std::vector<std::vector<size_t>> adj(numPts);
+    for (const auto &e : edgesToMerge) {
+        adj[e.first].push_back(e.second);
+        adj[e.second].push_back(e.first);
+    }
+
+    const size_t none = std::numeric_limits<size_t>::max();
+    std::vector<size_t> mergedIdxForPt(numPts, none);
+    auto visited = [&](size_t i) { return mergedIdxForPt.at(i) != none; };
+    std::queue<size_t> bfsQ;
+    size_t mergedIdx = 0;
+    for (size_t i = 0; i < numPts; ++i) {
+        if (visited(i)) continue;
+        mergedIdxForPt[i] = mergedIdx;
+        bfsQ.push(i);
+        while (!bfsQ.empty()) {
+            size_t u = bfsQ.front(); bfsQ.pop();
+            for (size_t v : adj[u]) {
+                if (visited(v)) continue;
+                mergedIdxForPt[v] = mergedIdx;
+                bfsQ.push(v);
+            }
+        }
+        ++mergedIdx;
+    }
+
+    std::vector<Vector2d> newPoints(mergedIdx);
+    std::vector<bool> isSet(mergedIdx, false);
+    for (size_t i = 0; i < numPts; ++i) {
+        size_t mi = mergedIdxForPt[i];
+        if (!isSet.at(mi)) {
+            newPoints[mi] = p[i];
+            isSet[mi] = true;
+        }
+        else assert(newPoints[mi] == p[i]);
+    }
+    for (bool b : isSet) assert(b && "Error: merged point missing.");
+
+    p.swap(newPoints);
+
+    // Re-link edges to the new points.
+    for (auto &e : edges) {
+        e.first  = mergedIdxForPt[e.first];
+        e.second = mergedIdxForPt[e.second];
+    }
+
+    std::cerr << "WARNING: merged " << edgesToMerge.size() << " degenerate edges from marching squares output." << std::endl;
+}
+
 // Separate edges into CCW ordered segments of border/interior edges.
 // Assumptions (which hold for marching squares edge soup):
 // 1)  Input is manifold
@@ -494,40 +587,60 @@ bool MarchingSquaresGrid::m_closeBoundary(std::vector<Vector2d> &points,
 // (as indicated by the borderMarkers array).
 inline
 MarchingSquaresGrid::MarchingSquaresResult::MarchingSquaresResult(
-    std::vector<Vector2d> &&p, const std::vector<Edge> &edges,
+    std::vector<Vector2d> &&p, std::vector<Edge> &&edges,
     const std::vector<int> &borderMarkers)
 {
-    size_t numPoints = p.size();
     size_t numEdges = edges.size();
     assert(numEdges == borderMarkers.size());
+    assert(p.size() == numEdges);
     points.swap(p);
 
-    // Fill out CCW edge adjacency
+    // Mark and merge degenerate edges.
+    std::vector<bool> isDegenerate(edges.size(), false);
+    std::vector<Edge> edgesToMerge;
+    for (size_t ei = 0; ei < edges.size(); ++ei) {
+        const auto &e = edges[ei];
+        if (points[e.first] == points[e.second]) {
+            edgesToMerge.push_back(e);
+            isDegenerate[ei] = true;
+        }
+    }
+
+    if (edgesToMerge.size() > 0)
+        mergeEdges(edgesToMerge, points, edges);
+    size_t numPoints = points.size();
+
     const size_t none = std::numeric_limits<size_t>::max();
     std::vector<size_t>  exitingEdge(numPoints, none),
                         enteringEdge(numPoints, none); // Debugging
-    for (size_t ei = 0; ei < numEdges; ++ei) {
-        const auto &e = edges[ei];
-        assert(( exitingEdge[ e.first] == none) && "Error: nonmanifold point");
-        assert((enteringEdge[e.second] == none) && "Error: nonmanifold point");
-         exitingEdge.at( e.first) = ei;
-        enteringEdge.at(e.second) = ei; // Debugging
+
+    // Fill out CCW edge adjacency
+    std::vector<size_t> nextEdge(numEdges, none);
+    {
+        for (size_t ei = 0; ei < numEdges; ++ei) {
+            if (isDegenerate[ei]) continue;
+            const auto &e = edges[ei];
+            assert(( exitingEdge[ e.first] == none) && "Error: nonmanifold point");
+            assert((enteringEdge[e.second] == none) && "Error: nonmanifold point");
+             exitingEdge.at( e.first) = ei;
+            enteringEdge.at(e.second) = ei; // Debugging
+        }
+        for (size_t ee :  exitingEdge) assert((ee != none) && "Error: Dangling vertex (no exiting edge)");
+        for (size_t ee : enteringEdge) assert((ee != none) && "Error: Dangling vertex (no entering edge)");
+
+        for (size_t ei = 0; ei < numEdges; ++ei) {
+            if (isDegenerate[ei])
+                continue;
+            nextEdge[ei] = exitingEdge.at(edges[ei].second);
+        }
     }
-    for (size_t ee :  exitingEdge) assert((ee != none) && "Error: Dangling vertex (no exiting edge)");
-    for (size_t ee : enteringEdge) assert((ee != none) && "Error: Dangling vertex (no entering edge)");
-    std::vector<size_t> nextEdge;
-    nextEdge.reserve(numEdges);
-    for (const auto &e : edges)
-        nextEdge.push_back(exitingEdge.at(e.second));
 
     // Visit all polygons
     std::vector<bool> visited(numEdges, false);
     size_t visitedCount = 0;
     auto visit = [&](size_t i) { assert(!visited[i]); visited[i] = true; ++visitedCount; };
-    while (visitedCount < numEdges) {
-        size_t start = 0;
-        while (visited.at(start)) ++start;
-        assert(start < numEdges);
+    for (size_t start = 0; start < numEdges; ++start) {
+        if (visited[start] || isDegenerate[start]) continue;
 
         // start, nextEdge[start], ... is now a cycle of unvisited edges. Break
         // it into interior/border segments:
@@ -536,11 +649,15 @@ MarchingSquaresGrid::MarchingSquaresResult::MarchingSquaresResult(
         // we must start on the first of a new run of interior or border edges.
         size_t curr = start;
         while (borderMarkers[curr] == borderMarkers[nextEdge[curr]]) {
+            assert(nextEdge[curr] < numEdges);
+            assert(!isDegenerate[nextEdge[curr]]);
             curr = nextEdge[curr];
             if (curr == start) break;
         }
         // Start segment on the first edge of the next run...
         // (Or anywhere if all edges are of same type).
+        assert(nextEdge[curr] < numEdges);
+        assert(!isDegenerate[nextEdge[curr]]);
         curr = nextEdge[curr];
         int segmentBorderMarker = borderMarkers[curr];
         
@@ -548,6 +665,8 @@ MarchingSquaresGrid::MarchingSquaresResult::MarchingSquaresResult(
         while (!visited[curr]) {
             segmentEdges.push_back(edges[curr]);
             visit(curr);
+            assert(nextEdge[curr] < numEdges);
+            assert(!isDegenerate[nextEdge[curr]]);
             curr = nextEdge[curr];
             // Commit segment when we detect its end.
             if (visited[curr] || (borderMarkers[curr] != segmentBorderMarker)) {
@@ -559,6 +678,8 @@ MarchingSquaresGrid::MarchingSquaresResult::MarchingSquaresResult(
             }
         }
     }
+
+    assert(visitedCount + edgesToMerge.size() == numEdges);
 }
 
 #endif /* end of include guard: MARCHINGSQUARESSTITCH_HH */

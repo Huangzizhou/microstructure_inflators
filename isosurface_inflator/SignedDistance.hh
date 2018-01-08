@@ -280,6 +280,7 @@ public:
         m_c1 = p1, m_c2 = p2;
         m_r1 = r1, m_r2 = r2;
 
+        if (p2 == p1) throw std::runtime_error("Degenerate inflated edge");
         m_axisUnit = p2 - p1;
         m_axisLength = sqrt(m_axisUnit.squaredNorm());
         m_axisUnit /= m_axisLength;
@@ -385,7 +386,7 @@ public:
         // Closest point on conical frustum
         if (x < m_edgeLength) {
             // Rotate back and add to c1 to get the result.
-            return m_c1 + 
+            return m_c1 +
                    m_axisUnit *  ( m_cosTheta * x + m_sinTheta * m_r1)
                  + v_perp     * ((-m_sinTheta * x + m_cosTheta * m_r1) / v_perpComponent); // (v_perp not normalized)
         }

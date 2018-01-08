@@ -8,7 +8,7 @@
 //      (compiling anything depending on CGAL is slow!!).
 //
 //      Both 2D and 3D isosurface inflators are implemented (and can be selected
-//      using the constructor's "type" argument, but the result is always
+//      using the constructor's "type" argument), but the result is always
 //      embedded in 3D.
 */
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
@@ -23,6 +23,7 @@
 #include <BaseCellType.hh>
 #include "WireMesh.hh"
 #include "MeshingOptions.hh"
+#include <Parallelism.hh>
 
 #define BENCHMARK
 
@@ -71,6 +72,8 @@ public:
     bool isThicknessParam(size_t p) const;
     bool isPositionParam(size_t p) const;
     bool isBlendingParam(size_t p) const;
+
+    bool hasOrthotropicSymmetry() const;
 
     // For debugging
     void disablePostprocess();

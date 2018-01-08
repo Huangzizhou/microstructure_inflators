@@ -527,7 +527,7 @@ public:
             }
 
             // cause z is always at 0 coordinate
-            parameters.push_back(0.5);
+            //parameters.push_back(0.5);
         }
 
         return parameters;

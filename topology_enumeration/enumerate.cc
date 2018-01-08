@@ -291,7 +291,7 @@ size_t enumerateGraphs(size_t levels, size_t offset = 0, vector<size_t> taken = 
     return count;
 }
 
-int main(int argc, char *argv[])
+int main(int , char *[])
 {
     nodesBary.reserve(15);
 

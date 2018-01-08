@@ -67,15 +67,17 @@ public:
             }
         }
         m_blendingAmt = blendingAmt;
-        try {
-            m_blendingHull = Future::make_unique<SD::Primitives::SphereConvexHull<Real>>(centers, radii);
-        }
-        catch (std::exception &e) {
-            // Don't let robustness issues in the sphere convex hull crash
-            // optimization. Simply disable blending in those cases.
-            std::cerr << "Caught error while constructing joint hull: " << e.what() << std::endl;
-            std::cerr << "Disabling joint blending" << std::endl;
-            m_blendingHull = nullptr;
+        if (m_mode != JointBlendMode::FULL) {
+            try {
+                m_blendingHull = Future::make_unique<SD::Primitives::SphereConvexHull<Real>>(centers, radii);
+            }
+            catch (std::exception &e) {
+                // Don't let robustness issues in the sphere convex hull crash
+                // optimization. Simply disable blending in those cases.
+                std::cerr << "Caught error while constructing joint hull: " << e.what() << std::endl;
+                std::cerr << "Disabling joint blending" << std::endl;
+                m_blendingHull = nullptr;
+            }
         }
     }
 

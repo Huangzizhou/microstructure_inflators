@@ -22,7 +22,8 @@ void MeshingOptions::load(const std::string &jsonPath) {
         "marchingSquaresCoarsening", "curvatureAdaptive",
         "curveSimplifier",
         "forceMaxBdryEdgeLen",
-        "jointBlendingMode"
+        "jointBlendingMode",
+        "forceConsistentInterfaceMesh"
     };
     // Validate keys
     for (const auto &v : pt) {
@@ -65,16 +66,19 @@ void MeshingOptions::load(const std::string &jsonPath) {
         else throw std::runtime_error("Unknown curve simplifier '" + simp +
                                       "'; expected 'collapse' or 'resample'");
     }
-
+    if (pt.count("forceConsistentInterfaceMesh")) {
+        forceConsistentInterfaceMesh = pt.get<bool>("forceConsistentInterfaceMesh");
+    }
 
     if (pt.count("jointBlendingMode")) {
         const std::string modeString = pt.get<std::string>("jointBlendingMode");
-        if (modeString == "HULL") {
+
+        if (boost::iequals(modeString, "HULL")) {
             jointBlendingMode = JointBlendMode::HULL;
         }
-        else if (modeString == "FULL") {
+        else if (boost::iequals(modeString, "FULL")) {
             jointBlendingMode = JointBlendMode::FULL;
         }
-        else { throw std::runtime_error("Unrecognize blending mode: " + modeString); }
+        else { throw std::runtime_error("Unrecognized blending mode: " + modeString); }
     }
 }

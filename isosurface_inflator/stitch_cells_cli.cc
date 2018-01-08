@@ -16,12 +16,15 @@ using WireMeshBasePtr = std::shared_ptr<WireMeshBase>;
 ////////////////////////////////////////////////////////////////////////////////
 
 #define TRY_SYMMETRY(s, x, p) if ((x) == #s) { return std::make_shared<WireMesh<Symmetry::s<>>>((p)); }
+#define TRY_KEY_VAL(s, a, x, p) if ((x) == #a) { return std::make_shared<WireMesh<Symmetry::s<>>>((p)); }
 
 WireMeshBasePtr load_wire_mesh(const std::string &sym, const std::string &path) {
     TRY_SYMMETRY(Square, sym, path);
     TRY_SYMMETRY(Cubic, sym, path);
     TRY_SYMMETRY(Orthotropic, sym, path);
-    TRY_SYMMETRY(TriplyPeriodic, sym, path);
+    TRY_SYMMETRY(Diagonal, sym, path);
+    TRY_KEY_VAL(DoublyPeriodic, Doubly_Periodic, sym, path);
+    TRY_KEY_VAL(TriplyPeriodic, Triply_Periodic, sym, path);
     return nullptr;
 }
 
@@ -67,6 +70,7 @@ void execute(const std::string &patchFilename, const std::string &meshingOptions
     if (N == 3) { mesher = std::make_unique<IGLSurfaceMesherMC>(); }
 
     if (!meshingOptions.empty()) { mesher->meshingOptions.load(meshingOptions); }
+    mesher->meshInterfaceConsistently = true;
     mesher->mesh(sdf, vertices, elements);
 
     MeshIO::save(outname, vertices, elements);

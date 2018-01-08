@@ -18,7 +18,7 @@ struct TensorFit : Constraint<_Sim::N> {
     using VField = VectorField<Real, N>;
 
     template<class _Iterate>
-    TensorFit(const ETensor &targetS, const _Iterate &it)
+    TensorFit(const ETensor &targetS, const _Iterate &it, bool orthotropicSymmetry)
         : Base(ConstraintType::EQUALITY), m_baseCellOps(it.baseCellOps())
     {
         const auto S = it.complianceTensor();
@@ -49,7 +49,7 @@ struct TensorFit : Constraint<_Sim::N> {
             assert(kl >= ij);
 
             if (m_ignoreShear && ((ij >= N) || (kl >= N))) continue;
-            if (m_orthotropicSymmetry)
+            if (orthotropicSymmetry)
                 if (((ij >= N)  || (kl >= N)) && (ij != kl)) continue;
             m_entryForResidual.emplace_back(ij, kl);
         }
@@ -96,7 +96,6 @@ struct TensorFit : Constraint<_Sim::N> {
 
     bool ignoringShear() const { return m_ignoreShear; }
     void setIgnoreShear(bool ignore) { m_ignoreShear = ignore; }
-    void setOrthotropicSymmetry(bool sym) { m_orthotropicSymmetry = sym; }
 
     size_t numResiduals() const { return m_entryForResidual.size(); }
 
@@ -121,7 +120,6 @@ private:
     // Differentials (one-forms) of each component of the compliance tensor
     const BaseCellOperations<_Sim> &m_baseCellOps;
     bool m_ignoreShear = false;
-    bool m_orthotropicSymmetry = true;
 
     ETensor m_diffS;
     Real m_CDist, m_CNormSq;
@@ -138,10 +136,9 @@ struct IFConfigTensorFit : public IFConfig {
     void configIterate(const std::unique_ptr<_Iterate> &it, ObjectiveTermNormalizations &/* normalizations */) const {
         BENCHMARK_START_TIMER_SECTION("Tensor fit constraint");
         static_assert(_Iterate::_N == N, "Mismatch in problem dimensions.");
-        auto tf = Future::make_unique<TensorFit<_Sim>>(targetS, *it);
+        auto tf = Future::make_unique<TensorFit<_Sim>>(targetS, *it, orthotropicSymmetry);
 
         tf->setIgnoreShear(ignoreShear);
-        tf->setOrthotropicSymmetry(orthotropicSymmetry);
 
         it->addConstraint("TensorFit", std::move(tf));
         BENCHMARK_STOP_TIMER_SECTION("Tensor fit constraint");

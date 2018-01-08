@@ -34,6 +34,8 @@
 #include <string>
 #include <functional>
 
+#include <json.hpp>
+
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
@@ -70,6 +72,7 @@
 
 namespace po = boost::program_options;
 namespace PO = PatternOptimization;
+using json = nlohmann::json;
 using namespace std;
 
 void usage(int exitVal, const po::options_description &visible_opts) {
@@ -178,6 +181,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("output,o",             po::value<string>(), "Output mesh and fields at each iteration")
         ("dumpShapeDerivatives", po::value<string>(), "Dump shape derivative fields for JVol, JS, and WCS")
         ("numProcs",             po::value<size_t>(), "Number of threads to use for TBB parallelism (CGAL mesher, etc.)")
+        ("dumpJson",             po::value<string>(), "Dump some information into the specified json file")
         ;
 
     po::options_description visibleOptions;
@@ -329,6 +333,11 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
 
     SField params = job->validatedInitialParams(inflator);
 
+    PO::BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds, job->metaBounds,
+                              job->custom1Bounds, job->custom2Bounds, job->custom3Bounds, job->custom4Bounds,
+                              job->custom5Bounds, job->custom6Bounds, job->custom7Bounds, job->custom8Bounds,
+                              job->varLowerBounds, job->varUpperBounds);
+
     // TODO: Laplacian regularization term (probably only needed for boundary
     // perturbation version.
 
@@ -349,7 +358,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
          PRegTermConfig,
           TFConstraintConfig,
            PConstraintConfig,
-         PosConstraintConfig>(inflator);
+         PosConstraintConfig>(inflator, bdcs);
 
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
@@ -408,9 +417,10 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     }
 
     if (args.count("TensorFitConstraint")) {
-        ifactory->TFConstraintConfig::enabled     = true;
-        ifactory->TFConstraintConfig::targetS     = targetS;
-        ifactory->TFConstraintConfig::ignoreShear = args.count("ignoreShear");
+        ifactory->TFConstraintConfig::enabled             = true;
+        ifactory->TFConstraintConfig::targetS             = targetS;
+        ifactory->TFConstraintConfig::ignoreShear         = args.count("ignoreShear");
+        ifactory->TFConstraintConfig::orthotropicSymmetry = inflator.hasOrthotropicSymmetry();
     }
 
     if (args.count("PrintabilityConstraint")) {
@@ -442,13 +452,9 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     }
 
     auto imanager = PO::make_iterate_manager(std::move(ifactory));
-    PO::BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds, job->metaBounds,
-                              job->custom1Bounds, job->custom2Bounds, job->custom3Bounds, job->custom4Bounds,
-                              job->custom5Bounds, job->custom6Bounds, job->custom7Bounds, job->custom8Bounds,
-                              job->varLowerBounds, job->varUpperBounds);
 
     ////////////////////////////////////////////////////////////////////////////
-    // Gradient component validation, if requested, bypasses optimization 
+    // Gradient component validation, if requested, bypasses optimization
     ////////////////////////////////////////////////////////////////////////////
     if (gradientValidationMode) {
         size_t compIdx = args["validateGradientComponent"].as<size_t>();
@@ -531,11 +537,20 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     for (size_t i = 0; i < result.size(); ++i)
         result[i] = params[i];
 
+    json output_json;
     if (inflator.isParametric()) {
+        output_json["final_p"] = json::array();
         cout << "Final p:";
-        for (size_t i = 0; i < result.size(); ++i)
+        for (size_t i = 0; i < result.size(); ++i) {
             cout << "\t" << result[i];
+            output_json["final_p"].push_back(result[i]);
+        }
         cout << endl;
+    }
+
+    if (args.count("dumpJson")) {
+        std::ofstream out(args["dumpJson"].as<string>());
+        out << output_json;
     }
 
     BENCHMARK_REPORT_NO_MESSAGES();

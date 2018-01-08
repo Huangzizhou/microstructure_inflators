@@ -246,6 +246,21 @@ isosurface_cli/fast:
 .PHONY : isosurface_cli/fast
 
 # Convenience name for target.
+isosurface_inflator/CMakeFiles/VisualizeQuantities2D.dir/rule:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/VisualizeQuantities2D.dir/rule
+.PHONY : isosurface_inflator/CMakeFiles/VisualizeQuantities2D.dir/rule
+
+# Convenience name for target.
+VisualizeQuantities2D: isosurface_inflator/CMakeFiles/VisualizeQuantities2D.dir/rule
+
+.PHONY : VisualizeQuantities2D
+
+# fast build rule for target.
+VisualizeQuantities2D/fast:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/VisualizeQuantities2D.dir/build.make isosurface_inflator/CMakeFiles/VisualizeQuantities2D.dir/build
+.PHONY : VisualizeQuantities2D/fast
+
+# Convenience name for target.
 isosurface_inflator/CMakeFiles/VisualizeQuantities.dir/rule:
 	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f CMakeFiles/Makefile2 isosurface_inflator/CMakeFiles/VisualizeQuantities.dir/rule
 .PHONY : isosurface_inflator/CMakeFiles/VisualizeQuantities.dir/rule
@@ -521,6 +536,33 @@ OffsetBoundsToTranslationBounds.cc.s:
 	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/build.make isosurface_inflator/CMakeFiles/OffsetBoundsToTranslationBounds.dir/OffsetBoundsToTranslationBounds.cc.s
 .PHONY : OffsetBoundsToTranslationBounds.cc.s
 
+PostProcess.o: PostProcess.cc.o
+
+.PHONY : PostProcess.o
+
+# target to build an object file
+PostProcess.cc.o:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/isosurface_inflator.dir/build.make isosurface_inflator/CMakeFiles/isosurface_inflator.dir/PostProcess.cc.o
+.PHONY : PostProcess.cc.o
+
+PostProcess.i: PostProcess.cc.i
+
+.PHONY : PostProcess.i
+
+# target to preprocess a source file
+PostProcess.cc.i:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/isosurface_inflator.dir/build.make isosurface_inflator/CMakeFiles/isosurface_inflator.dir/PostProcess.cc.i
+.PHONY : PostProcess.cc.i
+
+PostProcess.s: PostProcess.cc.s
+
+.PHONY : PostProcess.s
+
+# target to generate assembly for a file
+PostProcess.cc.s:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/isosurface_inflator.dir/build.make isosurface_inflator/CMakeFiles/isosurface_inflator.dir/PostProcess.cc.s
+.PHONY : PostProcess.cc.s
+
 PrintabilityCheck.o: PrintabilityCheck.cc.o
 
 .PHONY : PrintabilityCheck.o
@@ -655,6 +697,33 @@ VisualizeQuantities.s: VisualizeQuantities.cc.s
 VisualizeQuantities.cc.s:
 	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/VisualizeQuantities.dir/build.make isosurface_inflator/CMakeFiles/VisualizeQuantities.dir/VisualizeQuantities.cc.s
 .PHONY : VisualizeQuantities.cc.s
+
+VisualizeQuantities2D.o: VisualizeQuantities2D.cc.o
+
+.PHONY : VisualizeQuantities2D.o
+
+# target to build an object file
+VisualizeQuantities2D.cc.o:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/VisualizeQuantities2D.dir/build.make isosurface_inflator/CMakeFiles/VisualizeQuantities2D.dir/VisualizeQuantities2D.cc.o
+.PHONY : VisualizeQuantities2D.cc.o
+
+VisualizeQuantities2D.i: VisualizeQuantities2D.cc.i
+
+.PHONY : VisualizeQuantities2D.i
+
+# target to preprocess a source file
+VisualizeQuantities2D.cc.i:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/VisualizeQuantities2D.dir/build.make isosurface_inflator/CMakeFiles/VisualizeQuantities2D.dir/VisualizeQuantities2D.cc.i
+.PHONY : VisualizeQuantities2D.cc.i
+
+VisualizeQuantities2D.s: VisualizeQuantities2D.cc.s
+
+.PHONY : VisualizeQuantities2D.s
+
+# target to generate assembly for a file
+VisualizeQuantities2D.cc.s:
+	cd /Users/davitozoni/Desktop/NYU/Research/Repositories/microstructures && $(MAKE) -f isosurface_inflator/CMakeFiles/VisualizeQuantities2D.dir/build.make isosurface_inflator/CMakeFiles/VisualizeQuantities2D.dir/VisualizeQuantities2D.cc.s
+.PHONY : VisualizeQuantities2D.cc.s
 
 __/pattern_optimization/PatternOptimizationJob.o: __/pattern_optimization/PatternOptimizationJob.cc.o
 
@@ -889,6 +958,7 @@ help:
 	@echo "... stitch_cells_cli"
 	@echo "... tile"
 	@echo "... isosurface_cli"
+	@echo "... VisualizeQuantities2D"
 	@echo "... VisualizeQuantities"
 	@echo "... replicate"
 	@echo "... default_parameters"
@@ -917,6 +987,9 @@ help:
 	@echo "... OffsetBoundsToTranslationBounds.o"
 	@echo "... OffsetBoundsToTranslationBounds.i"
 	@echo "... OffsetBoundsToTranslationBounds.s"
+	@echo "... PostProcess.o"
+	@echo "... PostProcess.i"
+	@echo "... PostProcess.s"
 	@echo "... PrintabilityCheck.o"
 	@echo "... PrintabilityCheck.i"
 	@echo "... PrintabilityCheck.s"
@@ -932,6 +1005,9 @@ help:
 	@echo "... VisualizeQuantities.o"
 	@echo "... VisualizeQuantities.i"
 	@echo "... VisualizeQuantities.s"
+	@echo "... VisualizeQuantities2D.o"
+	@echo "... VisualizeQuantities2D.i"
+	@echo "... VisualizeQuantities2D.s"
 	@echo "... __/pattern_optimization/PatternOptimizationJob.o"
 	@echo "... __/pattern_optimization/PatternOptimizationJob.i"
 	@echo "... __/pattern_optimization/PatternOptimizationJob.s"
