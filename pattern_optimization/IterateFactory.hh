@@ -26,7 +26,7 @@
 #ifndef ITERATEFACTORY_HH
 #define ITERATEFACTORY_HH
 
-#include "PatternOptimizationIterate.hh"
+//#include "PatternOptimizationIterate.hh"
 #include "ObjectiveTermNormalizations.hh"
 #include "Inflator.hh"
 #include "BoundConstraints.hh"
