@@ -37,7 +37,7 @@ namespace PatternOptimization {
                 // constant, so we can read it off a single element.
                 auto CBase = mesh.element(0)->E();
                 if (measure == "frobenius") {
-                    m_stress_objective.setPointwiseStress(mesh, FrobeniusStress(CBase, it.complianceTensor(), m_nonPeriodicCellOps.macroStrainToMicroStrainTensors()));
+                    m_stress_objective.setPointwiseStress(mesh, MicroscopicFrobeniusStress<CBase.Dim, CBase.MajorSymmetry, _Sim>(CBase, it.simulator().stressField(m_nonPeriodicCellOps.displacement())));
                 }
                 else throw std::runtime_error("Unknown stress measure: " + measure);
 
@@ -54,18 +54,6 @@ namespace PatternOptimization {
                 writer.addField("Pointwise Stress", m_stress_objective.microStress.sqrtStressMeasure());
                 // writer.addField("j", j);
 
-                ScalarField<Real> eigPrincipal(m_stress_objective.microStress.eigPrincipal),
-                        eigSecondary(m_stress_objective.microStress.eigSecondary),
-                        eigMult(m_stress_objective.microStress.size()),
-                        dist(m_stress_objective.microStress.size());
-                for (size_t i = 0; i < eigMult.domainSize(); ++i) {
-                    eigMult[i] = Real(m_stress_objective.microStress.eigAlgebraicMult.at(i));
-                    dist[i] = (eigPrincipal[i] - eigSecondary[i]) / eigPrincipal[i];
-                }
-                // writer.addField("Principal eigenvalue", eigPrincipal, DomainType::PER_ELEMENT);
-                // writer.addField("Secondary eigenvalue", eigSecondary, DomainType::PER_ELEMENT);
-                // writer.addField("Eigenvalue multiplicity", eigMult, DomainType::PER_ELEMENT);
-                writer.addField("Eigenvalue relative distance", dist, DomainType::PER_ELEMENT);
 
 #if 0
                 try {
@@ -94,7 +82,7 @@ namespace PatternOptimization {
                 Base::writeDescription(os, name);
             }
 
-            virtual ~WorstCaseStress() { }
+            virtual ~StressTerm() { }
         private:
             OForm m_diff_vol; // per-volume-vertex differential
             const NonPeriodicCellOperations<_Sim> &m_nonPeriodicCellOps;
@@ -102,8 +90,8 @@ namespace PatternOptimization {
         };
 
         // Configuration to be applied by iterate factory
-        template<class _Sim, class _StressObjectiveType = PthRootObjective<IntegratedStressObjective<_Sim::N, StressIntegrandLp>>>
-        struct IFConfigStress : public IFConfig {
+        template<class _Sim, class _StressObjectiveType = PthRootObjective<IntegratedMicroscopicStressObjective<_Sim::N, MicroscopicStressIntegrandLp<_Sim>, _Sim>>>
+        struct IFConfigMicroscopicStress : public IFConfig {
             static constexpr size_t N = _Sim::N;
             template<class _Iterate>
             void configIterate(const std::unique_ptr<_Iterate> &it, ObjectiveTermNormalizations &normalizations) const {

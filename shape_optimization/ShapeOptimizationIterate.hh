@@ -33,12 +33,16 @@
 #include "ObjectiveTerm.hh"
 #include "EvaluatedObjectiveTerm.hh"
 #include "SDConversions.hh"
-//#include "NonPeriodicCellOperations.hh"
+#include "NonPeriodicCellOperations.hh"
+#include "BoundaryConditions.hh"
 
 #include "IterateBase.hh"
 #include "Inflator.hh"
 
 #include <Future.hh>
+
+using namespace PatternOptimization;
+using namespace std;
 
 namespace ShapeOptimization {
 
@@ -57,7 +61,7 @@ namespace ShapeOptimization {
 
         using IterateBase::m_params;
 
-        Iterate(Inflator<_N> &inflator, size_t nParams, const double *params, vector<CondPtr<_N> > &bconds)
+        Iterate(Inflator<_N> &inflator, size_t nParams, const double *params, string boundaryConditionsPath = "")
                 : IterateBase(inflator.isParametric())
         {
             m_params.resize(nParams);
@@ -104,6 +108,10 @@ namespace ShapeOptimization {
             BENCHMARK_STOP_TIMER("Build simulator");
             // std::cout << "Done" << std::endl;
             // std::cout << "Solving PDE" << std::endl;
+
+            //TODO: no rigid motion?
+            vector<CondPtr<_N> > bconds = readBoundaryConditions<_N>(boundaryConditionsPath,
+                                                                     m_sim->mesh().boundingBox(), m_noRigidMotion);
 
             try {
                 m_nonPeriodicCellOps = NonPeriodicCellOperations<_Sim>::construct(*m_sim, bconds);
@@ -318,12 +326,6 @@ namespace ShapeOptimization {
                     os << "\t" << m_params[i];
                 os << std::endl;
             }
-
-            os << "moduli:\t";
-            C.printOrthotropic(os);
-            os << "anisotropy:\t" << C.anisotropy() << std::endl;
-            os << "printable:\t" << m_printable << std::endl;
-
             // M_norm(steepestDescent), since steepest descent is the Riesz representative of
             // the differential, and we want it's norm. This ends up being
             // sqrt(g^T M^-1 g) where g is the differential
@@ -388,6 +390,7 @@ namespace ShapeOptimization {
         ObjectiveTermMap m_objectiveTerms;
         ConstraintMap    m_constraints;
         bool m_dontReport = false; // If this is an approximated iterate, don't have optimizer report its value.
+        bool m_noRigidMotion = false; //TODO: what does it mean?
     };
 
 }

@@ -43,13 +43,13 @@ using MinorSymmetricRank4TensorField = std::vector<MinorSymmetricRank4Tensor<N>>
 //      2) von Mises (TODO:implement)
 //      3) Max stress (TODO:implement)
 //      4) Stress trace (TODO:implement)
-template<size_t N>
+template<size_t N, class Sim>
 struct MicroscopicStress {
     using SMF = SymmetricMatrixField<Real, N>;
 
     // d(micro stress)/d(cell problem strain) on element e
     SymmetricMatrixValue<Real, N> sensitivityToCellStrain(size_t e) const {
-        auto result = stressField[e].doubleContract(Cbase);
+        auto result = stressField[e].average().doubleContract(Cbase);
         result *= 2;
         return result;
     }
@@ -58,7 +58,7 @@ struct MicroscopicStress {
     void sensitivityToCellStrain(SMF &result) const {
         result.resizeDomain(size());
         for (size_t e = 0; e < size(); ++e) {
-            result(e)  = stressField[e].doubleContract(Cbase);
+            result(e) = Cbase.doubleContract(stressField[e].average());
             result(e) *= 2;
         }
     }
@@ -66,14 +66,14 @@ struct MicroscopicStress {
     // Get microscopic stress measure on element i.
     // Note: this is actually the squared Frobenius stress
     Real operator()(size_t i) const {
-        auto micro = stressField.at(i);
+        auto micro = stressField.at(i).average();
         return micro.doubleContract(micro);
     };
 
     // Get microscopic stress measure field.
     // Note: this is actually the squared Frobenius/von Mises/max stress
     ScalarField<Real> stressMeasure() const {
-        ScalarField<Real> result(stressField.domainSize());
+        ScalarField<Real> result(stressField.size());
         for (size_t i = 0; i < result.domainSize(); ++i)
             result[i] = (*this)(i);
         return result;
@@ -81,29 +81,30 @@ struct MicroscopicStress {
 
     // Get Frobenius/von Mises/max stress
     ScalarField<Real> sqrtStressMeasure() const {
-        ScalarField<Real> result(microStress.domainSize());
+        ScalarField<Real> result(stressField.size());
         for (size_t i = 0; i < result.domainSize(); ++i)
             result[i] = sqrt((*this)(i));
         return result;
     }
 
     size_t size() const {
-        return microStress.domainSize();;
+        return stressField.size();;
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // Public data members
     ////////////////////////////////////////////////////////////////////////////
     MinorSymmetricRank4Tensor<N> Cbase;
-    std::vector<Stress> stressField;
+    std::vector<typename Sim::Stress> stressField;
 };
 
-template<size_t N, bool _majorSymmCBase>
-MicroscopicStress<N> MicroscopicFrobeniusStress(
+template<size_t N, bool _majorSymmCBase, class Sim>
+MicroscopicStress<N, Sim> MicroscopicFrobeniusStress(
         const ElasticityTensor<Real, N, _majorSymmCBase> &Cbase, // Allow non major-symmetric to handle the von Mises case
-        std::vector<Stress> &stressField)
+        const std::vector<typename Sim::Stress> &stressField)
 {
-    MicroscopicStress<N> result;
+    MicroscopicStress<N, Sim> result;
+    result.Cbase = Cbase;
     result.stressField = stressField;
     return result;
 }
@@ -111,21 +112,21 @@ MicroscopicStress<N> MicroscopicFrobeniusStress(
 // Global worst-case objective of the form
 // int j(s, x) dV
 // Currently, j (and s) are considered piecewise constant per-element.
-template<size_t N, class Integrand>
-struct IntegratedWorstCaseObjective {
-    using SMF = typename WorstCaseStress<N>::SMF;
+template<size_t N, class Integrand, class Sim>
+struct IntegratedMicroscopicStressObjective {
+    using SMF = typename MicroscopicStress<N, Sim>::SMF;
 
-    IntegratedWorstCaseObjective() { }
-    template<class Mesh> IntegratedWorstCaseObjective(const Mesh &m, const MicroscopicStress<N>  &stress) { setPointwiseStress(m, stress); }
-    template<class Mesh> IntegratedWorstCaseObjective(const Mesh &m,       MicroscopicStress<N>  &stress) { setPointwiseStress(m, std::move(stress)); }
+    IntegratedMicroscopicStressObjective() { }
+    template<class Mesh> IntegratedMicroscopicStressObjective(const Mesh &m, const MicroscopicStress<N, Sim>  &stress) { setPointwiseStress(m, stress); }
+    template<class Mesh> IntegratedMicroscopicStressObjective(const Mesh &m,       MicroscopicStress<N, Sim>  &stress) { setPointwiseStress(m, std::move(stress)); }
 
-    template<class Mesh> void setPointwiseStress(const Mesh &m, const MicroscopicStress<N>  &stress) {
+    template<class Mesh> void setPointwiseStress(const Mesh &m, const MicroscopicStress<N, Sim>  &stress) {
         microStress = stress;
         integrand.init(m, microStress);
         m_updateEvalCache(m);
     }
 
-    template<class Mesh> void setPointwiseStress(const Mesh &m, MicroscopicStress<N> &stress) {
+    template<class Mesh> void setPointwiseStress(const Mesh &m, MicroscopicStress<N, Sim> &stress) {
         microStress = std::move(stress);
         integrand.init(m, microStress);
         m_updateEvalCache(m);
@@ -149,7 +150,7 @@ struct IntegratedWorstCaseObjective {
     // tau = j_prime 2 * sigma : C^base
     // NOTE: this is *NOT* scaled to account for possible reflected base cell
     // copies (computes just the pointwise value).
-    void compute_tau(size_t kl, SMF &result) const {
+    void compute_tau(SMF &result) const {
         microStress.sensitivityToCellStrain(result);
         for (size_t e = 0; e < microStress.size(); ++e)
             result(e) *= integrand.j_prime(microStress(e), e);
@@ -169,9 +170,9 @@ struct IntegratedWorstCaseObjective {
     // should use a different metric (E.g. ||v||_M = int <v(x), v(x)> dx = v[i]
     // M_ij v[j], where M is the deg 1 mass matrix. Or for Newton's method, the
     // Hessian.).
-    template<class Sim>
+//    template<class Sim>
     ScalarOneForm<Sim::N>
-    adjointDeltaJ(const NonPeriodicCellOps<Sim> &nonPeriodicCellOps) const {
+    adjointDeltaJ(const NonPeriodicCellOperations<Sim> &nonPeriodicCellOps) const {
         // Dilation and delta strain terms
         const auto mesh = nonPeriodicCellOps.mesh();
         size_t nv = mesh.numVertices();
@@ -185,10 +186,10 @@ struct IntegratedWorstCaseObjective {
 
         // rho is same as p in formulas
         VectorField<Real, N> rho;
-        rho = NonPeriodicOps.solveAdjointCellProblem(NonPeriodicOps.sim().perElementStressFieldLoad(tau));
+        rho = nonPeriodicCellOps.solveAdjointCellProblem(nonPeriodicCellOps.sim().perElementStressFieldLoad(tau));
 
         // get value for displacements
-        VectorField<Real, N> &u = nonPeriodicCellOps.displacement();
+        const VectorField<Real, N> &u = nonPeriodicCellOps.displacement();
 
         BENCHMARK_STOP_TIMER_SECTION("Adjoint Cell Problem");
 
@@ -288,12 +289,13 @@ struct IntegratedWorstCaseObjective {
 
         // TODO: Is the surface integral term correct?
         // Part 3: int_(delta w) (rho . T) grad(lambda_m) dS
-        for (auto be : m_mesh.boundaryElements()) {
+        for (auto be : nonPeriodicCellOps.mesh().boundaryElements()) {
             Real area = be->volume();
-            Real boundaryIntegrand = pho.dot(be->neumannTraction);
 
             for (auto v : be.vertices()) {
-                result(v.index()) += boundaryIntegrand * area * be->gradBarycentric().col(v.localIndex());
+                Real boundaryIntegrand = rho(v.index()).dot(be->neumannTraction);
+
+                delta_j(v.index()) += boundaryIntegrand * area * be->gradBarycentric().col(v.localIndex());
             }
         }
 
@@ -305,7 +307,7 @@ struct IntegratedWorstCaseObjective {
     ////////////////////////////////////////////////////////////////////////////
     // Public data members
     ////////////////////////////////////////////////////////////////////////////
-    MicroscopicStress<N> microStress;
+    MicroscopicStress<N, Sim> microStress;
     Integrand integrand;
 
 private:
@@ -320,9 +322,10 @@ private:
 
 // int_omega micro_stress dV
 // i.e. j(s, x) = s -> j' = 1.
+template <class Sim>
 struct MicroscopicStressIntegrandTotal {
     template<size_t N, class Mesh>
-    void init(const Mesh &/* m */, const MicroscopicStress<N> &/* microStress */) { }
+    void init(const Mesh &/* m */, const MicroscopicStress<N, Sim> &/* microStress */) { }
 
     // Derivative of global objective integrand wrt worst case stress.
     static Real j(Real microStress, size_t /* x_i */) { return microStress; }
@@ -331,9 +334,10 @@ struct MicroscopicStressIntegrandTotal {
 
 // int_omega worst_case_stress^p dV
 // i.e. j(s, x) = s^p -> j' = p s^(p - 1).
+template <class Sim>
 struct MicroscopicStressIntegrandLp {
     template<size_t N, class Mesh>
-    void init(const Mesh &/* m */, const MicroscopicCaseStress<N> &/* microStress */) { }
+    void init(const Mesh &/* m */, const MicroscopicStress<N, Sim> &/* microStress */) { }
 
     MicroscopicStressIntegrandLp() { }
 
@@ -375,8 +379,8 @@ struct PthRootObjective : public SubObjective {
 
     template<class Sim>
     ScalarOneForm<Sim::N>
-    adjointDeltaJ(const NonPeriodicOperations<Sim> &NonPeriodicOps) const {
-        ScalarOneForm<Sim::N> pder = SubObjective::adjointDeltaJ(NonPeriodicOps);
+    adjointDeltaJ(const NonPeriodicCellOperations<Sim> &nonPeriodicCellOps) const {
+        ScalarOneForm<Sim::N> pder = SubObjective::adjointDeltaJ(nonPeriodicCellOps);
         if (p == 1) return pder;
         pder *= m_gradientScale();
         return pder;

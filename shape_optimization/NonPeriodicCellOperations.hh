@@ -21,6 +21,8 @@
 #include <LinearElasticity.hh>
 #include "SDConversions.hh"
 
+using namespace std;
+
 template<class _Sim>
 class NonPeriodicCellOperations {
 public:
@@ -28,7 +30,7 @@ public:
     using VField  = typename _Sim::VField;
     using ETensor = typename _Sim::ETensor;
 
-    static std::unique_ptr<NonPeriodicOperations<_Sim>> construct(_Sim &sim, vector<CondPtr<_N> > &bconds) {
+    static std::unique_ptr<NonPeriodicCellOperations<_Sim>> construct(_Sim &sim, vector<CondPtr<N> > &bconds) {
         // It seems the actual construction must happen in a helper function
         // (_constructNonPeriodicCellOps)--couldn't declare this static member function
         // as a friend in derived classes possibly due to _Sim being a dependent
@@ -39,7 +41,7 @@ public:
     }
 
     // Common laplace PDE with user defined boundary conditions
-    virtual void m_solveCellProblems(_Sim &sim, vector<CondPtr<_N> > &bconds) override {
+    virtual void m_solveCellProblems(_Sim &sim, vector<CondPtr<N> > &bconds) {
         VField f_zero(sim.numDoFs());
         f_zero.clear(); // to guarantee it is all zero
 
@@ -48,7 +50,7 @@ public:
     }
 
     // TODO: check what is the strong PDE form of the adjoint problem
-    virtual VField m_solveProbeSystem(const VField &rhs) const override {
+    virtual VField m_solveProbeSystem(const VField &rhs) const {
         return this->m_sim.solve(rhs);
     }
 
@@ -59,7 +61,7 @@ public:
 
     const                _Sim & sim() const { return m_sim; }
     const typename _Sim::Mesh &mesh() const { return m_sim.mesh(); }
-    const      VField &displacement() const { return m_u; }
+    const VField &displacement() const { return m_u; }
 
     ////////////////////////////////////////////////////////////////////////////
     // Shape Derivative Conversions
@@ -86,22 +88,23 @@ public:
 
     virtual ~NonPeriodicCellOperations() { }
 
-protected:
-    NonPeriodicOperations(const _Sim &sim, vector<CondPtr<_N> > &bconds) : m_sim(sim) { m_bconds = bconds; }
+    NonPeriodicCellOperations(const _Sim &sim, vector<CondPtr<N> > &bconds) : m_sim(sim) { m_bconds = bconds; }
 
-    VField m_u;
+protected:
+
+    const VField m_u;
     const _Sim &m_sim;
-    vector<CondPtr<_N> > m_bconds;
+    vector<CondPtr<N> > m_bconds;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 // Helper method for allocating (but not initializing!) a cell.
 ////////////////////////////////////////////////////////////////////////////////
 template<class _Sim>
-std::unique_ptr<NonPeriodicOperations<_Sim>> _constructNonPeriodicCellOps(_Sim &sim, vector<CondPtr<_N> > &bconds) {
-    std::unique_ptr<NonPeriodicOperations<_Sim>> nco;
+std::unique_ptr<NonPeriodicCellOperations<_Sim>> _constructNonPeriodicCellOps(_Sim &sim, vector<CondPtr<_Sim::N> > &bconds) {
+    std::unique_ptr<NonPeriodicCellOperations<_Sim>> nco;
 
-    nco = std::unique_ptr<NonPeriodicCellOperations<_Sim>>(new NonPeriodic<_Sim>(sim, bconds));
+    nco = std::unique_ptr<NonPeriodicCellOperations<_Sim>>(new NonPeriodicCellOperations<_Sim>(sim, bconds));
 
     return nco;
 }

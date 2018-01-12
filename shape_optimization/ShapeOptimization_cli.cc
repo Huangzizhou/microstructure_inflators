@@ -53,7 +53,7 @@
 #include <optimizers/gradient_descent.hh>
 #include <optimizers/nlopt.hh>
 
-#include <PatternOptimizationIterate.hh>
+#include <ShapeOptimizationIterate.hh>
 
 #include <OptimizerConfig.hh>
 #include <PatternOptimizationConfig.hh>
@@ -149,7 +149,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description visibleOptions;
     visibleOptions.add(patternOptions).add(simulationOptions).add(meshingOptions)
             .add(optimizerOptions).add(objectiveOptions).add(constraintOptions)
-            .add(elasticityOptions).add(gvOptions).add(generalOptions);
+            .add(elasticityOptions).add(generalOptions);
 
     po::options_description cli_opts;
     cli_opts.add(visibleOptions).add(hidden_opts);
@@ -210,8 +210,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
                                       job->parameterConstraints);
     auto &inflator = *infl_ptr;
 
-    vector<CondPtr<_N> > bconds = readBoundaryConditions<_N>(args["boundaryConditions"].as<string>(),
-                                             poissonMesh.boundingBox(), dummy);
+    string bcondsPath = args["boundaryConditions"].as<string>();
 
     typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh;
     typedef LinearElasticity::Simulator<Mesh> Simulator;
@@ -229,14 +228,6 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
         vector<Real> pvals;
         for (string &s : tokens) pvals.push_back(std::stod(s));
         return pvals;
-    };
-
-    auto parseMetaParams = [](string pstring) -> vector<string> {
-        boost::trim(pstring);
-        vector<string> tokens;
-        boost::split(tokens, pstring, boost::is_any_of("\t "),
-                     boost::token_compress_on);
-        return tokens;
     };
 
     // If requested, override the initial parameters set in the job file
@@ -272,8 +263,8 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     // 2.0 * globalObjectivePNorm (since pointwise Stress is already squared (e.g. Frobenius) norm)
     ifactory->StressTermConfig::weight = args["StressWeight"].as<double>();
     Real pnorm = args["pnorm"].as<double>();
-    ifactory->WCSTermConfig::globalObjectivePNorm = pnorm;
-    ifactory->WCSTermConfig::globalObjectiveRoot  = args.count("usePthRoot") ? 2.0 * pnorm : 1.0;
+    ifactory->StressTermConfig::globalObjectivePNorm = pnorm;
+    ifactory->StressTermConfig::globalObjectiveRoot  = args.count("usePthRoot") ? 2.0 * pnorm : 1.0;
 
     if (args.count("PrintabilityConstraint")) {
         ifactory->PConstraintConfig::enabled = true;
