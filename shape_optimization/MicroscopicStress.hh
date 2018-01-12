@@ -49,7 +49,7 @@ struct MicroscopicStress {
 
     // d(micro stress)/d(cell problem strain) on element e
     SymmetricMatrixValue<Real, N> sensitivityToCellStrain(size_t e) const {
-        auto result = stressField[e].average().doubleContract(Cbase);
+        auto result = stressField[e].doubleContract(Cbase);
         result *= 2;
         return result;
     }
@@ -58,7 +58,7 @@ struct MicroscopicStress {
     void sensitivityToCellStrain(SMF &result) const {
         result.resizeDomain(size());
         for (size_t e = 0; e < size(); ++e) {
-            result(e) = Cbase.doubleContract(stressField[e].average());
+            result(e) = Cbase.doubleContract(stressField(e));
             result(e) *= 2;
         }
     }
@@ -66,14 +66,14 @@ struct MicroscopicStress {
     // Get microscopic stress measure on element i.
     // Note: this is actually the squared Frobenius stress
     Real operator()(size_t i) const {
-        auto micro = stressField.at(i).average();
+        auto micro = stressField(i);
         return micro.doubleContract(micro);
     };
 
     // Get microscopic stress measure field.
     // Note: this is actually the squared Frobenius/von Mises/max stress
     ScalarField<Real> stressMeasure() const {
-        ScalarField<Real> result(stressField.size());
+        ScalarField<Real> result(stressField.domainSize());
         for (size_t i = 0; i < result.domainSize(); ++i)
             result[i] = (*this)(i);
         return result;
@@ -81,27 +81,27 @@ struct MicroscopicStress {
 
     // Get Frobenius/von Mises/max stress
     ScalarField<Real> sqrtStressMeasure() const {
-        ScalarField<Real> result(stressField.size());
+        ScalarField<Real> result(stressField.domainSize());
         for (size_t i = 0; i < result.domainSize(); ++i)
             result[i] = sqrt((*this)(i));
         return result;
     }
 
     size_t size() const {
-        return stressField.size();;
+        return stressField.domainSize();;
     }
 
     ////////////////////////////////////////////////////////////////////////////
     // Public data members
     ////////////////////////////////////////////////////////////////////////////
     MinorSymmetricRank4Tensor<N> Cbase;
-    std::vector<typename Sim::Stress> stressField;
+    SMF stressField;
 };
 
 template<size_t N, bool _majorSymmCBase, class Sim>
 MicroscopicStress<N, Sim> MicroscopicFrobeniusStress(
         const ElasticityTensor<Real, N, _majorSymmCBase> &Cbase, // Allow non major-symmetric to handle the von Mises case
-        const std::vector<typename Sim::Stress> &stressField)
+        const typename MicroscopicStress<N, Sim>::SMF &stressField)
 {
     MicroscopicStress<N, Sim> result;
     result.Cbase = Cbase;

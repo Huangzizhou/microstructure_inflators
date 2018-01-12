@@ -37,7 +37,7 @@ namespace PatternOptimization {
                 // constant, so we can read it off a single element.
                 auto CBase = mesh.element(0)->E();
                 if (measure == "frobenius") {
-                    m_stress_objective.setPointwiseStress(mesh, MicroscopicFrobeniusStress<CBase.Dim, CBase.MajorSymmetry, _Sim>(CBase, it.simulator().stressField(m_nonPeriodicCellOps.displacement())));
+                    m_stress_objective.setPointwiseStress(mesh, MicroscopicFrobeniusStress<CBase.Dim, CBase.MajorSymmetry, _Sim>(CBase, it.simulator().averageStressField(m_nonPeriodicCellOps.displacement())));
                 }
                 else throw std::runtime_error("Unknown stress measure: " + measure);
 
