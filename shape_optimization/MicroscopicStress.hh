@@ -220,6 +220,7 @@ struct IntegratedMicroscopicStressObjective {
             e->strain(e, rho, strain_rho);
             e->strain(e,   u, strain_u);
 
+            // stress_rho and stress_u correspond to interpolant stress in the current element
             using Stress = typename Sim::Stress;
             Stress stress_rho, stress_u;
             for (size_t i = 0; i < Stress::numNodalValues; ++i) {
@@ -246,6 +247,7 @@ struct IntegratedMicroscopicStressObjective {
                 auto gradPhi_n = e->gradPhi(n.localIndex());
 
                 // glam functional: tau * u - (stress * p_n + strain(p):C * u)
+                // glam_functional is an interpolant and has value on all nodes of the element
                 Interpolant<VectorND<N>, N, Stress::Deg> glam_functional;
                 glam_functional = tau(e.index()).contract(u(n.index()));
                 for (size_t i = 0; i < glam_functional.size(); ++i) {
