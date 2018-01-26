@@ -217,7 +217,7 @@ In our case, since $\phi$ are functions of the barycentric coordinate functions 
 
 Finally,
 \begin{align*}
-  \lhs &= \int_{\Omega_0} \left(- \sym(\nabla \hat \phi \nabla v)):\sigma + \epsilon(\hat \phi):C:(\epsilon(D[\hat u])  - \sym(\nabla \hat u \nabla v)) + \epsilon(\hat \phi): \sigma \nabla \cdot v \right) dX
+  \lhs &= \int_{\Omega_0} \left(- \sym(\nabla \hat \phi \nabla v)):\sigma + \epsilon(\hat \phi):C:(\epsilon(D[ u])  - \sym(\nabla \hat u \nabla v)) + \epsilon(\hat \phi): \sigma \nabla \cdot v \right) dX
 \end{align*}
 
 \subsubsection{Computing right hand side:}
@@ -264,6 +264,15 @@ Initially, consider we have the following PDE with unknown $\rho$:
 \end{equation}
 , where $\rho$ is from the same function space as $\phi$ (meaning it equals $0$ on Dirichlet boundary) and $\psi$ is from the same space as $D[u]$. \textcolor{red}{Since $\psi$ is used as test function here, it should be $0$ at $\Gamma_D$, but how can we ensure it happens? Since values at Dirichlet boundary does not change, the material derivative is then $0$, agreeing with what should happen to the test functions at $\Gamma_D$}.
 
+The corresponding strong form of this weak formulation would be:
+\begin{align*}
+  - \nabla & \cdot \sigma(\rho) = - \nabla \cdot \tau \\
+  &\text{such that: } \\
+  &\rho =  0 \text{ on $\Gamma_D$}\\
+  &\sigma(\rho) n = \tau n \quad \text{ on $\Gamma_N$}
+\end{align*}
+
+
 Then, after finding $\rho$, we could compute $\RNum{3}$ using the forward PDE Equation \ref{eq:forwardversion} and the following:
 \begin{align*}
   \RNum{3} = \int_\Omega \tau:\epsilon(D[u])\, dx = \int_\Omega \epsilon(\rho):C:\epsilon(D[u]) \, dx
@@ -272,13 +281,13 @@ Then, after finding $\rho$, we could compute $\RNum{3}$ using the forward PDE Eq
 Obtaining:
 \begin{equation}
   \boxed{\RNum{3} =
-  \int_{\Omega} \sym(\nabla \rho \nabla v):\sigma + \epsilon(\rho):C:\sym(\nabla u \nabla v) - \epsilon(\rho): \sigma \nabla \cdot v  dX + \int_{\Gamma_{N}} \rho \cdot \hat T \quad \nabla \cdot v\, d\Gamma_{N}}
+  \int_{\Omega} \sym(\nabla \rho \nabla v):\sigma + \epsilon(\rho):C:\sym(\nabla u \nabla v) - \epsilon(\rho): \sigma \nabla \cdot v  dX + \int_{\Gamma_{N}} (\rho \cdot \hat T) \quad \nabla \cdot v\, d\Gamma_{N}}
   \label{eq:IIIcomputation}
 \end{equation}
 
 Combining this with Equation \ref{eq:dJ}, and noticing we can drop the $\sym$ operation (because its output is always double contracted with a symmetric tensor):
 \begin{multline}
-  \boxed{dJ[v] = \int_{\Omega} (j - \epsilon(\rho): \sigma)\nabla \cdot v + (\nabla \rho \nabla v):\sigma + (\epsilon(\rho):C - \tau) : (\nabla u \nabla v) \, dX } \\ \boxed{+ \int_{\Gamma_{N}} \rho \cdot \hat T \quad \nabla \cdot v\, d\Gamma_{N}  }
+  \boxed{dJ[v] = \int_{\Omega} (j - \epsilon(\rho): \sigma)\nabla \cdot v + (\nabla \rho \nabla v):\sigma + (\epsilon(\rho):C - \tau) : (\nabla u \nabla v) \, dX } \\ \boxed{+ \int_{\Gamma_{N}} (\rho \cdot \hat T) \quad \nabla \cdot v\, d\Gamma_{N}  }
   \label{eq:completedJ}
 \end{multline}
 
@@ -313,7 +322,7 @@ Let's consider again $dJ[v]$:
 
 Now, let's apply our transformations for discrete $v$, $u$ and $\rho$ to obtain $dJ_d$.
 \begin{equation}
-  \boxed{dJ_d[\lambda_m \delta q_m] = \underbrace{\left( \int_\Omega \left[ j - \epsilon(\rho):\sigma \right] \nabla \lambda_m + \left[ \nabla \lambda_m \cdot (\sigma p_n + (\epsilon(p):C-\tau)u_n) \right] \nabla \varphi_n dx + \int_{\Gamma_N} (\rho \cdot \hat T) \nabla \lambda_m d_\Gamma \right)}_{dJ_m} \cdot \delta q_m}
+  \boxed{dJ_d[\lambda_m \delta q_m] = \underbrace{\left( \int_\Omega \left[ j - \epsilon(\rho):\sigma \right] \nabla \lambda_m + \left[ \nabla \lambda_m \cdot (\sigma p_n + (\epsilon(p):C-\tau)u_n) \right] \nabla \varphi_n dx + \int_{\Gamma_N} (\rho \cdot \hat T) \nabla \lambda_m d\Gamma \right)}_{dJ_m} \cdot \delta q_m}
 \end{equation}
 , \blue{which corresponds to final formula of Section 3.1.3 of Supplementary Material of \cite{panetta2017}}.
 
