@@ -45,7 +45,7 @@ void read_packed_mesh(const std::string &filename, Mesh &M) {
     }
 }
 
-void simulate(Mesh &M, double young, double poisson) {
+void simulate(Mesh &M, double young, double poisson, std::string config_path) {
     using namespace boost;
     auto tmp_dir = filesystem::temp_directory_path();
     auto f_tri = tmp_dir / filesystem::unique_path("so_%%%%-%%%%-%%%%-%%%%.obj");
@@ -57,7 +57,7 @@ void simulate(Mesh &M, double young, double poisson) {
     std::cout << "Young:" << young << std::endl;
     std::cout << "poisson:" << poisson << std::endl;
 
-    std::string cmd = app + " " + f_tri.string() + " " + f_msh.string() + " -e " + f_bin.string();
+    std::string cmd = app + " " + f_tri.string() + " " + f_msh.string() + " -e " + f_bin.string() + " -c " + config_path;
     {
         json material = {
                 {"type", "isotropic_material"},

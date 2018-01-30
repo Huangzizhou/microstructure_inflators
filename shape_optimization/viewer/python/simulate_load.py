@@ -19,13 +19,17 @@ import pymesh
 import paths
 
 
-def simulate(input_mesh, output_mesh, material_file=None):
+def simulate(input_mesh, output_mesh, material_file=None, config_file=None):
     simulator = paths.find("Simulate_cli", paths.MESHFEM_DIR)
     if simulator is None:
         raise FileNotFoundError("Simulate_cli")
 
     b9material = os.path.join(paths.CONFIG_DIR, "materials/b9creator.json")
-    uniaxial_load = os.path.join(paths.CONFIG_DIR, "boundary-conditions/uniaxial_2d_y.json")
+
+    if config_file is None:
+        uniaxial_load = os.path.join(paths.CONFIG_DIR, "boundary-conditions/uniaxial_2d_y.json")
+    else:
+        uniaxial_load = os.path.join(paths.CONFIG_DIR, "boundary-conditions/" + config_file)
 
     if material_file is None:
         material_file = b9material
@@ -123,6 +127,7 @@ def parse_args():
                         help="explicitly enable folder mode (batch processing)")
     parser.add_argument("-d", "--deformed", type=str, help="output deformed mesh")
     parser.add_argument("-r", "--ratio", type=float, default=0.1, help="weight of the deformation field")
+    parser.add_argument("-c", "--config", type=str, default=None, help="config file")
     return parser.parse_args()
 
 
@@ -131,7 +136,7 @@ def main():
     if args.folder or os.path.isdir(args.input):
         process_folder(args.input, args.output, args.deformed, args.ratio)
     else:
-        simulate(args.input, args.output, args.material)
+        simulate(args.input, args.output, args.material, args.config)
         if args.deformed is not None:
             deform_mesh(args.output, args.deformed, args.ratio)
         if args.export is not None:

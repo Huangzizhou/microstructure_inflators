@@ -43,3 +43,6 @@ target_link_libraries(${PROJECT_NAME}_bin  ${Boost_LIBRARIES})
 
 set(PYTHON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/python/")
 target_compile_definitions(${PROJECT_NAME}_bin PRIVATE -DPYTHON_DIR=\"${PYTHON_DIR}\")
+
+set(BOUNDARY_CONDITIONS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/config/boundary-conditions/)
+target_compile_definitions(${PROJECT_NAME}_bin PRIVATE -DBOUNDARY_CONDITIONS_DIR=\"${BOUNDARY_CONDITIONS_DIR}\")

@@ -1,11 +1,104 @@
 #include <igl/viewer/Viewer.h>
 #include <igl/cat.h>
 #include <nanogui/slider.h>
+#include <nanogui/combobox.h>
 #include "simulation_tools.h"
 #include "mesh_tools.h"
+#include <vector>
+#include <string>
 
-Mesh mesh, mesh_bc1, mesh_bc2;
+using namespace std;
+
+struct BoundaryCondition {
+    string config;
+    string type;
+    Mesh mesh;
+
+    Eigen::Vector3d min_corner;
+    Eigen::Vector3d max_corner;
+
+    Eigen::Vector3d value;
+};
+
+Mesh mesh;
+vector<BoundaryCondition> boundary_conditions;
 igl::viewer::Viewer viewer;
+vector<string> boundary_condition_configs;
+
+bool endswith(std::string const &str, std::string const &ending) {
+    if (str.length() >= ending.length()) {
+        return (0 == str.compare(str.length() - ending.length(), ending.length(), ending));
+    } else {
+        return false;
+    }
+}
+
+string relative_path(std::string str) {
+    std::size_t pos = str.find_last_of("/");
+    if (pos != string::npos)
+        return str.substr(pos+1);
+    else
+        return str;
+}
+
+void read_boundary_condition_config(string json_path) {
+    vector<BoundaryCondition> result;
+
+    // reading JSON file
+    string prefix = BOUNDARY_CONDITIONS_DIR;
+    std::ifstream input(prefix + string("/") + json_path);
+    json j;
+    input >> j;
+
+    json regions = j["regions"];
+    // iterate the array
+    for (json::iterator it = regions.begin(); it != regions.end(); ++it) {
+        BoundaryCondition bc;
+        bc.config = json_path;
+        json current_region = *it;
+
+        json box = current_region["box"];
+        vector<float> min_corner = box["minCorner"];
+        vector<float> max_corner = box["maxCorner"];
+
+        bc.min_corner << min_corner[0], min_corner[1], min_corner[2];
+        bc.max_corner << max_corner[0], max_corner[1], max_corner[2];
+
+        bc.type = current_region["type"];
+        Eigen::RowVector3d color;
+        color << 0.0, 1.0, 0.0;
+        if (bc.type.compare("dirichlet") == 0) {
+            color << 0.0, 0.0, 0.0;
+        }
+
+        vector<float> value = current_region["value"];
+        bc.value << value[0], value[1], value[2];
+
+        generate_mesh_box(bc.min_corner, bc.max_corner, bc.mesh.vertices, bc.mesh.facets);
+
+        bc.mesh.colors.resize(bc.mesh.facets.rows(), 3);
+        bc.mesh.colors << color.replicate(bc.mesh.facets.rows(), 1);
+
+        result.push_back(bc);
+    }
+
+    boundary_conditions = result;
+}
+
+void populate_boundary_condition_configs() {
+    boost::filesystem::path dir = BOUNDARY_CONDITIONS_DIR;
+
+    for (const auto & p : boost::filesystem::directory_iterator(dir)) {
+        std::string s = p.path().filename().string();
+        if (endswith(s, ".json")) {
+            string filename = relative_path(p.path().string());
+            boundary_condition_configs.push_back(filename);
+            cout << filename << endl;
+        }
+    }
+
+    read_boundary_condition_config(boundary_condition_configs[0]);
+}
 
 void display_mesh() {
 
@@ -47,14 +140,21 @@ void display_mesh() {
 
     mesh_copy.colors = mesh.colors;
     Mesh scene_mesh_temp, scene_mesh;
-    append_meshes(mesh_bc1, mesh_bc2, scene_mesh_temp);
-    append_meshes(scene_mesh_temp, mesh_copy, scene_mesh);
+    scene_mesh = boundary_conditions[0].mesh;
+    for (unsigned i = 1; i < boundary_conditions.size(); i++) {
+        append_meshes(scene_mesh, boundary_conditions[i].mesh, scene_mesh_temp);
+        scene_mesh = scene_mesh_temp;
+    }
+    append_meshes(scene_mesh, mesh_copy, scene_mesh_temp);
+    scene_mesh = scene_mesh_temp;
     viewer.data.set_mesh(scene_mesh.vertices, scene_mesh.facets);
     viewer.data.set_colors(scene_mesh.colors);
 }
 
 int main(int argc, char *argv[])
 {
+    populate_boundary_condition_configs();
+
     // Inline mesh of a cube
     Eigen::MatrixXd V(4,3);
     Eigen::MatrixXi F(2,3);
@@ -82,6 +182,7 @@ int main(int argc, char *argv[])
     Eigen::MatrixXi E_box;
     generate_box(m, M, V_box, E_box);
 
+    /*BoundaryCondition bc;
     Eigen::Vector3d min_dirichlet, max_dirichlet;
     min_dirichlet << -0.01, -0.01, 0;
     max_dirichlet << 1.01, 0.01, 0;
@@ -89,10 +190,11 @@ int main(int argc, char *argv[])
     Eigen::MatrixXi E_dirichlet, F_dirichlet;
     generate_box(min_dirichlet, max_dirichlet, V_dirichlet, E_dirichlet);
     generate_mesh_box(min_dirichlet, max_dirichlet, V_dirichlet, F_dirichlet);
-    mesh_bc1.vertices = V_dirichlet;
-    mesh_bc1.facets = F_dirichlet;
-    mesh_bc1.colors.resize(F_dirichlet.rows(), 3);
-    mesh_bc1.colors << Eigen::RowVector3d(0.0, 1.0, 0.0).replicate(F_dirichlet.rows(), 1);
+    bc.mesh.vertices = V_dirichlet;
+    bc.mesh.facets = F_dirichlet;
+    bc.mesh.colors.resize(F_dirichlet.rows(), 3);
+    bc.mesh.colors << Eigen::RowVector3d(0.0, 1.0, 0.0).replicate(F_dirichlet.rows(), 1);
+    boundary_conditions.push_back(bc);
 
     Eigen::Vector3d min_neumann, max_neumann;
     min_neumann << -0.01, 0.99, 0;
@@ -101,10 +203,11 @@ int main(int argc, char *argv[])
     Eigen::MatrixXi E_neumann, F_neumann;
     generate_box(min_neumann, max_neumann, V_neumann, E_neumann);
     generate_mesh_box(min_neumann, max_neumann, V_neumann, F_neumann);
-    mesh_bc2.vertices = V_neumann;
-    mesh_bc2.facets = F_neumann;
-    mesh_bc2.colors.resize(F_neumann.rows(), 3);
-    mesh_bc2.colors << Eigen::RowVector3d(0.0, 0.0, 1.0).replicate(F_neumann.rows(), 1);
+    bc.mesh.vertices = V_neumann;
+    bc.mesh.facets = F_neumann;
+    bc.mesh.colors.resize(F_neumann.rows(), 3);
+    bc.mesh.colors << Eigen::RowVector3d(0.0, 0.0, 1.0).replicate(F_neumann.rows(), 1);
+    boundary_conditions.push_back(bc);*/
 
     // Plot the mesh
     // Extend viewer menu
@@ -112,9 +215,20 @@ int main(int argc, char *argv[])
     {
         // Add new group
         viewer.ngui->addGroup("Simulation tools:");
+
+        nanogui::ComboBox *combo_box = new nanogui::ComboBox(viewer.ngui->window(), boundary_condition_configs);
+        combo_box->setFontSize(16);
+        combo_box->setFixedSize(Eigen::Vector2i(120,20));
+        combo_box->setCallback([](int value) {
+            cout << "Read: " << boundary_condition_configs[value] << endl;
+            read_boundary_condition_config(boundary_condition_configs[value]);
+            display_mesh();
+        });
+        viewer.ngui->addWidget("BCs", combo_box);
+
         viewer.ngui->addButton("Run simulation",[](){
             std::cout << "Simulating...\n";
-            simulate(mesh, 200.0, 0.35);
+            simulate(mesh, 200.0, 0.35, boundary_conditions[0].config);
 
             display_mesh();
         });
@@ -157,5 +271,6 @@ int main(int argc, char *argv[])
     viewer.core.background_color << 1.0, 1.0, 1.0, 1.0;
     viewer.core.shininess = 1e8;
     display_mesh();
+
     viewer.launch();
 }
