@@ -1,9 +1,12 @@
 //
 // Created by Davi Colli Tozoni on 1/28/18.
+// Based on code from quadfoam project
 //
 
 #ifndef EXAMPLE_MESH_TOOLS_H
 #define EXAMPLE_MESH_TOOLS_H
+
+#include <boost/filesystem.hpp>
 
 // Json
 #include "json.hpp"
@@ -149,6 +152,116 @@ void generate_box(Eigen::Vector3d min, Eigen::Vector3d max, Eigen::MatrixXd &V_b
           1, 2,
           2, 3,
           3, 0;
+}
+
+std::string convert_mesh_to_off(std::string input_file) {
+    auto tmp_dir = boost::filesystem::temp_directory_path();
+    auto f_off = tmp_dir / boost::filesystem::unique_path("so_%%%%-%%%%-%%%%-%%%%.off");
+
+    std::string app(PYTHON_DIR "convert_mesh.py");
+    std::string cmd = app + " " + input_file + " " + f_off.string();
+    if (::system(cmd.c_str()) == 0) {
+        return f_off.string();
+    }
+
+    return "";
+}
+
+// Split a string into tokens
+std::vector<std::string> split(const std::string &str, const std::string &delimiters = " ") {
+    // Skip delimiters at beginning.
+    std::string::size_type lastPos = str.find_first_not_of(delimiters, 0);
+    // Find first "non-delimiter".
+    std::string::size_type pos     = str.find_first_of(delimiters, lastPos);
+
+    std::vector<std::string> tokens;
+    while (std::string::npos != pos || std::string::npos != lastPos) {
+        // Found a token, add it to the vector.
+        tokens.push_back(str.substr(lastPos, pos - lastPos));
+        // Skip delimiters.  Note the "not_of"
+        lastPos = str.find_first_not_of(delimiters, pos);
+        // Find next "non-delimiter"
+        pos = str.find_first_of(delimiters, lastPos);
+    }
+
+    return tokens;
+}
+
+inline bool startswith(const std::string &str, const std::string &prefix) {
+    return (str.compare(0, prefix.size(), prefix) == 0);
+}
+
+template<int NUM_SIDES = 3>
+bool load_obj(const std::string &filename, Eigen::MatrixXd &V, Eigen::MatrixXi &F) {
+    std::string line;
+    std::ifstream in(filename);
+    if (!in.is_open()) {
+        throw std::runtime_error("failed to open file " + filename);
+    }
+
+    std::vector<Eigen::RowVector3d> VV;
+    std::vector<Eigen::Matrix<int, 1, NUM_SIDES>> FF;
+    while (std::getline(in, line)) {
+        if (startswith(line, "# Vertices:")) {
+            int n;
+            std::sscanf(line.c_str(), "# Vertices: %d", &n);
+            VV.reserve(n);
+
+            std::cout << "# Vertices: " << n << std::endl;
+            continue;
+        }
+        if (startswith(line, "# Faces:")) {
+            int n;
+            std::sscanf(line.c_str(), "# Faces: %d", &n);
+            FF.reserve(n);
+
+            std::cout << "# Faces: " << n << std::endl;
+            continue;
+        }
+        std::istringstream iss(line);
+        std::string key;
+        if (iss >> key) {
+            if (startswith(key, "#")) {
+                continue;
+            } else if (key == "v") {
+                double x, y, z;
+                iss >> x >> y >> z;
+                VV.emplace_back();
+                VV.back() << x, y, z;
+            } else if (key == "f" || key == "l") {
+                auto tokens = split(line.substr(1));
+                if (tokens.size() != NUM_SIDES) {
+                    std::cerr << "Facet has incorrect size: " << line << std::endl;
+                    return false;
+                } else {
+                    FF.emplace_back();
+                    for (int lv = 0; lv < NUM_SIDES; ++lv) {
+                        std::string str = tokens[lv];
+                        int v;
+                        if (str.find('/') != std::string::npos) {
+                            v = std::stoi(split(str, "/").front());
+                        } else {
+                            v = std::stoi(str);
+                        }
+                        FF.back()[lv] = v - 1; // Shift indices by 1 (start from 0)
+                    }
+                }
+            }
+        }
+    }
+
+    V.resize(VV.size(), 3);
+    F.resize(FF.size(), NUM_SIDES);
+    for (size_t v = 0; v < VV.size(); ++v) {
+        V.row(v) = VV[v];
+    }
+    for (size_t f = 0; f < FF.size(); ++f) {
+        F.row(f) = FF[f];
+    }
+
+    // std::cout << "Read a mesh with " << VV.size() << " vertices, " << FF.size() << " elements." << std::endl;
+
+    return true;
 }
 
 #endif //EXAMPLE_MESH_TOOLS_H

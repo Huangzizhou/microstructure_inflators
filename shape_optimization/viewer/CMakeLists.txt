@@ -3,11 +3,12 @@ project(example)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 set(THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/)
+set(LOCAL_THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/)
 
 # libigl
 option(LIBIGL_USE_STATIC_LIBRARY "Use libigl as static library" OFF)
 option(LIBIGL_WITH_ANTTWEAKBAR      "Use AntTweakBar"    OFF)
-option(LIBIGL_WITH_CGAL             "Use CGAL"           OFF)
+option(LIBIGL_WITH_CGAL             "Use CGAL"           ON)
 option(LIBIGL_WITH_COMISO           "Use CoMiso"         OFF)
 option(LIBIGL_WITH_CORK             "Use Cork"           OFF)
 option(LIBIGL_WITH_EMBREE           "Use Embree"         OFF)
@@ -29,7 +30,7 @@ find_package(LIBIGL REQUIRED QUIET)
 # Add your project files
 file(GLOB SRCFILES *.cpp)
 add_executable(${PROJECT_NAME}_bin ${SRCFILES})
-target_link_libraries(${PROJECT_NAME}_bin igl::core igl::viewer)
+target_link_libraries(${PROJECT_NAME}_bin igl::core igl::viewer gmp)
 
 # Json library
 add_library(json INTERFACE)
@@ -40,6 +41,20 @@ target_link_libraries(${PROJECT_NAME}_bin json)
 find_package(Boost 1.61 REQUIRED COMPONENTS filesystem system)
 target_include_directories(${PROJECT_NAME}_bin PUBLIC ${Boost_INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME}_bin  ${Boost_LIBRARIES})
+
+# CGAL library
+find_package(CGAL REQUIRED)
+target_link_libraries(${PROJECT_NAME}_bin  CGAL)
+
+# gmp library
+target_link_libraries(${PROJECT_NAME}_bin  gmp)
+
+# Tiny file dialogs library
+if(NOT TARGET tinyfiledialogs)
+    add_subdirectory(${LOCAL_THIRD_PARTY_DIR}/tinyfiledialogs tinyfiledialogs)
+endif()
+target_include_directories(${PROJECT_NAME}_bin PUBLIC ${LOCAL_THIRD_PARTY_DIR}/tinyfiledialogs)
+target_link_libraries(${PROJECT_NAME}_bin tinyfiledialogs)
 
 set(PYTHON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/python/")
 target_compile_definitions(${PROJECT_NAME}_bin PRIVATE -DPYTHON_DIR=\"${PYTHON_DIR}\")

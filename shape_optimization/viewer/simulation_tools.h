@@ -1,5 +1,6 @@
 //
 // Created by Davi Colli Tozoni on 1/28/18.
+// Based on code from quadfoam project
 //
 
 #ifndef EXAMPLE_SIMULATION_TOOLS_H
