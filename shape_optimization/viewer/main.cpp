@@ -1,41 +1,35 @@
 #include <igl/viewer/Viewer.h>
 #include <igl/copyleft/cgal/convex_hull.h>
 #include <igl/cat.h>
+#include <igl/unproject_onto_mesh.h>
 #include <nanogui/slider.h>
 #include <nanogui/combobox.h>
-#include "simulation_tools.h"
-#include "mesh_tools.h"
-#include "file_dialog.h"
 #include <vector>
 #include <string>
 
+#include "simulation_tools.h"
+#include "mesh_tools.h"
+#include "file_dialog.h"
+#include "boundary_condition_tools.h"
+
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "IncompatibleTypes"
 using namespace std;
 
 enum EditorState{
-    ADDING_BOUNDARY_CONDITION, NONE
+    ADDING_BOUNDARY_CONDITION, EDITING_NEW_BOUNDARY_CONDITION, NONE
 };
 typedef EditorState EditorState;
 
 EditorState current_state = NONE; // current state
 Eigen::MatrixX3d current_points;
-
 nanogui::Window * pop_up;
-
-struct BoundaryCondition {
-    string config;
-    string type;
-    Mesh mesh;
-
-    Eigen::Vector3d min_corner;
-    Eigen::Vector3d max_corner;
-
-    Eigen::MatrixX3d area_points;
-
-    Eigen::Vector3d value;
-};
-
+nanogui::Window * selected_pop_up;
 Mesh mesh;
+bool is_boundary_condition_selected = false;
 vector<BoundaryCondition> boundary_conditions;
+BoundaryCondition * selected_boundary_condition;
+int selected_boundary_condition_index = -1;
 igl::viewer::Viewer viewer;
 vector<string> boundary_condition_configs;
 
@@ -69,13 +63,153 @@ bool mouse_down(igl::viewer::Viewer& viewer, int button, int modifier)
             current_points.conservativeResize(current_points.rows() + 1, 3);
             current_points.row(current_points.rows() - 1) = new_point;
             viewer.data.add_points(new_point, Eigen::RowVector3d(1, 0, 0));
+
+            if (is_boundary_condition_selected) {
+                is_boundary_condition_selected = false;
+                viewer.screen->removeChild(selected_pop_up);
+                display_mesh();
+            }
+
+        }
+        else if (current_state == EDITING_NEW_BOUNDARY_CONDITION) {
+
+        }
+        else {
+
+            if (is_boundary_condition_selected) {
+                cout << "removing previously selected bc" << endl;
+
+                Eigen::RowVector3d color;
+                color << 0.0, 1.0, 0.0;
+                if (selected_boundary_condition->type.compare("dirichlet") == 0) {
+                    color << 0.0, 0.0, 0.0;
+                }
+
+                selected_boundary_condition->mesh.colors.resize(selected_boundary_condition->mesh.facets.rows(), 3);
+                selected_boundary_condition->mesh.colors << color.replicate(selected_boundary_condition->mesh.facets.rows(), 1);
+
+                is_boundary_condition_selected = false;
+                viewer.screen->removeChild(selected_pop_up);
+                display_mesh();
+            }
+
+            for (unsigned b=0; b<boundary_conditions.size(); b++) {
+                BoundaryCondition &bc = boundary_conditions[b];
+                int fid;
+                Eigen::RowVector3d intersection;
+
+                if (igl::unproject_onto_mesh(Eigen::Vector2f(x, y), viewer.core.view * viewer.core.model,
+                                             viewer.core.proj, viewer.core.viewport, bc.mesh.vertices, bc.mesh.facets, fid, intersection)) {
+                    cout << "hit" << endl;
+
+                    // paint hit red
+                    Eigen::RowVector3d color;
+                    color << 1.0, 0.0, 0.0;
+                    bc.mesh.colors << color.replicate(bc.mesh.facets.rows(), 1);
+
+                    cout << "before displaying mesh" << endl;
+                    display_mesh();
+                    cout << "after displaying mesh" << endl;
+
+                    is_boundary_condition_selected = true;
+                    selected_boundary_condition = &(boundary_conditions[b]);
+                    selected_boundary_condition_index = b;
+
+                    cout << "finish hit" << endl;
+
+                    break;
+                }
+                else {
+                    cout << "NOT a hit" << endl;
+                }
+            }
+
+            if (is_boundary_condition_selected) {
+                cout << "drawing new menu" << endl;
+
+                // Add an additional menu window
+                nanogui::Window * new_window = viewer.ngui->addWindow(Eigen::Vector2i(470,10),"Boundary Condition");
+                selected_pop_up = new_window;
+
+                cout << "drawing new menu 2" << endl;
+
+                nanogui::ComboBox *combo_box = new nanogui::ComboBox(new_window, {"dirichlet", "force"});
+                combo_box->setCallback((const function<void(int)> &) [&](int value) {
+                    vector<string> options = {"dirichlet", "force"};
+                    cout << "type: " << options[value] << endl;
+                    selected_boundary_condition->type = options[value];
+                });
+                if (selected_boundary_condition->type.compare("dirichlet") == 0)
+                    combo_box->setSelectedIndex(0);
+                else
+                    combo_box->setSelectedIndex(1);
+
+                viewer.ngui->addWidget("type", combo_box);
+
+                cout << "drawing new menu 3" << endl;
+
+                nanogui::FloatBox<float> *float_box_x = new nanogui::FloatBox<float>(new_window, selected_boundary_condition->value(0));
+                float_box_x->setEditable(true);
+                float_box_x->setCallback((const function<void(float)> &) [&](float value) {
+                    selected_boundary_condition->value(0) = value;
+                });
+                nanogui::FloatBox<float> *float_box_y = new nanogui::FloatBox<float>(new_window, selected_boundary_condition->value(1));
+                float_box_y->setEditable(true);
+                float_box_y->setCallback((const function<void(float)> &) [&](float value) {
+                    selected_boundary_condition->value(1) = value;
+                });
+                nanogui::FloatBox<float> *float_box_z = new nanogui::FloatBox<float>(new_window, selected_boundary_condition->value(2));
+                float_box_z->setEditable(true);
+                float_box_z->setCallback((const function<void(float)> &) [&](float value) {
+                    selected_boundary_condition->value(2) = value;
+                });
+                viewer.ngui->addWidget("x", float_box_x);
+                viewer.ngui->addWidget("y", float_box_y);
+                viewer.ngui->addWidget("z", float_box_z);
+
+                // Expose delete option
+                viewer.ngui->addButton("Delete", [&](){
+                    is_boundary_condition_selected = false;
+                    viewer.screen->removeChild(selected_pop_up);
+
+                    cout << "Deleting " << selected_boundary_condition_index << endl;
+                    boundary_conditions.erase(boundary_conditions.begin() + selected_boundary_condition_index);
+
+                    clear_mesh();
+                    display_mesh();
+                });
+
+                viewer.ngui->addButton("Ok", [&](){
+                    Eigen::RowVector3d color;
+                    color << 0.0, 1.0, 0.0;
+                    if (selected_boundary_condition->type.compare("dirichlet") == 0) {
+                        color << 0.0, 0.0, 0.0;
+                    }
+
+                    selected_boundary_condition->mesh.colors.resize(selected_boundary_condition->mesh.facets.rows(), 3);
+                    selected_boundary_condition->mesh.colors << color.replicate(selected_boundary_condition->mesh.facets.rows(), 1);
+
+                    is_boundary_condition_selected = false;
+                    viewer.screen->removeChild(selected_pop_up);
+                    display_mesh();
+
+                });
+
+                cout << "drawing new menu 3" << endl;
+
+                // Generate menu
+                viewer.screen->performLayout();
+                display_mesh();
+            }
         }
     }
     else {
         viewer.data.points.resize(0,0);
-        current_points.resize(0,0);
+        current_points.resize(0,3);
         viewer.data.dirty |= igl::viewer::ViewerData::DIRTY_OVERLAY_POINTS;
     }
+
+
 
     return false;
 }
@@ -87,12 +221,56 @@ bool key_down(igl::viewer::Viewer& viewer, unsigned char key, int modifier)
     if (key == 1)
     {
         cout << "Enter!" << endl;
+        BoundaryCondition bc;
         if (current_points.rows() == 2) {
-            // TODO: box!
+            cout << "Drawing box..." << endl;
+            // draw polygon
+            Eigen::MatrixXd V;
+            Eigen::MatrixXi F;
+
+            Eigen::RowVector3d m, M;
+            if (current_points(0,0) < current_points(1,0)) {
+                m(0) = current_points(0,0);
+                M(0) = current_points(1,0);
+            }
+            else {
+                m(0) = current_points(1,0);
+                M(0) = current_points(0,0);
+            }
+
+            if (current_points(0,1) < current_points(1,1)) {
+                m(1) = current_points(0,1);
+                M(1) = current_points(1,1);
+            }
+            else {
+                m(1) = current_points(1,1);
+                M(1) = current_points(0,1);
+            }
+
+            if (current_points(0,2) < current_points(1,2)) {
+                m(2) = current_points(0,2);
+                M(2) = current_points(1,2);
+            }
+            else {
+                m(2) = current_points(1,2);
+                M(2) = current_points(0,2);
+            }
+
+            bc.min_corner = m;
+            bc.max_corner = M;
+
+            generate_mesh_box(bc.min_corner, bc.max_corner, bc.mesh.vertices, bc.mesh.facets);
+
+            cout << "Generated mesh box: " << endl;
+            cout << bc.mesh.vertices << endl;
+            cout << bc.mesh.facets << endl;
+
+            bc.area_points.resize(2, 3);
+            bc.area_points.row(0) = m;
+            bc.area_points.row(1) = M;
+            bc.config = "extra";
         }
         else if (current_points.rows() > 2) {
-            BoundaryCondition bc;
-
             cout << "Drawing polygon..." << endl;
             // draw polygon
             Eigen::MatrixXd V;
@@ -104,161 +282,95 @@ bool key_down(igl::viewer::Viewer& viewer, unsigned char key, int modifier)
 
             int origin = 0;
             //Eigen::RowVector3d origin = V.row(0);
-            F.resize(V.rows()-2, 3);
+            F.resize(V.rows() - 2, 3);
             for (unsigned v = 2; v < V.rows(); v++) {
-                F.row(v-2) << origin, v-1, v;
+                F.row(v - 2) << origin, v - 1, v;
             }
 
             bc.area_points = current_points;
             bc.config = "extra";
             bc.mesh.vertices = V;
             bc.mesh.facets = F;
-
-            cout << "V " << V << endl;
-            cout << "F " << F << endl;
-
-            Eigen::RowVector3d color;
-            color << 1.0, 0.0, 0.0;
-            bc.mesh.colors.resize(bc.mesh.facets.rows(), 3);
-            bc.mesh.colors << color.replicate(bc.mesh.facets.rows(), 1);
-            boundary_conditions.push_back(bc);
-
-            current_points.resize(0,0);
-            viewer.data.points.resize(0,3);
-            clear_mesh();
-            display_mesh();
-
-            // Add an additional menu window
-            nanogui::Window * new_window = viewer.ngui->addWindow(Eigen::Vector2i(220,10),"New Boundary Condition");
-            pop_up = new_window;
-            // Expose the same variable directly ...
-            viewer.ngui->addButton("Ok", [&](){
-                cout << "Clicked Ok" << endl;
-
-                viewer.screen->removeChild(pop_up);
-
-                //pop_up->setVisible(false);
-            });
-
-            // Generate menu
-            viewer.screen->performLayout();
-        }
-    }
-
-    return false;
-}
-
-bool endswith(std::string const &str, std::string const &ending) {
-    if (str.length() >= ending.length()) {
-        return (0 == str.compare(str.length() - ending.length(), ending.length(), ending));
-    } else {
-        return false;
-    }
-}
-
-string relative_path(std::string str) {
-    std::size_t pos = str.find_last_of("/");
-    if (pos != string::npos)
-        return str.substr(pos+1);
-    else
-        return str;
-}
-
-void read_boundary_condition_config(string json_path) {
-    vector<BoundaryCondition> result;
-
-    cout << "BC: " << json_path << endl;
-
-    // reading JSON file
-    string prefix = BOUNDARY_CONDITIONS_DIR;
-    std::ifstream input(prefix + string("/") + json_path);
-    json j;
-    input >> j;
-
-    json regions = j["regions"];
-    // iterate the array
-    for (json::iterator it = regions.begin(); it != regions.end(); ++it) {
-        BoundaryCondition bc;
-        bc.config = json_path;
-        json current_region = *it;
-
-        json box = current_region["box"];
-        json box_percentage = current_region["box%"];
-
-        if (box.size() > 0) {
-            cout << "boxes: " << box.size() << endl;
-
-            vector<float> min_corner = box["minCorner"];
-            vector<float> max_corner = box["maxCorner"];
-
-            bc.min_corner << min_corner[0], min_corner[1], min_corner[2];
-            bc.max_corner << max_corner[0], max_corner[1], max_corner[2];
-        }
-        if (box_percentage.size() > 0){
-            cout << "box%es: " << box_percentage.size() << endl;
-
-            // Find the bounding box
-            Eigen::Vector3d m;
-            Eigen::Vector3d M;
-            if (mesh.vertices.rows() > 0) {
-                m = mesh.vertices.colwise().minCoeff();
-                M = mesh.vertices.colwise().maxCoeff();
-            }
-            else {
-                m << -1.0 , -1.0, 0.0;
-                M << 1.0 , 1.0, 0.0;
-            }
-
-            vector<float> min_corner = box_percentage["minCorner"];
-            vector<float> max_corner = box_percentage["maxCorner"];
-
-            Eigen::Array3d min_corner_array;
-            Eigen::Array3d max_corner_array;
-            min_corner_array << min_corner[0], min_corner[1], min_corner[2];
-            max_corner_array << max_corner[0], max_corner[1], max_corner[2];
-
-            // translate to 0,0,0
-            //min_corner_array += 1.0;
-            //max_corner_array += 1.0;
-
-            // scale (w/2, h/2)
-            double w = M(0) - m(0);
-            double h = M(1) - m(1);
-            double d = M(2) - m(2);
-            min_corner_array(0) *= w;///2;
-            min_corner_array(1) *= h;///2;
-            min_corner_array(2) *= d;///2;
-            max_corner_array(0) *= w;///2;
-            max_corner_array(1) *= h;///2;
-            max_corner_array(2) *= d;///2;
-
-            // translate to min corner
-            min_corner_array += m.array();
-            max_corner_array += m.array();
-
-            bc.min_corner = min_corner_array.matrix();
-            bc.max_corner = max_corner_array.matrix();
         }
 
-        bc.type = current_region["type"];
         Eigen::RowVector3d color;
-        color << 0.0, 1.0, 0.0;
-        if (bc.type.compare("dirichlet") == 0) {
-            color << 0.0, 0.0, 0.0;
-        }
-
-        vector<float> value = current_region["value"];
-        bc.value << value[0], value[1], value[2];
-
-        generate_mesh_box(bc.min_corner, bc.max_corner, bc.mesh.vertices, bc.mesh.facets);
-
+        color << 1.0, 0.0, 0.0;
         bc.mesh.colors.resize(bc.mesh.facets.rows(), 3);
         bc.mesh.colors << color.replicate(bc.mesh.facets.rows(), 1);
 
-        result.push_back(bc);
+        cout << "Generated mesh box: " << endl;
+        cout << bc.mesh.vertices << endl;
+        cout << bc.mesh.facets << endl;
+
+        boundary_conditions.push_back(bc);
+
+        current_points.resize(0,3);
+        viewer.data.points.resize(0,3);
+        clear_mesh();
+        display_mesh();
+
+        // Add an additional menu window
+        nanogui::Window * new_window = viewer.ngui->addWindow(Eigen::Vector2i(470,10),"New Boundary Condition");
+        pop_up = new_window;
+
+        boundary_conditions.back().type = "dirichlet";
+        nanogui::ComboBox *combo_box = new nanogui::ComboBox(new_window, {"dirichlet", "force"});
+        combo_box->setCallback((const function<void(int)> &) [](int value) {
+            vector<string> options = {"dirichlet", "force"};
+            cout << "option: " << options[value] << endl;
+            boundary_conditions.back().type = options[value];
+        });
+        viewer.ngui->addWidget("type", combo_box);
+
+        boundary_conditions.back().value << 0.0, 0.0, 0.0;
+        nanogui::FloatBox<float> *float_box_x = new nanogui::FloatBox<float>(new_window, 0.0);
+        float_box_x->setEditable(true);
+        float_box_x->setCallback((const function<void(float)> &) [&](float value) {
+            boundary_conditions.back().value(0) = value;
+        });
+        nanogui::FloatBox<float> *float_box_y = new nanogui::FloatBox<float>(new_window, 0.0);
+        float_box_y->setEditable(true);
+        float_box_y->setCallback((const function<void(float)> &) [&](float value) {
+            boundary_conditions.back().value(1) = value;
+        });
+        nanogui::FloatBox<float> *float_box_z = new nanogui::FloatBox<float>(new_window, 0.0);
+        float_box_z->setEditable(true);
+        float_box_z->setCallback((const function<void(float)> &) [&](float value) {
+            boundary_conditions.back().value(2) = value;
+        });
+        viewer.ngui->addWidget("x", float_box_x);
+        viewer.ngui->addWidget("y", float_box_y);
+        viewer.ngui->addWidget("z", float_box_z);
+
+
+        // Expose the same variable directly ...
+        viewer.ngui->addButton("Ok", [&](){
+            cout << "Clicked Ok" << endl;
+
+            cout << "Value: " << boundary_conditions.back().value << endl;
+
+            Eigen::RowVector3d color;
+            color << 0.0, 1.0, 0.0;
+            if (boundary_conditions.back().type.compare("dirichlet") == 0) {
+                color << 0.0, 0.0, 0.0;
+            }
+
+            boundary_conditions.back().mesh.colors.resize(boundary_conditions.back().mesh.facets.rows(), 3);
+            boundary_conditions.back().mesh.colors << color.replicate(boundary_conditions.back().mesh.facets.rows(), 1);
+
+            viewer.screen->removeChild(pop_up);
+            display_mesh();
+        });
+
+        // Generate menu
+        viewer.screen->performLayout();
+        display_mesh();
+
+        current_state = NONE;
+
     }
 
-    boundary_conditions = result;
+    return false;
 }
 
 void populate_boundary_condition_configs() {
@@ -273,7 +385,7 @@ void populate_boundary_condition_configs() {
         }
     }
 
-    read_boundary_condition_config(boundary_condition_configs[0]);
+    boundary_conditions = read_boundary_condition_config(boundary_condition_configs[0], mesh);
 }
 
 void clear_mesh() {
@@ -321,7 +433,8 @@ void display_mesh() {
 
     mesh_copy.colors = mesh.colors;
     Mesh scene_mesh;
-    scene_mesh = boundary_conditions[0].mesh;
+    if (boundary_conditions.size() > 0)
+        scene_mesh = boundary_conditions[0].mesh;
     for (unsigned i = 1; i < boundary_conditions.size(); i++) {
         Mesh mesh_temp;
         append_meshes(scene_mesh, boundary_conditions[i].mesh, mesh_temp);
@@ -334,6 +447,41 @@ void display_mesh() {
 
     viewer.data.set_mesh(scene_mesh.vertices, scene_mesh.facets);
     viewer.data.set_colors(scene_mesh.colors);
+}
+
+void load_mesh() {
+    cout << "Loading mesh...\n";
+
+    string filename = FileDialog::openFileName();
+
+    cout << "Converting msh file " << filename << endl;
+
+    string off_path = convert_mesh_to_off(filename);
+
+    cout << "Opening obj file " << off_path << endl;
+
+    Eigen::MatrixXd V;
+    Eigen::MatrixXi F;
+    //load_obj(obj_path, V, F);
+    igl::readOFF(off_path, V, F);
+
+    if (V.cols() == 3 && F.cols() == 3) {
+        clear_mesh();
+
+        mesh.vertices = V;
+        mesh.facets = F;
+        Eigen::RowVector3d color;
+        color << 1.0, 1.0, 0.0;
+        mesh.colors.resize(F.rows(), 3);
+        mesh.colors << color.replicate(F.rows(), 1);
+
+        mesh.vertexAttrs.clear();
+        mesh.facetAttrs.clear();
+
+        cout << "Vertices: " << mesh.vertices.rows() << endl;
+        cout << "Faces: " << mesh.facets.rows() << endl;
+        cout << "Colors: " << mesh.colors.rows() << endl;
+    }
 }
 
 int main(int argc, char *argv[])
@@ -371,72 +519,50 @@ int main(int argc, char *argv[])
     // Extend viewer menu
     viewer.callback_init = [&](igl::viewer::Viewer& viewer)
     {
-        // Add new group
-        viewer.ngui->addGroup("Simulation tools:");
 
-        viewer.ngui->addButton("Load mesh", []() {
-            std::cout << "Loading mesh...\n";
+        // Add new window
+        viewer.ngui->addWindow(Eigen::Vector2i(220,10),"Simulation tools");
 
-            string filename = FileDialog::openFileName();
-
-            cout << "Converting msh file " << filename << endl;
-
-            string off_path = convert_mesh_to_off(filename);
-
-            cout << "Opening obj file " << off_path << endl;
-
-            Eigen::MatrixXd V;
-            Eigen::MatrixXi F;
-            //load_obj(obj_path, V, F);
-            igl::readOFF(off_path, V, F);
-
-            if (V.cols() == 3 && F.cols() == 3) {
-                clear_mesh();
-
-                mesh.vertices = V;
-                mesh.facets = F;
-                Eigen::RowVector3d color;
-                color << 1.0, 1.0, 0.0;
-                mesh.colors.resize(F.rows(), 3);
-                mesh.colors << color.replicate(F.rows(), 1);
-
-                mesh.vertexAttrs.clear();
-                mesh.facetAttrs.clear();
-
-                cout << "Vertices: " << mesh.vertices.rows() << endl;
-                cout << "Faces: " << mesh.facets.rows() << endl;
-                cout << "Colors: " << mesh.colors.rows() << endl;
-            }
+        viewer.ngui->addButton("Load mesh", (const function<void()> &) [](){
+            load_mesh();
 
             //viewer.load_mesh_from_file(obj_path);
             if (boundary_conditions.size() > 0) {
-                read_boundary_condition_config(boundary_conditions[0].config);
+                boundary_conditions = read_boundary_condition_config(boundary_conditions[0].config, mesh);
             }
 
             display_mesh();
         });
 
         nanogui::ComboBox *combo_box = new nanogui::ComboBox(viewer.ngui->window(), boundary_condition_configs);
-        combo_box->setFontSize(16);
-        combo_box->setFixedSize(Eigen::Vector2i(120,20));
-        combo_box->setCallback([](int value) {
-            cout << "Read: " << boundary_condition_configs[value] << endl;
-            read_boundary_condition_config(boundary_condition_configs[value]);
-            display_mesh();
-        });
+        //combo_box->setFontSize(16);
+        combo_box->setFixedSize(Eigen::Vector2i(100,20));
+        combo_box->setCallback((const function<void(int)> &) [](int value) {
+                    cout << "Read: " << boundary_condition_configs[value] << endl;
+                    boundary_conditions = read_boundary_condition_config(boundary_condition_configs[value], mesh);
+                    clear_mesh();
+                    display_mesh();
+                });
         viewer.ngui->addWidget("BCs", combo_box);
 
-        viewer.ngui->addButton("Add BC",[](){
-            std::cout << "Adding boundary condition...\n";
-            current_state = ADDING_BOUNDARY_CONDITION;
+        viewer.ngui->addButton("Save BC condiguration", (const function<void()> &) [](){
+            std::cout << "Saving configuration...\n";
+            json bcs_json = boundary_conditions_to_json(boundary_conditions);
+            save_json_to_config_file(bcs_json);
         });
 
-        viewer.ngui->addButton("Run simulation",[](){
-            std::cout << "Simulating...\n";
-            simulate(mesh, 200.0, 0.35, boundary_conditions[0].config);
+        viewer.ngui->addButton("Add BC", (const function<void()> &) [](){
+                    std::cout << "Adding boundary condition...\n";
+                    current_state = ADDING_BOUNDARY_CONDITION;
+                });
 
-            display_mesh();
-        });
+        viewer.ngui->addButton("Run simulation", (const function<void()> &) [](){
+                    std::cout << "Simulating...\n";
+                    json bcs_json = boundary_conditions_to_json(boundary_conditions);
+                    simulate(mesh, 200.0, 0.35, bcs_json);
+
+                    display_mesh();
+                });
 
         // Expose variable directly ...
         viewer.ngui->addVariable("displacement", mesh._displacements);
@@ -446,11 +572,10 @@ int main(int argc, char *argv[])
         slider->setRange(std::pair<float, float>(-20.0f, 20.f));
         slider->setFixedWidth(200);
         /* Propagate slider changes to the text box */
-        slider->setCallback([](float value) {
-            cout << "Sliding..." << endl;
-            mesh._displacements = value;
-            display_mesh();
-        });
+        slider->setCallback((const function<void(float)> &) [](float value) {
+                    mesh._displacements = value;
+                    display_mesh();
+                });
         viewer.ngui->addWidget("", slider);
 
         // Generate menu
@@ -465,6 +590,7 @@ int main(int argc, char *argv[])
     viewer.core.orthographic = true;
     viewer.core.set_rotation_type(RT::ROTATION_TYPE_NO_ROTATION);
     viewer.core.camera_zoom = 1.0;
+    viewer.core.point_size = 15;
 
     // plot min and max coordinates, to make it easier to understand the drawing
     std::stringstream l1;
@@ -479,12 +605,15 @@ int main(int argc, char *argv[])
 
     if (boundary_conditions.size() > 0) {
         cout << "Reading conditions " << boundary_conditions[0].config << endl;
-        read_boundary_condition_config(boundary_conditions[0].config);
+        boundary_conditions = read_boundary_condition_config(boundary_conditions[0].config, mesh);
     }
     display_mesh();
 
     viewer.callback_mouse_down = &mouse_down;
     viewer.callback_key_down = &key_down;
 
+
     viewer.launch();
 }
+
+#pragma clang diagnostic pop

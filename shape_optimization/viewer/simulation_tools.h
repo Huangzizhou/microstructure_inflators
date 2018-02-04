@@ -46,9 +46,10 @@ void read_packed_mesh(const std::string &filename, Mesh &M) {
     }
 }
 
-void simulate(Mesh &M, double young, double poisson, std::string config_path) {
+void simulate(Mesh &M, double young, double poisson, json bc_config) {
     using namespace boost;
     auto tmp_dir = filesystem::temp_directory_path();
+    auto f_config = tmp_dir / filesystem::unique_path("so_%%%%-%%%%-%%%%-%%%%.json");
     auto f_tri = tmp_dir / filesystem::unique_path("so_%%%%-%%%%-%%%%-%%%%.obj");
     auto f_msh = tmp_dir / filesystem::unique_path("so_%%%%-%%%%-%%%%-%%%%.msh");
     auto f_bin = tmp_dir / filesystem::unique_path("so_%%%%-%%%%-%%%%-%%%%.bin");
@@ -58,7 +59,11 @@ void simulate(Mesh &M, double young, double poisson, std::string config_path) {
     std::cout << "Young:" << young << std::endl;
     std::cout << "poisson:" << poisson << std::endl;
 
-    std::string cmd = app + " " + f_tri.string() + " " + f_msh.string() + " -e " + f_bin.string() + " -c " + config_path;
+    // write boundary conditions configuration file
+    std::ofstream out_config(f_config.c_str());
+    out_config << std::setw(4) << bc_config << std::endl;
+
+    std::string cmd = app + " " + f_tri.string() + " " + f_msh.string() + " -e " + f_bin.string() + " -c " + f_config.string();
     {
         json material = {
                 {"type", "isotropic_material"},
@@ -75,10 +80,10 @@ void simulate(Mesh &M, double young, double poisson, std::string config_path) {
     if (::system(cmd.c_str()) == 0) {
         read_packed_mesh(f_bin.string(), M);
         //filesystem::remove(f_msh);
-        filesystem::remove(f_bin);
+        //filesystem::remove(f_bin);
     }
-    filesystem::remove(f_tri);
-    filesystem::remove(f_mat);
+    //filesystem::remove(f_tri);
+    //filesystem::remove(f_mat);
 
     // Display stress attribute
     M._selected_fa = "stress";

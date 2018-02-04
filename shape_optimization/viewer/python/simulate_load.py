@@ -29,7 +29,7 @@ def simulate(input_mesh, output_mesh, material_file=None, config_file=None):
     if config_file is None:
         uniaxial_load = os.path.join(paths.CONFIG_DIR, "boundary-conditions/uniaxial_2d_y.json")
     else:
-        uniaxial_load = os.path.join(paths.CONFIG_DIR, "boundary-conditions/" + config_file)
+        uniaxial_load = config_file
 
     if material_file is None:
         material_file = b9material
