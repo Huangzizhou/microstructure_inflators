@@ -203,9 +203,18 @@ using ETensor = ElasticityTensor<Real, _N>;
 typedef ScalarField<Real> SField;
 
 template<size_t _N, size_t _FEMDegree>
-void execute(const po::variables_map &args, PO::Job<_N> *job)
+void execute(po::variables_map &args, PO::Job<_N> *job)
 {
-    auto infl_ptr = make_inflator<_N>(args["inflator"].as<string>(),
+    string inflator_name = "isosurface";
+    string symmetry_string = "symmetry";
+    string symmetry_name = "non_periodic";
+
+    //args.insert(std::make_pair(symmetry_string, po::value<string>()->default_value(symmetry_name)));
+    args.insert(std::make_pair("symmetry", po::variable_value(symmetry_name, true)));
+    args.insert(std::make_pair("vertexThickness", po::variable_value(true, true)));
+    po::notify(args);
+
+    auto infl_ptr = make_inflator<_N>(inflator_name,
                                       filterInflatorOptions(args),
                                       job->parameterConstraints);
     auto &inflator = *infl_ptr;
@@ -253,7 +262,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
     ////////////////////////////////////////////////////////////////////////////
-    ifactory->StressTermConfig   ::enabled = args["StressWeight"].as<double>() != 0;
+    ifactory->StressTermConfig   ::enabled = args["stressWeight"].as<double>() != 0;
     ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
     ifactory->PConstraintConfig  ::enabled = false;
 
@@ -261,7 +270,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     // By default, an "Lp norm" objective is really the p^th power of the Lp norm.
     // To use the true "Lp norm", globalObjectiveRoot must be set to
     // 2.0 * globalObjectivePNorm (since pointwise Stress is already squared (e.g. Frobenius) norm)
-    ifactory->StressTermConfig::weight = args["StressWeight"].as<double>();
+    ifactory->StressTermConfig::weight = args["stressWeight"].as<double>();
     Real pnorm = args["pnorm"].as<double>();
     ifactory->StressTermConfig::globalObjectivePNorm = pnorm;
     ifactory->StressTermConfig::globalObjectiveRoot  = args.count("usePthRoot") ? 2.0 * pnorm : 1.0;
@@ -285,7 +294,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
         }
     }
 
-    auto imanager = PO::make_iterate_manager(std::move(ifactory));
+    auto imanager = PO::make_iterate_manager(std::move(ifactory), bcondsPath);
 
     ////////////////////////////////////////////////////////////////////////////
     // Run the optimizer
