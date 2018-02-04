@@ -45,8 +45,10 @@ public:
         VField f_zero(sim.numDoFs());
         f_zero.clear(); // to guarantee it is all zero
 
+        //sim.applyNoRigidMotionConstraint();
         sim.applyBoundaryConditions(bconds);
-        sim.solve(f_zero);
+        //m_u = sim.solve(f_zero);
+        m_u = sim.solve();
     }
 
     // TODO: check what is the strong PDE form of the adjoint problem
@@ -92,7 +94,7 @@ public:
 
 protected:
 
-    const VField m_u;
+    VField m_u;
     const _Sim &m_sim;
     vector<CondPtr<N> > m_bconds;
 };
