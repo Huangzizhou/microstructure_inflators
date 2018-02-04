@@ -198,6 +198,7 @@ int main(int argc, const char *argv[])
     else if (sym == "square"         ) { writeJob(WireMesh<Symmetry::Square<>>        (vertices, elements)); }
     else if (sym == "triply_periodic") { writeJob(WireMesh<Symmetry::TriplyPeriodic<>>(vertices, elements)); }
     else if (sym == "doubly_periodic") { writeJob(WireMesh<Symmetry::DoublyPeriodic<>>(vertices, elements)); }
+    else if (sym == "non_periodic"   ) { writeJob(WireMesh<Symmetry::NonPeriodic<>>(vertices, elements)); }
     else throw std::runtime_error("Unknown symmetry type: " + sym);
    
 
