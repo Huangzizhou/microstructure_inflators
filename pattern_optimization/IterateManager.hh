@@ -29,7 +29,7 @@ struct IterateManager : public IterateManagerBase {
 
     IterateManager(std::unique_ptr<_ItFactory> itFactory, std::string boundaryConditionsPath = "")
         : m_iterFactory(std::move(itFactory)) {
-        if (!m_boundaryConditionsPath.empty()) {
+        if (!boundaryConditionsPath.empty()) {
             m_hasBoundaryConditions = true;
             m_boundaryConditionsPath = boundaryConditionsPath;
         }
@@ -63,8 +63,8 @@ private:
 };
 
 template<class _IF>
-std::shared_ptr<IterateManager<_IF>> make_iterate_manager(std::unique_ptr<_IF> itFactory) {
-    return std::make_shared<IterateManager<_IF>>(std::move(itFactory));
+std::shared_ptr<IterateManager<_IF>> make_iterate_manager(std::unique_ptr<_IF> itFactory, std::string boundaryConditionsPath = "") {
+    return std::make_shared<IterateManager<_IF>>(std::move(itFactory), boundaryConditionsPath);
 }
 
 }
