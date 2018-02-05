@@ -51,14 +51,29 @@ public:
         m_u = sim.solve();
     }
 
-    // TODO: check what is the strong PDE form of the adjoint problem
-    virtual VField m_solveProbeSystem(const VField &rhs) const {
-        return this->m_sim.solve(rhs);
-    }
-
     // Solve adjoint problem for the cell problem
     VField solveAdjointCellProblem(const VField &adjointRHS) const {
-        return m_solveProbeSystem(adjointRHS);
+
+        // Set all dirichlet boundary conditions to 0 (zero).
+        m_sim.removeDirichletConditions();
+        vector<CondPtr<N> > new_conds;
+        for (unsigned i = 0; i < m_bconds.size(); i++) {
+            CondPtr<N> cond = m_bconds[i];
+            BoundaryCondition<N> *new_cond;
+            if (const DirichletCondition<N> * dc = dynamic_cast<const DirichletCondition<N> *>(cond.get())) {
+                //c = new DirichletCondition<_N>(region, value, cmask);
+                VectorND<N> zero_vector;
+                zero_vector.setZero();
+                new_cond = new DirichletCondition<N>(dc->region, zero_vector, dc->componentMask);
+            }
+
+            new_conds.push_back(CondPtr<N>(new_cond));
+        }
+
+        // TODO verify: Neumann conditions are already embedded in adjointRHS!
+
+        this->m_sim.applyBoundaryConditions(new_conds);
+        return this->m_sim.solve(adjointRHS);
     }
 
     const                _Sim & sim() const { return m_sim; }
@@ -90,12 +105,12 @@ public:
 
     virtual ~NonPeriodicCellOperations() { }
 
-    NonPeriodicCellOperations(const _Sim &sim, vector<CondPtr<N> > &bconds) : m_sim(sim) { m_bconds = bconds; }
+    NonPeriodicCellOperations(_Sim &sim, vector<CondPtr<N> > &bconds) : m_sim(sim) { m_bconds = bconds; }
 
 protected:
 
     VField m_u;
-    const _Sim &m_sim;
+    _Sim &m_sim;
     vector<CondPtr<N> > m_bconds;
 };
 
