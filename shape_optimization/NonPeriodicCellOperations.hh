@@ -65,9 +65,9 @@ public:
                 VectorND<N> zero_vector;
                 zero_vector.setZero();
                 new_cond = new DirichletCondition<N>(dc->region, zero_vector, dc->componentMask);
-            }
 
-            new_conds.push_back(CondPtr<N>(new_cond));
+                new_conds.push_back(CondPtr<N>(new_cond));
+            }
         }
 
         // TODO verify: Neumann conditions are already embedded in adjointRHS!
