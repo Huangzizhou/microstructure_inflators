@@ -319,6 +319,12 @@ void execute(const po::variables_map &args,
 
     ShapeVelocityInterpolator interpolator(sim);
     cout << "Periodic laplacian delta p discrete shape derivative WCS:\t" << origWCSObjective.deltaJ(sim, w, interpolator.interpolate(sim, bdry_svel)) << endl;
+
+    auto cellOps = constructBaseCellOps(BaseCellType::TriplyPeriodic, sim);
+    OneForm<Real, _N> dJ = origWCSObjective.adjointDeltaJ(*cellOps);
+    cout << "Adjoint discrete shape derivative WCS (volume):\t" << dJ[interpolator.interpolate(sim, bdry_svel)] << endl;
+    OneForm<Real, _N> dJbdry = interpolator.adjoint(sim, dJ);
+    cout << "Adjoint discrete shape derivative WCS (boundary):\t" << dJbdry[bdry_svel] << endl;
 }
 
 int main(int argc, const char *argv[])
