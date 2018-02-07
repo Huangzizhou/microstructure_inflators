@@ -53,6 +53,7 @@
 #include <optimizers/dlib.hh>
 #include <optimizers/gradient_descent.hh>
 #include <optimizers/nlopt.hh>
+#include <optimizers/knitro.hh>
 
 #include <PatternOptimizationIterate.hh>
 
@@ -90,6 +91,7 @@ OptimizerMap optimizers = {
     {"bfgs",                 optimize_dlib_bfgs},
     {"lbfgs",                optimize_dlib_bfgs},
     {"slsqp",                optimize_nlopt_slsqp},
+    {"active_set",           optimize_knitro_active_set},
     {"gradient_descent",     optimize_gd}
 };
 
@@ -416,10 +418,10 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     if (args.count("proximityRegularizationWeight")) {
         ifactory->PRegTermConfig::enabled = true;
         ifactory->PRegTermConfig::weight = args["proximityRegularizationWeight"].as<double>();
-        ifactory->PRegTermConfig::targetParams = job->initialParams;
+        ifactory->PRegTermConfig::targetParams = job->validatedInitialParams(inflator);
         if (args.count("proximityRegularizationTarget")) {
             ifactory->PRegTermConfig::targetParams = parseParams(args["proximityRegularizationTarget"].as<string>());
-            if (ifactory->PRegTermConfig::targetParams.size() != job->initialParams.size())
+            if (ifactory->PRegTermConfig::targetParams.size() != params.domainSize())
                 throw runtime_error("Invalid proximity regularization target parameter count");
         }
     }

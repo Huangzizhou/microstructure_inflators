@@ -111,6 +111,7 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     virtual bool isParametric() const override { return false; }
     virtual size_t numParameters() const override { return m_numParams; }
+    virtual std::vector<Real> defaultParameters() const override { return std::vector<Real>(m_numParams); }
     virtual ParameterType parameterType(size_t /* p */) const override {
         return ParameterType::Offset;
     }

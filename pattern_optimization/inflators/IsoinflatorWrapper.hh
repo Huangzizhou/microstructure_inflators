@@ -11,6 +11,7 @@
 #include <Fields.hh>
 #include <BaseCellType.hh>
 
+// Forward-declare IsosurfaceInflator
 class IsosurfaceInflator;
 
 template<size_t N>
@@ -47,6 +48,7 @@ public:
     virtual bool isParametric() const override    { return true; }
     virtual size_t numParameters() const override;
     virtual ParameterType parameterType(size_t p) const override;
+    virtual std::vector<Real> defaultParameters() const override;
     virtual bool isPrintable(const std::vector<Real> &params) override;
     virtual Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
         selfSupportingConstraints(const std::vector<double> &params) const override;

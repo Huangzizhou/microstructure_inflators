@@ -137,12 +137,12 @@ int main(int argc, const char *argv[]) {
 
     using SHandle = TMesh::SHandle<TMesh>;
     auto cellIndex = [&](const SHandle &s) -> size_t { return size_t(cellIdxSF(s.index())); };
-    auto barycenter = [&](const SHandle &s) -> Point3D {
-        Point3D result(Point3D::Zero());
-        for (auto v : s.vertices()) result += v->p;
-        result *= 1.0 / s.numVertices();
-        return result;
-    };
+    // auto barycenter = [&](const SHandle &s) -> Point3D {
+    //     Point3D result(Point3D::Zero());
+    //     for (auto v : s.vertices()) result += v->p;
+    //     result *= 1.0 / s.numVertices();
+    //     return result;
+    // };
 
     for (auto s : mesh.simplices()) hexes.at(cellIndex(s)) = BB(s.vertex(0)->p);
     for (auto s : mesh.simplices()) {
