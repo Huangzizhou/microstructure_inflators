@@ -294,28 +294,16 @@ struct IntegratedMicroscopicStressObjective {
         for (auto be : nonPeriodicCellOps.mesh().boundaryElements()) {
             Real area = be->volume();
 
-            //Interpolant<Real, N, Sim::Degree> rho_interpolant;
-            //for (size_t i = 0; i < rho_interpolant.size(); ++i) {
-            //    rho_interpolant[i] += rho[i].dot(be->neumannTraction);
-            //}
+            VectorND<N> average_rho;
+            average_rho.setZero();
+            for (auto n : be.nodes()) {
+                average_rho += rho(n.index());
+            }
+            average_rho /= be.nodes().size();
 
             for (auto v : be.vertices()) {
-
-                Real boundaryIntegrand = rho(v.index()).dot(be->neumannTraction);
-
-                //std::cout << std::endl;
-                //std::cout << "rho: " << rho(v.index()) << std::endl;
-                //std::cout << "neumann Traction: " << be->neumannTraction << std::endl;
-
-                //std::cout << "Boundary integrand: " << boundaryIntegrand << std::endl;
-                //std::cout << "Area: " << area << std::endl;
-                //std::cout << "Grad bar: " << be->gradBarycentric().col(v.localIndex()) << std::endl;
-                //std::cout << "adding to " << v.index() << ": " << boundaryIntegrand * area * be->gradBarycentric().col(v.localIndex()) << std::endl;
+                Real boundaryIntegrand = average_rho.dot(be->neumannTraction);
                 delta_j(v.index()) += boundaryIntegrand * area * be->gradBarycentric().col(v.localIndex());
-
-                //delta_j(v.index()) += Quadrature<N, Sim::Degree>::integrate([&](const EvalPt<N> &pt) {
-                //    return (rho_interpolant(pt).dot(be->neumannTraction) * be->gradBarycentric().col(v.localIndex())).eval();
-                //}, area);
             }
         }
 
