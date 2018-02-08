@@ -102,8 +102,17 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
             ;
 
     po::options_description simulationOptions;
-    patternOptions.add_options()
+    simulationOptions.add_options()
             ("boundaryConditions,b", po::value<string>(),                    "boundary conditions")
+            ;
+
+    po::options_description gvOptions;
+    gvOptions.add_options()
+            ("validateGradientComponent", po::value<size_t>(),                   "Run gradient component validation instead of optimization")
+            ("nsamples",                  po::value<size_t>()->default_value(5), "Number of gradient component validation samples")
+            ("range",                     po::value<string>(),                   "Absolute sweep range (lower:upper)")
+            ("rangeRelative",             po::value<double>(),                   "Relative sweep range: current +/- arg * paramBound(compIdx)")
+            ("singleIteration",           po::value<size_t>(),                   "Only run the ith iteration of the validation")
             ;
 
     po::options_description meshingOptions;
@@ -149,7 +158,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description visibleOptions;
     visibleOptions.add(patternOptions).add(simulationOptions).add(meshingOptions)
             .add(optimizerOptions).add(objectiveOptions).add(constraintOptions)
-            .add(elasticityOptions).add(generalOptions);
+            .add(elasticityOptions).add(generalOptions).add(gvOptions);
 
     po::options_description cli_opts;
     cli_opts.add(visibleOptions).add(hidden_opts);
@@ -213,6 +222,8 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
     args.insert(std::make_pair("symmetry", po::variable_value(symmetry_name, true)));
     args.insert(std::make_pair("vertexThickness", po::variable_value(true, true)));
     po::notify(args);
+
+    bool gradientValidationMode = args.count("validateGradientComponent");
 
     auto infl_ptr = make_inflator<_N>(inflator_name,
                                       filterInflatorOptions(args),
@@ -295,6 +306,69 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
     }
 
     auto imanager = PO::make_iterate_manager(std::move(ifactory), bcondsPath);
+
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Gradient component validation, if requested, bypasses optimization
+    ////////////////////////////////////////////////////////////////////////////
+    if (gradientValidationMode) {
+        size_t compIdx = args["validateGradientComponent"].as<size_t>();
+        if (compIdx >= params.domainSize()) throw runtime_error("Gradient component index out of bounds");
+        if (args.count("range") == args.count("rangeRelative"))
+            throw runtime_error("Either range or rangeRelative must be specified (not both)");
+
+        if (!bdcs.hasLowerBound.at(compIdx) || !bdcs.hasUpperBound.at(compIdx))
+            throw runtime_error("Swept parameters must be bounded");
+
+        Real prlb = bdcs.lowerBound[compIdx], prub = bdcs.upperBound[compIdx];
+        Real lb, ub;
+
+        if (args.count("range")) {
+            auto rangeStr = args["range"].as<string>();
+            vector<string> rangeComponents;
+            boost::trim(rangeStr), boost::split(rangeComponents, rangeStr, boost::is_any_of(":"));
+            if (rangeComponents.size() != 2) throw runtime_error("Invalid range; expected lower:upper");
+            lb = stod(rangeComponents[0]), ub = stod(rangeComponents[1]);
+        }
+        else {
+            Real rr = args["rangeRelative"].as<double>();
+            Real prSize = prub - prlb;
+            lb = params[compIdx] - rr * prSize, ub = params[compIdx] + rr * prSize;
+        }
+
+        if ((lb < prlb) || (ub > prub)) {
+            std::cerr << "WARNING: Specified sweep range of " << lb << ":" << ub
+                      << " outside parameter range of " << prlb << ":" << prub << std::endl;
+        }
+
+        params[compIdx] = lb; // make dummy iterate (actually 0th iterate, will be reused)
+        inflator.meshingOptions().debugSVelPath = "svels.msh";
+        cout << "it\tparam\tJFull\tgradp JFull";
+        {
+            const auto &it = imanager->get(params.size(), params.data());
+            for (const auto &etermptr : it.evaluatedObjectiveTerms())
+                cout << "\t" << etermptr->name << "\tgradp " << etermptr->name;
+        }
+        cout << endl;
+
+        const size_t nsamples = args["nsamples"].as<size_t>();
+        for (size_t i = 0; i < nsamples; ++i) {
+            if (args.count("singleIteration")) i = args["singleIteration"].as<size_t>();
+            params[compIdx] = lb + ((nsamples == 1) ? 0.0 : (ub - lb) * (double(i) / (nsamples - 1)));
+            auto &it = imanager->get(params.size(), params.data());
+            cout << i << "\t" << params[compIdx] << "\t" << it.evaluate() << "\t" << it.gradp()[compIdx];
+            for (const auto &etermptr : it.evaluatedObjectiveTerms())
+                cout << "\t" << etermptr->value() << "\t" << etermptr->gradp[compIdx];
+            cout << endl;
+
+            if (args.count("output")) it.writeMeshAndFields(args["output"].as<string>() + "_" + std::to_string(i) + ".msh");
+            if (args.count("singleIteration")) break;
+        }
+
+        // BENCHMARK_REPORT();
+        return;
+    }
+
 
     ////////////////////////////////////////////////////////////////////////////
     // Run the optimizer
