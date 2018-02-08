@@ -1,0 +1,300 @@
+////////////////////////////////////////////////////////////////////////////////
+// ShapeDerivativeValidation_cli.cc
+////////////////////////////////////////////////////////////////////////////////
+/*! @file
+//      Validate the discrete shape derivative of stress quantities.
+//
+//      Boundary vertices are offset in the normal direction to create a
+//      perturbed mesh, and post- and pre-perturbation quantities are
+//      subtracted to compute forward/centered difference (material)
+//      derivatives.
+//
+//      The BoundaryPerturbationInflator is used to ease the creation of a
+//      perturbed mesh.
+*/
+//  Based on DiscreteShapeDerivativeValidation_cli for worst_case_stress (which
+//   was implemented by Julian Panetta)
+//  Author:  Davi Colli Tozoni (dctozoni), davi.tozoni@nyu.edu
+//  Company:  New York University
+//  Created:  02/05/2018
+////////////////////////////////////////////////////////////////////////////////
+#include <MeshIO.hh>
+#include <LinearElasticity.hh>
+#include <Materials.hh>
+#include <PeriodicHomogenization.hh>
+#include <GlobalBenchmark.hh>
+#include <iomanip>
+#include <Laplacian.hh>
+#include <BoundaryConditions.hh>
+
+#include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
+
+#include "../pattern_optimization/inflators/BoundaryPerturbationInflator.hh"
+#include "../pattern_optimization/ShapeVelocityInterpolator.hh"
+#include "MicroscopicStress.hh"
+
+namespace po = boost::program_options;
+using namespace std;
+
+void usage(int exitVal, const po::options_description &visible_opts) {
+    cout << "Usage: ShapeDerivativeValidation_cli [options] mesh.msh" << endl;
+    cout << visible_opts << endl;
+    exit(exitVal);
+}
+
+po::variables_map parseCmdLine(int argc, const char *argv[])
+{
+    po::options_description hidden_opts("Hidden Arguments");
+    hidden_opts.add_options()
+            ("mesh", po::value<string>(), "input mesh")
+            ;
+    po::positional_options_description p;
+    p.add("mesh", 1);
+
+    po::options_description objectiveOptions;
+    objectiveOptions.add_options()
+            ("pnorm,P",      po::value<double>()->default_value(1.0),         "pnorm used in the Lp global worst case stress measure")
+            ("usePthRoot,R",                                                  "Use the true Lp norm for global worst case stress measure (applying pth root)")
+            ("StressWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
+            ;
+
+    po::options_description elasticityOptions;
+    elasticityOptions.add_options()
+            ("material,m",   po::value<string>(),                    "Base material")
+            ("degree,d",     po::value<size_t>()->default_value(2),  "FEM Degree")
+            ;
+
+    po::options_description simulationOptions;
+    simulationOptions.add_options()
+            ("boundaryConditions,b", po::value<string>(),                    "boundary conditions")
+            ;
+
+    po::options_description generalOptions;
+    generalOptions.add_options()
+            ("help,h",                                               "Produce this help message")
+            ("output,o",     po::value<string>(),                    "Output the Lagrangian derivatives computed by forward difference and the discrete shape derivative.")
+            ("fullDegreeFieldOutput,D",                              "Output full-degree nodal fields (don't do piecewise linear subsample)")
+            ("perturbationAmplitude,a", po::value<double>()->default_value(0.001), "Amplitude of boundary perturbation")
+            ("perturbationFrequency,f", po::value<double>()->default_value(1.0),  "Frequency of boundary perturbation")
+            ;
+
+    po::options_description visibleOptions;
+    visibleOptions.add(objectiveOptions).add(elasticityOptions).add(generalOptions).add(simulationOptions);
+
+    po::options_description cli_opts;
+    cli_opts.add(visibleOptions).add(hidden_opts);
+
+    po::variables_map vm;
+    try {
+        po::store(po::command_line_parser(argc, argv).
+                options(cli_opts).positional(p).run(), vm);
+        po::notify(vm);
+    }
+    catch (std::exception &e) {
+        cout << "Error: " << e.what() << endl << endl;
+        usage(1, visibleOptions);
+    }
+
+    bool fail = false;
+
+    if (vm.count("mesh") == 0) {
+        cout << "Error: must specify input mesh" << endl;
+        fail = true;
+    }
+
+    if (vm.count("output") == 0) {
+        cout << "Error: must specify output mesh" << endl;
+        fail = true;
+    }
+
+    size_t d = vm["degree"].as<size_t>();
+    if (d < 1 || d > 2) {
+        cout << "Error: FEM Degree must be 1 or 2" << endl;
+        fail = true;
+    }
+
+    if (fail || vm.count("help"))
+        usage(fail, visibleOptions);
+
+    return vm;
+}
+
+template<size_t _N>
+using HMG = LinearElasticity::HomogenousMaterialGetter<Materials::Constant>::template Getter<_N>;
+
+template<size_t _N, size_t _FEMDegree>
+void execute(const po::variables_map &args,
+             const std::vector<MeshIO::IOVertex>  &vertices,
+             const std::vector<MeshIO::IOElement> &elements)
+{
+    using Mesh      = typename LinearElasticity::Mesh<_N, _FEMDegree, HMG>;
+    using Simulator = typename LinearElasticity::Simulator<Mesh>;
+    using ETensor   = typename Simulator::ETensor;
+    using VField    = typename Simulator::VField;
+    using Vector    = VectorND<_N>;
+
+    string bcondsPath = args["boundaryConditions"].as<string>();
+
+    // Original mesh and simulator
+    BoundaryPerturbationInflator<_N> bpi(vertices, elements);
+    vector<Real> perturbParams(bpi.numParameters());
+    bpi.inflate(perturbParams);
+    Simulator sim(bpi.elements(), bpi.vertices());
+
+    // Perturb mesh
+    {
+        auto &mesh = sim.mesh();
+        auto normals = bpi.boundaryVertexNormals();
+        VField perturbation(sim.mesh().numBoundaryVertices());
+        Real A = args["perturbationAmplitude"].as<Real>();
+        Real f = args["perturbationFrequency"].as<Real>();
+        for (auto bv : mesh.boundaryVertices()) {
+            auto pt = bv.node().volumeNode()->p;
+            Real a = A * cos(M_PI * f * pt[0]) * cos(M_PI * f * pt[1]);
+            perturbation(bv.index()) = a * normals(bv.index());
+        }
+        bpi.paramsFromBoundaryVField(perturbation).getFlattened(perturbParams);
+
+    }
+
+    // Perturbed meshes and simulators
+    bpi.inflate(perturbParams);
+    Simulator perturbed_sim(bpi.elements(), bpi.vertices());
+    for (Real &p : perturbParams) p *= -1.0;
+    bpi.inflate(perturbParams);
+    Simulator neg_perturbed_sim(bpi.elements(), bpi.vertices());
+
+    // Determine change in each vertex's position.
+    VField delta_p(sim.mesh().numVertices());
+    for (auto v : sim.mesh().vertices()) {
+        delta_p(v.index()) = perturbed_sim.mesh().vertex(v.index()).node()->p;
+        delta_p(v.index()) -= v.node()->p;
+    }
+
+    // Set up simulators' (base) material
+    Materials::Constant<_N> &mat = HMG<_N>::material;
+    if (args.count("material")) mat.setFromFile(args["material"].as<string>());
+
+    bool no_rigid_motion;
+    vector<CondPtr<_N> > bconds = readBoundaryConditions<_N>(bcondsPath, sim.mesh().boundingBox(), no_rigid_motion);
+
+    NonPeriodicCellOperations<Simulator> cell_operations(sim, bconds);
+    NonPeriodicCellOperations<Simulator> perturbed_cell_operations(perturbed_sim, bconds);
+    NonPeriodicCellOperations<Simulator> neg_perturbed_cell_operations(neg_perturbed_sim, bconds);
+
+    cell_operations.m_solveCellProblems(sim, bconds);
+    VField u = cell_operations.displacement();
+    //auto delta_u = PeriodicHomogenization::deltaDisplacements(sim, u, delta_p); //TODO: implement forward version
+
+    VField perturbed_u, neg_perturbed_u;
+    perturbed_cell_operations.m_solveCellProblems(perturbed_sim, bconds);
+    perturbed_u = perturbed_cell_operations.displacement();
+    neg_perturbed_cell_operations.m_solveCellProblems(neg_perturbed_sim, bconds);
+    neg_perturbed_u = neg_perturbed_cell_operations.displacement();
+
+    VField delta_u_forward_diff = perturbed_u;
+    VField delta_u_centered_diff = perturbed_u;
+    delta_u_forward_diff  -= u;
+    delta_u_centered_diff -= neg_perturbed_u;
+    delta_u_centered_diff *= 0.5;
+
+    string output = args["output"].as<string>();
+    bool linearSubsampleFields = args.count("fullDegreeFieldOutput") == 0;
+    MSHFieldWriter writer(output, sim.mesh(), linearSubsampleFields);
+
+    writer.addField("u", u);
+    writer.addField("forward u", perturbed_u);
+    writer.addField("backward u", neg_perturbed_u);
+    //writer.addField("delta u " + std::to_string(ij), delta_u);
+    writer.addField("forward difference delta u", delta_u_forward_diff);
+    writer.addField("centered difference delta u", delta_u_centered_diff);
+
+
+    auto origStrain = sim.averageStrainField(u);
+    auto forwardDiffStrain   = perturbed_sim.averageStrainField(perturbed_u);
+    auto centeredDiffStrain  = forwardDiffStrain;
+    forwardDiffStrain  -= origStrain;
+    centeredDiffStrain -= neg_perturbed_sim.averageStrainField(neg_perturbed_u);
+    centeredDiffStrain *= 0.5;
+
+    writer.addField("strain u", origStrain);
+    //writer.addField("delta strain u", sim.deltaAverageStrainField(u, delta_u, delta_p));
+    writer.addField("forward difference delta strain u",  forwardDiffStrain);
+    writer.addField("centered difference delta strain u", centeredDiffStrain);
+
+    MSHFieldWriter perturbed_writer(output + ".perturbed.msh", perturbed_sim.mesh(), linearSubsampleFields);
+    perturbed_writer.addField("u", perturbed_u);
+    perturbed_writer.addField("strain u", perturbed_sim.averageStrainField(perturbed_u));
+
+    MSHFieldWriter neg_perturbed_writer(output + ".neg_perturbed.msh", neg_perturbed_sim.mesh(), linearSubsampleFields);
+    neg_perturbed_writer.addField("u", neg_perturbed_u);
+    neg_perturbed_writer.addField("strain u", perturbed_sim.averageStrainField(neg_perturbed_u));
+
+    auto buildStressObjective = [&](const Simulator &sim_, VField u_) {
+        PthRootObjective<IntegratedMicroscopicStressObjective<_N, MicroscopicStressIntegrandLp<Simulator>, Simulator>> objective;
+
+        objective.integrand.p = args["pnorm"].as<double>();
+        objective.p = args.count("usePthRoot") ? 2.0 * args["pnorm"].as<double>() : 1.0;
+
+        const ETensor CBase = mat.getTensor();
+        const bool major_symmetry = CBase.MajorSymmetry;
+
+        MicroscopicStress<_N, Simulator> microStress = MicroscopicFrobeniusStress<CBase.Dim, major_symmetry, Simulator>(CBase, sim.averageStressField(u_));
+        objective.setPointwiseStress(sim_.mesh(), microStress);
+        return objective;
+    };
+
+    auto origStressObjective          = buildStressObjective(sim, u);
+    auto perturbedStressObjective     = buildStressObjective(perturbed_sim, perturbed_u);
+    auto neg_perturbedStressObjective = buildStressObjective(neg_perturbed_sim, neg_perturbed_u);
+
+    cout << "Stress:\t" << origStressObjective.evaluate() << endl;
+    cout << "Perturbed Stress:\t" << perturbedStressObjective.evaluate() << endl;
+    cout << "Neg Perturbed Stress:\t" << neg_perturbedStressObjective.evaluate() << endl;
+
+    cout << "Forward  difference Stress:\t" << perturbedStressObjective.evaluate() - origStressObjective.evaluate() << endl;
+    cout << "Centered difference Stress:\t" << 0.5 * (perturbedStressObjective.evaluate() - neg_perturbedStressObjective.evaluate()) << endl;
+
+    const auto &mesh = sim.mesh();
+    ShapeVelocityInterpolator interpolator(sim);
+    VField bdry_svel(sim.mesh().numBoundaryVertices());
+    for (auto bv : mesh.boundaryVertices())
+        bdry_svel(bv.index()) = delta_p(bv.volumeVertex().index());
+
+    OneForm<Real, _N> dJ = origStressObjective.adjointDeltaJ(cell_operations);
+    cout << "Adjoint discrete shape derivative Stress (volume):\t" << dJ[interpolator.interpolate(sim, bdry_svel)] << endl;
+    OneForm<Real, _N> dJbdry = interpolator.adjoint(sim, dJ);
+    cout << "Adjoint discrete shape derivative Stress (boundary):\t" << dJbdry[bdry_svel] << endl;
+
+    //VField dJ_field = SDConversions::descent_from_diff_vol(dJ, sim);
+    //writer.addField("dJ field", dJ_field);
+}
+
+int main(int argc, const char *argv[])
+{
+    po::variables_map args = parseCmdLine(argc, argv);
+
+    vector<MeshIO::IOVertex>  inVertices;
+    vector<MeshIO::IOElement> inElements;
+    string meshPath = args["mesh"].as<string>();
+    auto type = load(meshPath, inVertices, inElements, MeshIO::FMT_GUESS,
+                     MeshIO::MESH_GUESS);
+
+    // Infer dimension from mesh type.
+    size_t dim;
+    if      (type == MeshIO::MESH_TET) dim = 3;
+    else if (type == MeshIO::MESH_TRI) dim = 2;
+    else    throw std::runtime_error("Mesh must be triangle or tet.");
+
+    // Look up and run appropriate homogenizer instantiation.
+    int deg = args["degree"].as<size_t>();
+    auto exec = (dim == 3) ? ((deg == 2) ? execute<3, 2> : execute<3, 1>)
+                           : ((deg == 2) ? execute<2, 2> : execute<2, 1>);
+
+    cout << setprecision(19) << endl;
+
+    exec(args, inVertices, inElements);
+
+    return 0;
+}
