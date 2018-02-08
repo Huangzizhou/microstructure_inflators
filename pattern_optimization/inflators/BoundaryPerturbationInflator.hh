@@ -20,7 +20,7 @@
 //      boundary vertices lying on P periodic boundaries (0<=P<=N) will only
 //      have N-P parameters due to the periodicity constraints, and these will
 //      be shared by all 2^P identified vertices.
-//      
+//
 //      First, periodicity constraints are enforced by constructing a reduced
 //      set of variables. Then then we construct a set of parameters (one
 //      parameter for each "true" boundary variable) from the variable set. The
@@ -53,7 +53,7 @@
 //    - Leave internal vertices unperturbed.
 //    - Solve for internal vertex perturbation using Laplacian w/ Dirichlet
 //      boundary conditions.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  12/19/2015 02:14:38
@@ -88,7 +88,7 @@ public:
     BoundaryPerturbationInflator(const std::vector<MeshIO::IOVertex>  &inVertices,
                                  const std::vector<MeshIO::IOElement> &inElements,
                                  Real epsilon = 1e-5);
-        
+
     ////////////////////////////////////////////////////////////////////////////
     // Inflation
     ////////////////////////////////////////////////////////////////////////////
@@ -111,6 +111,7 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     virtual bool isParametric() const override { return false; }
     virtual size_t numParameters() const override { return m_numParams; }
+    virtual std::vector<Real> defaultParameters() const { return std::vector<Real>(m_numParams); }
     virtual ParameterType parameterType(size_t /* p */) const override {
         return ParameterType::Offset;
     }
@@ -124,6 +125,24 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     void setNoPerturb(bool noPerturb) { m_noPerturb = noPerturb; }
 
+    // Boundary vertex normal vector field (0 on periodic boundary) Uses area
+    // for averaging.
+    VectorField<Real, N> boundaryVertexNormals() const {
+        VectorField<Real, N> result(m_mesh->numBoundaryVertices());
+        result.clear();
+        for (auto be : m_mesh->boundaryElements()) {
+            if (m_isPeriodicBE.at(be.index())) continue;
+            for (size_t c = 0; c < be.numVertices(); ++c)
+                result(be.vertex(c).index()) += be->volume() * be->normal();
+        }
+        for (size_t i = 0; i < result.domainSize(); ++i) {
+            Real norm = result(i).norm();
+            if (norm > 1e-6)
+                result(i) /= norm;
+        }
+        return result;
+    }
+
     // Get the boundary vector field corresponding to "params" (i.e. the
     // inverse of paramsFromBoundaryVField)
     virtual VectorField<Real, N> boundaryVFieldFromParams(const ScalarField<Real> &params) const override;
@@ -136,6 +155,7 @@ private:
     // Vector of indices into the coordinate variables
     std::array<std::vector<size_t>, N> m_varForCoordinate;
     std::array<std::vector<size_t>, N> m_paramForVariable;
+    std::vector<bool> m_isPeriodicBE;
 
     size_t m_numParams;
     std::array<size_t, N> m_numVars;

@@ -16,7 +16,7 @@ BoundaryPerturbationInflator<N>::BoundaryPerturbationInflator(
     if      (type == MeshIO::MESH_TET) dim = 3;
     else if (type == MeshIO::MESH_TRI) dim = 2;
     else    throw std::runtime_error("Mesh must be triangle or tet.");
-    
+
     if (dim != N) throw std::runtime_error("Mesh/inflator dimension match.");
 
     m_setMesh(inVertices, inElements, epsilon);
@@ -85,7 +85,7 @@ void BoundaryPerturbationInflator<N>::m_inflate(const std::vector<Real> &params)
                 fixedVarValues.push_back(params.at(p) + m_origParams[p]);
             }
         }
-        
+
         // Solve for all variables
         L.fixVariables(fixedVars, fixedVarValues);
         std::vector<Real> zero(m_numVars[d], 0.0), x;
@@ -155,24 +155,28 @@ boundaryVFieldFromParams(const ScalarField<Real> &params) const
 // Initialize the boundary perturbation inflator for a particular mesh.
 template<size_t N>
 void BoundaryPerturbationInflator<N>::m_setMesh(
-    const std::vector<MeshIO::IOVertex>  &inVertices,
-    const std::vector<MeshIO::IOElement> &inElements, Real epsilon)
+        const std::vector<MeshIO::IOVertex>  &inVertices,
+        const std::vector<MeshIO::IOElement> &inElements, Real epsilon)
 {
     m_mesh = Future::make_unique<Mesh>(inElements, inVertices);
 
     // Note: pc matches every node, not just vertex-collocated nodes!
     // But vertex nodes are a prefix of all nodes, so we can ignore this.
     PeriodicCondition<N> pc(*m_mesh, epsilon);
+    m_isPeriodicBE.resize(m_mesh->numBoundaryElements());
+    for (auto be : m_mesh->boundaryElements())
+        m_isPeriodicBE[be.index()] = pc.isPeriodicBE(be.index());
+
     ////////////////////////////////////////////////////////////////////////
     // Determine variables (apply periodic coordinate constraints)
     ////////////////////////////////////////////////////////////////////////
     m_numVars.fill(2 * N); // variables 0..2N-1 always store the periodic
-                           // face coordinates
+    // face coordinates
     m_varForCoordinate.fill(std::vector<size_t>(m_mesh->numVertices(),
                                                 size_t(NONE)));
 
     // Func creating new component d var. NOTE & captures this, not members
-    auto createVar = [&](size_t d) { return m_numVars[d]++; };
+    auto createVar = [&](size_t d) -> size_t { return m_numVars[d]++; };
 
     // All interior coordinates get distinct variables.
     for (auto v : m_mesh->vertices()) {
@@ -246,7 +250,7 @@ void BoundaryPerturbationInflator<N>::m_setMesh(
         }
         // True boundary vertices should have at least one associated
         // variable (assuming tiled pattern is manifold)
-        assert(numAssigned > 0); 
+        assert(numAssigned > 0);
     }
 
     // Get the original, pre-perturbation parameter values
