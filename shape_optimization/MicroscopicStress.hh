@@ -148,8 +148,6 @@ struct IntegratedMicroscopicStressObjective {
     // Sensitivity of global objective integrand to cell problem fluctuation
     // strains (rank 2 tensor field tau in the writeup).
     // tau = j_prime 2 * sigma : C^base
-    // NOTE: this is *NOT* scaled to account for possible reflected base cell
-    // copies (computes just the pointwise value).
     void compute_tau(SMF &result) const {
         microStress.sensitivityToCellStrain(result);
         for (size_t e = 0; e < microStress.size(); ++e)
@@ -187,6 +185,9 @@ struct IntegratedMicroscopicStressObjective {
         // rho is same as p in formulas
         VectorField<Real, N> rho;
         rho = nonPeriodicCellOps.solveAdjointCellProblem(nonPeriodicCellOps.sim().perElementStressFieldLoad(tau));
+
+        MSHFieldWriter writer("rho_validation", mesh, false);
+        writer.addField("rho", rho);
 
         // get value for displacements
         const VectorField<Real, N> &u = nonPeriodicCellOps.displacement();
@@ -237,8 +238,7 @@ struct IntegratedMicroscopicStressObjective {
 
             // Finish Part 1: complete integral of dilatationIntegrand
             for (auto v : e.vertices()) {
-                result(v.index()) += dilationIntegrand * e->volume()
-                                     * e->gradBarycentric().col(v.localIndex());
+                result(v.index()) += dilationIntegrand * e->volume() * e->gradBarycentric().col(v.localIndex());
             }
 
             // Delta strain term
@@ -246,12 +246,12 @@ struct IntegratedMicroscopicStressObjective {
             for (auto n : e.nodes()) {
                 auto gradPhi_n = e->gradPhi(n.localIndex());
 
-                // glam functional: tau * u - (stress * p_n + strain(p):C * u)
+                // glam functional: -tau * u + (stress * p_n + strain(p):C * u)
                 // glam_functional is an interpolant and has value on all nodes of the element
                 Interpolant<VectorND<N>, N, Stress::Deg> glam_functional;
-                glam_functional = tau(e.index()).contract(u(n.index()));
+                glam_functional = -tau(e.index()).contract(u(n.index()));
                 for (size_t i = 0; i < glam_functional.size(); ++i) {
-                    glam_functional[i] -= stress_rho[i].contract(  u(n.index()))
+                    glam_functional[i] += stress_rho[i].contract(  u(n.index()))
                                         + stress_u  [i].contract(rho(n.index()));
                 }
 
@@ -265,8 +265,8 @@ struct IntegratedMicroscopicStressObjective {
                     for (size_t i = 0; i < mu_grad_lam_m.size(); ++i)
                         mu_grad_lam_m[i] = gradLam_m.dot(glam_functional[i]);
 
-                    // finish computing Part 2 of integral and remove it from current result
-                    result(v_m.index()) -= Quadrature<N, 2 * Strain::Deg>::integrate([&](const EvalPt<N> &pt) {
+                    // finish computing Part 2 of integral and add it from current result
+                    result(v_m.index()) += Quadrature<N, 2 * Strain::Deg>::integrate([&](const EvalPt<N> &pt) {
                         return (mu_grad_lam_m(pt) * gradPhi_n(pt)).eval();
                     }, e->volume());
                 }
@@ -294,10 +294,28 @@ struct IntegratedMicroscopicStressObjective {
         for (auto be : nonPeriodicCellOps.mesh().boundaryElements()) {
             Real area = be->volume();
 
+            //Interpolant<Real, N, Sim::Degree> rho_interpolant;
+            //for (size_t i = 0; i < rho_interpolant.size(); ++i) {
+            //    rho_interpolant[i] += rho[i].dot(be->neumannTraction);
+            //}
+
             for (auto v : be.vertices()) {
+
                 Real boundaryIntegrand = rho(v.index()).dot(be->neumannTraction);
 
+                //std::cout << std::endl;
+                //std::cout << "rho: " << rho(v.index()) << std::endl;
+                //std::cout << "neumann Traction: " << be->neumannTraction << std::endl;
+
+                //std::cout << "Boundary integrand: " << boundaryIntegrand << std::endl;
+                //std::cout << "Area: " << area << std::endl;
+                //std::cout << "Grad bar: " << be->gradBarycentric().col(v.localIndex()) << std::endl;
+                //std::cout << "adding to " << v.index() << ": " << boundaryIntegrand * area * be->gradBarycentric().col(v.localIndex()) << std::endl;
                 delta_j(v.index()) += boundaryIntegrand * area * be->gradBarycentric().col(v.localIndex());
+
+                //delta_j(v.index()) += Quadrature<N, Sim::Degree>::integrate([&](const EvalPt<N> &pt) {
+                //    return (rho_interpolant(pt).dot(be->neumannTraction) * be->gradBarycentric().col(v.localIndex())).eval();
+                //}, area);
             }
         }
 
