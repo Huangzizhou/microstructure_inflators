@@ -95,6 +95,8 @@ In the remaining of this text, I suppose $s(u) = \| \sigma \|^2_F = \sigma^T : \
 
 The computation of the cost itself is not difficult and can be done directly through a quadrature rule after solving our original elasticity PDE. However, when optimizing the shape, we need to compute how cost changes when deforming the $\Omega$. This means computing the \textbf{\emph{shape derivative}} of $J$.
 
+\red{Notice that $\Gamma_{N}$ and $\Gamma_{D}$ also change when $\Omega$ is perturbed.}
+
 So here are the steps:
 \begin{enumerate}
   \item Find equation of $dJ[v]$
