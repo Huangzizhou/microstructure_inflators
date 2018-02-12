@@ -44,6 +44,20 @@ void parseVector(const ptree &pt, vector<Real> &v) {
     }
 }
 
+void parseVector(const ptree &pt, vector<bool> &v) {
+    v.clear();
+    for (const auto &val : pt) {
+        if (!val.first.empty()) throw runtime_error("Failed to parse vector");
+
+        if (val.second.get_value<int>() == 1) {
+            v.push_back(true);
+        }
+        else {
+            v.push_back(false);
+        }
+    }
+}
+
 std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     ifstream is(jobFile);
     if (!is.is_open())
@@ -73,6 +87,9 @@ std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     parseVector(paramVals, job->initialParams);
     parseVector(radiusBounds, job->radiusBounds);
     parseVector(translationBounds, job->translationBounds);
+
+    if (pt.count("paramsMask"))
+        parseVector(pt.get_child("paramsMask"), job->paramsMask);
 
     if (pt.count("blendingBounds"))
         parseVector(pt.get_child("blendingBounds"), job->blendingBounds);

@@ -99,6 +99,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     patternOptions.add_options()
             ("pattern,p",    po::value<string>(),                              "Pattern wire mesh (.obj|wire), or initial mesh for BoundaryPerturbationInflator")
             ("params",       po::value<string>(),                              "Initial params (overrides those specified in job file).")
+            ("paramsMask",   po::value<string>(),                              "parameters mask")
             ;
 
     po::options_description simulationOptions;
@@ -225,6 +226,43 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
 
     bool gradientValidationMode = args.count("validateGradientComponent");
 
+
+    auto paramsToString = [](vector<Real> params) -> string {
+        std::string result;
+
+        for (unsigned i=0; i<(params.size()-1); i++) {
+            result += std::to_string(params[i]) + string(", ");
+        }
+        result += std::to_string(params[params.size()-1]);
+
+        return result;
+    };
+
+    auto paramsMaskToString = [](vector<bool> mask) -> string {
+        std::string result;
+
+        for (unsigned i=0; i<(mask.size()-1); i++) {
+            if (mask[i])
+                result += "1, ";
+            else
+                result += "0, ";
+        }
+        if (mask[mask.size()-1])
+            result += "1";
+        else
+            result += "0";
+
+        return result;
+    };
+
+    if (!args.count("params")) {
+        args.insert(std::make_pair("params", po::variable_value(paramsToString(job->initialParams), true)));
+    }
+
+    if (!args.count("paramsMask") && !job->paramsMask.empty()) {
+        args.insert(std::make_pair("paramsMask", po::variable_value(paramsMaskToString(job->paramsMask), true)));
+    }
+
     auto infl_ptr = make_inflator<_N>(inflator_name,
                                       filterInflatorOptions(args),
                                       job->parameterConstraints);
@@ -250,16 +288,42 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
         return pvals;
     };
 
+    // Parse parameters
+    auto parseParamsMask = [](string pstring) -> vector<bool> {
+        boost::trim(pstring);
+        vector<string> tokens;
+        boost::split(tokens, pstring, boost::is_any_of("\t "),
+                     boost::token_compress_on);
+        vector<bool> pvals;
+        for (string &s : tokens) {
+            if (stoi(s) == 1)
+                pvals.push_back(true);
+            else
+                pvals.push_back(false);
+        }
+        return pvals;
+    };
+
     // If requested, override the initial parameters set in the job file
     if (args.count("params"))
         job->initialParams = parseParams(args["params"].as<string>());
 
+    if (args.count("paramsMask"))
+        job->paramsMask = parseParamsMask(args["paramsMask"].as<string>());
+
     SField params = job->validatedInitialParams(inflator);
 
-    PO::BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds, job->metaBounds,
+    PO::BoundConstraints * bdcs;
+    if (args.count("paramsMask") > 0)
+        bdcs = new PO::BoundConstraints(inflator, job->paramsMask, job->radiusBounds, job->translationBounds, job->blendingBounds, job->metaBounds,
                               job->custom1Bounds, job->custom2Bounds, job->custom3Bounds, job->custom4Bounds,
                               job->custom5Bounds, job->custom6Bounds, job->custom7Bounds, job->custom8Bounds,
                               job->varLowerBounds, job->varUpperBounds);
+    else
+        bdcs = new PO::BoundConstraints(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds, job->metaBounds,
+                                  job->custom1Bounds, job->custom2Bounds, job->custom3Bounds, job->custom4Bounds,
+                                  job->custom5Bounds, job->custom6Bounds, job->custom7Bounds, job->custom8Bounds,
+                                  job->varLowerBounds, job->varUpperBounds);
 
     using StressTermConfig    = PO::ObjectiveTerms::IFConfigMicroscopicStress<Simulator>;
     using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
@@ -268,7 +332,7 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
     auto ifactory = PO::make_iterate_factory<SO::Iterate<Simulator>,
             StressTermConfig,
             PRegTermConfig,
-            PConstraintConfig>(inflator, bdcs);
+            PConstraintConfig>(inflator, *bdcs);
 
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
@@ -317,10 +381,10 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
         if (args.count("range") == args.count("rangeRelative"))
             throw runtime_error("Either range or rangeRelative must be specified (not both)");
 
-        if (!bdcs.hasLowerBound.at(compIdx) || !bdcs.hasUpperBound.at(compIdx))
+        if (!bdcs->hasLowerBound.at(compIdx) || !bdcs->hasUpperBound.at(compIdx))
             throw runtime_error("Swept parameters must be bounded");
 
-        Real prlb = bdcs.lowerBound[compIdx], prub = bdcs.upperBound[compIdx];
+        Real prlb = bdcs->lowerBound[compIdx], prub = bdcs->upperBound[compIdx];
         Real lb, ub;
 
         if (args.count("range")) {
@@ -380,15 +444,43 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
     if (args.count("nIters")) oconfig.niters = args["nIters"].as<size_t>();
     oconfig.gd_step = args["step"].as<double>();
 
+
+    auto originalToOptimizedParameters = [](std::vector<bool> parametersMask, SField originalParams) -> vector<double> {
+        int originalIdx = 0;
+        vector<double> result;
+
+        for (; originalIdx < originalParams.size(); originalIdx++) {
+            if (!parametersMask[originalIdx]) {
+                result.push_back(originalParams[originalIdx]);
+            }
+        }
+
+        return result;
+    };
+
+    auto optimizedToOriginalParameters = [](std::vector<bool> parametersMask, SField optimizedParameters, SField originalParams) -> vector<double> {
+        vector<double> result(originalParams.size());
+        unsigned originalIdx=0;
+        unsigned inputIdx=0;
+
+        for (; originalIdx < originalParams.size(); originalIdx++) {
+            result[originalIdx] = parametersMask[originalIdx] ? originalParams[originalIdx] : optimizedParameters[inputIdx++];
+        }
+
+        return result;
+    };
+
+    SField x = originalToOptimizedParameters(job->paramsMask, params);
+
     if (solver == "lbfgs") oconfig.lbfgs_memory = 10;
-    optimizers.at(solver)(params, bdcs, *imanager, oconfig, output);
+    optimizers.at(solver)(x, *bdcs, *imanager, oconfig, output);
 
     ////////////////////////////////////////////////////////////////////////////
     // Extract and process the result.
     ////////////////////////////////////////////////////////////////////////////
     std::vector<Real> result(params.domainSize());
-    for (size_t i = 0; i < result.size(); ++i)
-        result[i] = params[i];
+
+    result = optimizedToOriginalParameters(job->paramsMask, x, params);
 
     json output_json;
     if (inflator.isParametric()) {

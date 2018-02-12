@@ -58,11 +58,49 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
                                        const vector<string> &constraints) {
     unique_ptr<InflatorBase> infl;
     if (ci_string("Isosurface2D") == name.c_str()) {
-        infl = Future::make_unique<IsoinflatorWrapper<2>>(
-                extract_required<string>(opts, "pattern"),
-                extract_required<std::string>(opts, "symmetry"),
-                extract_flag(opts, "vertexThickness"),
-                extract_defaulted<size_t>(opts, "inflation_graph_radius", 2));
+        string paramsMask_string = extract_defaulted<string>(opts, "paramsMask", "");
+
+        if (paramsMask_string.empty()) {
+            infl = Future::make_unique<IsoinflatorWrapper<2>>(
+                    extract_required<string>(opts, "pattern"),
+                    extract_required<std::string>(opts, "symmetry"),
+                    extract_flag(opts, "vertexThickness"),
+                    extract_defaulted<size_t>(opts, "inflation_graph_radius", 2));
+        }
+        else {
+            string params_string = extract_required<string>(opts, "params");
+
+            boost::trim(params_string);
+            vector<string> tokens;
+            boost::split(tokens, params_string, boost::is_any_of("\t "),
+                         boost::token_compress_on);
+            vector<Real> params;
+            for (string &s : tokens) params.push_back(std::stod(s));
+
+            boost::trim(paramsMask_string);
+            vector<string> mask_tokens;
+            boost::split(mask_tokens, paramsMask_string, boost::is_any_of("\t "),
+                         boost::token_compress_on);
+            vector<bool> paramsMask;
+            for (string &s : mask_tokens){
+                if (std::stoi(s) == 1) {
+                    paramsMask.push_back(true);
+                }
+                else {
+                    paramsMask.push_back(false);
+                }
+            }
+
+            infl = Future::make_unique<IsoinflatorWrapper<2>>(
+                    extract_required<string>(opts, "pattern"),
+                    extract_required<std::string>(opts, "symmetry"),
+                    extract_flag(opts, "vertexThickness"),
+                    paramsMask,
+                    params,
+                    extract_defaulted<size_t>(opts, "inflation_graph_radius", 2));
+        }
+
+
     }
     else if (ci_string("Isosurface3D") == name.c_str()) {
         infl = Future::make_unique<IsoinflatorWrapper<3>>(
@@ -168,6 +206,7 @@ po_vm filterInflatorOptions(const po_vm &opts) {
         "inflation_dump_path",
         "inflation_graph_radius",
         "params",
+        "paramsMask",
         "metaParams",
     };
     po_vm filtered;

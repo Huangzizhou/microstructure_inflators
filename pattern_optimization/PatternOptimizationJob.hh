@@ -41,7 +41,15 @@ class JobBase {
 public:
     virtual ~JobBase() { }
 
-    size_t numParams() const { return initialParams.size(); }
+    size_t numParams() const {
+        if (paramsMask.empty()) {
+            return initialParams.size();
+        }
+        else {
+            assert(paramsMask.size() == initialParams.size());
+            return std::count(paramsMask.begin(), paramsMask.begin()+paramsMask.size(), false);
+        }
+    }
 
     // Verifies that the correct number of parameters were specified in the job
     // (must match inflator). For non-parametric inflators (like the
@@ -100,6 +108,7 @@ public:
 
 
     std::vector<Real> initialParams, radiusBounds, translationBounds;
+    std::vector<bool> paramsMask;
     std::vector<std::string> metaParams;
     std::vector<Real> blendingBounds = { 10.0, 100.0 };
     std::vector<Real> metaBounds = { 0.01, 0.99 };

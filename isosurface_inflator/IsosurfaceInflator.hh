@@ -36,6 +36,10 @@ public:
                        const std::string &wireMeshPath,
                        size_t inflationNeighborhoodEdgeDist = 2);
 
+    IsosurfaceInflator(const std::string &type, bool vertexThickness, const std::string &wireMeshPath,
+                       const std::vector<bool> &paramsMask, const std::vector<double> &params,
+                       size_t inflationNeighborhoodEdgeDist = 2);
+
     void inflate(const std::vector<Real> &params);
     std::vector<Real> defaultParameters() const;
 

@@ -24,7 +24,7 @@
 class IsosurfaceInflator::Impl {
 public:
     virtual std::vector<Real>  defaultParameters() const = 0;
-    virtual size_t                numParams() const = 0;
+    virtual size_t            numOptimizedParams() const = 0;
     virtual bool   isThicknessParam(size_t p) const = 0;
     virtual bool    isPositionParam(size_t p) const = 0;
     virtual bool    isBlendingParam(size_t p) const = 0;
@@ -179,6 +179,12 @@ public:
         m_nonPeriodicity = std::is_same<PatternSymmetry, Symmetry::NonPeriodic<typename PatternSymmetry::Tolerance>>::value;
     }
 
+    IsosurfaceInflatorImpl(const std::string &wireMeshPath, std::unique_ptr<MesherBase> &&m, const std::vector<bool> &paramsMask, const std::vector<double> &params, size_t inflationNeighborhoodEdgeDist)
+            : wmesh(wireMeshPath, paramsMask, params, inflationNeighborhoodEdgeDist), pattern(wmesh), mesher(std::move(m)) {
+
+        m_nonPeriodicity = std::is_same<PatternSymmetry, Symmetry::NonPeriodic<typename PatternSymmetry::Tolerance>>::value;
+    }
+
     virtual void meshPattern(const std::vector<Real> &params) override {
 #if 0
         std::cerr << "Meshing parameters:";
@@ -289,7 +295,7 @@ public:
     // parameter (autodiff-based).
     virtual std::vector<std::vector<Real>> signedDistanceParamPartials(const std::vector<Point> &evalPoints) const override {
         const size_t nEvals = evalPoints.size(),
-                    nParams = pattern.numParams();
+                    nParams = pattern.numOptimizedParams();
         std::vector<std::vector<Real>> partials(nParams, std::vector<Real>(nEvals));
 #if !SKIP_SVEL
         // Scalar supporting derivatives with respect to each pattern parameter
@@ -354,7 +360,7 @@ public:
     virtual ~IsosurfaceInflatorImpl() { }
 
     virtual std::vector<Real> defaultParameters() const override { return wmesh.defaultParameters(); }
-    virtual size_t               numParams() const override { return wmesh.numParams(); }
+    virtual size_t           numOptimizedParams() const override { return wmesh.numFilteredInParams(); }
     virtual bool  isThicknessParam(size_t p) const override { return wmesh.isThicknessParam(p); }
     virtual bool   isPositionParam(size_t p) const override { return wmesh.isPositionParam(p); }
     virtual bool   isBlendingParam(size_t p) const override { return wmesh.isBlendingParam(p); }

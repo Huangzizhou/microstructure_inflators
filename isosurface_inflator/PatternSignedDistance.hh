@@ -47,11 +47,8 @@ public:
     template<typename Real2, bool DebugDerivatives = false>
     Real2 signedDistance(const Point3<Real2> &p) const { return m_signedDistanceImpl(p); }
 
-    size_t numParams() const { return m_wireMesh.numParams(); }
-    size_t numThicknessParams() const { return m_wireMesh.numThicknessParams(); }
-    size_t numPositionParams() const { return m_wireMesh.numPositionParams(); }
-    size_t numBlendingParams() const { return m_wireMesh.numBlendingParams(); }
-
+    size_t numOptimizedParams() const { return m_wireMesh.numFilteredInParams(); }
+    
     // Accelerated version of "signedDistance(p) <= 0"
     virtual bool isInside(const Point3D &p) const override {
         return m_isInsideImpl(p);

@@ -29,6 +29,7 @@
 #include <Utilities/apply.hh>
 #include "InflatorTypes.hh"
 #include "Symmetry.hh"
+#include "AutomaticDifferentiation.hh"
 
 struct TransformedVertex {
     using Point = Point3<double>;
@@ -61,7 +62,7 @@ enum class ThicknessType { Vertex, Edge };
 // components follow contiguously.
 // Note that base vertices can share variables (e.g., for patterns with only
 // triply periodic symmetry).
-struct BaseVtxVarOffsets { size_t position, thickness, blending; };
+struct BaseVtxVarOffsets { size_t position, thickness, blending; bool ignored; };
 
 // Parts of WireMesh's interface that can be implemented without the
 // PatternSymmetry template parameter (or nan be made virtual)
@@ -106,6 +107,12 @@ public:
     size_t numBlendingParameters() const { return m_numIndepBaseVertices; }
 
     size_t numParams() const { return numPositionParams() + numThicknessParams() + numBlendingParameters(); }
+    size_t numFilteredInParams() const {
+        if (!m_useFilterMask)
+            return numParams();
+
+        return std::count(m_parametersMask.begin(), m_parametersMask.begin()+numParams(), false);
+    }
 
     virtual std::vector<double> defaultPositionParams() const = 0;
 
@@ -129,10 +136,35 @@ public:
     }
 
     // Position parameters come first, followed by thickness and blending
-    void validateParamIdx(size_t p) const { if (p >= numParams()) throw std::runtime_error("Invalid parameter index"); }
-    bool  isPositionParam(size_t p) const { validateParamIdx(p); return p < numPositionParams(); }
-    bool isThicknessParam(size_t p) const { validateParamIdx(p); return (p >= numPositionParams()) && (p < numPositionParams() + numThicknessParams()); }
-    bool  isBlendingParam(size_t p) const { validateParamIdx(p); return p >= numPositionParams() + numThicknessParams(); };
+    void validateParamIdx(size_t p) const {
+        if (p >= numParams())
+            throw std::runtime_error("Invalid parameter index"); }
+
+    bool  isPositionParam(size_t p) const {
+        if (m_useFilterMask) {
+            p = m_filteredParamsToOriginal[p];
+        }
+
+        validateParamIdx(p);
+
+        return p < numPositionParams();
+    }
+    bool isThicknessParam(size_t p) const {
+        if (m_useFilterMask) {
+            p = m_filteredParamsToOriginal[p];
+        }
+
+        validateParamIdx(p);
+        return (p >= numPositionParams()) && (p < numPositionParams() + numThicknessParams());
+    }
+    bool  isBlendingParam(size_t p) const {
+        if (m_useFilterMask) {
+            p = m_filteredParamsToOriginal[p];
+        }
+
+        validateParamIdx(p);
+        return p >= numPositionParams() + numThicknessParams();
+    };
 
     virtual void inflationGraph(const std::vector<double> &params,
                                 std::vector<Point3<double>> &points,
@@ -209,6 +241,11 @@ protected:
     ThicknessType m_thicknessType = ThicknessType::Vertex;
 
     virtual double m_tolerance() const = 0;
+
+    std::vector<bool> m_parametersMask;
+    std::vector<Real> m_originalParameters;
+    std::vector<int> m_filteredParamsToOriginal;
+    bool m_useFilterMask = false;
 };
 
 template<class Symmetry_ = Symmetry::TriplyPeriodic<>>
@@ -216,8 +253,29 @@ class WireMesh : public WireMeshBase {
 public:
     using PatternSymmetry = Symmetry_;
 
+    std::vector<int> generateFilterMap(const std::vector<bool> &parametersMask) {
+        int filteredIdx = 0;
+        int originalIdx = 0;
+        std::vector<int> result;
+
+        for (; originalIdx < parametersMask.size(); originalIdx++) {
+            if (!parametersMask[originalIdx]) {
+                result.push_back(originalIdx);
+            }
+        }
+
+        return result;
+    }
+
     WireMesh(const std::string &wirePath, size_t inflationNeighborhoodEdgeDist = 2)
         : m_inflationNeighborhoodEdgeDist(inflationNeighborhoodEdgeDist) { load(wirePath); }
+    WireMesh(const std::string &wirePath, const std::vector<bool> &parametersMask, const std::vector<double> originalParameters, size_t inflationNeighborhoodEdgeDist = 2)
+            : m_inflationNeighborhoodEdgeDist(inflationNeighborhoodEdgeDist) {
+        m_parametersMask = parametersMask;
+        m_originalParameters = originalParameters;
+        m_filteredParamsToOriginal = generateFilterMap(parametersMask);
+        m_useFilterMask = true; load(wirePath);
+    }
     WireMesh(const std::vector<MeshIO::IOVertex > &inVertices,
              const std::vector<MeshIO::IOElement> &inElements,
              size_t inflationNeighborhoodEdgeDist = 2)
@@ -694,8 +752,31 @@ private:
                         std::vector<Edge> &edges,
                         std::vector<Real> &thicknesses,
                         std::vector<Real> &blendingParams) const {
-        if (params.size() != numParams()) {
-            std::cout << "Params size: " << params.size() << std::endl;
+
+        // Transform input parameters into original size
+        std::vector<Real> inflationParams(m_originalParameters.size());
+        std::vector<Real> originalParams(m_originalParameters.size());
+
+        if (isAutodiffType<Real>())
+            for (unsigned i = 0; i < originalParams.size(); i++)
+                originalParams[i] = params[0]/params[0] * m_originalParameters[i]; //TODO: solve this without a trick
+        else
+            for (unsigned i = 0; i < originalParams.size(); i++)
+                originalParams[i] = m_originalParameters[i];
+
+        if (m_useFilterMask) {
+            unsigned originalIdx=0;
+            unsigned inputIdx=0;
+            for (; originalIdx < originalParams.size(); originalIdx++) {
+                inflationParams[originalIdx] = m_parametersMask[originalIdx] ? originalParams[originalIdx] : params[inputIdx++];
+            }
+        }
+        else {
+            inflationParams = params;
+        }
+
+        if (inflationParams.size() != numParams()) {
+            std::cout << "Params size: " << inflationParams.size() << std::endl;
             std::cout << "Expected size: " << numParams() << std::endl;
             throw std::runtime_error("Invalid number of params.");
         }
@@ -708,7 +789,7 @@ private:
         for (size_t i = 0; i < m_baseVertices.size(); ++i) {
             const auto &pos = m_baseVertexPositioners[i];
             size_t offset = m_baseVertexVarOffsets[i].position;
-            baseGraphPos.push_back(pos.template getPosition<Real>(&params[offset]));
+            baseGraphPos.push_back(pos.template getPosition<Real>(&inflationParams[offset]));
         }
 
         points.clear(), points.reserve(graphVertices.size());
@@ -725,8 +806,8 @@ private:
 
         for (const TransformedVertex &iv : graphVertices) {
             const auto &vo = m_baseVertexVarOffsets.at(iv.origVertex);
-            thicknesses   .push_back(params.at(vo.thickness));
-            blendingParams.push_back(params.at(vo.blending));
+            thicknesses   .push_back(inflationParams.at(vo.thickness));
+            blendingParams.push_back(inflationParams.at(vo.blending));
         }
     }
 
