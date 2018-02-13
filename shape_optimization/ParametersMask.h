@@ -91,7 +91,7 @@ namespace ParametersMask {
         return filteringRegions;
     }
 
-    vector<int> generateParametersMask(string patternPath, string paramsString, string bcondsPath) {
+    vector<bool> generateParametersMask(string patternPath, string paramsString, string bcondsPath) {
         WireMesh<Symmetry::NonPeriodic<DEFAULT_TOL>> wireMesh(patternPath);
 
         // Parse parameters
@@ -125,9 +125,9 @@ namespace ParametersMask {
             fixedParameters.insert(fixedParameters.end(), parameterIndices.begin(), parameterIndices.end());
         }
 
-        vector<int> solution(params.size(), 0);
+        vector<bool> solution(params.size(), false);
         for (unsigned i = 0; i < fixedParameters.size(); i++) {
-            solution[fixedParameters[i]] = 1;
+            solution[fixedParameters[i]] = true;
         }
 
         return solution;

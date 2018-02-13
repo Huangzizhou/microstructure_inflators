@@ -76,11 +76,14 @@ po::variables_map parseCmdLine(int argc, const char *argv[]) {
 void execute(po::variables_map args) {
     cout << "Executing..." << endl;
 
-    vector<int> solution = ParametersMask::generateParametersMask(args["pattern"].as<string>(), args["params"].as<string>(), args["boundaryConditions"].as<string>());
+    vector<bool> solution = ParametersMask::generateParametersMask(args["pattern"].as<string>(), args["params"].as<string>(), args["boundaryConditions"].as<string>());
 
     // print solution
     for (unsigned i = 0; i < solution.size(); i++) {
-        cout << solution[i] << " ";
+        if (solution[i])
+            cout << 1 << " ";
+        else
+            cout << 0 << " ";
     }
     cout << endl;
 }
