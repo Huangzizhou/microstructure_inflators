@@ -109,6 +109,8 @@ struct BoundConstraints {
 
         std::vector<int> paramMap = generateFilterMap(paramsMask);
 
+        assert(nparams == paramMap.size());
+
         // All params get bounds by default.
         hasLowerBound.assign(nparams, true);
         hasUpperBound.assign(nparams, true);
@@ -118,7 +120,7 @@ struct BoundConstraints {
         // Explicitly specified bounds override default type-based bounds.
         // Set lower bounds
         for (size_t p = 0; p < nparams; ++p) {
-            if (lb.count(p)) { lowerBound.at(p) = lb.at(paramMap[p]); continue; }
+            if (lb.count(paramMap[p])) { lowerBound.at(p) = lb.at(paramMap[p]); continue; }
             switch (inflator.parameterType(p)) {
                 case ParameterType::Thickness: lowerBound.at(p) =      radiusBounds.at(0); break;
                 case ParameterType::Offset:    lowerBound.at(p) = translationBounds.at(0); break;
@@ -137,7 +139,7 @@ struct BoundConstraints {
         }
 
         for (size_t p = 0; p < nparams; ++p) {
-            if (ub.count(p)) { upperBound.at(p) = ub.at(paramMap[p]); continue; }
+            if (ub.count(paramMap[p])) { upperBound.at(p) = ub.at(paramMap[p]); continue; }
             switch (inflator.parameterType(p)) {
                 case ParameterType::Thickness: upperBound.at(p) =      radiusBounds.at(1); break;
                 case ParameterType::Offset:    upperBound.at(p) = translationBounds.at(1); break;
