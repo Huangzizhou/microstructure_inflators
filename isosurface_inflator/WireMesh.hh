@@ -738,6 +738,23 @@ public:
         return C;
     }
 
+    // for a given vertex index, return parameters related to it
+    std::vector<int> pointToParametersIndices(Point point) {
+        std::vector<int> result;
+        int baseIdx = m_findBaseVertex(point);
+        int indepIdx = m_indepVtxForBaseVtx[baseIdx];
+        int dofs = m_baseVertexPositioners[indepIdx].numDoFs();
+
+        for (unsigned i=0; i<dofs; i++)
+            result.push_back(m_baseVertexVarOffsets[baseIdx].position+i);
+
+        result.push_back(m_baseVertexVarOffsets[baseIdx].thickness);
+        result.push_back(m_baseVertexVarOffsets[baseIdx].blending);
+
+        return result;
+    }
+
+
 private:
     std::vector<decltype(PatternSymmetry::nodePositioner(Point()))> m_baseVertexPositioners;
 
