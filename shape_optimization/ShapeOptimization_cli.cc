@@ -59,6 +59,7 @@
 #include <PatternOptimizationConfig.hh>
 #include <objective_terms/ProximityRegularization.hh>
 #include "StressObjectiveTerm.hh"
+#include "ParametersMask.h"
 
 #include <constraints/Printability.hh>
 
@@ -238,6 +239,12 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
         return result;
     };
 
+    if (!args.count("params")) {
+        args.insert(std::make_pair("params", po::variable_value(paramsToString(job->initialParams), true)));
+    }
+
+
+    // Deal with parameters mask
     auto paramsMaskToString = [](vector<bool> mask) -> string {
         std::string result;
 
@@ -255,13 +262,35 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
         return result;
     };
 
-    if (!args.count("params")) {
-        args.insert(std::make_pair("params", po::variable_value(paramsToString(job->initialParams), true)));
+    auto parseParamsMask = [](string pstring) -> vector<bool> {
+        boost::trim(pstring);
+        vector<string> tokens;
+        boost::split(tokens, pstring, boost::is_any_of("\t "),
+                     boost::token_compress_on);
+        vector<bool> pvals;
+        for (string &s : tokens) {
+            if (stoi(s) == 1)
+                pvals.push_back(true);
+            else
+                pvals.push_back(false);
+        }
+        return pvals;
+    };
+
+    if (args.count("paramsMask")) {
+        job->paramsMask = parseParamsMask(args["paramsMask"].as<string>());
+    }
+    else {
+        if (!job->paramsMask.empty()) {
+            args.insert(std::make_pair("paramsMask", po::variable_value(paramsMaskToString(job->paramsMask), true)));
+        }
+        else {
+            std::cout << "Creating parameters' mask based on boundary conditions ..." << std::endl;
+            job->paramsMask = ParametersMask::generateParametersMask(args["pattern"].as<string>(), args["params"].as<string>(), args["boundaryConditions"].as<string>());
+            args.insert(std::make_pair("paramsMask", po::variable_value(paramsMaskToString(job->paramsMask), true)));
+        }
     }
 
-    if (!args.count("paramsMask") && !job->paramsMask.empty()) {
-        args.insert(std::make_pair("paramsMask", po::variable_value(paramsMaskToString(job->paramsMask), true)));
-    }
 
     auto infl_ptr = make_inflator<_N>(inflator_name,
                                       filterInflatorOptions(args),
@@ -288,42 +317,17 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
         return pvals;
     };
 
-    // Parse parameters
-    auto parseParamsMask = [](string pstring) -> vector<bool> {
-        boost::trim(pstring);
-        vector<string> tokens;
-        boost::split(tokens, pstring, boost::is_any_of("\t "),
-                     boost::token_compress_on);
-        vector<bool> pvals;
-        for (string &s : tokens) {
-            if (stoi(s) == 1)
-                pvals.push_back(true);
-            else
-                pvals.push_back(false);
-        }
-        return pvals;
-    };
-
     // If requested, override the initial parameters set in the job file
     if (args.count("params"))
         job->initialParams = parseParams(args["params"].as<string>());
 
-    if (args.count("paramsMask"))
-        job->paramsMask = parseParamsMask(args["paramsMask"].as<string>());
-
     SField params = job->validatedInitialParams(inflator);
 
     PO::BoundConstraints * bdcs;
-    if (args.count("paramsMask") > 0)
-        bdcs = new PO::BoundConstraints(inflator, job->paramsMask, job->radiusBounds, job->translationBounds, job->blendingBounds, job->metaBounds,
+    bdcs = new PO::BoundConstraints(inflator, job->paramsMask, job->radiusBounds, job->translationBounds, job->blendingBounds, job->metaBounds,
                               job->custom1Bounds, job->custom2Bounds, job->custom3Bounds, job->custom4Bounds,
                               job->custom5Bounds, job->custom6Bounds, job->custom7Bounds, job->custom8Bounds,
                               job->varLowerBounds, job->varUpperBounds);
-    else
-        bdcs = new PO::BoundConstraints(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds, job->metaBounds,
-                                  job->custom1Bounds, job->custom2Bounds, job->custom3Bounds, job->custom4Bounds,
-                                  job->custom5Bounds, job->custom6Bounds, job->custom7Bounds, job->custom8Bounds,
-                                  job->varLowerBounds, job->varUpperBounds);
 
     using StressTermConfig    = PO::ObjectiveTerms::IFConfigMicroscopicStress<Simulator>;
     using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
