@@ -186,8 +186,8 @@ struct IntegratedMicroscopicStressObjective {
         VectorField<Real, N> rho;
         rho = nonPeriodicCellOps.solveAdjointCellProblem(nonPeriodicCellOps.sim().perElementStressFieldLoad(tau));
 
-        MSHFieldWriter writer("rho_validation", mesh, false);
-        writer.addField("rho", rho);
+        //MSHFieldWriter writer("rho_validation", mesh, false);
+        //writer.addField("rho", rho);
 
         // get value for displacements
         const VectorField<Real, N> &u = nonPeriodicCellOps.displacement();
