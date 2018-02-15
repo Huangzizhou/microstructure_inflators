@@ -15,8 +15,22 @@ using WireMeshBasePtr = std::shared_ptr<WireMeshBase>;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define TRY_SYMMETRY(s, x, p) if ((x) == #s) { return std::make_shared<WireMesh<Symmetry::s<>>>((p)); }
-#define TRY_KEY_VAL(s, a, x, p) if ((x) == #a) { return std::make_shared<WireMesh<Symmetry::s<>>>((p)); }
+std::string lowercase(std::string data) {
+    std::transform(data.begin(), data.end(), data.begin(), ::tolower);
+    return data;
+}
+
+#define TRY_SYMMETRY(s, x, p)                                  \
+    if (lowercase(x) == lowercase(#s))                         \
+    {                                                          \
+        return std::make_shared<WireMesh<Symmetry::s<>>>((p)); \
+    }
+
+#define TRY_KEY_VAL(s, a, x, p)                                \
+    if (lowercase(x) == lowercase(#a))                         \
+    {                                                          \
+        return std::make_shared<WireMesh<Symmetry::s<>>>((p)); \
+    }
 
 WireMeshBasePtr load_wire_mesh(const std::string &sym, const std::string &path) {
     TRY_SYMMETRY(Square, sym, path);
