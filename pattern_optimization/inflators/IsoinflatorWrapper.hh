@@ -74,6 +74,9 @@ public:
     virtual void setOrthoBaseCell(bool ortho) override;
     virtual BaseCellType baseCellType() const override;
 
+    void disableCheapPostprocess();
+    void  enableCheapPostprocess();
+
     // Out-of-line destructor needed due to incompletely-typed members.
     virtual ~IsoinflatorWrapper();
 private:
