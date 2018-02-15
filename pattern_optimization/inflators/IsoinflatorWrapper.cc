@@ -139,6 +139,12 @@ IsoinflatorWrapper<N>::parameterType(size_t p) const
 }
 
 template<size_t N>
+std::vector<Real>
+IsoinflatorWrapper<N>::defaultParameters() const {
+    return m_inflator->defaultParameters();
+}
+
+template<size_t N>
 bool IsoinflatorWrapper<N>::isPrintable(const std::vector<Real> &params) {
     if (N == 2) return true; // 2D patterns are always printable.
     return m_inflator->isPrintable(params); }

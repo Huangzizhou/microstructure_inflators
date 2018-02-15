@@ -82,6 +82,7 @@ public:
     virtual bool isParametric() const = 0;
     virtual size_t numParameters() const = 0;
     virtual ParameterType parameterType(size_t p) const = 0;
+    virtual std::vector<Real> defaultParameters() const { throw std::runtime_error("This inflator doesn't implement default parameter query."); }
     // James' inflator's printability check modifies state :(
     virtual bool isPrintable(const std::vector<Real> &params) = 0;
 

@@ -130,6 +130,9 @@ protected:
     BaseCellType m_cellType;
 };
 
+template<class _Sim>
+std::unique_ptr<BaseCellOperations<_Sim>> constructBaseCellOps(BaseCellType type, _Sim &sim) { return BaseCellOperations<_Sim>::construct(type, sim); }
+
 // Forward declare _constructBaseCellOps helper function so it can be friended.
 template<class _Sim>
 std::unique_ptr<BaseCellOperations<_Sim>> _constructBaseCellOps(BaseCellType type, _Sim &sim);
