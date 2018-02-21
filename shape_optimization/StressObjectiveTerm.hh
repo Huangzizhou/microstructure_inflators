@@ -75,6 +75,9 @@ namespace PatternOptimization {
                     xferBdryVel(v.index()) = bdryVel(bv.index());
                 }
                 writer.addField("Stress Steepest Descent BVel", xferBdryVel, DomainType::PER_NODE);
+
+                auto dJ_field = m_nonPeriodicCellOps.descent_from_diff_vol(m_diff_vol);
+                writer.addField("m_diff_vol", dJ_field, DomainType::PER_NODE);
             }
 
             virtual void writeDescription(std::ostream &os, const std::string &name) const override {
