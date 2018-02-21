@@ -56,6 +56,7 @@ public:
 
         // Set all dirichlet boundary conditions to 0 (zero).
         m_sim.removeDirichletConditions();
+        m_sim.removeNeumanConditions(); // TODO: necessary?!
         vector<CondPtr<N> > new_conds;
         for (unsigned i = 0; i < m_bconds.size(); i++) {
             CondPtr<N> cond = m_bconds[i];
