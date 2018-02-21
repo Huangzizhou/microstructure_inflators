@@ -19,20 +19,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include <MeshIO.hh>
 #include <LinearElasticity.hh>
-#include <Materials.hh>
-#include <GlobalBenchmark.hh>
-#include <Future.hh>
 
-#include <vector>
-#include <queue>
-#include <iostream>
-#include <iomanip>
-#include <memory>
-#include <cmath>
 #include <set>
-#include <stdexcept>
-#include <string>
-#include <functional>
 
 #include <json.hpp>
 
@@ -43,7 +31,6 @@
 #include <Inflator.hh>
 #include <MakeInflator.hh>
 #include <PatternOptimizationJob.hh>
-#include <PatternOptimizationConfig.hh>
 
 #include <BoundConstraints.hh>
 #include <IterateFactory.hh>
@@ -53,17 +40,13 @@
 #include <optimizers/gradient_descent.hh>
 #include <optimizers/nlopt.hh>
 
-#include <ShapeOptimizationIterate.hh>
+#include "ShapeOptimizationIterate.hh"
 
-#include <OptimizerConfig.hh>
-#include <PatternOptimizationConfig.hh>
 #include <objective_terms/ProximityRegularization.hh>
 #include "StressObjectiveTerm.hh"
 #include "ParametersMask.h"
 
 #include <constraints/Printability.hh>
-
-#include <Parallelism.hh>
 
 namespace po = boost::program_options;
 namespace PO = PatternOptimization;
