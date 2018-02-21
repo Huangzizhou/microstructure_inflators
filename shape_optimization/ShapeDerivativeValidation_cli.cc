@@ -37,6 +37,9 @@
 namespace po = boost::program_options;
 using namespace std;
 
+template<size_t _N> using HMG = LinearElasticity::HomogenousMaterialGetter<Materials::Constant>::template Getter<_N>;
+template<size_t _N> using ETensor = ElasticityTensor<Real, _N>;
+
 void usage(int exitVal, const po::options_description &visible_opts) {
     cout << "Usage: ShapeDerivativeValidation_cli [options] mesh.msh" << endl;
     cout << visible_opts << endl;
@@ -68,6 +71,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description simulationOptions;
     simulationOptions.add_options()
             ("boundaryConditions,b", po::value<string>(),                    "boundary conditions")
+            ("zeroPerturbationAreas,z", po::value<string>(),                 "areas where there is no perturbation")
             ;
 
     po::options_description generalOptions;
@@ -76,7 +80,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
             ("output,o",     po::value<string>(),                    "Output the Lagrangian derivatives computed by forward difference and the discrete shape derivative.")
             ("fullDegreeFieldOutput,D",                              "Output full-degree nodal fields (don't do piecewise linear subsample)")
             ("perturbationAmplitude,a", po::value<double>()->default_value(0.001), "Amplitude of boundary perturbation")
-            ("perturbationFrequency,f", po::value<double>()->default_value(1.0),  "Frequency of boundary perturbation")
+            ("perturbationFrequency,f", po::value<double>()->default_value(0.0),  "Frequency of boundary perturbation")
             ;
 
     po::options_description visibleOptions;
@@ -120,8 +124,19 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     return vm;
 }
 
-template<size_t _N>
-using HMG = LinearElasticity::HomogenousMaterialGetter<Materials::Constant>::template Getter<_N>;
+template<size_t _N, class Simulator, class VField>
+PthRootObjective<IntegratedMicroscopicStressObjective<_N, MicroscopicStressIntegrandLp<Simulator>, Simulator>> buildStressObjective(po::variables_map &args, const Simulator &sim, VField u, const ETensor<_N> CBase) {
+    PthRootObjective<IntegratedMicroscopicStressObjective<_N, MicroscopicStressIntegrandLp<Simulator>, Simulator>> objective;
+
+    objective.integrand.p = args["pnorm"].as<double>();
+    objective.p = args.count("usePthRoot") ? 2.0 * args["pnorm"].as<double>() : 1.0;
+
+    const bool major_symmetry = CBase.MajorSymmetry;
+
+    MicroscopicStress<_N, Simulator> microStress = MicroscopicFrobeniusStress<CBase.Dim, major_symmetry, Simulator>(CBase, sim.averageStressField(u));
+    objective.setPointwiseStress(sim.mesh(), microStress);
+    return objective;
+};
 
 template<size_t _N, size_t _FEMDegree>
 void execute(const po::variables_map &args,
@@ -135,12 +150,18 @@ void execute(const po::variables_map &args,
     using Vector    = VectorND<_N>;
 
     string bcondsPath = args["boundaryConditions"].as<string>();
+    string zeroPerturbationPath = args["zeroPerturbationAreas"].as<string>();
+    bool no_rigid_motion;
+    Simulator tmp(elements, vertices);
+    vector<CondPtr<_N> > zeroPerturbationConds = readBoundaryConditions<_N>(zeroPerturbationPath, tmp.mesh().boundingBox(), no_rigid_motion);
 
     // Original mesh and simulator
-    BoundaryPerturbationInflator<_N> bpi(vertices, elements);
-    vector<Real> perturbParams(bpi.numParameters());
+    BoundaryPerturbationInflator<_N> bpi(vertices, elements, zeroPerturbationConds);
+    vector<Real> perturbParams(bpi.numParameters(), 0.0);
     bpi.inflate(perturbParams);
     Simulator sim(bpi.elements(), bpi.vertices());
+
+    vector<CondPtr<_N> > bconds = readBoundaryConditions<_N>(bcondsPath, sim.mesh().boundingBox(), no_rigid_motion);
 
     // Perturb mesh
     {
@@ -175,9 +196,6 @@ void execute(const po::variables_map &args,
     // Set up simulators' (base) material
     Materials::Constant<_N> &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
-
-    bool no_rigid_motion;
-    vector<CondPtr<_N> > bconds = readBoundaryConditions<_N>(bcondsPath, sim.mesh().boundingBox(), no_rigid_motion);
 
     NonPeriodicCellOperations<Simulator> cell_operations(sim, bconds);
     NonPeriodicCellOperations<Simulator> perturbed_cell_operations(perturbed_sim, bconds);
@@ -223,6 +241,17 @@ void execute(const po::variables_map &args,
     writer.addField("forward difference delta strain u",  forwardDiffStrain);
     writer.addField("centered difference delta strain u", centeredDiffStrain);
 
+    auto origStress = sim.averageStressField(u);
+    auto forwardDiffStress   = perturbed_sim.averageStressField(perturbed_u);
+    auto centeredDiffStress  = forwardDiffStress;
+    forwardDiffStress  -= origStress;
+    centeredDiffStress -= neg_perturbed_sim.averageStressField(neg_perturbed_u);
+    centeredDiffStress *= 0.5;
+
+    writer.addField("stress u", origStress);
+    writer.addField("forward difference delta stress u",  forwardDiffStress);
+    writer.addField("centered difference delta stress u", centeredDiffStress);
+
     MSHFieldWriter perturbed_writer(output + ".perturbed.msh", perturbed_sim.mesh(), linearSubsampleFields);
     perturbed_writer.addField("u", perturbed_u);
     perturbed_writer.addField("strain u", perturbed_sim.averageStrainField(perturbed_u));
@@ -266,9 +295,13 @@ void execute(const po::variables_map &args,
     cout << "Adjoint discrete shape derivative Stress (volume):\t" << dJ[interpolator.interpolate(sim, bdry_svel)] << endl;
     OneForm<Real, _N> dJbdry = interpolator.adjoint(sim, dJ);
     cout << "Adjoint discrete shape derivative Stress (boundary):\t" << dJbdry[bdry_svel] << endl;
+    cout << "Adjoint discrete shape derivative Stress (delta p):\t" << dJ[delta_p] << endl;
 
-    //VField dJ_field = SDConversions::descent_from_diff_vol(dJ, sim);
-    //writer.addField("dJ field", dJ_field);
+    VField dJ_field = SDConversions::descent_from_diff_vol(dJ, sim);
+    writer.addField("dJ field", dJ_field);
+    VField dJbdry_field = SDConversions::descent_from_diff_bdry(dJbdry, sim);
+    writer.addField("dJ bdry field", dJ_field);
+    writer.addField("delta p", delta_p);
 }
 
 int main(int argc, const char *argv[])
