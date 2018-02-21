@@ -27,7 +27,7 @@
 #include <IterateFactory.hh>
 #include <IterateManager.hh>
 
-#include <ShapeOptimizationIterate.hh>
+#include "ShapeOptimizationIterate.hh"
 
 #include "StressObjectiveTerm.hh"
 #include "ParametersMask.h"
@@ -256,6 +256,17 @@ void execute(po::variables_map &args)
     cell_operations.m_solveCellProblems(sim, bconds);
     VField u = cell_operations.displacement();
 
+    // gets material and original objective function
+    const ETensor CBase = mat.getTensor();
+    auto origStressObjective = buildStressObjective(args, sim, u, CBase);
+
+    MSHFieldWriter comp_writer("isosurfaceValidation.msh", sim.mesh(), true);
+    comp_writer.addField("Pointwise Stress", origStressObjective.microStress.sqrtStressMeasure());
+
+    auto diff_vol = origStressObjective.adjointDeltaJ(cell_operations);
+    auto dJ_field = cell_operations.descent_from_diff_vol(diff_vol);
+    comp_writer.addField("diff_vol", dJ_field, DomainType::PER_NODE);
+
     // Reads perturbations
     vector<Real> perturbations = parseParams(args["perturbations"].as<string>());
 
@@ -294,10 +305,6 @@ void execute(po::variables_map &args)
         for (auto bv : sim.mesh().boundaryVertices())
             bdry_svel(bv.index()) = vvels[p](bv.volumeVertex().index());
 
-        // gets material and original objective function
-        const ETensor CBase = mat.getTensor();
-        auto origStressObjective = buildStressObjective(args, sim, u, CBase);
-
         ShapeVelocityInterpolator interpolator(sim);
         OneForm<Real, _N> dJ = origStressObjective.adjointDeltaJ(cell_operations);
         cout << "Adjoint discrete shape derivative Stress (volume):\t"
@@ -305,6 +312,10 @@ void execute(po::variables_map &args)
         OneForm<Real, _N> dJbdry = interpolator.adjoint(sim, dJ);
         Real dJv = dJbdry[bdry_svel];
         cout << "Adjoint discrete shape derivative Stress (boundary):\t" << dJv << endl;
+
+        //VField dJ_field = SDConversions::descent_from_diff_vol(dJ, sim);
+        //MSHFieldWriter dJ_writer("isosurface.dJ.msh", sim.mesh(), true);
+        //dJ_writer.addField("dJ field", dJ_field);
 
         if (args.count("outputTable") > 0)
             (*ofs) << setw(20) << dJv;
