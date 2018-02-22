@@ -229,9 +229,12 @@ void execute(po::variables_map &args)
     args.insert(std::make_pair("params", po::variable_value(paramsToString(originalParams), true)));
     args.insert(std::make_pair("paramsMask", po::variable_value(paramsMaskToString(paramsMask), true)));
     po::notify(args);
-    std::unique_ptr<InflatorBase> inflatorBase =make_inflator("Isosurface2D", filterInflatorOptions(args), parameterConstraints);
+    std::unique_ptr<InflatorBase> inflatorBase = make_inflator("Isosurface2D", filterInflatorOptions(args), parameterConstraints);
     InflatorBase* temp = inflatorBase.get();
     IsoinflatorWrapper<_N>* inflator = (IsoinflatorWrapper<_N> *) temp;
+
+    // copy of wire mesh, only to obtain information about which point is modified by which parameter
+    WireMesh<Symmetry::NonPeriodic<DEFAULT_TOL>> wireMesh(args["pattern"].as<string>(), paramsMask, originalParams);
 
     // Create simulator
     inflator->inflate(params);
@@ -296,6 +299,9 @@ void execute(po::variables_map &args)
      * parameters and then J for the perturbed parameters. Compare the difference!! */
     for (unsigned p = 0; p < params.size(); p++) {
         cout << "Running test for parameter: " << p << std::endl;
+        Point point = wireMesh.parameterIndexToPoint(p);
+
+        cout << "This corresponds to following point: " << point << endl;
 
         if (args.count("outputTable") > 0)
             (*ofs) << setw(7) << p;

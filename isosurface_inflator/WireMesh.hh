@@ -754,6 +754,33 @@ public:
         return result;
     }
 
+    // for a given vertex index, return parameters related to it
+    Point parameterIndexToPoint(size_t p) {
+        // pass to original parameters index
+        size_t correspondingOriginalIndex = m_filteredParamsToOriginal[p];
+
+        Point result;
+
+        if (correspondingOriginalIndex < numPositionParams()) {
+            for (size_t i = 0; i < m_baseVertices.size(); ++i) {
+                size_t numDofs = m_baseVertexPositioners[i].numDoFs();
+                size_t offset = m_baseVertexVarOffsets[i].position;
+                if (correspondingOriginalIndex >= offset && correspondingOriginalIndex < (offset + numDofs)) {
+                    result = m_baseVertices[i];
+                }
+            }
+        }
+        else {
+            for (size_t i = 0; i < m_baseVertices.size(); ++i) {
+                if (correspondingOriginalIndex == m_baseVertexVarOffsets[i].thickness || correspondingOriginalIndex == m_baseVertexVarOffsets[i].blending) {
+                    result = m_baseVertices[i];
+                }
+            }
+        }
+
+        return result;
+    }
+
 
 private:
     std::vector<decltype(PatternSymmetry::nodePositioner(Point()))> m_baseVertexPositioners;
