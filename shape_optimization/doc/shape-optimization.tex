@@ -249,11 +249,21 @@ At $t=0$, $\hat u = u$ and $\hat \phi = \phi$. Then, combining the left and righ
 And
 {\small
 \begin{equation}
+  \int_{\Omega} \epsilon(\phi):C:\epsilon(D[u]) dX =
+  \int_{\Omega} \sym(\nabla \phi \nabla v):\sigma + \epsilon(\phi):C:\sym(\nabla u \nabla v) - \epsilon(\phi): \sigma \nabla \cdot v  dX + \int_{\Gamma_{N}} \phi \cdot \hat T \quad \nabla \cdot v\, d\Gamma_{N}
+\end{equation}
+}
+
+We can also remove $\sym$ operator, cause whenever it appears, it is in a double contract with a symmetric tensor. Then,
+{\small
+\begin{equation}
   \boxed{\int_{\Omega} \epsilon(\phi):C:\epsilon(D[u]) dX =
-  \int_{\Omega} \sym(\nabla \phi \nabla v):\sigma + \epsilon(\phi):C:\sym(\nabla u \nabla v) - \epsilon(\phi): \sigma \nabla \cdot v  dX + \int_{\Gamma_{N}} \phi \cdot \hat T \quad \nabla \cdot v\, d\Gamma_{N}}
+  \int_{\Omega} (\nabla \phi \nabla v):\sigma + \epsilon(\phi):C:(\nabla u \nabla v) - (\epsilon(\phi): \sigma) (\nabla \cdot v)  dX + \int_{\Gamma_{N}} \phi \cdot \hat T \quad \nabla \cdot v\, d\Gamma_{N}}
   \label{eq:forwardversion}
 \end{equation}
 }
+
+
 You can think this equation a weak form of another PDE on $D[u]$. However, we would have to solve a different PDE for each $v$. \blue{This corresponds to formula A(19) in \cite{panetta2017}}.
 
 \subsection{Adjoint PDE Problem}
@@ -271,7 +281,7 @@ The corresponding strong form of this weak formulation would be:
   - \nabla & \cdot \sigma(\rho) = - \nabla \cdot \tau \\
   &\text{such that: } \\
   &\rho =  0 \text{ on $\Gamma_D$}\\
-  &\sigma(\rho) n = \tau n \quad \text{ on $\Gamma_N$}
+  &\sigma(\rho) n = \tau n \quad \text{on $\Gamma \setminus \Gamma_D$  \red{\textbf{(Verify if correct)}}}
 \end{align*}
 
 
