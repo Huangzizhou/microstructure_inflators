@@ -299,13 +299,13 @@ Then, after finding $\rho$, we could compute $\RNum{3}$ using the forward PDE Eq
 Obtaining:
 \begin{multline}
   \boxed{\RNum{3} =
-  \int_{\Omega} \sym(\nabla \rho \nabla v):\sigma + \epsilon(\rho):C:\sym(\nabla u \nabla v) - \epsilon(\rho): \sigma \nabla \cdot v  dX -} \\ \boxed{- \frac{1}{|\Gamma_{N_0}|^2} \int_{\Gamma_{N_0}} (\nabla \cdot v)\, (\phi \cdot \hat G)\, d\Gamma_{N_0} + \frac{1}{|\Gamma_N|}\int_{\Gamma_{N}} (\rho \cdot \hat G) \quad \nabla \cdot v\, d\Gamma_{N}}
+  \int_{\Omega} \sym(\nabla \rho \nabla v):\sigma + \epsilon(\rho):C:\sym(\nabla u \nabla v) - \epsilon(\rho): \sigma \nabla \cdot v  dX -} \\ \boxed{- \frac{1}{|\Gamma_{N_0}|^2} \int_{\Gamma_{N_0}} (\nabla \cdot v)\, (\rho \cdot \hat G)\, d\Gamma_{N_0} + \frac{1}{|\Gamma_N|}\int_{\Gamma_{N}} (\rho \cdot \hat G) \quad \nabla \cdot v\, d\Gamma_{N}}
   \label{eq:IIIcomputation}
 \end{multline}
 
 Combining this with Equation \ref{eq:dJ}, and noticing we can drop the $\sym$ operation (because its output is always double contracted with a symmetric tensor):
 \begin{multline}
-  \boxed{dJ[v] = \int_{\Omega} (j - \epsilon(\rho): \sigma)\nabla \cdot v + (\nabla \rho \nabla v):\sigma + (\epsilon(\rho):C - \tau) : (\nabla u \nabla v) \, dX -} \\ \boxed{- \frac{1}{|\Gamma_{N_0}|^2} \int_{\Gamma_{N_0}} (\nabla \cdot v)\, (\phi \cdot \hat G)\, d\Gamma_{N_0} + \frac{1}{|\Gamma_N|}\int_{\Gamma_{N}} (\rho \cdot \hat G) \quad \nabla \cdot v\, d\Gamma_{N}}
+  \boxed{dJ[v] = \int_{\Omega} (j - \epsilon(\rho): \sigma)\nabla \cdot v + (\nabla \rho \nabla v):\sigma + (\epsilon(\rho):C - \tau) : (\nabla u \nabla v) \, dX -} \\ \boxed{- \frac{1}{|\Gamma_{N_0}|^2} \int_{\Gamma_{N_0}} (\nabla \cdot v)\, (\rho \cdot \hat G)\, d\Gamma_{N_0} + \frac{1}{|\Gamma_N|}\int_{\Gamma_{N}} (\rho \cdot \hat G) \quad \nabla \cdot v\, d\Gamma_{N}}
   \label{eq:completedJ}
 \end{multline}
 
@@ -335,12 +335,12 @@ We can then imply some important properties:
 
 Let's consider again $dJ[v]$:
 \begin{align*}
-  dJ[v] = \int_{\Omega} \olive{(\nabla \rho \nabla v}):\sigma + \epsilon(\rho):C:\olive{(\nabla u \nabla v)} - \epsilon(\rho): \sigma \olive{\nabla \cdot v}  - \olive{\tau : (\nabla u \nabla v)} + j \olive{\nabla \cdot v} \, dX - \\ - \frac{1}{|\Gamma_{N}|^2} \int_{\Gamma_{N}} (\phi \cdot \hat G)\, \olive{(\nabla \cdot v)}\,d\Gamma_{N}  + \frac{1}{|\Gamma_N|}\int_{\Gamma_{N}} \rho \cdot \hat G \quad \olive{(\nabla \cdot v)}\, d\Gamma_{N}
+  dJ[v] = \int_{\Omega} \olive{(\nabla \rho \nabla v}):\sigma + \epsilon(\rho):C:\olive{(\nabla u \nabla v)} - \epsilon(\rho): \sigma \olive{\nabla \cdot v}  - \olive{\tau : (\nabla u \nabla v)} + j \olive{\nabla \cdot v} \, dX - \\ - \frac{1}{|\Gamma_{N}|^2} \int_{\Gamma_{N}} (\rho \cdot \hat G)\, \olive{(\nabla \cdot v)}\,d\Gamma_{N}  + \frac{1}{|\Gamma_N|}\int_{\Gamma_{N}} \rho \cdot \hat G \quad \olive{(\nabla \cdot v)}\, d\Gamma_{N}
 \end{align*}
 
 Now, let's apply our transformations for discrete $v$, $u$ and $\rho$ to obtain $dJ_d$.
 \begin{multline}
-  \boxed{dJ_d[\lambda_m \delta q_m] = \left( \int_\Omega \left[ j - \epsilon(\rho):\sigma \right] \nabla \lambda_m + \left[ \nabla \lambda_m \cdot (\sigma p_n + (\epsilon(p):C-\tau)u_n) \right] \nabla \varphi_n dx\right)\cdot \delta q_m -} \\ \boxed{\left( - \frac{1}{|\Gamma_{N}|^2} \int_{\Gamma_{N}} (\phi \cdot \hat G)\, \nabla \lambda_m\,d\Gamma + \frac{1}{|\Gamma_N|}\int_{\Gamma_N} (\rho \cdot \hat G) \nabla \lambda_m d\Gamma \right) \cdot \delta q_m}
+  \boxed{dJ_d[\lambda_m \delta q_m] = \left( \int_\Omega \left[ j - \epsilon(\rho):\sigma \right] \nabla \lambda_m + \left[ \nabla \lambda_m \cdot (\sigma p_n + (\epsilon(p):C-\tau)u_n) \right] \nabla \varphi_n dx\right)\cdot \delta q_m +} \\ \boxed{\left( - \frac{1}{|\Gamma_{N}|^2} \int_{\Gamma_{N}} (\rho \cdot \hat G)\, \nabla \lambda_m\,d\Gamma + \frac{1}{|\Gamma_N|}\int_{\Gamma_N} (\rho \cdot \hat G) \nabla \lambda_m d\Gamma \right) \cdot \delta q_m}
 \end{multline}
 , \blue{which corresponds to final formula of Section 3.1.3 of Supplementary Material of \cite{panetta2017}}.
 
