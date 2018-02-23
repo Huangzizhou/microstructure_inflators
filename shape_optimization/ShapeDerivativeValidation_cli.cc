@@ -80,7 +80,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
             ("output,o",     po::value<string>(),                    "Output the Lagrangian derivatives computed by forward difference and the discrete shape derivative.")
             ("fullDegreeFieldOutput,D",                              "Output full-degree nodal fields (don't do piecewise linear subsample)")
             ("perturbationAmplitude,a", po::value<double>()->default_value(0.001), "Amplitude of boundary perturbation")
-            ("perturbationFrequency,f", po::value<double>()->default_value(0.0),  "Frequency of boundary perturbation")
+            ("perturbationFrequency,f", po::value<double>()->default_value(1.0),  "Frequency of boundary perturbation")
             ;
 
     po::options_description visibleOptions;
@@ -211,6 +211,7 @@ void execute(const po::variables_map &args,
     neg_perturbed_cell_operations.m_solveCellProblems(neg_perturbed_sim, bconds);
     neg_perturbed_u = neg_perturbed_cell_operations.displacement();
 
+    auto delta_u = cell_operations.deltaDisplacements(u, delta_p);
     VField delta_u_forward_diff = perturbed_u;
     VField delta_u_centered_diff = perturbed_u;
     delta_u_forward_diff  -= u;
@@ -224,10 +225,9 @@ void execute(const po::variables_map &args,
     writer.addField("u", u);
     writer.addField("forward u", perturbed_u);
     writer.addField("backward u", neg_perturbed_u);
-    //writer.addField("delta u " + std::to_string(ij), delta_u);
+    writer.addField("delta u ", delta_u);
     writer.addField("forward difference delta u", delta_u_forward_diff);
     writer.addField("centered difference delta u", delta_u_centered_diff);
-
 
     auto origStrain = sim.averageStrainField(u);
     auto forwardDiffStrain   = perturbed_sim.averageStrainField(perturbed_u);
@@ -237,7 +237,7 @@ void execute(const po::variables_map &args,
     centeredDiffStrain *= 0.5;
 
     writer.addField("strain u", origStrain);
-    //writer.addField("delta strain u", sim.deltaAverageStrainField(u, delta_u, delta_p));
+    writer.addField("delta strain u", sim.deltaAverageStrainField(u, delta_u, delta_p));
     writer.addField("forward difference delta strain u",  forwardDiffStrain);
     writer.addField("centered difference delta strain u", centeredDiffStrain);
 
@@ -269,7 +269,7 @@ void execute(const po::variables_map &args,
         const ETensor CBase = mat.getTensor();
         const bool major_symmetry = CBase.MajorSymmetry;
 
-        MicroscopicStress<_N, Simulator> microStress = MicroscopicFrobeniusStress<CBase.Dim, major_symmetry, Simulator>(CBase, sim.averageStressField(u_));
+        MicroscopicStress<_N, Simulator> microStress = MicroscopicFrobeniusStress<CBase.Dim, major_symmetry, Simulator>(CBase, sim_.averageStressField(u_));
         objective.setPointwiseStress(sim_.mesh(), microStress);
         return objective;
     };
@@ -291,6 +291,8 @@ void execute(const po::variables_map &args,
     for (auto bv : mesh.boundaryVertices())
         bdry_svel(bv.index()) = delta_p(bv.volumeVertex().index());
 
+
+    cout << "Forward shape derivative Stress:\t" << origStressObjective.deltaJ(sim, u, delta_p, cell_operations) << endl;
     OneForm<Real, _N> dJ = origStressObjective.adjointDeltaJ(cell_operations);
     cout << "Adjoint discrete shape derivative Stress (volume):\t" << dJ[interpolator.interpolate(sim, bdry_svel)] << endl;
     OneForm<Real, _N> dJbdry = interpolator.adjoint(sim, dJ);

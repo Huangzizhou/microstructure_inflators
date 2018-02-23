@@ -154,21 +154,39 @@ struct IntegratedMicroscopicStressObjective {
             result(e) *= integrand.j_prime(microStress(e), e);
     }
 
+    ////////////////////////////////////////////////////////////////////////////
+    // Forward version of shape derivative computation
+    ////////////////////////////////////////////////////////////////////////////
+    Real deltaJ(const Sim &sim,
+                const typename Sim::VField &u,
+                const typename Sim::VField &delta_p,
+                const NonPeriodicCellOperations<Sim> &nonPeriodicCellOps) const {
+        Real dJ = 0.0;
+        const auto &mesh = sim.mesh();
+
+        // int tau : delta strain(u) dV
+        auto delta_u = nonPeriodicCellOps.deltaDisplacements(u, delta_p);
+        SMF tau;
+        compute_tau(tau);
+        auto delta_ue = sim.deltaAverageStrainField(u, delta_u, delta_p);
+        for (auto e : mesh.elements())
+            dJ += tau(e.index()).doubleContract(delta_ue(e.index())) * e->volume();
+
+        // Volume dilation term: int j div v dV
+        std::vector<VectorND<N>> cornerPerturbations;
+        for (auto e : mesh.elements()) {
+            size_t ei = e.index();
+            sim.extractElementCornerValues(e, delta_p, cornerPerturbations);
+            dJ += integrand.j(microStress(ei), ei) * e->relativeDeltaVolume(cornerPerturbations) * e->volume();
+        }
+
+        return dJ;
+    }
+
     // Compute the linear functional (one-form) dJ[v], represented as a
     // per-vertex vector field to be dotted with a **periodic** mesh vertex
     // velocity.
     //      dJ[v] = sum_i <delta_j[i], v[i]>
-    //      (delta_j[i][c] = partial_derivative(J, v[i][c]))
-    // where the sum is over all mesh vertices. (Vertices on the periodic
-    // boundary get "half" contributions)
-    //
-    // -delta_j can be interpreted as a steepest descent direction in the
-    // vertex position space R^(N*|v|), but it is not a good descent direction
-    // for non-uniform meshes. For a better, mesh-independent direction, one
-    // should use a different metric (E.g. ||v||_M = int <v(x), v(x)> dx = v[i]
-    // M_ij v[j], where M is the deg 1 mass matrix. Or for Newton's method, the
-    // Hessian.).
-//    template<class Sim>
     ScalarOneForm<Sim::N>
     adjointDeltaJ(const NonPeriodicCellOperations<Sim> &nonPeriodicCellOps) const {
         // Dilation and delta strain terms
@@ -188,6 +206,7 @@ struct IntegratedMicroscopicStressObjective {
 
         //MSHFieldWriter writer("rho_validation", mesh, false);
         //writer.addField("rho", rho);
+        //writer.addField("tau", tau);
 
         // get value for displacements
         const VectorField<Real, N> &u = nonPeriodicCellOps.displacement();
@@ -378,9 +397,10 @@ struct PthRootObjective : public SubObjective {
     ////////////////////////////////////////////////////////////////////////////
     template<class Sim>
     Real deltaJ(const Sim &sim,
-                const std::vector<typename Sim::VField> &w,
-                const typename Sim::VField &delta_p) const {
-        Real pder = SubObjective::deltaJ(sim, w, delta_p);
+                const typename Sim::VField &u,
+                const typename Sim::VField &delta_p,
+                const NonPeriodicCellOperations<Sim> &nonPeriodicCellOps) const {
+        Real pder = SubObjective::deltaJ(sim, u, delta_p, nonPeriodicCellOps);
         if (p == 1) return pder;
         return m_gradientScale() * pder;
     }

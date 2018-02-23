@@ -53,7 +53,6 @@ public:
 
     // Solve adjoint problem for the cell problem
     VField solveAdjointCellProblem(const VField &adjointRHS) const {
-
         // Set all dirichlet boundary conditions to 0 (zero).
         m_sim.removeDirichletConditions();
         m_sim.removeNeumanConditions(); // TODO: necessary?!
@@ -62,7 +61,6 @@ public:
             CondPtr<N> cond = m_bconds[i];
             BoundaryCondition<N> *new_cond;
             if (const DirichletCondition<N> * dc = dynamic_cast<const DirichletCondition<N> *>(cond.get())) {
-                //c = new DirichletCondition<_N>(region, value, cmask);
                 VectorND<N> zero_vector;
                 zero_vector.setZero();
                 new_cond = new DirichletCondition<N>(dc->region, zero_vector, dc->componentMask);
@@ -73,8 +71,33 @@ public:
 
         // TODO verify: Neumann conditions are already embedded in adjointRHS!
 
-        this->m_sim.applyBoundaryConditions(new_conds);
-        return this->m_sim.solve(adjointRHS);
+        m_sim.applyBoundaryConditions(new_conds);
+        return m_sim.solve(adjointRHS);
+    }
+
+    // Change in the displacements due to mesh vertex perturbations delta_p
+    VField deltaDisplacements(const VField &u, const VField &delta_p) const {
+        typedef typename _Sim::VField  VField;
+        using SMatrix = typename _Sim::SMatrix;
+
+        // Set all dirichlet boundary conditions to 0 (zero).
+        m_sim.removeDirichletConditions();
+        vector<CondPtr<N> > new_conds;
+        for (unsigned i = 0; i < m_bconds.size(); i++) {
+            CondPtr<N> cond = m_bconds[i];
+            BoundaryCondition<N> *new_cond;
+            if (const DirichletCondition<N> * dc = dynamic_cast<const DirichletCondition<N> *>(cond.get())) {
+                VectorND<N> zero_vector;
+                zero_vector.setZero();
+                new_cond = new DirichletCondition<N>(dc->region, zero_vector, dc->componentMask);
+
+                new_conds.push_back(CondPtr<N>(new_cond));
+            }
+        }
+        m_sim.applyBoundaryConditions(new_conds);
+
+        auto rhs = -m_sim.applyDeltaStiffnessMatrix(u, delta_p);
+        return m_sim.solve(rhs);
     }
 
     const                _Sim & sim() const { return m_sim; }
