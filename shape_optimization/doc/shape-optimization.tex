@@ -78,13 +78,13 @@ The corresponding PDE then is the following (strong form):
   - \nabla & \cdot \sigma = 0 \text{ (external force)} \\
   &\text{such that: } \\
   &u =  \hat u \quad \text{ on $\Gamma_D$}\\
-  &\sigma n = \hat T \quad \text{ on $\Gamma_N$}
+  &\sigma n = \frac{\hat G}{|\Gamma_N|}  \quad \text{ on $\Gamma_N$}
 \end{align*}
-, where $u$ is the unknown displacement, $\epsilon = 1/2 (\nabla u + (\nabla u)^T)$ is the strain and $\sigma = C \epsilon$ is the stress.
+, where $u$ is the unknown displacement, $\epsilon = 1/2 (\nabla u + (\nabla u)^T)$ is the strain and $\sigma = C \epsilon$ is the stress and $\hat G$ is a constant force uniformly distributed over $\Gamma_N$.
 
 The corresponding weak form is the following:
 \begin{equation}
-\int_\Omega\, \epsilon(\phi) : C : \epsilon(u)\, dw = \int_{\Gamma_N} \phi \cdot \hat T\, d\Gamma_N
+\int_\Omega\, \epsilon(\phi) : C : \epsilon(u)\, dw = \frac{1}{|\Gamma_N|}\int_{\Gamma_N} \phi \cdot \hat F\, d\Gamma_N
   \label{eq:weakform}
 \end{equation}
 , for all $\phi$ where $\phi(y) = 0 \quad \forall \:  y \in \Gamma_D$. \blue{The corresponding weak form for the periodic case can be found in equation (A1) in \cite{panetta2017}}.
@@ -191,7 +191,7 @@ $$
 
 Differentiating on both sides (and obtaining the value at $t=0$):
 \begin{align*}
-  \underbrace{\frac{d}{dt} \Big|_{t=0} \left( \int_\Omega\, \epsilon(\phi) : C : \epsilon(u)\, dX \right)}_{\text{lhs}} = \underbrace{\frac{d}{dt} \Big|_{t=0} \left( \int_{\Gamma_N} \phi \cdot \hat T\, d\Gamma_N\right)}_{\text{rhs}}
+  \underbrace{\frac{d}{dt} \Big|_{t=0} \left( \int_\Omega\, \epsilon(\phi) : C : \epsilon(u)\, dX \right)}_{\text{lhs}} = \underbrace{\frac{d}{dt} \Big|_{t=0} \left(\frac{1}{|\Gamma_N|} \int_{\Gamma_N} \phi \cdot \hat F\, d\Gamma_N\right)}_{\text{rhs}}
 \end{align*}
 
 \subsubsection{Computing left hand side:}
@@ -225,42 +225,48 @@ Finally,
 \subsubsection{Computing right hand side:}
 We know:
 \begin{align*}
-  \hat T_t(x) = \hat T(x - tv) \text{ and } \phi(x) = \hat \phi(x - tv)  
+  \hat G_t(x) = \hat G(x - tv) = \hat G \text{ and } \phi(x) = \hat \phi(x - tv)  
 \end{align*}
 
 And we aim to compute the following integral
 \begin{align*}
-  \rhs = \frac{d}{dt} \Big|_{t=0} \left( \int_{\Gamma_N} \phi \cdot \hat T_t\, d\Gamma_N\right)
+  \rhs &= \frac{d}{dt} \Big|_{t=0} \left( \frac{1}{|\Gamma_N|} \int_{\Gamma_N} \phi \cdot \hat G_t\, d\Gamma_N\right)\\ 
+  &= \frac{d}{dt} \Big|_{t=0} \left( \frac{1}{|\Gamma_N|} \right) \int_{\Gamma_N} \phi \cdot \hat G\, d\Gamma_N  + \frac{1}{|\Gamma_N|} \frac{d}{dt} \Big|_{t=0} \left( \int_{\Gamma_N} \phi \cdot \hat G_t\, d\Gamma_N \right)\\
+  &= -\frac{d}{dt} \Big|_{t=0} \left( \int_{\Gamma_N} d\Gamma_N \right) \frac{1}{|\Gamma_N|^2} \int_{\Gamma_N} \phi \cdot \hat G\, d\Gamma_N  + \frac{1}{|\Gamma_N|} \frac{d}{dt} \Big|_{t=0} \left( \int_{\Gamma_N} \phi \cdot \hat G_t\, d\Gamma_N \right)
 \end{align*} 
 
-Then
-\begin{align*}
-  \rhs &= \int_{\Gamma_{N_0}} \frac{d}{dt} \Big|_{t=0} \left(\hat \phi \cdot \hat T \det(F_t) \right)\, d\Gamma_{N_0}\\
-  &= \int_{\Gamma_{N_0}} ( \underbrace{D[\phi]}_{\textbf{0} \text{ (FEM)}} \cdot \hat T + \phi \cdot \underbrace{D[\hat T]}_{\textbf{0} \text{ (b.c.)}} ) \det(F_0) + \hat \phi \cdot \hat T \frac{d}{dt} \Big|_{t=0}\left(\det(F_t)\right) d\Gamma \\
-  &= \int_{\Gamma_{N_0}} \hat \phi \cdot \hat T \quad \nabla \cdot v\, d\Gamma_{N_0}
-\end{align*}
+Notice that $|\Gamma_N|$ is the length (in 2D or area in 3D) of $\Gamma_N$ and can be computed as $\int_{\Gamma_N} d\Gamma_N$.
 
+Then
+{\small 
+\begin{align*}
+  \rhs &= -\left( \int_{\Gamma_{N_0}} \frac{d}{dt} \Big|_{t=0} \det(F_t) d\Gamma_{N_0} \right) \frac{1}{|\Gamma_N|^2} \int_{\Gamma_N} \phi \cdot \hat G\, d\Gamma_N  + \frac{1}{|\Gamma_N|}\int_{\Gamma_{N_0}} \frac{d}{dt} \Big|_{t=0} \left(\hat \phi \cdot \hat G \det(F_t) \right)\, d\Gamma_{N_0}\\
+  &= -\left( \int_{\Gamma_{N_0}} (\nabla \cdot v) \, d\Gamma_{N_0} \right) \frac{1}{|\Gamma_N|^2} \int_{\Gamma_N} \phi \cdot \hat G\, d\Gamma_N  + \frac{1}{|\Gamma_N|} \int_{\Gamma_{N_0}} ( \underbrace{D[\phi]}_{\textbf{0} \text{ (FEM)}} \cdot \hat G + \phi \cdot \underbrace{D[\hat G]}_{\textbf{0} \text{ (b.c.)}} ) \det(F_0) + \hat \phi \cdot \hat G \frac{d}{dt} \Big|_{t=0}\left(\det(F_t)\right) d\Gamma \\
+  &= -\frac{1}{|\Gamma_N|^2} \int_{\Gamma_{N_0}} (\nabla \cdot v)\, (\phi \cdot \hat G)\, d\Gamma_{N_0} + \frac{1}{|\Gamma_N|} \int_{\Gamma_{N_0}} (\hat \phi \cdot \hat T) \, (\nabla \cdot v)\, d\Gamma_{N_0}
+\end{align*}
+}
 \subsubsection{Combining results}
 At $t=0$, $\hat u = u$ and $\hat \phi = \phi$. Then, combining the left and right hand sides:
 \begin{align*}
-  \int_{\Omega_0} \left(- \sym(\nabla \phi \nabla v)):\sigma + \epsilon(\phi):C:(\epsilon(D[u])  - \sym(\nabla u \nabla v)) + \epsilon(\phi): \sigma \nabla \cdot v \right) dX = \int_{\Gamma_{N_0}} \phi \cdot \hat T \quad \nabla \cdot v\, d\Gamma_{N_0}
+  &\int_{\Omega_0} \left(- \sym(\nabla \phi \nabla v)):\sigma + \epsilon(\phi):C:(\epsilon(D[u])  - \sym(\nabla u \nabla v)) + \epsilon(\phi): \sigma \nabla \cdot v \right) dX = \\ &= -\frac{1}{|\Gamma_{N_0}|^2} \int_{\Gamma_{N_0}} (\nabla \cdot v)\, (\phi \cdot \hat G)\, d\Gamma_{N_0} + \frac{1}{|\Gamma_N|} \int_{\Gamma_{N_0}} (\hat \phi \cdot \hat G) \, (\nabla \cdot v)\, d\Gamma_{N_0}
 \end{align*}
 
 And
+
 {\small
-\begin{equation}
+\begin{multline}
   \int_{\Omega} \epsilon(\phi):C:\epsilon(D[u]) dX =
-  \int_{\Omega} \sym(\nabla \phi \nabla v):\sigma + \epsilon(\phi):C:\sym(\nabla u \nabla v) - \epsilon(\phi): \sigma \nabla \cdot v  dX + \int_{\Gamma_{N}} \phi \cdot \hat T \quad \nabla \cdot v\, d\Gamma_{N}
-\end{equation}
+  \int_{\Omega} \sym(\nabla \phi \nabla v):\sigma + \epsilon(\phi):C:\sym(\nabla u \nabla v) - (\epsilon(\phi): \sigma) (\nabla \cdot v)  dX - \\ - \frac{1}{|\Gamma_{N_0}|^2} \int_{\Gamma_{N_0}} (\nabla \cdot v)\, (\phi \cdot \hat G)\, d\Gamma_{N_0} + \frac{1}{|\Gamma_N|} \int_{\Gamma_{N}} \phi \cdot \hat G \quad \nabla \cdot v\, d\Gamma_{N}
+\end{multline}
 }
 
 We can also remove $\sym$ operator, cause whenever it appears, it is in a double contract with a symmetric tensor. Then,
 {\small
-\begin{equation}
+\begin{multline}
   \boxed{\int_{\Omega} \epsilon(\phi):C:\epsilon(D[u]) dX =
-  \int_{\Omega} (\nabla \phi \nabla v):\sigma + \epsilon(\phi):C:(\nabla u \nabla v) - (\epsilon(\phi): \sigma) (\nabla \cdot v)  dX + \int_{\Gamma_{N}} \phi \cdot \hat T \quad \nabla \cdot v\, d\Gamma_{N}}
+  \int_{\Omega} (\nabla \phi \nabla v):\sigma + \epsilon(\phi):C:(\nabla u \nabla v) - (\epsilon(\phi): \sigma) (\nabla \cdot v)  dX -} \\ \boxed{- \frac{1}{|\Gamma_{N_0}|^2} \int_{\Gamma_{N_0}} (\nabla \cdot v)\, (\phi \cdot \hat G)\, d\Gamma_{N_0} + \frac{1}{|\Gamma_N|} \int_{\Gamma_{N}} \phi \cdot \hat G \quad \nabla \cdot v\, d\Gamma_{N}}
   \label{eq:forwardversion}
-\end{equation}
+\end{multline}
 }
 
 
@@ -291,15 +297,15 @@ Then, after finding $\rho$, we could compute $\RNum{3}$ using the forward PDE Eq
 \end{align*}
 
 Obtaining:
-\begin{equation}
+\begin{multline}
   \boxed{\RNum{3} =
-  \int_{\Omega} \sym(\nabla \rho \nabla v):\sigma + \epsilon(\rho):C:\sym(\nabla u \nabla v) - \epsilon(\rho): \sigma \nabla \cdot v  dX + \int_{\Gamma_{N}} (\rho \cdot \hat T) \quad \nabla \cdot v\, d\Gamma_{N}}
+  \int_{\Omega} \sym(\nabla \rho \nabla v):\sigma + \epsilon(\rho):C:\sym(\nabla u \nabla v) - \epsilon(\rho): \sigma \nabla \cdot v  dX -} \\ \boxed{- \frac{1}{|\Gamma_{N_0}|^2} \int_{\Gamma_{N_0}} (\nabla \cdot v)\, (\phi \cdot \hat G)\, d\Gamma_{N_0} + \frac{1}{|\Gamma_N|}\int_{\Gamma_{N}} (\rho \cdot \hat G) \quad \nabla \cdot v\, d\Gamma_{N}}
   \label{eq:IIIcomputation}
-\end{equation}
+\end{multline}
 
 Combining this with Equation \ref{eq:dJ}, and noticing we can drop the $\sym$ operation (because its output is always double contracted with a symmetric tensor):
 \begin{multline}
-  \boxed{dJ[v] = \int_{\Omega} (j - \epsilon(\rho): \sigma)\nabla \cdot v + (\nabla \rho \nabla v):\sigma + (\epsilon(\rho):C - \tau) : (\nabla u \nabla v) \, dX } \\ \boxed{+ \int_{\Gamma_{N}} (\rho \cdot \hat T) \quad \nabla \cdot v\, d\Gamma_{N}  }
+  \boxed{dJ[v] = \int_{\Omega} (j - \epsilon(\rho): \sigma)\nabla \cdot v + (\nabla \rho \nabla v):\sigma + (\epsilon(\rho):C - \tau) : (\nabla u \nabla v) \, dX -} \\ \boxed{- \frac{1}{|\Gamma_{N_0}|^2} \int_{\Gamma_{N_0}} (\nabla \cdot v)\, (\phi \cdot \hat G)\, d\Gamma_{N_0} + \frac{1}{|\Gamma_N|}\int_{\Gamma_{N}} (\rho \cdot \hat G) \quad \nabla \cdot v\, d\Gamma_{N}}
   \label{eq:completedJ}
 \end{multline}
 
@@ -329,13 +335,13 @@ We can then imply some important properties:
 
 Let's consider again $dJ[v]$:
 \begin{align*}
-  dJ[v] = \int_{\Omega} \olive{(\nabla \rho \nabla v}):\sigma + \epsilon(\rho):C:\olive{(\nabla u \nabla v)} - \epsilon(\rho): \sigma \olive{\nabla \cdot v}  - \olive{\tau : (\nabla u \nabla v)} + j \olive{\nabla \cdot v} \, dX \\ + \int_{\Gamma_{N}} \rho \cdot \hat T \quad \olive{\nabla \cdot v}\, d\Gamma_{N}
+  dJ[v] = \int_{\Omega} \olive{(\nabla \rho \nabla v}):\sigma + \epsilon(\rho):C:\olive{(\nabla u \nabla v)} - \epsilon(\rho): \sigma \olive{\nabla \cdot v}  - \olive{\tau : (\nabla u \nabla v)} + j \olive{\nabla \cdot v} \, dX - \\ - \frac{1}{|\Gamma_{N}|^2} \int_{\Gamma_{N}} (\phi \cdot \hat G)\, \olive{(\nabla \cdot v)}\,d\Gamma_{N}  + \frac{1}{|\Gamma_N|}\int_{\Gamma_{N}} \rho \cdot \hat G \quad \olive{(\nabla \cdot v)}\, d\Gamma_{N}
 \end{align*}
 
 Now, let's apply our transformations for discrete $v$, $u$ and $\rho$ to obtain $dJ_d$.
-\begin{equation}
-  \boxed{dJ_d[\lambda_m \delta q_m] = \underbrace{\left( \int_\Omega \left[ j - \epsilon(\rho):\sigma \right] \nabla \lambda_m + \left[ \nabla \lambda_m \cdot (\sigma p_n + (\epsilon(p):C-\tau)u_n) \right] \nabla \varphi_n dx + \int_{\Gamma_N} (\rho \cdot \hat T) \nabla \lambda_m d\Gamma \right)}_{dJ_m} \cdot \delta q_m}
-\end{equation}
+\begin{multline}
+  \boxed{dJ_d[\lambda_m \delta q_m] = \left( \int_\Omega \left[ j - \epsilon(\rho):\sigma \right] \nabla \lambda_m + \left[ \nabla \lambda_m \cdot (\sigma p_n + (\epsilon(p):C-\tau)u_n) \right] \nabla \varphi_n dx\right)\cdot \delta q_m -} \\ \boxed{\left( - \frac{1}{|\Gamma_{N}|^2} \int_{\Gamma_{N}} (\phi \cdot \hat G)\, \nabla \lambda_m\,d\Gamma + \frac{1}{|\Gamma_N|}\int_{\Gamma_N} (\rho \cdot \hat G) \nabla \lambda_m d\Gamma \right) \cdot \delta q_m}
+\end{multline}
 , \blue{which corresponds to final formula of Section 3.1.3 of Supplementary Material of \cite{panetta2017}}.
 
 With this formula, all you have to do in order to compute $dJ_d$ is to sum the dot products of $dJ_m$ with the velocity $m$ ($\delta q_m$) for all mesh vertices.
