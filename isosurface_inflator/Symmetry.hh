@@ -41,7 +41,6 @@ template<typename TOL = DEFAULT_TOL> struct NonPeriodic;
 template<typename TOL = DEFAULT_TOL> struct TriplyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct DoublyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct Orthotropic;
-template<typename TOL = DEFAULT_TOL> struct Diagonal;
 template<typename TOL = DEFAULT_TOL> struct Cubic;
 template<typename TOL = DEFAULT_TOL> struct Square;
 template<typename TOL = DEFAULT_TOL> struct Parallelogram;
@@ -56,7 +55,6 @@ template<typename TOL> struct SymmetryTraits<NonPeriodic<TOL>> { template<typena
 template<typename TOL> struct SymmetryTraits<TriplyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<DoublyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Orthotropic<TOL>>    { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
-template<typename TOL> struct SymmetryTraits<Diagonal<TOL>>       { template<typename Real> using NodePositioner = PrismNodePositioner<Real, TOL, true>; };
 template<typename TOL> struct SymmetryTraits<Cubic<TOL>>          { template<typename Real> using NodePositioner = TetNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Square<TOL>>         { template<typename Real> using NodePositioner = TetNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Parallelogram<TOL>>   { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>;  };
@@ -300,91 +298,6 @@ struct Orthotropic : public TriplyPeriodic<TOL>, SymmetryCRTP<Orthotropic<TOL>> 
 
             // Triple axis
             group.push_back(p.compose(Isometry::reflection(Axis::X)).compose(Isometry::reflection(Axis::Y)).compose(Isometry::reflection(Axis::Z)));
-        }
-
-        return group;
-    }
-};
-
-// Base unit the triangle (0, 0), (1, -1), (1, 1)
-// Symmetry group ??? x Translations
-// We mesh the half-space (x >= 0) since meshing within a prism is harder.
-template<typename TOL>
-struct Diagonal : public DoublyPeriodic<TOL>, SymmetryCRTP<Diagonal<TOL>> {
-    typedef TOL Tolerance;
-
-    // Disambiguate CRTP instances
-    typedef SymmetryCRTP<Diagonal<TOL>> CRTP;
-    using CRTP::nodePositioner;
-    using CRTP::nodeType;
-
-    using DoublyPeriodic<TOL>::tolerance;
-
-    template<typename Real>
-    static BBox<Point3<Real>> representativeMeshCell() {
-        return BBox<Point3<Real>>(Point3<Real>(-1, -1, 0),
-                                  Point3<Real>(1, 1, 0));
-    }
-
-    template<typename Real>
-    static Point3<Real> mapToBaseUnit(Point3<Real> p) {
-        p = DoublyPeriodic<TOL>::mapToBaseUnit(p);
-        if (p[0] < p[1]) std::swap(p[0], p[1]);
-        if (p[1] < -p[0]) {
-            Real tmp = p[1];
-            p[1] = -p[0];
-            p[0] = -tmp;
-        }
-        return p;
-    }
-
-    template<typename Real>
-    static bool inBaseUnit(const Point3<Real> &p) {
-        if (DoublyPeriodic<TOL>::inBaseUnit(p)) {
-            return isPositive<TOL>(p[0]) && (p[0] + tolerance >= p[1]) && (p[0] + tolerance >= -p[1]);
-        }
-        return false;
-    }
-
-    template<typename Real>
-    static bool inMeshingCell(const Point3<Real> &p) {
-        return DoublyPeriodic<TOL>::inBaseUnit(p);
-    }
-
-    // Find the location of the independent vertex linked to p. For vertices in
-    // the base cell's interior, this is just the vertex position itself. For
-    // vertices on the period cell face(s), the diagonal symmetries impose that
-    // the interface should have a reflective symmetry along the X and Y axes.
-    template<typename Real>
-    static Point3<Real> independentVertexPosition(Point3<Real> p) {
-        assert(inBaseUnit(p));
-        if (isZero<TOL>(std::abs(p[0] - 1.0))) {
-            if (p[1] < 0) { p[1] = -p[1]; }
-        }
-        return p;
-    }
-
-    // We need augment DoublyPeriodic's symmetry group with the operations
-    // taking region 1 into 2, 3, and 4 by reflections across the diagonals:
-    // +---+
-    // |\2/|
-    // |3*1|
-    // |/4\|
-    // +---+
-    static std::vector<Isometry> symmetryGroup() {
-        std::vector<Isometry> group;
-        std::vector<Isometry> parentGroup = DoublyPeriodic<TOL>::symmetryGroup();
-        for (const Isometry &p : parentGroup) {
-            if (!p.affectsAxis(Axis::Z)) {
-                group.push_back(p); // Identity (stay in region 1)
-
-                group.push_back(p.compose(Isometry::permutation(Axis::X, Axis::Y))); // Region 1 to region 2 (swap x, y)
-                group.push_back(p.compose(Isometry:: reflection(Axis::X))            // Region 1 to region 3: rotation by 180 degrees
-                                 .compose(Isometry:: reflection(Axis::Y)));
-                group.push_back(p.compose(Isometry:: reflection(Axis::X))            // Region 1 to region 4 (swap -x, y)
-                                 .compose(Isometry::permutation(Axis::X, Axis::Y))   // (swap x, y in reflected space, transform back)
-                                 .compose(Isometry:: reflection(Axis::X)));
-            }
         }
 
         return group;
