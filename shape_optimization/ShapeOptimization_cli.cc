@@ -433,7 +433,7 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
 
 
     auto originalToOptimizedParameters = [](std::vector<bool> parametersMask, SField originalParams) -> vector<double> {
-        int originalIdx = 0;
+        size_t originalIdx = 0;
         vector<double> result;
 
         for (; originalIdx < originalParams.size(); originalIdx++) {

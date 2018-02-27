@@ -131,7 +131,6 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
     map<string, function<void()>> makeImplForSymmetry = {
         {"cubic",           [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>         >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
         {"orthotropic",     [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>   >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
-        {"diagonal",        [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Diagonal<>      >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
         {"non_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::NonPeriodic<>>>(wireMeshPath, std::move(mesher), 0); }},
         {"triply_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
         {"doubly_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::DoublyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
@@ -181,7 +180,6 @@ IsosurfaceInflator::IsosurfaceInflator(const std::string &type, bool vertexThick
     map<string, function<void()>> makeImplForSymmetry = {
             {"cubic",           [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>         >>(wireMeshPath, std::move(mesher), paramsMask, params, inflationNeighborhoodEdgeDist); }},
             {"orthotropic",     [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>   >>(wireMeshPath, std::move(mesher), paramsMask, params, inflationNeighborhoodEdgeDist); }},
-            {"diagonal",        [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Diagonal<>      >>(wireMeshPath, std::move(mesher), paramsMask, params, inflationNeighborhoodEdgeDist); }},
             {"non_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::NonPeriodic<>>>(wireMeshPath, std::move(mesher), paramsMask, params, 0); }},
             {"triply_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, std::move(mesher), paramsMask, params, inflationNeighborhoodEdgeDist); }},
             {"doubly_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::DoublyPeriodic<>>>(wireMeshPath, std::move(mesher), paramsMask, params, inflationNeighborhoodEdgeDist); }},

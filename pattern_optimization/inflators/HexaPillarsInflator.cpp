@@ -25,6 +25,11 @@ HexaPillarsInflator::HexaPillarsInflator(const std::vector<Real> &initial_params
         cout << "Constructing " + out_wire + " ..." << endl;
         hexlib.generate_simpler_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
                                                             vertices, edges, custom_pairs);
+
+        m_p1 = triangle_side_factor;
+        m_p2 = num_pillars;
+        m_p3 = pillar_area_ratio;
+        m_p4 = thickness_ratio;
     }
     else {
         triangle_side_factor = initial_params[0];
@@ -48,6 +53,15 @@ HexaPillarsInflator::HexaPillarsInflator(const std::vector<Real> &initial_params
         hexlib.generate_auxetic_topology_and_thickness_info(triangle_side_factor, num_pillars, pillar_area_ratio, thickness_ratio,
                                                             center_thickness_ratio, ninja_factor, joint_thickness_factor,
                                                             joint_offset_factor, vertices, edges, custom_pairs);
+
+        m_p1 = triangle_side_factor;
+        m_p2 = num_pillars;
+        m_p3 = pillar_area_ratio;
+        m_p4 = thickness_ratio;
+        m_p5 = center_thickness_ratio;
+        m_p6 = ninja_factor;
+        m_p7 = joint_thickness_factor;
+        m_p8 = joint_offset_factor;
     }
 
 
@@ -55,15 +69,6 @@ HexaPillarsInflator::HexaPillarsInflator(const std::vector<Real> &initial_params
 
     // Create and save inflator
     m_infl = Future::make_unique<IsoinflatorWrapper<2>>(out_wire, "doubly_periodic", true, 2);
-
-    m_p1 = triangle_side_factor;
-    m_p2 = num_pillars;
-    m_p3 = pillar_area_ratio;
-    m_p4 = thickness_ratio;
-    m_p5 = center_thickness_ratio;
-    m_p6 = ninja_factor;
-    m_p7 = joint_thickness_factor;
-    m_p8 = joint_offset_factor;
 }
 
 void HexaPillarsInflator::configureResolution(const std::vector<Real> &params) {
@@ -350,7 +355,7 @@ std::vector<TReal> HexaPillarsInflator::hexaPillarsToFullParameters(const std::v
 }
 
 Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
-HexaPillarsInflator::selfSupportingConstraints(const std::vector<double> &params) const {
+HexaPillarsInflator::selfSupportingConstraints(const std::vector<double> &/*params*/) const {
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> emptyMatrix;
     return emptyMatrix;
 }

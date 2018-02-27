@@ -264,8 +264,7 @@ public:
     using PatternSymmetry = Symmetry_;
 
     std::vector<int> generateFilterMap(const std::vector<bool> &parametersMask) {
-        int filteredIdx = 0;
-        int originalIdx = 0;
+        size_t originalIdx = 0;
         std::vector<int> result;
 
         for (; originalIdx < parametersMask.size(); originalIdx++) {
@@ -726,7 +725,7 @@ public:
         std::vector<int> result;
         int baseIdx = m_findBaseVertex(point);
         int indepIdx = m_indepVtxForBaseVtx[baseIdx];
-        int dofs = m_baseVertexPositioners[indepIdx].numDoFs();
+        unsigned dofs = m_baseVertexPositioners[indepIdx].numDoFs();
 
         for (unsigned i=0; i<dofs; i++)
             result.push_back(m_baseVertexVarOffsets[baseIdx].position+i);

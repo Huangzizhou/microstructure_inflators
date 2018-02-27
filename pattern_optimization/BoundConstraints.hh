@@ -76,8 +76,7 @@ struct BoundConstraints {
     }
 
     std::vector<int> generateFilterMap(const std::vector<bool> &parametersMask) {
-        int filteredIdx = 0;
-        int originalIdx = 0;
+        size_t originalIdx = 0;
         std::vector<int> result;
 
         for (; originalIdx < parametersMask.size(); originalIdx++) {

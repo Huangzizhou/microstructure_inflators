@@ -122,7 +122,7 @@ struct NonPeriodic : SymmetryCRTP<NonPeriodic<TOL>> {
     }
 
     template<typename Real>
-    static bool inBaseUnit(const Point3<Real> &p) {
+    static bool inBaseUnit(const Point3<Real> &/*p*/) {
         return true;
     }
 

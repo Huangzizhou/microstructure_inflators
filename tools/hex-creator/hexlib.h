@@ -1655,8 +1655,8 @@ public:
         return resulting_edge;
     }
 
-    double get_pillar_area(TReal triangle_side_ratio, unsigned num_pillars, TReal pillar_area_ratio,
-                           TReal min_thickness_ratio, TReal max_thickness_ratio, TReal ninja_factor) {
+    double get_pillar_area(TReal triangle_side_ratio, unsigned /*num_pillars*/, TReal pillar_area_ratio,
+                           TReal /*min_thickness_ratio*/, TReal /*max_thickness_ratio*/, TReal ninja_factor) {
         double parallelogram_side = 3.0;
         double s = parallelogram_side / 3.0;
         double triangle_y_position = s * sqrt(3)/2.0 * (1-triangle_side_ratio);
@@ -1690,8 +1690,8 @@ public:
         return pillar_area;
     }
 
-    TReal get_joint_void(TReal triangle_side_ratio, unsigned num_pillars, TReal pillar_area_ratio, TReal min_thickness_ratio,
-                         TReal max_thickness_ratio, TReal ninja_factor, TReal joint_thickness_factor, TReal joint_offset_factor) {
+    TReal get_joint_void(TReal triangle_side_ratio, unsigned /*num_pillars*/, TReal pillar_area_ratio, TReal /*min_thickness_ratio*/,
+                         TReal /*max_thickness_ratio*/, TReal ninja_factor, TReal /*joint_thickness_factor*/, TReal joint_offset_factor) {
 
         vector<vector<Point>> edges_descriptions;
         double parallelogram_side = 3.0;
@@ -1737,7 +1737,7 @@ public:
         return joint_offset;
     }
 
-    void create_pillars_with_constant_spacing_and_thickness(vector<Point> line1, vector<Point> line2, TReal min_thickness_ratio, TReal max_thickness_ratio, TReal joint_thickness_factor, TReal joint_offset_factor, TReal pillar_area, unsigned num_pillars, vector<vector<Point>> &edges_descriptions, vector<Matrix<TReal, 2, Dynamic>> &pillar_polygons, vector<Matrix<TReal, 2, Dynamic>> &pillar_triangles) {
+    void create_pillars_with_constant_spacing_and_thickness(vector<Point> line1, vector<Point> line2, TReal min_thickness_ratio, TReal max_thickness_ratio, TReal joint_thickness_factor, TReal joint_offset_factor, TReal pillar_area, unsigned num_pillars, vector<vector<Point>> &edges_descriptions, vector<Matrix<TReal, 2, Dynamic>> &/*pillar_polygons*/, vector<Matrix<TReal, 2, Dynamic>> &pillar_triangles) {
         Point unit_vector = (line1[1] - line1[0]) / (line1[1] - line1[0]).norm();
 
         // initial points for each side

@@ -40,7 +40,7 @@ namespace ParametersMask {
 
         // marking which points are filtered and which are not
         for (auto region : regions) {
-            for (int i = 0; i < points.size(); i++) {
+            for (size_t i = 0; i < points.size(); i++) {
                 if (region.containsPoint(points[i])) {
                     result.push_back(points[i]);
                 } else {

@@ -77,8 +77,6 @@ public:
 
     // Change in the displacements due to mesh vertex perturbations delta_p
     VField deltaDisplacements(const VField &u, const VField &delta_p) const {
-        typedef typename _Sim::VField  VField;
-        using SMatrix = typename _Sim::SMatrix;
 
         // Set all dirichlet boundary conditions to 0 (zero).
         m_sim.removeDirichletConditions();
