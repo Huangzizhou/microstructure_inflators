@@ -355,9 +355,3 @@ HexaPillarsInflator::selfSupportingConstraints(const std::vector<double> &params
     return emptyMatrix;
 }
 
-Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
-HexaPillarsInflator::positioningConstraints(const std::vector<double> &params) const {
-    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic> emptyMatrix;
-    return emptyMatrix;
-}
-

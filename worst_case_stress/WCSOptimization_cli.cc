@@ -67,7 +67,6 @@
 
 #include <constraints/TensorFit.hh>
 #include <constraints/Printability.hh>
-#include <constraints/PositioningConstraint.hh>
 
 #include <Parallelism.hh>
 
@@ -160,7 +159,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     constraintOptions.add_options()
         ("TensorFitConstraint,C",  "Enforce homogenized tensor fitting as a nonlinear equality constraint (for optimizers that support this)")
         ("PrintabilityConstraint", "Enforce self-supporting printability constraints as inequality constraints (for optimizers that support this)")
-        ("PositioningConstraint", "Enforce that all vertices are kept in their initial base unit (for optimizers that support this)");
+        ;
 
     po::options_description elasticityOptions;
     elasticityOptions.add_options()
@@ -357,7 +356,6 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
     using  TFConstraintConfig  = PO::   Constraints::IFConfigTensorFit<Simulator>;
     using   PConstraintConfig  = PO::   Constraints::IFConfigPrintability<Simulator>;
-    using PosConstraintConfig  = PO::   Constraints::IFConfigPositioningConstraint<Simulator>;
 
     auto ifactory = PO::make_iterate_factory<PO::Iterate<Simulator>,
          WCSTermConfig,
@@ -366,8 +364,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
          IsoFitRelConfig,
          PRegTermConfig,
           TFConstraintConfig,
-           PConstraintConfig,
-         PosConstraintConfig>(inflator, bdcs);
+           PConstraintConfig>(inflator, bdcs);
 
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
@@ -379,7 +376,6 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
     ifactory-> TFConstraintConfig ::enabled = false;
     ifactory->  PConstraintConfig ::enabled = false;
-    ifactory->PosConstraintConfig ::enabled = false;
 
     // Configure WCS Objective
     // By default, an "Lp norm" objective is really the p^th power of the Lp norm.
@@ -434,15 +430,6 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
 
     if (args.count("PrintabilityConstraint")) {
         ifactory->PConstraintConfig::enabled = true;
-    }
-
-    if (args.count("PositioningConstraint")) {
-        if (!args.count("isotropicParameters") || _N != 2)
-        {
-            throw runtime_error("PositioningConstraint currently works only in 2D and for cubic symmetries");
-        }
-
-        ifactory->PosConstraintConfig::enabled = true;
     }
 
     if (args.count("proximityRegularizationWeight")) {

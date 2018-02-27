@@ -59,8 +59,6 @@ public:
     virtual bool isPrintable(const std::vector<Real> &params) override;
     virtual Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
         selfSupportingConstraints(const std::vector<double> &params) const override;
-    virtual Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
-    positioningConstraints(const std::vector<double> &params) const override;
 
     virtual bool hasOrthotropicSymmetry() const override;
 

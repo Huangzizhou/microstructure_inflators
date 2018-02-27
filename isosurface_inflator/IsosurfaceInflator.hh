@@ -25,8 +25,6 @@
 #include "MeshingOptions.hh"
 #include <Parallelism.hh>
 
-#define BENCHMARK
-
 class IsosurfaceInflator {
 public:
     typedef Eigen::Matrix<Real, 3, 1> Point;
@@ -94,9 +92,6 @@ public:
 
     Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
     selfSupportingConstraints(const std::vector<Real> &params) const;
-
-    Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
-    positioningConstraints(const std::vector<Real> &params) const;
 
     ~IsosurfaceInflator();
 

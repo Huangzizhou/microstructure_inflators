@@ -503,67 +503,6 @@ public:
         return true;
     }
 
-    Eigen::MatrixXd positioningConstraints(const std::vector<Real> &params) const
-    {
-        size_t posParams = 0;
-        const size_t nparams = numParams();
-        const size_t ncols = (nparams + 1);
-
-        std::vector<Eigen::Matrix<Real, 1, Eigen::Dynamic>> constraints;
-        for (const auto &bvp : m_baseVertexPositioners) {
-            size_t numDoF = bvp.numDoFs();
-
-            if (numDoF == 1) {
-//                Eigen::Matrix<Real, 1, (numPositionParams + 1)> constraintParamLowerBound;
-//                Eigen::Matrix<Real, 1, (numPositionParams + 1)> constraintParamUpperBound;
-//
-//                constraintParamUpperBound(0, posParams) = -1;
-//                constraintParamUpperBound(0, nparams) = 1;
-//
-//                constraintParamLowerBound(0, posParams) = 1;
-            }
-            else if (numDoF == 2) {
-//                Eigen::Matrix<Real, 1, (numPositionParams + 1)> constraintParam1LowerBound;
-//                Eigen::Matrix<Real, 1, (numPositionParams + 1)> constraintParam2LowerBound;
-//                Eigen::Matrix<Real, 1, (numPositionParams + 1)> constraintParam1UpperBound;
-//                Eigen::Matrix<Real, 1, (numPositionParams + 1)> constraintParam2UpperBound;
-                Eigen::Matrix<Real, 1, Eigen::Dynamic> constraintParamSum;
-                constraintParamSum.resize(1, ncols);
-
-                // constaint: 1 >= p1
-//                constraintParam1UpperBound(0, posParams) = -1;
-//                constraintParam1UpperBound(0, nparams) = 1;
-
-                // constaint p1 >= 0
-//                constraintParam1LowerBound(0, posParams) = 1;
-
-                // constaint 1 >= p2
-//                constraintParam2(0, posParams + 1) = -1;
-//                constraintParam2(0, nparams) = 1;
-
-                // constaint p2 >= 0
-//                constraintParam1LowerBound(0, posParams + 1) = 1;
-
-
-                // constaint 1 >= p1 + p2
-                constraintParamSum(0, posParams) = -1;
-                constraintParamSum(0, posParams+1) = -1;
-                constraintParamSum(0, nparams) = 1;
-
-                constraints.push_back(constraintParamSum);
-            }
-
-            posParams += bvp.numDoFs();
-        }
-
-        // Convert constraints into Eigen format.
-        Eigen::MatrixXd C(constraints.size(), params.size() + 1);
-        for (size_t i = 0; i < constraints.size(); ++i)
-            C.row(i) = constraints[i];
-
-        return C;
-    }
-
     // The self-supporting printability constraints for per-vertex thickness
     // patterns take the form of inequality constraints on the position and
     // thickness parameters. These inequalities are linear apart from a min()

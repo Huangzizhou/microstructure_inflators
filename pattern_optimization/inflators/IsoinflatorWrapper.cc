@@ -174,12 +174,6 @@ IsoinflatorWrapper<N>::hasOrthotropicSymmetry() const {
     return m_inflator->hasOrthotropicSymmetry();
 }
 
-template<size_t N>
-Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
-IsoinflatorWrapper<N>::positioningConstraints(const std::vector<double> &params) const {
-    return m_inflator->positioningConstraints(params);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Configuration
 ////////////////////////////////////////////////////////////////////////////////

@@ -103,8 +103,6 @@ private:
 
     virtual Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
     selfSupportingConstraints(const std::vector<double> &params) const override;
-    virtual Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>
-    positioningConstraints(const std::vector<double> &params) const override;
 
 
     ////////////////////////////////////////////////////////////////////////////

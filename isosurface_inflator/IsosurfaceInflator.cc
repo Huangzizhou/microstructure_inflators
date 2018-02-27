@@ -86,12 +86,6 @@ IsosurfaceInflator::selfSupportingConstraints(const std::vector<Real> &params) c
     return m_imp->selfSupportingConstraints(params);
 }
 
-Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
-IsosurfaceInflator::positioningConstraints(const std::vector<Real> &params) const {
-    //TODO: fix this
-    //return m_imp->positioningConstraints(params);
-}
-
 MeshingOptions &IsosurfaceInflator::meshingOptions() { return m_imp->meshingOptions(); }
 
 IsosurfaceInflator::~IsosurfaceInflator() {
