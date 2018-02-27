@@ -61,23 +61,19 @@ add_library(optimizers
         optimizers/ceres.cc
         optimizers/dlib.cc
         optimizers/gradient_descent.cc
-        optimizers/nlopt.cc)
+        optimizers/nlopt.cc
+        optimizers/knitro.cc)
 set_target_properties(optimizers PROPERTIES CXX_STANDARD 11)
 
 # MeshFEM library
 target_link_libraries(optimizers MeshFEM)
 
-# NLopt library
-find_package(NLopt REQUIRED)
-target_include_directories(optimizers SYSTEM PUBLIC ${NLOPT_INCLUDE_DIR})
-target_link_libraries(optimizers ${NLOPT_LIBRARIES})
 
 # Accelerate framework
 if (APPLE)
     find_library(AccelerateFramework Accelerate)
     target_link_libraries(optimizers ${AccelerateFramework})
 endif (APPLE)
-
 ################################################################################
 # Optional optimization libraries
 ################################################################################
@@ -100,6 +96,26 @@ if(CERES_FOUND)
     target_compile_definitions(optimizers PUBLIC -DHAS_CERES)
 else()
     message(STATUS "Google's ceres-solver not found; levenberg-marquardt disabled")
+endif()
+
+# NLopt library
+find_package(NLopt QUIET)
+if(NLOPT_FOUND)
+    target_include_directories(optimizers SYSTEM PUBLIC ${NLOPT_INCLUDE_DIR})
+    target_link_libraries(optimizers ${NLOPT_LIBRARIES})
+    target_compile_definitions(optimizers PUBLIC -DHAS_NLOPT)
+else()
+    message(STATUS "NLopt not found; slsqp disabled")
+endif()
+
+# Knitro library
+find_package(Knitro QUIET)
+if(KNITRO_FOUND)
+    target_include_directories(optimizers SYSTEM PUBLIC ${KNITRO_INCLUDE_DIRS})
+    target_link_libraries(optimizers ${KNITRO_LIBRARIES})
+    target_compile_definitions(optimizers PUBLIC -DHAS_KNITRO)
+else()
+    message(STATUS "Knitro not found; active_set disabled")
 endif()
 
 ################################################################################

@@ -53,6 +53,7 @@
 #include <optimizers/dlib.hh>
 #include <optimizers/gradient_descent.hh>
 #include <optimizers/nlopt.hh>
+#include <optimizers/knitro.hh>
 
 #include <PatternOptimizationIterate.hh>
 
@@ -91,6 +92,7 @@ OptimizerMap optimizers = {
     {"bfgs",                 optimize_dlib_bfgs},
     {"lbfgs",                optimize_dlib_bfgs},
     {"slsqp",                optimize_nlopt_slsqp},
+    {"active_set",           optimize_knitro_active_set},
     {"gradient_descent",     optimize_gd}
 };
 
@@ -277,12 +279,19 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
         boost::trim(jacobianString);
         boost::split(jacobianComponents, jacobianString, boost::is_any_of("\t "),
                 boost::token_compress_on);
-        if (jacobianComponents.size() != _N * _N)
+        if (jacobianComponents.size() != _N * _N) {
             throw runtime_error("Invalid deformation jacobian");
+        }
         for (size_t i = 0; i < _N; ++i) {
             for (size_t j = 0; j < _N; ++j) {
                 jacobian(i, j) = stod(jacobianComponents[_N * i + j]);
             }
+        }
+
+        Eigen::Matrix<Real, 3, 3> meshing_jacobian = inflator.meshingOptions().jacobian;
+        std::cerr << meshing_jacobian << std::endl << std::endl;
+        if (!meshing_jacobian.topLeftCorner<_N, _N>().isApprox(jacobian)) {
+            std::cerr << "-- Warning: different Jacobian specified in the meshing options and the --deformedCell arguments." << std::endl << std::endl;
         }
 
         // Apply the appropriate transformation to analyze the deformed cell's
@@ -439,10 +448,10 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     if (args.count("proximityRegularizationWeight")) {
         ifactory->PRegTermConfig::enabled = true;
         ifactory->PRegTermConfig::weight = args["proximityRegularizationWeight"].as<double>();
-        ifactory->PRegTermConfig::targetParams = job->initialParams;
+        ifactory->PRegTermConfig::targetParams = job->validatedInitialParams(inflator);
         if (args.count("proximityRegularizationTarget")) {
             ifactory->PRegTermConfig::targetParams = parseParams(args["proximityRegularizationTarget"].as<string>());
-            if (ifactory->PRegTermConfig::targetParams.size() != job->initialParams.size())
+            if (ifactory->PRegTermConfig::targetParams.size() != params.domainSize())
                 throw runtime_error("Invalid proximity regularization target parameter count");
         }
         if (args.count("proximityRegularizationZeroTarget")) {

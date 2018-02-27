@@ -56,7 +56,7 @@ void computeCurvatureAdaptiveMinLen(const std::list<std::list<Point2D>> &polygon
 void MidplaneMesher::
 mesh(const SignedDistanceRegion<3>  &sdf,
      std::vector<MeshIO::IOVertex>  &vertices,
-     std::vector<MeshIO::IOElement> &triangles)
+     std::vector<MeshIO::IOElement> &triangles) const
 {
     auto bb = sdf.boundingBox();
     size_t gridSizeX = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[0]),

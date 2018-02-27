@@ -54,10 +54,6 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     objectiveOptions.add_options()
         ("pnorm,P",      po::value<double>()->default_value(1.0),         "pnorm used in the Lp global worst case stress measure")
         ("usePthRoot,R",                                                  "Use the true Lp norm for global worst case stress measure (applying pth root)")
-        ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
-        ("JSWeight",     po::value<double>()->default_value(0.0),         "Weight for the JS term of the objective")
-        ("JVolWeight",   po::value<double>()->default_value(0.0),         "Weight for the JVol term of the objective")
-        ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ;
 
     po::options_description elasticityOptions;
@@ -128,7 +124,6 @@ void execute(const po::variables_map &args,
     using Simulator = typename LinearElasticity::Simulator<Mesh>;
     using ETensor   = typename Simulator::ETensor;
     using VField    = typename Simulator::VField;
-    using Vector    = VectorND<_N>;
 
     // Original mesh and simulator
     BoundaryPerturbationInflator<_N> bpi(vertices, elements);
@@ -139,16 +134,16 @@ void execute(const po::variables_map &args,
     // Perturb mesh
     {
         auto &mesh = sim.mesh();
-        auto normals = bpi.normals();
-        vector<Vector> perturbation(sim.mesh().numBoundaryVertices());
+        VField perturbation(sim.mesh().numBoundaryVertices());
         Real A = args["perturbationAmplitude"].as<Real>();
         Real f = args["perturbationFrequency"].as<Real>();
+        auto normals = bpi.boundaryVertexNormals();
         for (auto bv : mesh.boundaryVertices()) {
             auto pt = bv.node().volumeNode()->p;
             Real a = A * cos(M_PI * f * pt[0]) * cos(M_PI * f * pt[1]);
-            perturbation[bv.index()] = a * normals(bv.index());
+            perturbation(bv.index()) = a * normals(bv.index());
         }
-        perturbParams = bpi.extractParamsFromBoundaryValues(perturbation);
+        bpi.paramsFromBoundaryVField(perturbation).getFlattened(perturbParams);
     }
 
     // Perturbed meshes and simulators
@@ -265,6 +260,7 @@ void execute(const po::variables_map &args,
     cout << "Centered difference WCS:\t" << 0.5 * (perturbedWCSObjective.evaluate() - neg_perturbedWCSObjective.evaluate()) << endl;
     cout << "Discrete shape derivative WCS:\t"    << origWCSObjective.deltaJ(sim, w, delta_p) << endl;
 
+#if 0 // worst-case stress code no longer implements the inaccurate continuous shape derivative formula.
     // Compute shape derivative using continuous formulation
     using NSVI = Interpolant<Real, _N - 1, 1>;
     std::vector<NSVI> delta_p_nsv; delta_p_nsv.reserve(sim.mesh().numBoundaryElements());
@@ -276,6 +272,7 @@ void execute(const po::variables_map &args,
         delta_p_nsv.push_back(nsv);
     }
     cout << "Continuous shape derivative WCS:\t" << origWCSObjective.directDerivative(sim, w, delta_p_nsv) << endl;
+#endif
 
     // Compute shape derivative ignoring the motion of internal vertices
     VField delta_p_bdryonly(sim.mesh().numVertices());
@@ -322,6 +319,12 @@ void execute(const po::variables_map &args,
 
     ShapeVelocityInterpolator interpolator(sim);
     cout << "Periodic laplacian delta p discrete shape derivative WCS:\t" << origWCSObjective.deltaJ(sim, w, interpolator.interpolate(sim, bdry_svel)) << endl;
+
+    auto cellOps = constructBaseCellOps(BaseCellType::TriplyPeriodic, sim);
+    OneForm<Real, _N> dJ = origWCSObjective.adjointDeltaJ(*cellOps);
+    cout << "Adjoint discrete shape derivative WCS (volume):\t" << dJ[interpolator.interpolate(sim, bdry_svel)] << endl;
+    OneForm<Real, _N> dJbdry = interpolator.adjoint(sim, dJ);
+    cout << "Adjoint discrete shape derivative WCS (boundary):\t" << dJbdry[bdry_svel] << endl;
 }
 
 int main(int argc, const char *argv[])

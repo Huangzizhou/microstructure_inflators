@@ -1,5 +1,7 @@
 #include "nlopt.hh"
 
+#if HAS_NLOPT
+
 #include <nlopt.hpp>
 #include <limits>
 
@@ -212,3 +214,15 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
         params[p] = x[p];
 }
 
+#else // !HAS_NLOPT
+
+void optimize_nlopt_slsqp(ScalarField<Real> &/* params */,
+        const PatternOptimization::BoundConstraints &/* bds */,
+        PatternOptimization::IterateManagerBase &/* im */,
+        const PatternOptimization::OptimizerConfig &/* oconfig */,
+        const std::string &/* outPath */) {
+    throw std::runtime_error("Built without NLopt");
+}
+
+
+#endif // HAS_NLOPT

@@ -22,7 +22,7 @@ struct VisSDFunc : public SignedDistanceRegion<3> {
             std::cerr << "Using default params" << std::endl;
         }
 
-        m_psd.setParameters(params, JointBlendMode::HULL);
+        m_psd.setParameters(params, Eigen::Matrix3d::Identity(), JointBlendMode::HULL);
         m_wmesh.inflationGraph(params, points, edges, thicknesses, blendingParams);
 
         for (size_t i = 0; i < points.size(); ++i)

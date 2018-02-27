@@ -18,12 +18,16 @@
 #include <type_traits>
 #include <GlobalBenchmark.hh>
 
+#include "rasterize.hh"
+
 #include "IsosurfaceInflatorConfig.hh"
 #include "PatternSignedDistance.hh"
 
+#include <boost/algorithm/string.hpp>
+
 class IsosurfaceInflator::Impl {
 public:
-    virtual std::vector<Real>  defaultParameters() const = 0;
+    virtual std::vector<Real> defaultParameters(Real thickness = 0.07) const = 0;
     virtual size_t            numOptimizedParams() const = 0;
     virtual bool   isThicknessParam(size_t p) const = 0;
     virtual bool    isPositionParam(size_t p) const = 0;
@@ -93,6 +97,10 @@ public:
 
     // Mesh the param (fills vertices, elements member arrays)
     virtual void meshPattern(const std::vector<Real> &params) = 0;
+
+    // Rasterize to a density field on a 2D/3D grid
+    // (Infer dimension from resolutionString, which specifies rasterization grid size along each dimension)
+    virtual void rasterize(const std::vector<Real> &params, const std::string &resolutionString, const std::string &outPath) = 0;
 
     // Dump inflation graph
     virtual void dumpInflationGraph(const std::string &path, const std::vector<Real> &params) const = 0;
@@ -200,7 +208,7 @@ public:
         if (config.dumpReplicatedGraph()) { wmesh.saveReplicatedBaseUnit(config.replicatedGraphPath); }
         if (config.dumpBaseUnitGraph())   { wmesh.saveBaseUnit(          config.baseUnitGraphPath); }
 
-        pattern.setParameters(params, meshingOptions().jointBlendingMode);
+        pattern.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode);
 
         // Change the pattern's meshing domain if we're forcing meshing of the
         // full TriplyPeriodic base cell.
@@ -213,6 +221,27 @@ public:
         mesher->mesh(pattern, this->vertices, this->elements);
         BENCHMARK_STOP_TIMER_SECTION("meshPattern");
         // cout << vertices.size() << " vertices, " << elements.size() << " elements" << endl;
+    }
+
+    // Rasterize to a indicator scalar field on a 2D/3D grid
+    // (Infer dimension from resolutionString, which specifies rasterization grid size along each dimension)
+    virtual void rasterize(const std::vector<Real> &params, const std::string &resolutionString, const std::string &outPath) override {
+        pattern.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode);
+
+        std::vector<MeshIO::IOVertex > vertices;
+        std::vector<MeshIO::IOElement> elements;
+        ScalarField<Real> indicator;
+
+
+        std::vector<std::string> sizeStrings;
+        boost::split(sizeStrings, resolutionString, boost::is_any_of(",x"));
+        std::vector<size_t> sizes;
+        for (auto &s : sizeStrings) sizes.push_back(std::stoul(s));
+        ::rasterize(pattern, sizes, vertices, elements, indicator);
+
+        auto type = (sizes.size() == 2) ? MeshIO::MESH_QUAD : MeshIO::MESH_HEX;
+        MSHFieldWriter writer(outPath, vertices, elements, type);
+        writer.addField("indicator", indicator, DomainType::PER_ELEMENT);
     }
 
     // Dump inflation graph
@@ -309,7 +338,7 @@ public:
         params.reserve(params.size());
         for (size_t p = 0; p < nParams; ++p)
             params.emplace_back(inflatedParams[p], nParams, p);
-        patternAutodiff.setParameters(params, meshingOptions().jointBlendingMode);
+        patternAutodiff.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode);
 
         auto evalAtPtIdx = [&](size_t e) {
             ADScalar sd = patternAutodiff.signedDistance(evalPoints[e].template cast<ADScalar>().eval());
@@ -359,7 +388,7 @@ public:
 
     virtual ~IsosurfaceInflatorImpl() { }
 
-    virtual std::vector<Real> defaultParameters() const override { return wmesh.defaultParameters(); }
+    virtual std::vector<Real> defaultParameters(Real t) const override { return wmesh.defaultParameters(t); }
     virtual size_t           numOptimizedParams() const override { return wmesh.numFilteredInParams(); }
     virtual bool  isThicknessParam(size_t p) const override { return wmesh.isThicknessParam(p); }
     virtual bool   isPositionParam(size_t p) const override { return wmesh.isPositionParam(p); }
@@ -382,7 +411,9 @@ public:
     PSD pattern;
     std::unique_ptr<MesherBase> mesher;
 protected:
-    virtual void m_setParameters(const std::vector<Real> &params) override { pattern.setParameters(params, meshingOptions().jointBlendingMode); }
+    virtual void m_setParameters(const std::vector<Real> &params) override {
+        pattern.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode);
+    }
 };
 
 #endif /* end of include guard: ISOSURFACEINFLATORIMPL_HH */

@@ -57,6 +57,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     visible_opts.add_options()("help",                                           "Produce this help message")
         ("offsetBounds,o",      po::value<string>(),                             "offset bounds specifier (lower,upper)")
         ("translationBounds,t", po::value<string>(),                             "translation bounds specifier (lower,upper)")
+        ("defaultThickness",    po::value<double>()->default_value(0.07),        "default thickness")
         ("radiusBounds,r",      po::value<string>()->default_value("0.04,0.2"),  "radius bounds specifier (lower,upper)")
         ("blendingBounds,b",    po::value<string>()->default_value("0.005,0.2"), "blending bounds specifier (lower,upper)")
         ("elasticityTensor,e",  po::value<string>()->default_value("1,0"),       "target tensor specifier (Young,Poisson)")
@@ -181,7 +182,7 @@ int main(int argc, const char *argv[])
                     args["parameterConstraints"].as<string>(), boost::is_any_of(";"));
         }
 
-        job->initialParams = wm.defaultParameters();
+        job->initialParams = wm.defaultParameters(args["defaultThickness"].as<double>());
         if (args.count("initialParams")) {
             job->initialParams = parseVecArg(args["initialParams"].as<string>(),
                                              job->initialParams.size());

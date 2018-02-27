@@ -38,20 +38,23 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
     // Options visible in the help message.
     po::options_description visible_opts;
     visible_opts.add_options()("help,h", "Produce this help message")
-                              ("disablePostprocessing,d",                    " Disable post-processing of mesher output")
+                              ("disablePostprocessing,d",                    "Disable post-processing of mesher output")
                               ("cheapPostprocessing",                        " Cheap post-processing of mesher output")
-                              ("dumpBaseUnitGraph,B", po::value<string>(),   " Output the base unit inflation graph to the specified path")
-                              ("dumpInflationGraph,D", po::value<string>(),  " Output the inflation graph to the specified path")
-                              ("dumpReplicatedGraph,R", po::value<string>(), " Output the replicated pattern graph to the specified path")
-                              ("mopts,m", po::value<string>(),               " Meshing options file")
-                              ("params,p", po::value<string>(),              " Pattern parameters")
+                              ("dumpBaseUnitGraph,B", po::value<string>(),   "Output the base unit inflation graph to the specified path")
+                              ("dumpInflationGraph,D", po::value<string>(),  "Output the inflation graph to the specified path")
+                              ("dumpReplicatedGraph,R", po::value<string>(), "Output the replicated pattern graph to the specified path")
+                              ("mopts,m", po::value<string>(),               "Meshing options file")
+                              ("params,p", po::value<string>(),              "Pattern parameters")
                               ("paramsFile", po::value<string>(),              " Pattern parameters file")
-                              ("nonReflectiveInflator",                      " use non-reflective inflator (reflective by default)")
-                              ("ortho_cell,O",                               " Generate the ortho cell only (for ortho-cell meshers)")
+                              ("nonReflectiveInflator",                      "use non-reflective inflator (reflective by default)")
+                              ("ortho_cell,O",                               "Generate the ortho cell only (for ortho-cell meshers)")
                               ("inflation_graph_radius", po::value<size_t>()->default_value(2),   "Number of edges to traverse outward from the symmetry cell when building the inflation graph")
-                              ("dumpShapeVelocities,S", po::value<string>(), " Dump the shape velocities for debugging")
-                              ("loadMesh,M",            po::value<string>(), " Skip meshing process, loading existing mesh instead (for debugging)")
-                              ("assertPlanarNormals",                        " Verify that normals have a zero z component (relevant in 2D)")
+                              ("dumpShapeVelocities,S", po::value<string>(), "Dump the shape velocities for debugging")
+                              ("loadMesh,M",            po::value<string>(), "Skip meshing process, loading existing mesh instead (for debugging)")
+                              ("assertPlanarNormals",                        "Verify that normals have a zero z component (relevant in 2D)")
+                              ("rasterize,r",           po::value<string>(), "Rasterize the pattern to an indicator field on a regular grid")
+                              ("rasterResolution",      po::value<string>()->default_value("20x20x20"),
+                                                                             "Size of the rasterization grid (2D or 3D)")
 #if HAS_TBB
                               ("numProcs",              po::value<size_t>(), "Number of threads to use for TBB parallelism (CGAL mesher, etc.)")
 #endif
@@ -174,6 +177,11 @@ int main(int argc, char *argv[])
                 std::cout << "normal: " << n.transpose() << std::endl;
             }
         }
+    }
+
+    if (args.count("rasterize")) {
+        inflator.rasterize(params, args["rasterResolution"].as<string>(),
+                                   args["rasterize"].as<string>());
     }
 
     BENCHMARK_REPORT();

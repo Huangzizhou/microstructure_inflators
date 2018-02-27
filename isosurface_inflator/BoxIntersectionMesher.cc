@@ -10,7 +10,7 @@ using namespace std;
 void BoxIntersectionMesher::
 mesh(const SignedDistanceRegion<3> &sdf,
      std::vector<MeshIO::IOVertex> &vertices,
-     std::vector<MeshIO::IOElement> &elements)
+     std::vector<MeshIO::IOElement> &elements) const
 {
     vector<vector<pair<size_t, size_t>>> polygons;
     vertices.clear();

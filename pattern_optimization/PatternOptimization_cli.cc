@@ -39,6 +39,7 @@
 #include "optimizers/dlib.hh"
 #include "optimizers/gradient_descent.hh"
 #include "optimizers/nlopt.hh"
+#include <optimizers/knitro.hh>
 
 #include "PatternOptimizationIterate.hh"
 
@@ -66,6 +67,7 @@ OptimizerMap optimizers = {
     {"bfgs",                 optimize_dlib_bfgs},
     {"lbfgs",                optimize_dlib_bfgs},
     {"slsqp",                optimize_nlopt_slsqp},
+    {"active_set",           optimize_knitro_active_set},
     {"gradient_descent",     optimize_gd}
 };
 
@@ -221,14 +223,13 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled = false;
     if (args.count("proximityRegularizationWeight")) {
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled      = true;
-
+        ifactory->ObjectiveTerms::IFConfigProximityRegularization::targetParams = job->validatedInitialParams(inflator);
         if (args.count("proximityRegularizationZeroTarget")) {
             // Split up params.
             vector<Real> targetParams(job->numParams(), 0.0);
             ifactory->ObjectiveTerms::IFConfigProximityRegularization::targetParams = targetParams;
         }
         else {
-            ifactory->ObjectiveTerms::IFConfigProximityRegularization::targetParams = job->initialParams;
         }
 
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::weight       = args["proximityRegularizationWeight"].as<double>();

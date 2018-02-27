@@ -1,6 +1,9 @@
 # Summary
 
 * [Introduction](README.md)
+* [Installation](Documentation/installation.md)
+  * [On the HPC cluster](Documentation/installation.md#on-the-hpc-cluster)
+  * [On Archlinux](Documentation/installation.md#on-archlinux)
 * [Running the code](Documentation/running.md)
     * [MeshFEM package](Documentation/running.md#meshfem-package)
     * [Microstructures package](Documentation/running.md#microstructures-package)

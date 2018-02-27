@@ -36,8 +36,10 @@ class PatternSignedDistance : public SignedDistanceRegion<3> {
 public:
     using Real = _Real;
     PatternSignedDistance(const WMesh &wireMesh) : m_wireMesh(wireMesh) {
-        if (wireMesh.thicknessType() != ThicknessType::Vertex)
+        m_jacobian.setIdentity();
+        if (wireMesh.thicknessType() != ThicknessType::Vertex) {
             throw std::runtime_error("Only Per-Vertex Thickness Supported");
+        }
     }
 
     // Always support double type for compatibility with SignedDistanceRegion
@@ -55,6 +57,7 @@ public:
     }
 
     void setParameters(const std::vector<Real> &params,
+                       const Eigen::Matrix<Real,3,3> &jacobian,
                        JointBlendMode blendMode = JointBlendMode::HULL) {
         // Clear all existing state.
         m_edgeGeometry.clear(), m_jointForVertex.clear(),
@@ -63,6 +66,10 @@ public:
         std::vector<Real> thicknesses;
         std::vector<Point3<Real>> points;
         m_wireMesh.inflationGraph(params, points, m_edges, thicknesses, m_blendingParams);
+        m_jacobian = jacobian;
+        for (auto &p : points) {
+            p = m_jacobian * p;
+        }
 
         // Vector of edge geometry uses same index as edges
         for (const auto &e : m_edges) {
@@ -679,7 +686,7 @@ private:
     // Additional Real type to support automatic differentiation wrt. p only
     template<typename Real2, bool DebugDerivatives = false>
     Real2 m_signedDistanceImpl(Point3<Real2> p) const {
-        p = WMesh::PatternSymmetry::mapToBaseUnit(p);
+        p = m_jacobian * WMesh::PatternSymmetry::mapToBaseUnit(p);
         std::vector<Real2> edgeDists;
         Real2 closestEdgeDist = 1e5;
         if (m_edgeGeometry.size() == 0) return 1.0;
@@ -758,7 +765,7 @@ private:
     template<typename Real2>
     typename std::enable_if<!(IsAutoDiffType<Real>::value || IsAutoDiffType<Real2>::value), bool>::type
     m_isInsideImpl(Point3<Real2> p) const {
-        p = WMesh::PatternSymmetry::mapToBaseUnit(p);
+        p = m_jacobian * WMesh::PatternSymmetry::mapToBaseUnit(p);
         std::vector<double> edgeDists;
         edgeDists.reserve(m_edgeGeometry.size());
         // Definitely inside if we're inside one of the edges: assumes blending
@@ -791,6 +798,8 @@ private:
     std::vector<Real>                m_blendingParams;
     // Edges adjacent to a particular vertex.
     std::vector<std::vector<size_t>> m_adjEdges;
+
+    Eigen::Matrix<Real, 3, 3> m_jacobian;
 
     // Joint vertex indices and their geometry
     // (Not every vertex is a joint; there are dangling edges extending outside

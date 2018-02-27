@@ -59,16 +59,18 @@ public:
     // Returns the (possibly modified) initial parameters
     std::vector<Real> validatedInitialParams(const InflatorBase &inflator) const {
         std::vector<Real> params(initialParams);
+        // Set params to the default if they're omitted in the job file
+        if (numParams() == 0) params = inflator.defaultParameters();
+        const size_t np = params.size();
         // Allow non-parametric inflator to ignore initialParams (if size mismatch)
         if (!inflator.isParametric()) {
-            if (numParams() != inflator.numParameters()) {
-                if (numParams() > 0)
-                    std::cerr << "WARNING: ignoring incorrectly-sized initial parameters for non-parametric inflator." << std::endl;
+            if (np != inflator.numParameters()) {
+                std::cerr << "WARNING: ignoring incorrectly-sized initial parameters for non-parametric inflator." << std::endl;
                 params.assign(inflator.numParameters(), 0.0);
             }
             return params;
         }
-        if (numParams() != inflator.numParameters()) {
+        if (np != inflator.numParameters()) {
             for (size_t i = 0; i < inflator.numParameters(); ++i)
                 std::cerr << "param " << i
                           << " role: " << parameterTypeString(inflator.parameterType(i))
@@ -106,7 +108,6 @@ public:
 
     virtual void writeJobFile(std::ostream &os) const = 0;
 
-
     std::vector<Real> initialParams, radiusBounds, translationBounds;
     std::vector<bool> paramsMask;
     std::vector<std::string> metaParams;
@@ -138,10 +139,12 @@ public:
            << "\t\"target\": " << targetMaterial << "," << std::endl;
         if (targetVolume)
             os << "\t\"target volume\": " << *targetVolume << "," << std::endl;
-        os << "\t\"initial_params\": [";
-        for (size_t i = 0; i < initialParams.size(); ++i)
-            os << (i ? ", " : "") << initialParams[i];
-        os << "]," << std::endl;
+        if (initialParams.size()) {
+            os << "\t\"initial_params\": [";
+            for (size_t i = 0; i < initialParams.size(); ++i)
+                os << (i ? ", " : "") << initialParams[i];
+            os << "]," << std::endl;
+        }
 
         if (trueParams.size() == initialParams.size()) {
             os << "\t\"# true_params\": [";

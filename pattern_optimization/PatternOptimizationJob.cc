@@ -67,7 +67,6 @@ std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
 
     size_t dim = pt.get<size_t>("dim");
     auto materialSpec = pt.get_child("target");
-    auto paramVals = pt.get_child("initial_params");
     auto radiusBounds = pt.get_child("radiusBounds");
     auto translationBounds = pt.get_child("translationBounds");
 
@@ -84,7 +83,11 @@ std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     }
     else throw runtime_error("Invalid dimension.");
 
-    parseVector(paramVals, job->initialParams);
+    if (pt.count("initial_params")) {
+        auto paramVals = pt.get_child("initial_params");
+        parseVector(paramVals, job->initialParams);
+    }
+
     parseVector(radiusBounds, job->radiusBounds);
     parseVector(translationBounds, job->translationBounds);
 

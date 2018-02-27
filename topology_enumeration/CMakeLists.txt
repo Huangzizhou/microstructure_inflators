@@ -1,19 +1,24 @@
+add_library(intersection_check intersection_check.cc)
+
 # MeshFEM library
 find_package(MeshFEM REQUIRED)
+target_link_libraries(intersection_check MeshFEM)
 
 # CGAL library
 find_package(CGAL REQUIRED COMPONENTS Core)
+find_package(Boost 1.48 REQUIRED thread system)
+target_link_libraries(intersection_check CGAL::CGAL CGAL::CGAL_Core ${Boost_LIBRARIES})
+target_include_directories(intersection_check SYSTEM PRIVATE
+    ${CGAL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${GMP_INCLUDE_DIR} ${MPFR_INCLUDE_DIR})
 
-add_library(intersection_check intersection_check.cc)
-target_link_libraries(intersection_check MeshFEM)
+# C++11
 set_target_properties(intersection_check PROPERTIES CXX_STANDARD 11)
 set_target_properties(intersection_check PROPERTIES CXX_STANDARD_REQUIRED ON)
-target_link_libraries(intersection_check CGAL::CGAL)
-target_include_directories(intersection_check SYSTEM PRIVATE ${CGAL_INCLUDE_DIRS})
 
 ################################################################################
 # Independent binaries
 ################################################################################
+
 add_executable(enumerate enumerate.cc)
 target_link_libraries(enumerate MeshFEM intersection_check)
 set_target_properties(enumerate PROPERTIES CXX_STANDARD 11)

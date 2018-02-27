@@ -34,7 +34,7 @@ public:
 
     virtual void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
-            std::vector<MeshIO::IOElement> &elements) override;
+            std::vector<MeshIO::IOElement> &elements) const override;
 private:
     struct ClippedSignedDistanceFunction;
 };

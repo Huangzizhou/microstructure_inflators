@@ -16,7 +16,7 @@ using namespace std;
 using WMeshSPtr = std::shared_ptr<WireMeshBase>;
 
 template<size_t N> struct DebugSymmetry    { using type = Symmetry::Square<>; };
-template<>         struct DebugSymmetry<3> { using type = Symmetry::Cubic<>; };
+template<>         struct DebugSymmetry<3> { using type = Symmetry::Orthotropic<>; };
 template<size_t N> using DebugSymmetry_t = typename DebugSymmetry<N>::type;
 
 template<size_t N>
@@ -30,9 +30,25 @@ void execute(const std::vector<std::string> &topologyPaths) {
     NDCubeArray<WMeshSPtr, N, 3> topologyGrid;
     NDCubeArray<std::vector<double>, N, 3> parameterGrid;
 
+    using Edge = std::pair<size_t, size_t>;
+
     topologyGrid.visit([&](WMeshSPtr &wm, const NDArrayIndex<N> &idxs) {
         wm = topologies[rand() % topologies.size()];
         parameterGrid(idxs) = wm->defaultParameters();
+
+        // Debug parametersForPeriodCellGraph
+        std::vector<Point3<double>> points;
+        std::vector<Edge> edges;
+        std::vector<double> thicknesses;
+        std::vector<double> blendingParams;
+        std::vector<double> params, default_params = wm->defaultParameters();
+        wm->savePeriodCellGraph("pcell.msh");
+        wm->saveBaseUnit("base.msh");
+        wm->periodCellGraph(default_params,
+                points, edges, thicknesses, blendingParams);
+        wm->parametersForPeriodCellGraph(points, edges, thicknesses, blendingParams, params);
+        for (size_t i = 0; i < params.size(); ++i)
+            assert(std::abs(params[i] - default_params[i]) < 1e-10);
     });
 
     auto swm = make_stitched_wire_mesh(topologyGrid);
@@ -42,7 +58,7 @@ void execute(const std::vector<std::string> &topologyPaths) {
     PatternSignedDistance<double, StitchedWireMesh<N>> sdf(swm);
 
     // Note: JointBlendMode could be set differently in MeshingOptions
-    sdf.setParameters(params, JointBlendMode::HULL);
+    sdf.setParameters(params, Eigen::Matrix3d::Identity(), JointBlendMode::FULL);
 
     std::vector<MeshIO::IOVertex > vertices;
     std::vector<MeshIO::IOElement> elements;

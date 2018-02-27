@@ -10,6 +10,9 @@ struct MeshingOptions {
         load(jsonPath);
     }
 
+    // Jacobian
+    Eigen::Matrix3d jacobian = Eigen::Matrix3d::Identity();
+
     // Joint blending mode:
     JointBlendMode jointBlendingMode = JointBlendMode::FULL;
 

@@ -35,7 +35,7 @@ void execute(const string &wirePath, string paramString, const Point3d &evalPt, 
 
     if (igraphPath != "") wmesh.saveInflationGraph(igraphPath, params);
 
-    psd.setParameters(params);
+    psd.setParameters(params, Eigen::Matrix3d::Identity());
     std::cout << "Signed distance: " << psd.signedDistance(evalPt) << std::endl;
 }
 

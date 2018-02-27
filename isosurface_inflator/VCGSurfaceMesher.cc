@@ -19,7 +19,7 @@ class  MyMesh      : public vcg::tri::TriMesh< std::vector< MyVertex>, std::vect
 void VCGSurfaceMesher::
 mesh(const SignedDistanceRegion<3> &sdf,
      std::vector<MeshIO::IOVertex> &vertices,
-     std::vector<MeshIO::IOElement> &elements)
+     std::vector<MeshIO::IOElement> &elements) const
 {
     typedef vcg::SimpleVolume<vcg::SimpleVoxel<Real>> MyVolume;
     typedef vcg::tri::TrivialWalker<MyMesh, MyVolume>    MyWalker;
@@ -94,7 +94,7 @@ mesh(const SignedDistanceRegion<3> &sdf,
 void VCGSurfaceMesher::
 mesh(const SignedDistanceRegion<3> &/* sdf */,
      std::vector<MeshIO::IOVertex> &/* vertices */,
-     std::vector<MeshIO::IOElement> &/* elements */)
+     std::vector<MeshIO::IOElement> &/* elements */) const
 {
     throw std::runtime_error("VCG unavailable");
 }

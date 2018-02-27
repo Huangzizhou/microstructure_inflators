@@ -8,9 +8,9 @@
 # Independent binaries
 ################################################################################
 
-# add_executable(DiscreteShapeDerivativeValidation_cli DiscreteShapeDerivativeValidation_cli.cc)
-# target_link_libraries(DiscreteShapeDerivativeValidation_cli MeshFEM)
-# set_target_properties(DiscreteShapeDerivativeValidation_cli PROPERTIES CXX_STANDARD 11)
+add_executable(DiscreteShapeDerivativeValidation_cli DiscreteShapeDerivativeValidation_cli.cc)
+target_link_libraries(DiscreteShapeDerivativeValidation_cli MeshFEM inflators)
+set_target_properties(DiscreteShapeDerivativeValidation_cli PROPERTIES CXX_STANDARD 11)
 
 add_executable(MacroMicroStress_cli MacroMicroStress_cli.cc)
 target_link_libraries(MacroMicroStress_cli MeshFEM)

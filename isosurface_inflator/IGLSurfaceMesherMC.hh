@@ -14,14 +14,14 @@ public:
 
     virtual void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
-            std::vector<MeshIO::IOElement> &elements) override {
+            std::vector<MeshIO::IOElement> &elements) const override {
         mesh(sdf, vertices, elements, 0.0);
     }
 
     void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
             std::vector<MeshIO::IOElement> &elements,
-            const double isolevel);
+            const double isolevel) const;
 };
 
 #endif /* end of include guard: IGLSURFACEMESHERMC_HH */

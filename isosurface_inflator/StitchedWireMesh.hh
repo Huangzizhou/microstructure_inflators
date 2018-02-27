@@ -184,6 +184,10 @@ public:
                         std::vector<Edge>   &stitchedEdges,
                         std::vector<double> &stitchedThicknesses,
                         std::vector<double> &stitchedBlendingParams) const {
+        if (N == 3) {
+            return printableInflationGraph(allParams, stitchedPoints,
+                stitchedEdges, stitchedThicknesses, stitchedBlendingParams);
+        }
         size_t paramOffset = 0;
         double cellSize = Symmetry::TriplyPeriodic<>::template representativeMeshCell<double>().dimensions()[0];
         if (allParams.size() != numParams()) throw std::runtime_error("Incorrect parameter vector size");
@@ -239,12 +243,175 @@ public:
     // printability by clamping each repositioned vertex to be at the same
     // level as the adjacent vertex it needs to support.
     template<typename Real>
-    void printableInflationGraph(const std::vector<Real> &/* params */,
-                        std::vector<Point3<Real>> &/* points */,
-                        std::vector<Edge> &/* edges */,
-                        std::vector<Real> &/* thicknesses */,
-                        std::vector<Real> &/* blendingParams */) const {
-        throw std::runtime_error("printableInflationGraph unimplemented");
+    void printableInflationGraph(const std::vector<Real> &allParams,
+                        std::vector<Point3<Real>> &stitchedPoints,
+                        std::vector<Edge> &stitchedEdges,
+                        std::vector<Real> &stitchedThicknesses,
+                        std::vector<Real> &stitchedBlendingParams) const {
+        if (N != 3) throw std::runtime_error("printableInflationGraph only works in 3D");
+
+        const double tolerance = PatternSymmetry::tolerance;
+
+        size_t paramOffset = 0;
+        double cellSize = Symmetry::TriplyPeriodic<>::template representativeMeshCell<double>().dimensions()[0];
+        if (allParams.size() != numParams()) throw std::runtime_error("Incorrect parameter vector size");
+
+        std::vector<Point>  allVerts, averagedAllVerts;
+        std::vector<Edge>   allEdges;
+        std::vector<double> allThicknesses, averagedAllThicknesses;
+        std::vector<double> allBlendingParams;
+
+        // Build period cell graph for each wire mesh separately
+        m_wmeshGrid.visit(SV([&](const WMeshSPtr &wmesh, const NDArrayIndex<N> &idxs) {
+            const size_t np = wmesh->numParams();
+            std::vector<Real> wmparams(&allParams[paramOffset], &allParams[paramOffset] + np);
+            paramOffset += np;
+            std::vector<Point> points;
+            std::vector<Edge> edges;
+            std::vector<double> thicknesses;
+            std::vector<double> blendingParams;
+            wmesh->periodCellGraph(wmparams, points, edges, thicknesses, blendingParams);
+
+            Point cellCornerOffset = m_getCellOffset(cellSize, idxs);
+            for (const auto &v : points)    allVerts.emplace_back(v + cellCornerOffset);
+            for (double t : thicknesses)    allThicknesses.push_back(t);
+            for (double b : blendingParams) allBlendingParams.push_back(b);
+        }));
+
+        averagedAllVerts = allVerts;
+        averagedAllThicknesses = allThicknesses;
+
+        // Extract stitched graph from the replicated graph by averaging
+        // merged vertices' values.
+        stitchedEdges = m_stitchedEdges;
+        stitchedPoints.clear(), stitchedThicknesses.clear(), stitchedBlendingParams.clear();
+        const size_t nsv = m_stitchedVertices.size();
+        stitchedPoints.reserve(nsv), stitchedThicknesses.reserve(nsv), stitchedBlendingParams.reserve(nsv);
+        for (const auto &sv : m_stitchedVertices) {
+            // Take mean of location, thickness, and blending of all vertices
+            // merged into this stitched output vertex.
+            Point pt(Point::Zero());
+            double t = 0, b = 0.0;
+            for (size_t v : sv) {
+                pt += allVerts.at(v);
+                t  += allThicknesses.at(v);
+                b  += allBlendingParams.at(v);
+            }
+            stitchedPoints.push_back(pt / sv.size());
+            stitchedThicknesses.push_back(t / sv.size());
+            stitchedBlendingParams.push_back(b / sv.size());
+
+            // Copy the averaged positions back to all vertices so that we
+            // can analyze printability on a per-cell basis.
+            for (size_t v : sv) {
+                averagedAllVerts.at(v) = stitchedPoints.back();
+                averagedAllThicknesses.at(v) = stitchedThicknesses.back();
+            }
+        }
+
+        std::cout << "Checking printability" << std::endl;
+
+        // Check if printability was violated
+        // Mark a vertex as violating if it is on a vertical interface and belongs to
+        // a violated cell.
+        std::vector<bool> printabilityViolating(allVerts.size(), false);
+        size_t numViolations = 0;
+        size_t avOffset = 0, atOffset = 0, abOffset = 0;
+        m_wmeshGrid.visit(SV([&](const WMeshSPtr &wmesh, const NDArrayIndex<N> &idxs) {
+            std::vector<Real> params(wmesh->numParams());
+
+            // Really only do this to get the sizes right...
+            std::vector<Point> points;
+            std::vector<Edge> edges;
+            std::vector<double> thicknesses;
+            std::vector<double> blendingParams;
+            wmesh->periodCellGraph(params, points, edges, thicknesses, blendingParams);
+
+            Point cellCornerOffset = m_getCellOffset(cellSize, idxs);
+            for (size_t i = 0; i < points.size(); ++i) points[i] = averagedAllVerts.at(avOffset + i) - cellCornerOffset;
+            for (size_t i = 0; i < thicknesses.size(); ++i) thicknesses[i] = averagedAllThicknesses.at(atOffset + i);
+            for (size_t i = 0; i < blendingParams.size(); ++i) blendingParams[i] = allBlendingParams.at(abOffset + i);
+
+            wmesh->parametersForPeriodCellGraph(points, edges, thicknesses, blendingParams, params);
+            if (!wmesh->isPrintable(params, true)) {
+                ++numViolations;
+                for (size_t i = 0; i < points.size(); ++i) {
+                    const auto &pt = points[i];
+                    // only mark vertices on the vertical interface
+                    if ((std::abs(pt[0] - 1) < tolerance) ||
+                        (std::abs(pt[0] + 1) < tolerance) ||
+                        (std::abs(pt[1] - 1) < tolerance) ||
+                        (std::abs(pt[1] + 1) < tolerance)) {
+                        printabilityViolating.at(avOffset + i) = true;
+                    }
+                }
+            }
+
+            avOffset += points.size();
+            atOffset += thicknesses.size();
+            abOffset += blendingParams.size();
+        }));
+
+        if (numViolations > 0) {
+            _OutputGraph("printability_violation.msh", stitchedPoints, stitchedEdges);
+            std::cerr << numViolations << " printability violations in stitched mesh; attempting to resolve them." << std::endl;
+            // For all vertices of cells whose printability was violated, take the
+            // parameters from the "most supportive" violated vertex (with minimum sphere bottom point).
+            // Note: this is overly conservative; we should use the printability
+            // constraints to make a more precise modification.
+            for (size_t svi = 0; svi < m_stitchedVertices.size(); ++svi) {
+                const auto &sv = m_stitchedVertices[svi];
+                for (size_t v : sv) {
+                    if (printabilityViolating.at(v)) {
+                        Real z = allVerts.at(v)[2] - allThicknesses.at(v);
+                        Real currZ = stitchedPoints[svi][2] - stitchedThicknesses[svi];
+                        if (z < currZ) {
+                            stitchedPoints[svi][2] = allVerts.at(v)[2];
+                            stitchedThicknesses[svi] = allThicknesses.at(v);
+                        }
+                    }
+                }
+
+                // Copy the averaged positions back to all vertices so that we
+                // can validate printability on a per-cell basis.
+                for (size_t v : sv) {
+                    averagedAllVerts.at(v) = stitchedPoints[svi];
+                    averagedAllThicknesses.at(v) = stitchedThicknesses[svi];
+                }
+            }
+
+            // Do a final check that we have resolved the printability issue
+            size_t avOffset = 0, atOffset = 0, abOffset = 0;
+            numViolations = 0;
+            m_wmeshGrid.visit(SV([&](const WMeshSPtr &wmesh, const NDArrayIndex<N> &idxs) {
+                std::vector<Real> params(wmesh->numParams());
+
+                // Really only do this to get the sizes right...
+                std::vector<Point> points;
+                std::vector<Edge> edges;
+                std::vector<double> thicknesses;
+                std::vector<double> blendingParams;
+                wmesh->periodCellGraph(params, points, edges, thicknesses, blendingParams);
+
+                Point cellCornerOffset = m_getCellOffset(cellSize, idxs);
+                for (size_t i = 0; i < points.size(); ++i) points[i] = averagedAllVerts.at(avOffset + i) - cellCornerOffset;
+                for (size_t i = 0; i < thicknesses.size(); ++i) thicknesses[i] = averagedAllThicknesses.at(atOffset + i);
+                for (size_t i = 0; i < blendingParams.size(); ++i) blendingParams[i] = allBlendingParams.at(abOffset + i);
+
+                wmesh->parametersForPeriodCellGraph(points, edges, thicknesses, blendingParams, params);
+                if (!wmesh->isPrintable(params, true)) { ++numViolations; }
+                avOffset += points.size();
+                atOffset += thicknesses.size();
+                abOffset += blendingParams.size();
+            }));
+
+            _OutputGraph("printability_resolution.msh", stitchedPoints, stitchedEdges);
+
+            if (numViolations > 0)
+                throw std::runtime_error(std::to_string(numViolations) + " unprintable cells after printability resolution");
+        }
+
+        std::cout << "Inflation graph generated" << std::endl;
     }
 
     ThicknessType thicknessType() const { return m_thicknessType; }
