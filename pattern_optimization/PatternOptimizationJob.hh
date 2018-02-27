@@ -60,8 +60,15 @@ public:
     std::vector<Real> validatedInitialParams(const InflatorBase &inflator) const {
         std::vector<Real> params(initialParams);
         // Set params to the default if they're omitted in the job file
-        if (numParams() == 0) params = inflator.defaultParameters();
-        const size_t np = params.size();
+        size_t np;
+        if (numParams() == 0) {
+            params = inflator.defaultParameters();
+            np = params.size();
+        }
+        else {
+            np = inflator.numParameters();
+        }
+        //const size_t np = params.size();
         // Allow non-parametric inflator to ignore initialParams (if size mismatch)
         if (!inflator.isParametric()) {
             if (np != inflator.numParameters()) {
