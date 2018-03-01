@@ -53,6 +53,8 @@ public:
 
     // Solve adjoint problem for the cell problem
     VField solveAdjointCellProblem(const VField &adjointRHS) const {
+        VField result;
+
         // Set all dirichlet boundary conditions to 0 (zero).
         m_sim.removeDirichletConditions();
         m_sim.removeNeumanConditions(); // TODO: necessary?!
@@ -72,11 +74,17 @@ public:
         // TODO verify: Neumann conditions are already embedded in adjointRHS!
 
         m_sim.applyBoundaryConditions(new_conds);
-        return m_sim.solve(adjointRHS);
+        result = m_sim.solve(adjointRHS);
+
+        // Reapply old conditions
+        m_sim.applyBoundaryConditions(m_bconds);
+
+        return result;
     }
 
     // Change in the displacements due to mesh vertex perturbations delta_p
     VField deltaDisplacements(const VField &u, const VField &delta_p) const {
+        VField result;
 
         // Set all dirichlet boundary conditions to 0 (zero).
         m_sim.removeDirichletConditions();
@@ -95,7 +103,20 @@ public:
         m_sim.applyBoundaryConditions(new_conds);
 
         auto rhs = -m_sim.applyDeltaStiffnessMatrix(u, delta_p);
-        return m_sim.solve(rhs);
+
+        // Add part related to Neumann Boundary conditions
+        VField deltaNeummanField = m_sim.deltaNeumannLoad(delta_p);
+        rhs += deltaNeummanField;
+
+        MSHFieldWriter writer("deltaDisplacements_validation", m_sim.mesh(), false);
+        writer.addField("delta neumann field", deltaNeummanField);
+
+        result = m_sim.solve(rhs);
+
+        // Reapply old conditions
+        m_sim.applyBoundaryConditions(m_bconds);
+
+        return result;
     }
 
     const                _Sim & sim() const { return m_sim; }

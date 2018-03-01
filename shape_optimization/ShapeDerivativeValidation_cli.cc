@@ -136,7 +136,7 @@ PthRootObjective<IntegratedMicroscopicStressObjective<_N, MicroscopicStressInteg
     MicroscopicStress<_N, Simulator> microStress = MicroscopicFrobeniusStress<CBase.Dim, major_symmetry, Simulator>(CBase, sim.averageStressField(u));
     objective.setPointwiseStress(sim.mesh(), microStress);
     return objective;
-};
+}
 
 template<size_t _N, size_t _FEMDegree>
 void execute(const po::variables_map &args,
@@ -147,7 +147,6 @@ void execute(const po::variables_map &args,
     using Simulator = typename LinearElasticity::Simulator<Mesh>;
     using ETensor   = typename Simulator::ETensor;
     using VField    = typename Simulator::VField;
-    using Vector    = VectorND<_N>;
 
     string bcondsPath = args["boundaryConditions"].as<string>();
     string zeroPerturbationPath = args["zeroPerturbationAreas"].as<string>();

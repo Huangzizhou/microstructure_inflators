@@ -204,9 +204,9 @@ struct IntegratedMicroscopicStressObjective {
         VectorField<Real, N> rho;
         rho = nonPeriodicCellOps.solveAdjointCellProblem(nonPeriodicCellOps.sim().perElementStressFieldLoad(tau));
 
-        //MSHFieldWriter writer("rho_validation", mesh, false);
-        //writer.addField("rho", rho);
-        //writer.addField("tau", tau);
+        MSHFieldWriter writer("rho_validation", mesh, false);
+        writer.addField("rho", rho);
+        writer.addField("tau", tau);
 
         // get value for displacements
         const VectorField<Real, N> &u = nonPeriodicCellOps.displacement();
@@ -308,21 +308,42 @@ struct IntegratedMicroscopicStressObjective {
 
         BENCHMARK_START_TIMER_SECTION("Surface traction term");
 
-        // TODO: Is the surface integral term correct?
-        // Part 3: int_(delta w) (rho . T) grad(lambda_m) dS
+        // Part 3:
+
+        // Compute boundary length/area
+        double neumannArea = 0.0;
         for (auto be : nonPeriodicCellOps.mesh().boundaryElements()) {
+            if (be->neumannTraction.norm() < 1e-8)
+                continue;
+
+            neumannArea += be->volume();
+        }
+
+        for (auto be : nonPeriodicCellOps.mesh().boundaryElements()) {
+            if (be->neumannTraction.norm() < 1e-8)
+                continue;
+
             Real area = be->volume();
 
+            // TODO: create interpolant and use it for integrating on \rho instead of the simple average
             VectorND<N> average_rho;
             average_rho.setZero();
             for (auto n : be.nodes()) {
-                average_rho += rho(n.index());
+                average_rho += rho(n.volumeNode().index());
             }
             average_rho /= be.nodes().size();
 
+            // Part 3a: int_(delta w) (rho . T) grad(lambda_m) dS
             for (auto v : be.vertices()) {
                 Real boundaryIntegrand = average_rho.dot(be->neumannTraction);
-                delta_j(v.index()) += boundaryIntegrand * area * be->gradBarycentric().col(v.localIndex());
+                delta_j(v.volumeVertex().index()) += boundaryIntegrand * area * be->gradBarycentric().col(v.localIndex());
+            }
+
+            // Part 3b: - 1/(area) (int nabla . v dS) (int rho . T dS) + int_(delta w) (rho . T) grad(lambda_m) dS
+            Real coefficient = - 1.0 / neumannArea * average_rho.dot(be->neumannTraction) * area;
+
+            for (auto v : be.vertices()) {
+                delta_j(v.volumeVertex().index()) -= coefficient * be->gradBarycentric().col(v.localIndex()) * area;
             }
         }
 
