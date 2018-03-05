@@ -294,9 +294,7 @@ void BoundaryPerturbationInflator<N>::m_setMesh(
 {
     m_mesh = Future::make_unique<Mesh>(inElements, inVertices);
 
-    // Note: pc matches every node, not just vertex-collocated nodes!
     // But vertex nodes are a prefix of all nodes, so we can ignore this.
-    PeriodicCondition<N> pc(*m_mesh, epsilon);
     m_isPeriodicBE.resize(m_mesh->numBoundaryElements());
     for (auto be : m_mesh->boundaryElements())
         m_isPeriodicBE[be.index()] = false; // TODO: should it be false for non periodic structures?
@@ -326,21 +324,13 @@ void BoundaryPerturbationInflator<N>::m_setMesh(
         for (size_t d = 0; d < N; ++d) {
             // Link vertices at the min/max faces to the special variables
             // holding min/max bbox coordinates
-            int minMax = pc.bdryNodeOnMinOrMaxPeriodCellFace(bvi, d);
-            if      (minMax == -1) m_varForCoordinate[d].at(vvi) = d;
-            else if (minMax ==  1) m_varForCoordinate[d].at(vvi) = N + d;
-            else {
-                // For the coordinates not clamped to min/max, introduce new
-                // variables shared by all identified nodes.
-                const size_t currVar = m_varForCoordinate[d].at(vvi);
-                const size_t newVar = (currVar != NONE) ? currVar
-                                                        : createVar(d);
-                for (size_t iv : pc.identifiedNodes(vvi)) {
-                    assert(pc.bdryNodeOnMinOrMaxPeriodCellFace(m_mesh->vertex(iv).boundaryVertex().index(), d) == 0);
-                    assert(m_varForCoordinate[d].at(iv) == currVar);
-                    m_varForCoordinate[d].at(iv) = newVar;
-                }
-            }
+            // For the coordinates not clamped to min/max, introduce new
+            // variables shared by all identified nodes.
+            const size_t currVar = m_varForCoordinate[d].at(vvi);
+            const size_t newVar = (currVar != NONE) ? currVar
+                                                    : createVar(d);
+
+            m_varForCoordinate[d].at(vvi) = newVar;
         }
     }
 
@@ -366,7 +356,7 @@ void BoundaryPerturbationInflator<N>::m_setMesh(
     // non-periodic-boundary element.
     std::vector<bool> isTrueBdryVertex(m_mesh->numBoundaryVertices(), false);
     for (auto be : m_mesh->boundaryElements()) {
-        if (m_isPeriodicMesh && pc.isPeriodicBE(be.index())) continue;
+        if (m_isPeriodicMesh) continue;
         for (size_t c = 0; c < be.numVertices(); ++c)
             isTrueBdryVertex.at(be.vertex(c).index()) = true;
     }
