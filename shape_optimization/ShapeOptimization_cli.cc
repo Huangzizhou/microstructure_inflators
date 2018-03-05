@@ -89,6 +89,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description simulationOptions;
     simulationOptions.add_options()
             ("boundaryConditions,b", po::value<string>(),                    "boundary conditions")
+            ("zeroPerturbationAreas,z", po::value<string>(),                 "defines regions where wire vertices will not change (its radius, thickness, blending) during optimization (specified as boundary conditions)")
             ;
 
     po::options_description gvOptions;
@@ -269,7 +270,7 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
         }
         else {
             std::cout << "Creating parameters' mask based on boundary conditions ..." << std::endl;
-            job->paramsMask = ParametersMask::generateParametersMask(args["pattern"].as<string>(), args["params"].as<string>(), args["boundaryConditions"].as<string>());
+            job->paramsMask = ParametersMask::generateParametersMask(args["pattern"].as<string>(), args["params"].as<string>(), args["zeroPerturbationAreas"].as<string>());
             args.insert(std::make_pair("paramsMask", po::variable_value(paramsMaskToString(job->paramsMask), true)));
         }
     }
