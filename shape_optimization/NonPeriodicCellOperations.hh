@@ -77,6 +77,7 @@ public:
         result = m_sim.solve(adjointRHS);
 
         // Reapply old conditions
+        m_sim.removeDirichletConditions();
         m_sim.applyBoundaryConditions(m_bconds);
 
         return result;
@@ -114,6 +115,7 @@ public:
         result = m_sim.solve(rhs);
 
         // Reapply old conditions
+        m_sim.removeDirichletConditions();
         m_sim.applyBoundaryConditions(m_bconds);
 
         return result;
