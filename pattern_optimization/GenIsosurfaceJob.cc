@@ -195,7 +195,6 @@ int main(int argc, const char *argv[])
     const auto sym = args["symmetry"].as<std::string>();
     if      (sym == "cubic"          ) { writeJob(WireMesh<Symmetry::Cubic<>>         (vertices, elements)); }
     else if (sym == "orthotropic"    ) { writeJob(WireMesh<Symmetry::Orthotropic<>>   (vertices, elements)); }
-    else if (sym == "diagonal"       ) { writeJob(WireMesh<Symmetry::Diagonal<>>      (vertices, elements)); }
     else if (sym == "square"         ) { writeJob(WireMesh<Symmetry::Square<>>        (vertices, elements)); }
     else if (sym == "triply_periodic") { writeJob(WireMesh<Symmetry::TriplyPeriodic<>>(vertices, elements)); }
     else if (sym == "doubly_periodic") { writeJob(WireMesh<Symmetry::DoublyPeriodic<>>(vertices, elements)); }
