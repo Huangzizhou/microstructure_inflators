@@ -125,7 +125,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
 }
 
 template<size_t _N, class Simulator, class VField>
-PthRootObjective<IntegratedMicroscopicStressObjective<_N, MicroscopicStressIntegrandLp<Simulator>, Simulator>> buildStressObjective(po::variables_map &args, const Simulator &sim, VField u, const ETensor<_N> CBase) {
+PthRootObjective<IntegratedMicroscopicStressObjective<_N, MicroscopicStressIntegrandLp<Simulator>, Simulator>> buildStressObjective(const po::variables_map &args, const Simulator &sim, VField u, const ETensor<_N> CBase) {
     PthRootObjective<IntegratedMicroscopicStressObjective<_N, MicroscopicStressIntegrandLp<Simulator>, Simulator>> objective;
 
     objective.integrand.p = args["pnorm"].as<double>();
@@ -259,23 +259,9 @@ void execute(const po::variables_map &args,
     neg_perturbed_writer.addField("u", neg_perturbed_u);
     neg_perturbed_writer.addField("strain u", perturbed_sim.averageStrainField(neg_perturbed_u));
 
-    auto buildStressObjective = [&](const Simulator &sim_, VField u_) {
-        PthRootObjective<IntegratedMicroscopicStressObjective<_N, MicroscopicStressIntegrandLp<Simulator>, Simulator>> objective;
-
-        objective.integrand.p = args["pnorm"].as<double>();
-        objective.p = args.count("usePthRoot") ? 2.0 * args["pnorm"].as<double>() : 1.0;
-
-        const ETensor CBase = mat.getTensor();
-        const bool major_symmetry = CBase.MajorSymmetry;
-
-        MicroscopicStress<_N, Simulator> microStress = MicroscopicFrobeniusStress<CBase.Dim, major_symmetry, Simulator>(CBase, sim_.averageStressField(u_));
-        objective.setPointwiseStress(sim_.mesh(), microStress);
-        return objective;
-    };
-
-    auto origStressObjective          = buildStressObjective(sim, u);
-    auto perturbedStressObjective     = buildStressObjective(perturbed_sim, perturbed_u);
-    auto neg_perturbedStressObjective = buildStressObjective(neg_perturbed_sim, neg_perturbed_u);
+    auto origStressObjective          = buildStressObjective(args, sim, u, mat.getTensor());
+    auto perturbedStressObjective     = buildStressObjective(args, perturbed_sim, perturbed_u, mat.getTensor());
+    auto neg_perturbedStressObjective = buildStressObjective(args, neg_perturbed_sim, neg_perturbed_u, mat.getTensor());
 
     cout << "Stress:\t" << origStressObjective.evaluate() << endl;
     cout << "Perturbed Stress:\t" << perturbedStressObjective.evaluate() << endl;
@@ -289,7 +275,6 @@ void execute(const po::variables_map &args,
     VField bdry_svel(sim.mesh().numBoundaryVertices());
     for (auto bv : mesh.boundaryVertices())
         bdry_svel(bv.index()) = delta_p(bv.volumeVertex().index());
-
 
     cout << "Forward shape derivative Stress:\t" << origStressObjective.deltaJ(sim, u, delta_p, cell_operations) << endl;
     OneForm<Real, _N> dJ = origStressObjective.adjointDeltaJ(cell_operations);
