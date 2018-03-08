@@ -204,7 +204,6 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
     string symmetry_string = "symmetry";
     string symmetry_name = "non_periodic";
 
-    //args.insert(std::make_pair(symmetry_string, po::value<string>()->default_value(symmetry_name)));
     args.insert(std::make_pair("symmetry", po::variable_value(symmetry_name, true)));
     args.insert(std::make_pair("vertexThickness", po::variable_value(true, true)));
     po::notify(args);
@@ -270,7 +269,10 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
         }
         else {
             std::cout << "Creating parameters' mask based on boundary conditions ..." << std::endl;
-            job->paramsMask = ParametersMask::generateParametersMask(args["pattern"].as<string>(), args["params"].as<string>(), args["zeroPerturbationAreas"].as<string>());
+            if (args.count("zeroPerturbationAreas") > 0)
+                job->paramsMask = ParametersMask::generateParametersMask(args["pattern"].as<string>(), args["params"].as<string>(), args["zeroPerturbationAreas"].as<string>());
+            else
+                job->paramsMask = ParametersMask::generateParametersMask(args["pattern"].as<string>(), args["params"].as<string>(), args["boundaryConditions"].as<string>());
             args.insert(std::make_pair("paramsMask", po::variable_value(paramsMaskToString(job->paramsMask), true)));
         }
     }
