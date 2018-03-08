@@ -325,25 +325,27 @@ struct IntegratedMicroscopicStressObjective {
 
             Real area = be->volume();
 
-            // TODO: create interpolant and use it for integrating on \rho instead of the simple average
-            VectorND<N> average_rho;
-            average_rho.setZero();
+            // Create interpolant and use it for integrating on \rho
+            Interpolant<VectorND<N>, N - 1, Sim::Degree> rho_interpolant;
+            size_t rho_index = 0;
             for (auto n : be.nodes()) {
-                average_rho += rho(n.volumeNode().index());
+                rho_interpolant[rho_index] = rho(n.volumeNode().index());
+                rho_index++;
             }
-            average_rho /= be.nodes().size();
 
             // Part 3a: int_(delta w) (rho . T) grad(lambda_m) dS
+            Real boundaryIntegrand = Quadrature<N-1, 2 * Sim::Degree>::integrate([&](const EvalPt<N-1> &pt) {
+                return rho_interpolant(pt).dot(be->neumannTraction);
+            }, area);
+
             for (auto v : be.vertices()) {
-                Real boundaryIntegrand = average_rho.dot(be->neumannTraction);
-                delta_j(v.volumeVertex().index()) += boundaryIntegrand * area * be->gradBarycentric().col(v.localIndex());
+                delta_j(v.volumeVertex().index()) += boundaryIntegrand * be->gradBarycentric().col(v.localIndex());
             }
 
-            // Part 3b: - 1/(area) (int nabla . v dS) (int rho . T dS) + int_(delta w) (rho . T) grad(lambda_m) dS
-            Real coefficient = - 1.0 / neumannArea * average_rho.dot(be->neumannTraction) * area;
-
+            // Part 3b: - 1/(area) (int nabla . v dS) (int rho . T dS)
+            Real coefficient = - 1.0 / neumannArea * boundaryIntegrand;
             for (auto v : be.vertices()) {
-                delta_j(v.volumeVertex().index()) -= coefficient * be->gradBarycentric().col(v.localIndex()) * area;
+                delta_j(v.volumeVertex().index()) += coefficient * be->gradBarycentric().col(v.localIndex()) * area;
             }
         }
 

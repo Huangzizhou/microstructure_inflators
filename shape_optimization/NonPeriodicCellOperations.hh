@@ -42,8 +42,8 @@ public:
 
     // Common laplace PDE with user defined boundary conditions
     virtual void m_solveCellProblems(_Sim &sim, vector<CondPtr<N> > &bconds) {
-        VField f_zero(sim.numDoFs());
-        f_zero.clear(); // to guarantee it is all zero
+        m_sim.removeDirichletConditions();
+        m_sim.removeNeumanConditions();
 
         //sim.applyNoRigidMotionConstraint();
         sim.applyBoundaryConditions(bconds);
@@ -57,7 +57,7 @@ public:
 
         // Set all dirichlet boundary conditions to 0 (zero).
         m_sim.removeDirichletConditions();
-        m_sim.removeNeumanConditions(); // TODO: necessary?!
+        m_sim.removeNeumanConditions();
         vector<CondPtr<N> > new_conds;
         for (unsigned i = 0; i < m_bconds.size(); i++) {
             CondPtr<N> cond = m_bconds[i];
@@ -71,13 +71,12 @@ public:
             }
         }
 
-        // TODO verify: Neumann conditions are already embedded in adjointRHS!
-
         m_sim.applyBoundaryConditions(new_conds);
         result = m_sim.solve(adjointRHS);
 
         // Reapply old conditions
         m_sim.removeDirichletConditions();
+        m_sim.removeNeumanConditions();
         m_sim.applyBoundaryConditions(m_bconds);
 
         return result;
@@ -89,6 +88,7 @@ public:
 
         // Set all dirichlet boundary conditions to 0 (zero).
         m_sim.removeDirichletConditions();
+
         vector<CondPtr<N> > new_conds;
         for (unsigned i = 0; i < m_bconds.size(); i++) {
             CondPtr<N> cond = m_bconds[i];
@@ -112,10 +112,12 @@ public:
         MSHFieldWriter writer("deltaDisplacements_validation", m_sim.mesh(), false);
         writer.addField("delta neumann field", deltaNeummanField);
 
+        m_sim.removeNeumanConditions();
         result = m_sim.solve(rhs);
 
         // Reapply old conditions
         m_sim.removeDirichletConditions();
+        m_sim.removeNeumanConditions();
         m_sim.applyBoundaryConditions(m_bconds);
 
         return result;
