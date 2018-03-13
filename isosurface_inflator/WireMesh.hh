@@ -413,6 +413,29 @@ public:
         edges = m_printGraphEdge;
     }
 
+    std::vector<Real> optimizedToOriginalParams(const std::vector<Real> &params) const {
+        // Transform input parameters into original size
+        std::vector<Real> inflationParams(m_originalParameters.size());
+        std::vector<Real> originalParams(m_originalParameters.size());
+
+        for (unsigned i = 0; i < originalParams.size(); i++)
+            originalParams[i] = m_originalParameters[i];
+
+        if (m_useFilterMask) {
+            unsigned originalIdx=0;
+            unsigned inputIdx=0;
+            for (; originalIdx < originalParams.size(); originalIdx++) {
+                inflationParams[originalIdx] = m_parametersMask[originalIdx] ? originalParams[originalIdx] : params[inputIdx++];
+            }
+        }
+        else {
+            inflationParams = params;
+        }
+
+        return inflationParams;
+    }
+
+
     // Same as above, but also get the position of each vertex according to
     // "params"
     void printabilityGraph(const std::vector<Real> &params,
@@ -421,16 +444,19 @@ public:
                            std::vector<size_t> &thicknessVars,
                            std::vector<Eigen::Matrix3Xd> &positionMaps) const
     {
-        if (params.size() != numParams())
+        // Transform input parameters into original size
+        std::vector<Real> inflationParams = optimizedToOriginalParams(params);
+
+        if (inflationParams.size() != numParams())
             throw std::runtime_error("Invalid number of params.");
 
         printabilityGraph(edges, thicknessVars, positionMaps);
 
         // Use position map to place points; we need to construct homogeneous
         // param vector.
-        Eigen::VectorXd paramVec(params.size() + 1);
-        for (size_t i = 0; i < params.size(); ++i) paramVec[i] = params[i];
-        paramVec[params.size()] = 1.0;
+        Eigen::VectorXd paramVec(inflationParams.size() + 1);
+        for (size_t i = 0; i < inflationParams.size(); ++i) paramVec[i] = inflationParams[i];
+        paramVec[inflationParams.size()] = 1.0;
 
         points.clear(); points.reserve(positionMaps.size());
         for (const auto &pm : positionMaps)
@@ -455,10 +481,12 @@ public:
         printabilityGraph(params, points, edges, thicknessVars, positionMaps);
         const size_t numPoints = points.size();
 
+        std::vector<Real> inflationParams = optimizedToOriginalParams(params);
+
         // Get the heights of the vertex spheres' bottoms
         std::vector<Real> zCoords; zCoords.reserve(numPoints);
         for (size_t i = 0; i < numPoints; ++i)
-            zCoords.push_back(points[i][2] - params.at(thicknessVars[i]));
+            zCoords.push_back(points[i][2] - inflationParams.at(thicknessVars[i]));
 
         // Build adjacency list
         std::vector<std::vector<size_t>> adj(numPoints);
@@ -540,6 +568,8 @@ public:
         printabilityGraph(params, points, edges, thicknessVars, posMaps);
         const size_t numPoints = points.size();
 
+        std::vector<Real> inflationParams = optimizedToOriginalParams(params);
+
         // defaultZCoords: original z coordinate of each vertex in printability graph
         // currentZCoords: current    z coord of *bottom* of the sphere associated with each vtx
         // posMaps:        linear map expressing *bottom* of the sphere associated with each vtx
@@ -548,7 +578,7 @@ public:
         for (size_t i = 0; i < numPoints; ++i) {
             defaultZCoords.push_back(m_printGraphVtx[i].pt[2]);
             // Determine sphere bottom by subtracting vertex radius from z coord
-            currentZCoords.push_back(points[i][2] - params.at(thicknessVars[i]));
+            currentZCoords.push_back(points[i][2] - inflationParams.at(thicknessVars[i]));
             posMaps[i](2, thicknessVars[i]) -= 1.0;
         }
 
@@ -679,13 +709,13 @@ public:
             //                            [1]
             constraints.push_back(posMaps[u].row(2) -
                                   posMaps[lowestCandidate].row(2));
-            if (size_t(constraints.back().cols()) != params.size() + 1) {
+            if (size_t(constraints.back().cols()) != inflationParams.size() + 1) {
                 std::cerr << constraints.back().cols() << " cols and "
-                          << params.size() << " parameters" << std::endl;
+                          << inflationParams.size() << " parameters" << std::endl;
                 std::cerr << posMaps[u].row(2) << std::endl;
                 std::cerr << posMaps[lowestCandidate].row(2) << std::endl;
             }
-            assert(size_t(constraints.back().cols()) == params.size() + 1);
+            assert(size_t(constraints.back().cols()) == inflationParams.size() + 1);
         }
 
         // Detect and remove "constant" constraints not acting on variables;
@@ -693,7 +723,7 @@ public:
         std::vector<Eigen::Matrix<Real, 1, Eigen::Dynamic>> prunedConstraints;
         for (const auto &c : constraints) {
             bool hasVar = false;
-            for (size_t p = 0; p < params.size(); ++p) {
+            for (size_t p = 0; p < inflationParams.size(); ++p) {
                 if (std::abs(c[p]) > tol) {
                     hasVar = true;
                     break;
@@ -714,7 +744,7 @@ public:
         // TODO: think about reducing the constraint system
 
         // Convert constraints into Eigen format.
-        Eigen::MatrixXd C(prunedConstraints.size(), params.size() + 1);
+        Eigen::MatrixXd C(prunedConstraints.size(), inflationParams.size() + 1);
         for (size_t i = 0; i < prunedConstraints.size(); ++i)
             C.row(i) = prunedConstraints[i];
         return C;
