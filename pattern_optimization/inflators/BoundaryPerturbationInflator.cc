@@ -107,7 +107,17 @@ void BoundaryPerturbationInflator<N>::m_inflate(const std::vector<Real> &params)
         // Solve for all variables
         L.fixVariables(fixedVars, fixedVarValues);
         std::vector<Real> zero(m_numVars[d], 0.0), x;
-        L.solve(zero, x);
+
+        if (m_numVars[d] == fixedVars.size()) {
+            x.resize(fixedVars.size());
+
+            for (unsigned index=0; index<fixedVars.size(); index++) {
+                x[fixedVars[index]] = fixedVarValues[index];
+            }
+        }
+        else {
+            L.solve(zero, x);
+        }
         assert(x.size() == m_numVars[d]);
 
         // Read off vertex coordinates
