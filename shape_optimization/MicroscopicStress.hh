@@ -311,12 +311,27 @@ struct IntegratedMicroscopicStressObjective {
         // Part 3:
 
         // Compute boundary length/area
-        double neumannArea = 0.0;
+        // Compute int rho . T dS (Entire neumann boundary)
+        Real neumannArea = 0.0;
+        Real intRhoDotT = 0.0;
         for (auto be : nonPeriodicCellOps.mesh().boundaryElements()) {
             if (be->neumannTraction.norm() < 1e-8)
                 continue;
 
-            neumannArea += be->volume();
+            Real area = be->volume();
+            neumannArea += area;
+
+            // Create interpolant and use it for integrating on \rho
+            Interpolant<VectorND<N>, N - 1, Sim::Degree> rho_interpolant;
+            size_t rho_index = 0;
+            for (auto n : be.nodes()) {
+                rho_interpolant[rho_index] = rho(n.volumeNode().index());
+                rho_index++;
+            }
+
+            intRhoDotT += Quadrature<N-1, 2 * Sim::Degree>::integrate([&](const EvalPt<N-1> &pt) {
+                return rho_interpolant(pt).dot(be->neumannTraction);
+            }, area);
         }
 
         for (auto be : nonPeriodicCellOps.mesh().boundaryElements()) {
@@ -337,13 +352,12 @@ struct IntegratedMicroscopicStressObjective {
             Real boundaryIntegrand = Quadrature<N-1, 2 * Sim::Degree>::integrate([&](const EvalPt<N-1> &pt) {
                 return rho_interpolant(pt).dot(be->neumannTraction);
             }, area);
-
             for (auto v : be.vertices()) {
                 delta_j(v.volumeVertex().index()) += boundaryIntegrand * be->gradBarycentric().col(v.localIndex());
             }
 
             // Part 3b: - 1/(area) (int nabla . v dS) (int rho . T dS)
-            Real coefficient = - 1.0 / neumannArea * boundaryIntegrand;
+            Real coefficient = - 1.0 / neumannArea * intRhoDotT;
             for (auto v : be.vertices()) {
                 delta_j(v.volumeVertex().index()) += coefficient * be->gradBarycentric().col(v.localIndex()) * area;
             }
