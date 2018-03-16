@@ -26,7 +26,7 @@
 #ifndef ITERATEFACTORY_HH
 #define ITERATEFACTORY_HH
 
-#include "PatternOptimizationIterate.hh"
+//#include "PatternOptimizationIterate.hh"
 #include "ObjectiveTermNormalizations.hh"
 #include "Inflator.hh"
 #include "BoundConstraints.hh"
@@ -89,7 +89,7 @@ struct IterateFactory : public IFConfigs... {
     // Because this is a variadic template, it can be used with an iterate
     // class whose constructor has arbitrary trailing arguments.
     std::unique_ptr<Iterate>
-    getIterate(std::unique_ptr<Iterate> oldIterate, size_t nParams, const double *params) {
+    getIterate(std::unique_ptr<Iterate> oldIterate, size_t nParams, const double *params, std::string boundaryConditionsPath = "") {
         if (oldIterate && !oldIterate->paramsDiffer(nParams, params)) {
             // Evaluating at same parameters as old iterate--old iterate is
             // exact and should already be configured/evaluated appropriately.
@@ -115,8 +115,13 @@ struct IterateFactory : public IFConfigs... {
         for (size_t i = 0; i < m_numInflationAttempts; ++i) {
             success = true;
             try {
-                if (i == 0)
-                    newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params);
+                if (i == 0) {
+                    if (boundaryConditionsPath.empty())
+                        newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params);
+                    else
+                        newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params, boundaryConditionsPath);
+                }
+
                 else {
                     // With the new isosurface inflator, failures are uncommon
                     // but do happen sometimes with bad parameters.
@@ -142,7 +147,10 @@ struct IterateFactory : public IFConfigs... {
                         std::cerr << '\t' << perturbedParams[p];
                     }
                     std::cerr << std::endl;
-                    newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, &perturbedParams[0]);
+                    if (boundaryConditionsPath.empty())
+                        newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, &perturbedParams[0]);
+                    else
+                        newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, &perturbedParams[0], boundaryConditionsPath);
                     newIterate->overwriteParams(nParams, params);
                     relMagnitude *= 5;
                 }
@@ -161,7 +169,10 @@ struct IterateFactory : public IFConfigs... {
                 std::cerr << "Attempting full-blend inflation" << std::endl;
                 m_inflator.meshingOptions().jointBlendingMode = JointBlendMode::FULL;
                 try {
-                    newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params);
+                    if (boundaryConditionsPath.empty())
+                        newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params);
+                    else
+                        newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params, boundaryConditionsPath);
                     // This estimate shouldn't be reported.
                     newIterate->setDontReport();
                     success = true;

@@ -112,6 +112,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("vertexThickness,V",                                              "Use vertex thickness instead of edge thickness (3D only)")
         ("cell_size,c",  po::value<double>(),                              "Inflation cell size (3D only)")
         ("params",       po::value<string>(),                              "Initial params (overrides those specified in job file).")
+        ("metaParams",  po::value<string>(),                               "Meta params (for Hexa Pillars, is used as: +/- num_pillars)")
         ("deformedCell", po::value<string>(),                              "Specify the Jacobian of a deformation linearly warping the pattern after meshing (scanline order; in 3D: xx xy xz yx yy yz zx zy zz)")
         ;
 
@@ -149,6 +150,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("JIsoRelWeight",po::value<double>(),                             "Use the relative isotropy fitting term with specified weight.")
         ("proximityRegularizationWeight", po::value<double>(),            "Use a quadratic proximity regularization term with the specified weight.")
         ("proximityRegularizationTarget", po::value<string>(),            "The target parameter values for the proximity regularization term (defaults to initial parameters.)")
+        ("proximityRegularizationZeroTarget",                             "Use 0 vector as target parameter of proximity regularization cost function term.")
         ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ("JIsoFixedTarget",                                               "Make JIso just fit to the closest isotropic tensor to the *original* tensor.")
         ;
@@ -209,8 +211,10 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     }
 
     if (vm.count("pattern") == 0) {
-        cout << "Error: must specify pattern mesh" << endl;
-        fail = true;
+        if (vm["inflator"].as<string>().compare("HexaPillars")) {
+            cout << "Error: must specify pattern mesh" << endl;
+            fail = true;
+        }
     }
 
     size_t d = vm["degree"].as<size_t>();
@@ -320,13 +324,26 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
         return pvals;
     };
 
+    auto parseMetaParams = [](string pstring) -> vector<string> {
+        boost::trim(pstring);
+        vector<string> tokens;
+        boost::split(tokens, pstring, boost::is_any_of("\t "),
+                     boost::token_compress_on);
+        return tokens;
+    };
+
     // If requested, override the initial parameters set in the job file
     if (args.count("params"))
         job->initialParams = parseParams(args["params"].as<string>());
 
+    if (args.count("metaParams"))
+        job->metaParams = parseMetaParams(args["metaParams"].as<string>());
+
     SField params = job->validatedInitialParams(inflator);
 
-    PO::BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
+    PO::BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds, job->metaBounds,
+                              job->custom1Bounds, job->custom2Bounds, job->custom3Bounds, job->custom4Bounds,
+                              job->custom5Bounds, job->custom6Bounds, job->custom7Bounds, job->custom8Bounds,
                               job->varLowerBounds, job->varUpperBounds);
 
     // TODO: Laplacian regularization term (probably only needed for boundary
@@ -337,8 +354,8 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     using IsotropyFitConfig   = PO::ObjectiveTerms::IFConfigIsotropyFit<Simulator>;
     using IsoFitRelConfig     = PO::ObjectiveTerms::IFConfigIsotropyFitRel<Simulator>;
     using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
-    using TFConstraintConfig  = PO::   Constraints::IFConfigTensorFit<Simulator>;
-    using  PConstraintConfig  = PO::   Constraints::IFConfigPrintability<Simulator>;
+    using  TFConstraintConfig  = PO::   Constraints::IFConfigTensorFit<Simulator>;
+    using   PConstraintConfig  = PO::   Constraints::IFConfigPrintability<Simulator>;
 
     auto ifactory = PO::make_iterate_factory<PO::Iterate<Simulator>,
          WCSTermConfig,
@@ -346,8 +363,8 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
          IsotropyFitConfig,
          IsoFitRelConfig,
          PRegTermConfig,
-         TFConstraintConfig,
-          PConstraintConfig>(inflator, bdcs);
+          TFConstraintConfig,
+           PConstraintConfig>(inflator, bdcs);
 
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
@@ -357,8 +374,8 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     ifactory->IsotropyFitConfig  ::enabled = args.count("JIsoWeight");
     ifactory->IsoFitRelConfig    ::enabled = args.count("JIsoRelWeight");
     ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
-    ifactory->TFConstraintConfig ::enabled = false;
-    ifactory->PConstraintConfig  ::enabled = false;
+    ifactory-> TFConstraintConfig ::enabled = false;
+    ifactory->  PConstraintConfig ::enabled = false;
 
     // Configure WCS Objective
     // By default, an "Lp norm" objective is really the p^th power of the Lp norm.
@@ -424,9 +441,13 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
             if (ifactory->PRegTermConfig::targetParams.size() != params.domainSize())
                 throw runtime_error("Invalid proximity regularization target parameter count");
         }
+        if (args.count("proximityRegularizationZeroTarget")) {
+            vector<Real> zeroTargetParams(job->numParams(), 0.0);
+            ifactory->PRegTermConfig::IFConfigProximityRegularization::targetParams = zeroTargetParams;
+        }
     }
 
-    auto imanager = make_iterate_manager(std::move(ifactory));
+    auto imanager = PO::make_iterate_manager(std::move(ifactory));
 
     ////////////////////////////////////////////////////////////////////////////
     // Gradient component validation, if requested, bypasses optimization

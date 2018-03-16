@@ -16,6 +16,9 @@
 template<size_t N> const std::vector<MeshIO::IOElement> &IsoinflatorWrapper<N>::elements() const { return m_inflator->elements(); }
 template<size_t N> const std::vector<MeshIO::IOVertex>  &IsoinflatorWrapper<N>::vertices() const { return m_inflator->vertices(); }
 template<size_t N> void IsoinflatorWrapper<N>::clear() { m_inflator->clear(); }
+template<size_t N> void IsoinflatorWrapper<N>::disableCheapPostprocess() { m_inflator->disableCheapPostprocess();}
+template<size_t N> void IsoinflatorWrapper<N>::enableCheapPostprocess() { m_inflator->enableCheapPostprocess();}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Constructors
@@ -30,6 +33,17 @@ IsoinflatorWrapper<N>::IsoinflatorWrapper(const std::string &wireMeshPath,
     m_inflator = Future::make_unique<IsosurfaceInflator>(
                 inflatorName,
                 vertex_thickness, wireMeshPath, inflationGraphRadius);
+}
+
+template<size_t N>
+IsoinflatorWrapper<N>::IsoinflatorWrapper(const std::string &wireMeshPath, const std::string &symmetryType,
+                            bool vertex_thickness, const std::vector<bool> &paramsMask, const std::vector<double> &params,
+                            size_t inflationGraphRadius) {
+    std::string inflatorName(symmetryType);
+    boost::algorithm::to_lower(inflatorName);
+    inflatorName = ((N == 2) ? "2D_" : "") + inflatorName;
+    m_inflator = Future::make_unique<IsosurfaceInflator>(
+            inflatorName, vertex_thickness, wireMeshPath, paramsMask, params, inflationGraphRadius);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,8 +91,8 @@ IsoinflatorWrapper<N>::volumeShapeVelocities() const
 
                 result[p](vi)  = truncateFrom3D<VectorND<N>>(n[vi]);
                 result[p](vi) *= nsv[p][vi];
-                // assert(!std::isnan(result[p](vi)));
-                // assert(!std::isnan(result[p](vi)));
+                //assert(!std::isnan(result[p](vi)));
+                //assert(!std::isnan(result[p](vi)));
             }
         }
 

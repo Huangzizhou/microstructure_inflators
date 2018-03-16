@@ -41,7 +41,15 @@ class JobBase {
 public:
     virtual ~JobBase() { }
 
-    size_t numParams() const { return initialParams.size(); }
+    size_t numParams() const {
+        if (paramsMask.empty()) {
+            return initialParams.size();
+        }
+        else {
+            assert(paramsMask.size() == initialParams.size());
+            return std::count(paramsMask.begin(), paramsMask.begin()+paramsMask.size(), false);
+        }
+    }
 
     // Verifies that the correct number of parameters were specified in the job
     // (must match inflator). For non-parametric inflators (like the
@@ -52,8 +60,15 @@ public:
     std::vector<Real> validatedInitialParams(const InflatorBase &inflator) const {
         std::vector<Real> params(initialParams);
         // Set params to the default if they're omitted in the job file
-        if (numParams() == 0) params = inflator.defaultParameters();
-        const size_t np = params.size();
+        size_t np;
+        if (numParams() == 0) {
+            params = inflator.defaultParameters();
+            np = params.size();
+        }
+        else {
+            np = inflator.numParameters();
+        }
+        //const size_t np = params.size();
         // Allow non-parametric inflator to ignore initialParams (if size mismatch)
         if (!inflator.isParametric()) {
             if (np != inflator.numParameters()) {
@@ -101,7 +116,18 @@ public:
     virtual void writeJobFile(std::ostream &os) const = 0;
 
     std::vector<Real> initialParams, radiusBounds, translationBounds;
+    std::vector<bool> paramsMask;
+    std::vector<std::string> metaParams;
     std::vector<Real> blendingBounds = { 10.0, 100.0 };
+    std::vector<Real> metaBounds = { 0.01, 0.99 };
+    std::vector<Real> custom1Bounds = { 0.01, 0.99 };
+    std::vector<Real> custom2Bounds = { 0.01, 0.99 };
+    std::vector<Real> custom3Bounds = { 0.01, 0.99 };
+    std::vector<Real> custom4Bounds = { 0.01, 0.99 };
+    std::vector<Real> custom5Bounds = { 0.01, 0.99 };
+    std::vector<Real> custom6Bounds = { 0.01, 0.99 };
+    std::vector<Real> custom7Bounds = { 0.01, 0.99 };
+    std::vector<Real> custom8Bounds = { 0.01, 0.99 };
     // The ground-truth parameters can be stored here--they are written to the
     // job file for reference.
     std::vector<Real> trueParams;

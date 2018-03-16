@@ -27,11 +27,21 @@ template<class _ItFactory>
 struct IterateManager : public IterateManagerBase {
     using Iterate  = typename _ItFactory::Iterate;
 
-    IterateManager(std::unique_ptr<_ItFactory> itFactory)
-        : m_iterFactory(std::move(itFactory)) { }
+    IterateManager(std::unique_ptr<_ItFactory> itFactory, std::string boundaryConditionsPath = "")
+        : m_iterFactory(std::move(itFactory)) {
+        if (!boundaryConditionsPath.empty()) {
+            m_hasBoundaryConditions = true;
+            m_boundaryConditionsPath = boundaryConditionsPath;
+        }
+    }
 
     Iterate &get(size_t nParams, const double * const params) override {
-        m_currIterate = m_iterFactory->getIterate(std::move(m_currIterate), nParams, &params[0]);
+        if (m_hasBoundaryConditions) {
+            m_currIterate = m_iterFactory->getIterate(std::move(m_currIterate), nParams, &params[0], m_boundaryConditionsPath);
+        }
+        else {
+            m_currIterate = m_iterFactory->getIterate(std::move(m_currIterate), nParams, &params[0]);
+        }
         return *m_currIterate;
     }
 
@@ -48,11 +58,13 @@ struct IterateManager : public IterateManagerBase {
 private:
     std::unique_ptr<_ItFactory> m_iterFactory;
     std::unique_ptr<Iterate>    m_currIterate;
+    std::string                 m_boundaryConditionsPath;
+    bool                        m_hasBoundaryConditions = false;
 };
 
 template<class _IF>
-std::shared_ptr<IterateManager<_IF>> make_iterate_manager(std::unique_ptr<_IF> itFactory) {
-    return std::make_shared<IterateManager<_IF>>(std::move(itFactory));
+std::shared_ptr<IterateManager<_IF>> make_iterate_manager(std::unique_ptr<_IF> itFactory, std::string boundaryConditionsPath = "") {
+    return std::make_shared<IterateManager<_IF>>(std::move(itFactory), boundaryConditionsPath);
 }
 
 }
