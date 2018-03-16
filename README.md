@@ -10,7 +10,8 @@
 | `pattern_optimization/` | Optimize the parameters of a pattern to attain target elastic properties. |
 | `patterns/`             | List possible pattern topologies in 2D/3D. |
 | `worst_case_stress/`    | Compute the worst-case stress for a given pattern. |
-| `slice_supporter/`      | Generate raft + support structures below a microstructure. |
+| `slice_supporter/`      | Generate raft + support structures below a microstructure (operates on slice images). |
+| `topology_enumeration/` | Combinatorially generate cubic topologies on the base tetrahedron |
 
 ### Legacy stuff
 
@@ -35,5 +36,4 @@
 | `results/`                 | N/A |
 | `sequential_laminates/`    | N/A |
 | `tools/`                   | N/A |
-| `topology_enumeration/`    | N/A |
 | `wire_generator/`          | N/A |
