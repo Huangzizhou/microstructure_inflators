@@ -43,6 +43,7 @@
 #include "ShapeOptimizationIterate.hh"
 
 #include <objective_terms/ProximityRegularization.hh>
+#include <objective_terms/TargetVolume.hh>
 #include "StressObjectiveTerm.hh"
 #include "ParametersMask.h"
 
@@ -120,6 +121,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
             ("stressWeight",    po::value<double>()->default_value(1.0),         "Weight for the Microscopic stress term of the objective")
             ("proximityRegularizationWeight", po::value<double>(),            "Use a quadratic proximity regularization term with the specified weight.")
             ("proximityRegularizationTarget", po::value<string>(),            "The target parameter values for the proximity regularization term (defaults to initial parameters.)")
+            ("volWeight,V", po::value<double>()->default_value(0.0),         "Weight for the JVol term of the objective")
             ;
 
     po::options_description constraintOptions;
@@ -303,6 +305,31 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
         return pvals;
     };
 
+    auto originalToOptimizedParameters = [](std::vector<bool> parametersMask, SField originalParams) -> vector<double> {
+        size_t originalIdx = 0;
+        vector<double> result;
+
+        for (; originalIdx < originalParams.size(); originalIdx++) {
+            if (!parametersMask[originalIdx]) {
+                result.push_back(originalParams[originalIdx]);
+            }
+        }
+
+        return result;
+    };
+
+    auto optimizedToOriginalParameters = [](std::vector<bool> parametersMask, SField optimizedParameters, SField originalParams) -> vector<double> {
+        vector<double> result(originalParams.size());
+        unsigned originalIdx=0;
+        unsigned inputIdx=0;
+
+        for (; originalIdx < originalParams.size(); originalIdx++) {
+            result[originalIdx] = parametersMask[originalIdx] ? originalParams[originalIdx] : optimizedParameters[inputIdx++];
+        }
+
+        return result;
+    };
+
     // If requested, override the initial parameters set in the job file
     if (args.count("params"))
         job->initialParams = parseParams(args["params"].as<string>());
@@ -318,10 +345,12 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
     using StressTermConfig    = PO::ObjectiveTerms::IFConfigMicroscopicStress<Simulator>;
     using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
     using PConstraintConfig   = PO::   Constraints::IFConfigPrintability<Simulator>;
+    using VolumeTermConfig    = PO::ObjectiveTerms::IFConfigTargetVolume<Simulator>;
 
     auto ifactory = PO::make_iterate_factory<SO::Iterate<Simulator>,
             StressTermConfig,
             PRegTermConfig,
+            VolumeTermConfig,
             PConstraintConfig>(inflator, *bdcs);
 
     ////////////////////////////////////////////////////////////////////////////
@@ -329,6 +358,7 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
     ////////////////////////////////////////////////////////////////////////////
     ifactory->StressTermConfig   ::enabled = args["stressWeight"].as<double>() != 0;
     ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
+    ifactory->VolumeTermConfig   ::enabled = args["volWeight"].as<double>() > 0;
     ifactory->PConstraintConfig  ::enabled = false;
 
     // Configure Stress Objective
@@ -344,10 +374,18 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
         ifactory->PConstraintConfig::enabled = true;
     }
 
+    if (args["volWeight"].as<double>() > 0) {
+        if (job->targetVolume) {
+            ifactory->VolumeTermConfig::enabled = true;
+            ifactory->VolumeTermConfig::weight = args["volWeight"].as<double>();
+            ifactory->VolumeTermConfig::targetVolume = *(job->targetVolume);
+        }
+    }
+
     if (args.count("proximityRegularizationWeight")) {
         ifactory->PRegTermConfig::enabled = true;
         ifactory->PRegTermConfig::weight = args["proximityRegularizationWeight"].as<double>();
-        ifactory->PRegTermConfig::targetParams = job->initialParams;
+        ifactory->PRegTermConfig::targetParams = originalToOptimizedParameters(job->paramsMask, job->initialParams);
         if (args.count("proximityRegularizationTarget")) {
             ifactory->PRegTermConfig::targetParams = parseParams(args["proximityRegularizationTarget"].as<string>());
             if (ifactory->PRegTermConfig::targetParams.size() != job->initialParams.size())
@@ -434,31 +472,6 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
     if (args.count("nIters")) oconfig.niters = args["nIters"].as<size_t>();
     oconfig.gd_step = args["step"].as<double>();
 
-
-    auto originalToOptimizedParameters = [](std::vector<bool> parametersMask, SField originalParams) -> vector<double> {
-        size_t originalIdx = 0;
-        vector<double> result;
-
-        for (; originalIdx < originalParams.size(); originalIdx++) {
-            if (!parametersMask[originalIdx]) {
-                result.push_back(originalParams[originalIdx]);
-            }
-        }
-
-        return result;
-    };
-
-    auto optimizedToOriginalParameters = [](std::vector<bool> parametersMask, SField optimizedParameters, SField originalParams) -> vector<double> {
-        vector<double> result(originalParams.size());
-        unsigned originalIdx=0;
-        unsigned inputIdx=0;
-
-        for (; originalIdx < originalParams.size(); originalIdx++) {
-            result[originalIdx] = parametersMask[originalIdx] ? originalParams[originalIdx] : optimizedParameters[inputIdx++];
-        }
-
-        return result;
-    };
 
     SField x = originalToOptimizedParameters(job->paramsMask, params);
 

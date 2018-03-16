@@ -147,7 +147,7 @@ std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
         }
     }
 
-    job->targetVolume = pt.get_optional<double>("target volume");
+    job->targetVolume = pt.get_optional<double>("targetVolume");
 
     return job;
 }

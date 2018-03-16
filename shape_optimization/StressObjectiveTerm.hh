@@ -104,7 +104,7 @@ namespace PatternOptimization {
                         *it, globalObjectivePNorm, globalObjectiveRoot, measure);
                 stress_term->setWeight(weight);
 
-                // Stress normalization is the initial worst case stress
+                // Stress normalization is the initial stress
                 if (!normalizations.isSet("Stress"))
                     normalizations.set("Stress", 1.0 / stress_term->evaluate());
 
