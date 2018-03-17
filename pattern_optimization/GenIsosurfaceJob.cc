@@ -64,7 +64,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("initialParams,p",     po::value<string>(),                             "initial parameters (optional)")
         ("parameterConstraints,c", po::value<string>(),                          "parameter constraint expressions (semicolon-separated, optional)")
         ("symmetry",            po::value<string>()->default_value("orthotropic"),"symmetries to enforce (orthotropic (default), cubic, square, triply_periodic, doubly_periodic)")
-        ("limitedOffset,L",                                                        "Limit offset of nodes to within the base unit (0, 1)")
+        ("limitedOffset,L",                                                       "Limit offset of nodes to within the base unit (0, 1)")
         ;
 
     po::options_description cli_opts;
@@ -158,9 +158,6 @@ int main(int argc, const char *argv[])
                     lowerBound = defaultPositions[p] + offsetBds[0];
                     upperBound = defaultPositions[p] + offsetBds[1];
                 }
-
-                //std::cout << "lower bound: " << lowerBound << std::endl;
-                //std::cout << "upper bound: " << upperBound << std::endl;
 
                 job->varLowerBounds.emplace(p, lowerBound);
                 job->varUpperBounds.emplace(p, upperBound);

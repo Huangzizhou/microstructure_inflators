@@ -30,6 +30,7 @@ BoundaryPerturbationInflator<N>::BoundaryPerturbationInflator(
     m_setMesh(inVertices, inElements, epsilon);
 }
 
+// Inflator used when in the case of non periodic structures
 template<size_t N>
 BoundaryPerturbationInflator<N>::BoundaryPerturbationInflator(
         const std::vector<MeshIO::IOVertex>  &inVertices,
@@ -190,8 +191,8 @@ boundaryVFieldFromParams(const ScalarField<Real> &params) const
 // Initialize the boundary perturbation inflator for a particular mesh.
 template<size_t N>
 void BoundaryPerturbationInflator<N>::m_setMesh(
-        const std::vector<MeshIO::IOVertex>  &inVertices,
-        const std::vector<MeshIO::IOElement> &inElements, Real epsilon)
+    const std::vector<MeshIO::IOVertex>  &inVertices,
+    const std::vector<MeshIO::IOElement> &inElements, Real epsilon)
 {
     m_mesh = Future::make_unique<Mesh>(inElements, inVertices);
 
@@ -206,7 +207,7 @@ void BoundaryPerturbationInflator<N>::m_setMesh(
     // Determine variables (apply periodic coordinate constraints)
     ////////////////////////////////////////////////////////////////////////
     m_numVars.fill(2 * N); // variables 0..2N-1 always store the periodic
-    // face coordinates
+                           // face coordinates
     m_varForCoordinate.fill(std::vector<size_t>(m_mesh->numVertices(),
                                                 size_t(NONE)));
 
@@ -295,7 +296,8 @@ void BoundaryPerturbationInflator<N>::m_setMesh(
     m_origParams = paramsFromBoundaryVField(bdryPositions);
 }
 
-// Initialize the boundary perturbation inflator for a particular mesh.
+// Initialize the boundary perturbation inflator for a particular mesh
+// in the non periodic case (with boundary conditions)
 template<size_t N>
 void BoundaryPerturbationInflator<N>::m_setMesh(
         const std::vector<MeshIO::IOVertex>  &inVertices,

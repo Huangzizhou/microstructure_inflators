@@ -34,7 +34,7 @@
 struct TransformedVertex {
     using Point = Point3<double>;
     TransformedVertex(const Point &p, size_t vtx, const Isometry &iso, const Eigen::MatrixXd &pm)
-            : pt(p), origVertex(vtx), iso(iso), posMap(pm) { }
+        : pt(p), origVertex(vtx), iso(iso), posMap(pm) { }
     Point pt;
     size_t origVertex;
     Isometry iso; // map from origin vertex to this reflected copy
@@ -46,7 +46,7 @@ struct TransformedVertex {
 struct TransformedEdge {
     using Edge = std::pair<size_t, size_t>;
     TransformedEdge(size_t u, size_t v, size_t oe)
-            : e(u, v), origEdge(oe) { }
+        : e(u, v), origEdge(oe) { }
     UnorderedPair e;
     size_t origEdge;
     // Allow std::map
@@ -62,7 +62,7 @@ enum class ThicknessType { Vertex, Edge };
 // components follow contiguously.
 // Note that base vertices can share variables (e.g., for patterns with only
 // triply periodic symmetry).
-struct BaseVtxVarOffsets { size_t position, thickness, blending; bool ignored; };
+struct BaseVtxVarOffsets { size_t position, thickness, blending; };
 
 // Parts of WireMesh's interface that can be implemented without the
 // PatternSymmetry template parameter (or nan be made virtual)

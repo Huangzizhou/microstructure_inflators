@@ -34,8 +34,6 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
             std::cerr << "WARNING: removed " << origSize - vertices.size() << " dangling vertices." << std::endl;
     }
 
-    // MeshIO::save("pre_snap.msh", vertices, elements);
-
     BENCHMARK_START_TIMER("SnapAndDetermineEvaluationPts");
     vector<vector<bool>> onMinFace, onMaxFace;
 
@@ -239,7 +237,6 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     vector<Real> sdGradNorms(evaluationPoints.size());
 
     if (!cheapPostProcessing) {
-
         BENCHMARK_START_TIMER("SignedDistanceGradientsAndPartials");
         // sd(x, p) = 0
         // grad_x(sd) . dx/dp + d(sd)/dp = 0,   grad_x(sd) = n |grad_x(sd)|

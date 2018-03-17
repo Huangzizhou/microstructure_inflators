@@ -23,7 +23,7 @@
 #include <BaseCellType.hh>
 #include "../isosurface_inflator/MeshingOptions.hh"
 
-// Meta parameters are for EqualityConstrainedInflator
+// Meta parameters are for EqualityConstrainedInflator (custom types allow you to use the optimization with different inflators)
 enum class ParameterType { Thickness, Offset, Blending, Meta, Custom1, Custom2, Custom3, Custom4, Custom5, Custom6, Custom7, Custom8 };
 
 inline std::string parameterTypeString(const ParameterType &type) {

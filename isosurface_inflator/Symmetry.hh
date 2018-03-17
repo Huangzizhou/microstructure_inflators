@@ -41,9 +41,9 @@ template<typename TOL = DEFAULT_TOL> struct NonPeriodic;
 template<typename TOL = DEFAULT_TOL> struct TriplyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct DoublyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct Orthotropic;
+template<typename TOL = DEFAULT_TOL> struct Diagonal;
 template<typename TOL = DEFAULT_TOL> struct Cubic;
 template<typename TOL = DEFAULT_TOL> struct Square;
-template<typename TOL = DEFAULT_TOL> struct Parallelogram;
 template<typename TOL = DEFAULT_TOL> struct Null;
 
 // We need a traits class for CRTP to look up the correct NodePositioner class.
@@ -55,9 +55,9 @@ template<typename TOL> struct SymmetryTraits<NonPeriodic<TOL>> { template<typena
 template<typename TOL> struct SymmetryTraits<TriplyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<DoublyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Orthotropic<TOL>>    { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
+template<typename TOL> struct SymmetryTraits<Diagonal<TOL>>       { template<typename Real> using NodePositioner = PrismNodePositioner<Real, TOL, true>; };
 template<typename TOL> struct SymmetryTraits<Cubic<TOL>>          { template<typename Real> using NodePositioner = TetNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Square<TOL>>         { template<typename Real> using NodePositioner = TetNodePositioner  <Real, TOL>; };
-template<typename TOL> struct SymmetryTraits<Parallelogram<TOL>>   { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>;  };
 
 // Implements some of the shared interface of the symmetry classes
 template<class Sym>
@@ -304,6 +304,91 @@ struct Orthotropic : public TriplyPeriodic<TOL>, SymmetryCRTP<Orthotropic<TOL>> 
     }
 };
 
+// Base unit the triangle (0, 0), (1, -1), (1, 1)
+// Symmetry group ??? x Translations
+// We mesh the half-space (x >= 0) since meshing within a prism is harder.
+template<typename TOL>
+struct Diagonal : public DoublyPeriodic<TOL>, SymmetryCRTP<Diagonal<TOL>> {
+    typedef TOL Tolerance;
+
+    // Disambiguate CRTP instances
+    typedef SymmetryCRTP<Diagonal<TOL>> CRTP;
+    using CRTP::nodePositioner;
+    using CRTP::nodeType;
+
+    using DoublyPeriodic<TOL>::tolerance;
+
+    template<typename Real>
+    static BBox<Point3<Real>> representativeMeshCell() {
+        return BBox<Point3<Real>>(Point3<Real>(-1, -1, 0),
+                                  Point3<Real>(1, 1, 0));
+    }
+
+    template<typename Real>
+    static Point3<Real> mapToBaseUnit(Point3<Real> p) {
+        p = DoublyPeriodic<TOL>::mapToBaseUnit(p);
+        if (p[0] < p[1]) std::swap(p[0], p[1]);
+        if (p[1] < -p[0]) {
+            Real tmp = p[1];
+            p[1] = -p[0];
+            p[0] = -tmp;
+        }
+        return p;
+    }
+
+    template<typename Real>
+    static bool inBaseUnit(const Point3<Real> &p) {
+        if (DoublyPeriodic<TOL>::inBaseUnit(p)) {
+            return isPositive<TOL>(p[0]) && (p[0] + tolerance >= p[1]) && (p[0] + tolerance >= -p[1]);
+        }
+        return false;
+    }
+
+    template<typename Real>
+    static bool inMeshingCell(const Point3<Real> &p) {
+        return DoublyPeriodic<TOL>::inBaseUnit(p);
+    }
+
+    // Find the location of the independent vertex linked to p. For vertices in
+    // the base cell's interior, this is just the vertex position itself. For
+    // vertices on the period cell face(s), the diagonal symmetries impose that
+    // the interface should have a reflective symmetry along the X and Y axes.
+    template<typename Real>
+    static Point3<Real> independentVertexPosition(Point3<Real> p) {
+        assert(inBaseUnit(p));
+        if (isZero<TOL>(std::abs(p[0] - 1.0))) {
+            if (p[1] < 0) { p[1] = -p[1]; }
+        }
+        return p;
+    }
+
+    // We need augment DoublyPeriodic's symmetry group with the operations
+    // taking region 1 into 2, 3, and 4 by reflections across the diagonals:
+    // +---+
+    // |\2/|
+    // |3*1|
+    // |/4\|
+    // +---+
+    static std::vector<Isometry> symmetryGroup() {
+        std::vector<Isometry> group;
+        std::vector<Isometry> parentGroup = DoublyPeriodic<TOL>::symmetryGroup();
+        for (const Isometry &p : parentGroup) {
+            if (!p.affectsAxis(Axis::Z)) {
+                group.push_back(p); // Identity (stay in region 1)
+
+                group.push_back(p.compose(Isometry::permutation(Axis::X, Axis::Y))); // Region 1 to region 2 (swap x, y)
+                group.push_back(p.compose(Isometry:: reflection(Axis::X))            // Region 1 to region 3: rotation by 180 degrees
+                                 .compose(Isometry:: reflection(Axis::Y)));
+                group.push_back(p.compose(Isometry:: reflection(Axis::X))            // Region 1 to region 4 (swap -x, y)
+                                 .compose(Isometry::permutation(Axis::X, Axis::Y))   // (swap x, y in reflected space, transform back)
+                                 .compose(Isometry:: reflection(Axis::X)));
+            }
+        }
+
+        return group;
+    }
+};
+
 // Base unit is one of the 6 tetrahedra in the positive octant:
 // the tetrahedron with corners (0, 0, 0), (1, 0, 0), (1, 1, 0), (1, 1, 1)
 // However, we still mesh the positive octant since meshing within a tetrahedron
@@ -438,105 +523,6 @@ struct Null {
     // No symmetries
     static std::vector<Isometry> symmetryGroup() { return std::vector<Isometry>(); }
 };
-
-// Base unit is the top region of the square [0, 1]^2: the triangle with corners (0, 0), (-1, 1), (1, 1)
-// Symmetry group ? x Translations
-template<typename TOL>
-struct Parallelogram : public TriplyPeriodic<TOL>, SymmetryCRTP<Parallelogram<TOL>> {
-    typedef TOL Tolerance;
-    using TriplyPeriodic<TOL>::representativeMeshCell; //TODO: verify this
-    using TriplyPeriodic<TOL>::tolerance;
-
-    // Disambiguate CRTP instances
-    typedef SymmetryCRTP<Parallelogram<TOL>> CRTP;
-    using CRTP::nodePositioner;
-    using CRTP::nodeType;
-
-    template<typename Real>
-    static Point3<Real> mapToBaseUnit(Point3<Real> p) {
-        p = TriplyPeriodic<TOL>::mapToBaseUnit(p);
-
-        Real absP0;
-        Real absP1;
-        if (p[0] >= 0)
-        {
-            absP0 = p[0];
-        }
-        else
-        {
-            absP0 = p[1];
-        }
-
-        if (p[1] >= 0)
-        {
-            absP1 = p[1];
-        }
-        else
-        {
-            absP1 = -p[1];
-        }
-
-        //Real absP0 = p[0] >= 0? p[0] : -p[0];
-        //Real absP1 = p[1] >= 0? p[1] : -p[1];
-
-        // REGION 1: top
-        if (p[1] > 0 && p[1] > absP0)
-        {
-            // Do nothing. Already in base unit
-        }
-        // REGION 2: right
-        else if (p[0] > 0 && p[0] > absP1)
-        {
-            // reflect with respect to y = x curve
-            std::swap(p[0], p[1]);
-        }
-        // REGION 3: bottom
-        else if (-p[1] > 0 && -p[1] > absP0)
-        {
-            // reflect with respect to y = -x curve and then against y = x
-            p[0] = -p[0];
-            p[1] = -p[1];
-        }
-        // REGION 4: left
-        else if (-p[0] > 0 && -p[0] > absP1)
-        {
-            // reflect with respect to y = -x
-            Real x = p[0];
-            p[0] = -p[1];
-            p[1] = -x;
-        }
-
-        return p;
-    }
-
-    template<typename Real>
-    static bool inBaseUnit(const Point3<Real> &p) {
-        if (TriplyPeriodic<TOL>::inBaseUnit(p))
-        {
-            if (p[1] > 0 && p[1] > fabs(p[0]))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    template<typename Real>
-    static bool inMeshingCell(const Point3<Real> &p) {
-        return Orthotropic<TOL>::inMeshingCell(p);
-    }
-
-    static std::vector<Isometry> symmetryGroup() {
-        //TODO
-        std::vector<Isometry> group;
-        for (const Isometry &iso : Cubic<TOL>::symmetryGroup()) {
-            if (!iso.affectsAxis(Axis::Z))
-                group.push_back(iso);
-        }
-        return group;
-    }
-};
-
 
 } // end of namespace Symmetry
 

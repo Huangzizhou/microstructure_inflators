@@ -16,6 +16,8 @@
 template<size_t N> const std::vector<MeshIO::IOElement> &IsoinflatorWrapper<N>::elements() const { return m_inflator->elements(); }
 template<size_t N> const std::vector<MeshIO::IOVertex>  &IsoinflatorWrapper<N>::vertices() const { return m_inflator->vertices(); }
 template<size_t N> void IsoinflatorWrapper<N>::clear() { m_inflator->clear(); }
+
+// cheap post processing can be used in isosurface_cli, skipping computation of normals and shape velocities
 template<size_t N> void IsoinflatorWrapper<N>::disableCheapPostprocess() { m_inflator->disableCheapPostprocess();}
 template<size_t N> void IsoinflatorWrapper<N>::enableCheapPostprocess() { m_inflator->enableCheapPostprocess();}
 
@@ -35,6 +37,7 @@ IsoinflatorWrapper<N>::IsoinflatorWrapper(const std::string &wireMeshPath,
                 vertex_thickness, wireMeshPath, inflationGraphRadius);
 }
 
+// To be used when a mask of parameters (filtering parameters that are optimized) is used
 template<size_t N>
 IsoinflatorWrapper<N>::IsoinflatorWrapper(const std::string &wireMeshPath, const std::string &symmetryType,
                             bool vertex_thickness, const std::vector<bool> &paramsMask, const std::vector<double> &params,

@@ -15,8 +15,8 @@ struct BoundConstraints {
                      const std::vector<Real> &radiusBounds,
                      const std::vector<Real> &translationBounds,
                      const std::vector<Real> &blendingBounds,
-                     const std::vector<Real> &metaBounds,
-                     const std::vector<Real> &custom1Bounds,
+                     const std::vector<Real> &metaBounds,  // used by HexaPillarsInflator for parameters for the shape that should not be optimized
+                     const std::vector<Real> &custom1Bounds, // custom types, allowing us to define bounds for types different than radius, offset and blending
                      const std::vector<Real> &custom2Bounds,
                      const std::vector<Real> &custom3Bounds,
                      const std::vector<Real> &custom4Bounds,

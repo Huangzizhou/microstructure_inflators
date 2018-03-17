@@ -34,6 +34,7 @@ public:
                        const std::string &wireMeshPath,
                        size_t inflationNeighborhoodEdgeDist = 2);
 
+    // Constructor used when params mask (filtering) is applied
     IsosurfaceInflator(const std::string &type, bool vertexThickness, const std::string &wireMeshPath,
                        const std::vector<bool> &paramsMask, const std::vector<double> &params,
                        size_t inflationNeighborhoodEdgeDist = 2);

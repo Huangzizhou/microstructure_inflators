@@ -68,12 +68,12 @@ set_target_properties(optimizers PROPERTIES CXX_STANDARD 11)
 # MeshFEM library
 target_link_libraries(optimizers MeshFEM)
 
-
 # Accelerate framework
 if (APPLE)
     find_library(AccelerateFramework Accelerate)
     target_link_libraries(optimizers ${AccelerateFramework})
 endif (APPLE)
+
 ################################################################################
 # Optional optimization libraries
 ################################################################################

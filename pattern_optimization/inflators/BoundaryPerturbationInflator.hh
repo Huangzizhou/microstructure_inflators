@@ -89,6 +89,7 @@ public:
                                  const std::vector<MeshIO::IOElement> &inElements,
                                  Real epsilon = 1e-5);
 
+    // Non periodic case
     BoundaryPerturbationInflator(const std::vector<MeshIO::IOVertex>  &inVertices,
                                  const std::vector<MeshIO::IOElement> &inElements,
                                  std::vector<CondPtr<N> > &bconds,
@@ -191,6 +192,7 @@ private:
     void m_setMesh(const std::vector<MeshIO::IOVertex>  &inVertices,
                    const std::vector<MeshIO::IOElement> &inElements, Real epsilon);
 
+    // Non periodic case
     void m_setMesh(const std::vector<MeshIO::IOVertex>  &inVertices,
                    const std::vector<MeshIO::IOElement> &inElements,
                    std::vector<CondPtr<N> > bconds,
