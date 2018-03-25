@@ -354,8 +354,8 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     using IsotropyFitConfig   = PO::ObjectiveTerms::IFConfigIsotropyFit<Simulator>;
     using IsoFitRelConfig     = PO::ObjectiveTerms::IFConfigIsotropyFitRel<Simulator>;
     using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
-    using  TFConstraintConfig  = PO::   Constraints::IFConfigTensorFit<Simulator>;
-    using   PConstraintConfig  = PO::   Constraints::IFConfigPrintability<Simulator>;
+    using TFConstraintConfig  = PO::   Constraints::IFConfigTensorFit<Simulator>;
+    using  PConstraintConfig  = PO::   Constraints::IFConfigPrintability<Simulator>;
 
     auto ifactory = PO::make_iterate_factory<PO::Iterate<Simulator>,
          WCSTermConfig,
@@ -374,8 +374,8 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     ifactory->IsotropyFitConfig  ::enabled = args.count("JIsoWeight");
     ifactory->IsoFitRelConfig    ::enabled = args.count("JIsoRelWeight");
     ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
-    ifactory-> TFConstraintConfig ::enabled = false;
-    ifactory->  PConstraintConfig ::enabled = false;
+    ifactory->TFConstraintConfig ::enabled = false;
+    ifactory-> PConstraintConfig ::enabled = false;
 
     // Configure WCS Objective
     // By default, an "Lp norm" objective is really the p^th power of the Lp norm.

@@ -56,15 +56,7 @@ struct TensorFit : NLLSObjectiveTerm<_Sim::N> {
         auto dShBdry = compose([&](const ETensor &e) { ETensor result = S.doubleDoubleContract(e); result *= -1.0; return result; }, dChBdry);
         this->m_differential = compose([&](const ETensor &e) { return m_diffS.quadrupleContract(e); }, dShBdry);
 
-        double diff_norm = 0.0;
-        for (unsigned vi = 0; vi < this->m_differential.domainSize(); vi++) {
-            auto shape_derivative_vi = this->m_differential(vi);
-
-            for (int j = 0; j < shape_derivative_vi.size(); j++) {
-                diff_norm += shape_derivative_vi[j] * shape_derivative_vi[j];
-            }
-        }
-        diff_norm = sqrt(diff_norm);
+        double diff_norm = sqrt(this->m_differential.asVectorField().frobeniusNormSq());
         std::cout << "||Tensor Fit Shape Derivative||: " << diff_norm  << std::endl;
 
 #if 0

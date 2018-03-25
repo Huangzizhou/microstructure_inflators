@@ -39,12 +39,12 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
 
     using SMesh = SimplicialMesh<N>;
     std::unique_ptr<SMesh> bcm;
-    if (nonPeriodicity) {
-        // TODO: how to adapt this post processing to non periodic structures
-        std::cout << "[NonPeriodic symmetry] Skip removal of small elements because of periodicty checking ..." << std::endl;
-
+    bool done = false;
+    // Remove small components
+    while (!done) {
         try {
             bcm = Future::make_unique<SMesh>(elements, vertices.size());
+            done = true;
         }
         catch (...) {
             std::cerr << "Exception while building mesh" << std::endl;
@@ -52,77 +52,59 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
             MeshIO::save("debug.msh", vertices, elements);
             throw;
         }
-    }
-    else {
-        bool done = false;
-        while (!done) {
+
+        // Remove spurious small components. If this is already a full periodic
+        // mesh, we need to detect components on the periodically-stitched mesh to
+        // avoid discarding parts connected via the adjacent period cells.
+        std::vector<size_t> componentIndex;
+        std::vector<size_t> componentSize;
+        if (!nonPeriodicity && meshedFullPeriodCell) {
+            std::vector<MeshIO::IOElement> stitched_elements = elements;
+            using Pt = PointND<N>;
+            BBox<Point> meshBB(vertices);
+            BBox<Pt> cellND(truncateFrom3D<Pt>(meshBB.minCorner), truncateFrom3D<Pt>(meshBB.maxCorner));
+
+            auto pts = apply(vertices, [](const MeshIO::IOVertex &v) { return truncateFrom3D<Pt>(v.point); });
+            std::vector<PeriodicBoundaryMatcher::FaceMembership<N>> fm;
+            PeriodicBoundaryMatcher::determineCellBoundaryFaceMembership<N>(pts, cellND, fm, 0 /* epsilon */);
+            std::vector<std::vector<size_t>> nodeSets;
+            std::vector<size_t> nodeSetForNode;
+            // Could be sped up by only matching boundary vertices
             try {
-                bcm = Future::make_unique<SMesh>(elements, vertices.size());
-                done = true;
+                PeriodicBoundaryMatcher::match(pts, cellND, fm, nodeSets, nodeSetForNode);
             }
             catch (...) {
-                std::cerr << "Exception while building mesh" << std::endl;
+                std::cerr << "Exception while post processing mesh" << std::endl;
                 std::cerr << "Dumping debug.msh" << std::endl;
                 MeshIO::save("debug.msh", vertices, elements);
                 throw;
             }
-
-            // Remove spurious small components. If this is already a full periodic
-            // mesh, we need to detect components on the periodically-stitched mesh to
-            // avoid discarding parts connected via the adjacent period cells.
-            std::vector<size_t> componentIndex;
-            std::vector<size_t> componentSize;
-            if (meshedFullPeriodCell) {
-                std::vector<MeshIO::IOElement> stitched_elements = elements;
-                using Pt = PointND<N>;
-                BBox<Point> meshBB(vertices);
-                BBox<Pt> cellND(truncateFrom3D<Pt>(meshBB.minCorner), truncateFrom3D<Pt>(meshBB.maxCorner));
-
-                auto pts = apply(vertices, [](const MeshIO::IOVertex &v) { return truncateFrom3D<Pt>(v.point); });
-                std::vector<PeriodicBoundaryMatcher::FaceMembership<N>> fm;
-                PeriodicBoundaryMatcher::determineCellBoundaryFaceMembership<N>(pts, cellND, fm, 0 /* epsilon */);
-                std::vector<std::vector<size_t>> nodeSets;
-                std::vector<size_t> nodeSetForNode;
-                // Could be sped up by only matching boundary vertices
-                try {
-                    PeriodicBoundaryMatcher::match(pts, cellND, fm, nodeSets, nodeSetForNode);
+            // Relink periodic vertices to the first element of their corresponding node set.
+            for (auto &e : stitched_elements) {
+                for (size_t &v : e) {
+                    size_t ns = nodeSetForNode.at(v);
+                    if (ns != PeriodicBoundaryMatcher::NONE) v = nodeSets.at(ns).front();
                 }
-                catch (...) {
-                    std::cerr << "Exception while post processing mesh" << std::endl;
-                    std::cerr << "Dumping debug.msh" << std::endl;
-                    MeshIO::save("debug.msh", vertices, elements);
-                    throw;
-                }
-                // Relink periodic vertices to the first element of their corresponding node set.
-                for (auto &e : stitched_elements) {
-                    for (size_t &v : e) {
-                        size_t ns = nodeSetForNode.at(v);
-                        if (ns != PeriodicBoundaryMatcher::NONE) v = nodeSets.at(ns).front();
-                    }
-                }
-                auto dummy_vertices = vertices;
-                remove_dangling_vertices(dummy_vertices, stitched_elements);
-                get_element_components(stitched_elements, componentIndex, componentSize);
-            } else {
-                get_element_components(elements, componentIndex, componentSize);
             }
+            auto dummy_vertices = vertices;
+            remove_dangling_vertices(dummy_vertices, stitched_elements);
+            get_element_components(stitched_elements, componentIndex, componentSize);
+        } else {
+            get_element_components(elements, componentIndex, componentSize);
+        }
 
-            if (remove_small_components(componentIndex, componentSize, vertices, elements)) {
-                std::cout << "Removed " << bcm->numVertices() - vertices.size() << " vertices"
-                          << " and " << bcm->numSimplices() - elements.size() << " elements"
-                          << " (small components)" << std::endl;
-                done = false; // Rebuild mesh and try again.
-            }
+        if (remove_small_components(componentIndex, componentSize, vertices, elements)) {
+            std::cout << "Removed " << bcm->numVertices() - vertices.size() << " vertices"
+                      << " and " << bcm->numSimplices() - elements.size() << " elements"
+                      << " (small components)" << std::endl;
+            done = false; // Rebuild mesh and try again.
         }
     }
 
     SMesh &symBaseCellMesh = *bcm;
 
-    if (nonPeriodicity) {
-        // TODO: how to adapt this post processing to non periodic structures
-        std::cout << "[NonPeriodic symmetry] Skip snapping check ..." << std::endl;
-    }
-    else {
+    // For periodic structures, snap vertices to the meshing cell bounding box.
+    if (!nonPeriodicity) {
         try {
             if (N == 3) smartSnap3D(vertices, symBaseCellMesh, meshCell);
         }
@@ -161,21 +143,17 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     // MeshIO::save("post_snap.msh", vertices, elements);
 
 
-    // Mark internal cell-face vertices: vertices on the meshing cell
-    // boundary that actually lie inside the object (i.e. they are only mesh
-    // boundary vertices because of the intersection of the periodic pattern with
-    // the meshing box).
+    // For periodic structures, mark internal cell-face vertices: vertices on
+    // the meshing cell boundary that actually lie inside the object (i.e. they
+    // are only mesh boundary vertices because of the intersection of the
+    // periodic pattern with the meshing box).
     // This this is not the case if any non-cell-face triangle is incident
-    vector<bool> internalCellFaceVertex(symBaseCellMesh.numBoundaryVertices(), true);
+    vector<bool> internalCellFaceVertex;
     if (nonPeriodicity) {
-        // TODO: how to adapt this post processing to non periodic structures
-        std::cout << "[NonPeriodic symmetry] Skip verification of bondary internal cells, since entire boundary corresponds to actual boundary ..." << std::endl;
-
-        for (unsigned face_vertex_index = 0; face_vertex_index < symBaseCellMesh.numBoundaryVertices(); face_vertex_index++) {
-            internalCellFaceVertex[face_vertex_index] = false;
-        }
+        internalCellFaceVertex.assign(symBaseCellMesh.numBoundaryVertices(), false);
     }
     else {
+        internalCellFaceVertex.assign(symBaseCellMesh.numBoundaryVertices(), true);
         for (auto bs : symBaseCellMesh.boundarySimplices()) {
             bool isCellFace = false;
             for (size_t d = 0; d < N; ++d) {

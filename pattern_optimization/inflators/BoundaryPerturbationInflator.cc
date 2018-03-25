@@ -302,17 +302,13 @@ template<size_t N>
 void BoundaryPerturbationInflator<N>::m_setMesh(
         const std::vector<MeshIO::IOVertex>  &inVertices,
         const std::vector<MeshIO::IOElement> &inElements,
-        std::vector<CondPtr<N> > bconds, Real epsilon)
+        std::vector<CondPtr<N> > bconds, Real /* epsilon */) // JP: remove epsilon parameter?
 {
     m_mesh = Future::make_unique<Mesh>(inElements, inVertices);
-
-    // But vertex nodes are a prefix of all nodes, so we can ignore this.
-    m_isPeriodicBE.resize(m_mesh->numBoundaryElements());
-    for (auto be : m_mesh->boundaryElements())
-        m_isPeriodicBE[be.index()] = false; // TODO: should it be false for non periodic structures?
+    m_isPeriodicBE.assign(m_mesh->numBoundaryElements(), false);
 
     ////////////////////////////////////////////////////////////////////////
-    // Determine variables (apply periodic coordinate constraints)
+    // Determine variables
     ////////////////////////////////////////////////////////////////////////
     m_numVars.fill(2 * N); // variables 0..2N-1 always store the periodic (min/max in x, y, z)
     // face coordinates
@@ -330,7 +326,6 @@ void BoundaryPerturbationInflator<N>::m_setMesh(
     }
     std::vector<size_t> presentPairs;
     for (auto bv : m_mesh->boundaryVertices()) {
-        size_t bvi = bv.index();
         size_t vvi = bv.volumeVertex().index();
 
         for (size_t d = 0; d < N; ++d) {

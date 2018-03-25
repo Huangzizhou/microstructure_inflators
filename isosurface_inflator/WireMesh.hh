@@ -813,12 +813,8 @@ private:
         std::vector<Real> inflationParams(m_originalParameters.size());
         std::vector<Real> originalParams(m_originalParameters.size());
 
-        if (isAutodiffType<Real>())
-            for (unsigned i = 0; i < originalParams.size(); i++)
-                originalParams[i] = params[0]/params[0] * m_originalParameters[i]; //TODO: solve this without a trick
-        else
-            for (unsigned i = 0; i < originalParams.size(); i++)
-                originalParams[i] = m_originalParameters[i];
+        for (unsigned i = 0; i < originalParams.size(); i++)
+            originalParams[i] = m_originalParameters[i];
 
         if (m_useFilterMask) {
             unsigned originalIdx=0;
