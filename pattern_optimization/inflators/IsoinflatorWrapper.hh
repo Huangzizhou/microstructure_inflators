@@ -21,14 +21,6 @@ public:
                        const std::string &symmetryType, bool vertex_thickness,
                        size_t inflationGraphRadius);
 
-    // To be used when you have a mask of parameters (filtering out some of the parameters from optimization)
-    IsoinflatorWrapper(const std::string &wireMeshPath,
-                       const std::string &symmetryType,
-                       bool vertex_thickness,
-                       const std::vector<bool> &paramsMask,
-                       const std::vector<double> &params,
-                       size_t inflationGraphRadius);
-
     ////////////////////////////////////////////////////////////////////////////
     // Override geometry access
     ////////////////////////////////////////////////////////////////////////////

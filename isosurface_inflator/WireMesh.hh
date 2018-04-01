@@ -107,12 +107,6 @@ public:
     size_t numBlendingParameters() const { return m_numIndepBaseVertices; }
 
     size_t numParams() const { return numPositionParams() + numThicknessParams() + numBlendingParameters(); }
-    size_t numFilteredInParams() const {
-        if (!m_useFilterMask)
-            return numParams();
-
-        return std::count(m_parametersMask.begin(), m_parametersMask.begin()+numParams(), false);
-    }
 
     virtual std::vector<double> defaultPositionParams() const = 0;
 
@@ -144,35 +138,10 @@ public:
     }
 
     // Position parameters come first, followed by thickness and blending
-    void validateParamIdx(size_t p) const {
-        if (p >= numParams())
-            throw std::runtime_error("Invalid parameter index"); }
-
-    bool  isPositionParam(size_t p) const {
-        if (m_useFilterMask) {
-            p = m_filteredParamsToOriginal[p];
-        }
-
-        validateParamIdx(p);
-
-        return p < numPositionParams();
-    }
-    bool isThicknessParam(size_t p) const {
-        if (m_useFilterMask) {
-            p = m_filteredParamsToOriginal[p];
-        }
-
-        validateParamIdx(p);
-        return (p >= numPositionParams()) && (p < numPositionParams() + numThicknessParams());
-    }
-    bool  isBlendingParam(size_t p) const {
-        if (m_useFilterMask) {
-            p = m_filteredParamsToOriginal[p];
-        }
-
-        validateParamIdx(p);
-        return p >= numPositionParams() + numThicknessParams();
-    };
+    void validateParamIdx(size_t p) const { if (p >= numParams()) throw std::runtime_error("Invalid parameter index"); }
+    bool  isPositionParam(size_t p) const { validateParamIdx(p); return p < numPositionParams(); }
+    bool isThicknessParam(size_t p) const { validateParamIdx(p); return (p >= numPositionParams()) && (p < numPositionParams() + numThicknessParams()); }
+    bool  isBlendingParam(size_t p) const { validateParamIdx(p); return p >= numPositionParams() + numThicknessParams(); };
 
     virtual bool isPrintable(const std::vector<Real> &params, bool verticalInterfacesSupported = false) const = 0;
 
@@ -251,11 +220,6 @@ protected:
     ThicknessType m_thicknessType = ThicknessType::Vertex;
 
     virtual double m_tolerance() const = 0;
-
-    std::vector<bool> m_parametersMask;
-    std::vector<Real> m_originalParameters;
-    std::vector<int> m_filteredParamsToOriginal;
-    bool m_useFilterMask = false;
 };
 
 template<class Symmetry_ = Symmetry::TriplyPeriodic<>>
@@ -263,28 +227,8 @@ class WireMesh : public WireMeshBase {
 public:
     using PatternSymmetry = Symmetry_;
 
-    std::vector<int> generateFilterMap(const std::vector<bool> &parametersMask) {
-        size_t originalIdx = 0;
-        std::vector<int> result;
-
-        for (; originalIdx < parametersMask.size(); originalIdx++) {
-            if (!parametersMask[originalIdx]) {
-                result.push_back(originalIdx);
-            }
-        }
-
-        return result;
-    }
-
     WireMesh(const std::string &wirePath, size_t inflationNeighborhoodEdgeDist = 2)
         : m_inflationNeighborhoodEdgeDist(inflationNeighborhoodEdgeDist) { load(wirePath); }
-    WireMesh(const std::string &wirePath, const std::vector<bool> &parametersMask, const std::vector<double> originalParameters, size_t inflationNeighborhoodEdgeDist = 2)
-            : m_inflationNeighborhoodEdgeDist(inflationNeighborhoodEdgeDist) {
-        m_parametersMask = parametersMask;
-        m_originalParameters = originalParameters;
-        m_filteredParamsToOriginal = generateFilterMap(parametersMask);
-        m_useFilterMask = true; load(wirePath);
-    }
     WireMesh(const std::vector<MeshIO::IOVertex > &inVertices,
              const std::vector<MeshIO::IOElement> &inElements,
              size_t inflationNeighborhoodEdgeDist = 2)
@@ -413,29 +357,6 @@ public:
         edges = m_printGraphEdge;
     }
 
-    std::vector<Real> optimizedToOriginalParams(const std::vector<Real> &params) const {
-        // Transform input parameters into original size
-        std::vector<Real> inflationParams(m_originalParameters.size());
-        std::vector<Real> originalParams(m_originalParameters.size());
-
-        for (unsigned i = 0; i < originalParams.size(); i++)
-            originalParams[i] = m_originalParameters[i];
-
-        if (m_useFilterMask) {
-            unsigned originalIdx=0;
-            unsigned inputIdx=0;
-            for (; originalIdx < originalParams.size(); originalIdx++) {
-                inflationParams[originalIdx] = m_parametersMask[originalIdx] ? originalParams[originalIdx] : params[inputIdx++];
-            }
-        }
-        else {
-            inflationParams = params;
-        }
-
-        return inflationParams;
-    }
-
-
     // Same as above, but also get the position of each vertex according to
     // "params"
     void printabilityGraph(const std::vector<Real> &params,
@@ -444,19 +365,16 @@ public:
                            std::vector<size_t> &thicknessVars,
                            std::vector<Eigen::Matrix3Xd> &positionMaps) const
     {
-        // Transform input parameters into original size
-        std::vector<Real> inflationParams = optimizedToOriginalParams(params);
-
-        if (inflationParams.size() != numParams())
+        if (params.size() != numParams())
             throw std::runtime_error("Invalid number of params.");
 
         printabilityGraph(edges, thicknessVars, positionMaps);
 
         // Use position map to place points; we need to construct homogeneous
         // param vector.
-        Eigen::VectorXd paramVec(inflationParams.size() + 1);
-        for (size_t i = 0; i < inflationParams.size(); ++i) paramVec[i] = inflationParams[i];
-        paramVec[inflationParams.size()] = 1.0;
+        Eigen::VectorXd paramVec(params.size() + 1);
+        for (size_t i = 0; i < params.size(); ++i) paramVec[i] = params[i];
+        paramVec[params.size()] = 1.0;
 
         points.clear(); points.reserve(positionMaps.size());
         for (const auto &pm : positionMaps)
@@ -481,12 +399,10 @@ public:
         printabilityGraph(params, points, edges, thicknessVars, positionMaps);
         const size_t numPoints = points.size();
 
-        std::vector<Real> inflationParams = optimizedToOriginalParams(params);
-
         // Get the heights of the vertex spheres' bottoms
         std::vector<Real> zCoords; zCoords.reserve(numPoints);
         for (size_t i = 0; i < numPoints; ++i)
-            zCoords.push_back(points[i][2] - inflationParams.at(thicknessVars[i]));
+            zCoords.push_back(points[i][2] - params.at(thicknessVars[i]));
 
         // Build adjacency list
         std::vector<std::vector<size_t>> adj(numPoints);
@@ -568,8 +484,6 @@ public:
         printabilityGraph(params, points, edges, thicknessVars, posMaps);
         const size_t numPoints = points.size();
 
-        std::vector<Real> inflationParams = optimizedToOriginalParams(params);
-
         // defaultZCoords: original z coordinate of each vertex in printability graph
         // currentZCoords: current    z coord of *bottom* of the sphere associated with each vtx
         // posMaps:        linear map expressing *bottom* of the sphere associated with each vtx
@@ -578,7 +492,7 @@ public:
         for (size_t i = 0; i < numPoints; ++i) {
             defaultZCoords.push_back(m_printGraphVtx[i].pt[2]);
             // Determine sphere bottom by subtracting vertex radius from z coord
-            currentZCoords.push_back(points[i][2] - inflationParams.at(thicknessVars[i]));
+            currentZCoords.push_back(points[i][2] - params.at(thicknessVars[i]));
             posMaps[i](2, thicknessVars[i]) -= 1.0;
         }
 
@@ -709,13 +623,13 @@ public:
             //                            [1]
             constraints.push_back(posMaps[u].row(2) -
                                   posMaps[lowestCandidate].row(2));
-            if (size_t(constraints.back().cols()) != inflationParams.size() + 1) {
+            if (size_t(constraints.back().cols()) != params.size() + 1) {
                 std::cerr << constraints.back().cols() << " cols and "
-                          << inflationParams.size() << " parameters" << std::endl;
+                          << params.size() << " parameters" << std::endl;
                 std::cerr << posMaps[u].row(2) << std::endl;
                 std::cerr << posMaps[lowestCandidate].row(2) << std::endl;
             }
-            assert(size_t(constraints.back().cols()) == inflationParams.size() + 1);
+            assert(size_t(constraints.back().cols()) == params.size() + 1);
         }
 
         // Detect and remove "constant" constraints not acting on variables;
@@ -723,7 +637,7 @@ public:
         std::vector<Eigen::Matrix<Real, 1, Eigen::Dynamic>> prunedConstraints;
         for (const auto &c : constraints) {
             bool hasVar = false;
-            for (size_t p = 0; p < inflationParams.size(); ++p) {
+            for (size_t p = 0; p < params.size(); ++p) {
                 if (std::abs(c[p]) > tol) {
                     hasVar = true;
                     break;
@@ -744,7 +658,7 @@ public:
         // TODO: think about reducing the constraint system
 
         // Convert constraints into Eigen format.
-        Eigen::MatrixXd C(prunedConstraints.size(), inflationParams.size() + 1);
+        Eigen::MatrixXd C(prunedConstraints.size(), params.size() + 1);
         for (size_t i = 0; i < prunedConstraints.size(); ++i)
             C.row(i) = prunedConstraints[i];
         return C;
@@ -766,25 +680,22 @@ public:
         return result;
     }
 
-    // for a given vertex index, return parameters related to it
+    // for a given parameter index, return the vertex related to it
     Point parameterIndexToPoint(size_t p) {
-        // pass to original parameters index
-        size_t correspondingOriginalIndex = m_filteredParamsToOriginal[p];
-
         Point result;
 
-        if (correspondingOriginalIndex < numPositionParams()) {
+        if (p < numPositionParams()) {
             for (size_t i = 0; i < m_baseVertices.size(); ++i) {
                 size_t numDofs = m_baseVertexPositioners[i].numDoFs();
                 size_t offset = m_baseVertexVarOffsets[i].position;
-                if (correspondingOriginalIndex >= offset && correspondingOriginalIndex < (offset + numDofs)) {
+                if (p >= offset && p < (offset + numDofs)) {
                     result = m_baseVertices[i];
                 }
             }
         }
         else {
             for (size_t i = 0; i < m_baseVertices.size(); ++i) {
-                if (correspondingOriginalIndex == m_baseVertexVarOffsets[i].thickness || correspondingOriginalIndex == m_baseVertexVarOffsets[i].blending) {
+                if (p == m_baseVertexVarOffsets[i].thickness || p == m_baseVertexVarOffsets[i].blending) {
                     result = m_baseVertices[i];
                 }
             }
@@ -808,34 +719,8 @@ private:
                         std::vector<Edge> &edges,
                         std::vector<Real> &thicknesses,
                         std::vector<Real> &blendingParams) const {
-
-        // Transform input parameters into original size
-        std::vector<Real> inflationParams(m_originalParameters.size());
-        std::vector<Real> originalParams(m_originalParameters.size());
-
-        if (isAutodiffType<Real>())
-            for (unsigned i = 0; i < originalParams.size(); i++)
-                originalParams[i] = params[0]/params[0] * m_originalParameters[i]; //TODO: solve this without a trick
-        else
-            for (unsigned i = 0; i < originalParams.size(); i++)
-                originalParams[i] = m_originalParameters[i];
-
-        if (m_useFilterMask) {
-            unsigned originalIdx=0;
-            unsigned inputIdx=0;
-            for (; originalIdx < originalParams.size(); originalIdx++) {
-                inflationParams[originalIdx] = m_parametersMask[originalIdx] ? originalParams[originalIdx] : params[inputIdx++];
-            }
-        }
-        else {
-            inflationParams = params;
-        }
-
-        if (inflationParams.size() != numParams()) {
-            std::cout << "Params size: " << inflationParams.size() << std::endl;
-            std::cout << "Expected size: " << numParams() << std::endl;
+        if (params.size() != numParams())
             throw std::runtime_error("Invalid number of params.");
-        }
 
         edges = graphEdges;
 
@@ -845,7 +730,7 @@ private:
         for (size_t i = 0; i < m_baseVertices.size(); ++i) {
             const auto &pos = m_baseVertexPositioners[i];
             size_t offset = m_baseVertexVarOffsets[i].position;
-            baseGraphPos.push_back(pos.template getPosition<Real>(&inflationParams[offset]));
+            baseGraphPos.push_back(pos.template getPosition<Real>(&params[offset]));
         }
 
         points.clear(), points.reserve(graphVertices.size());
@@ -862,8 +747,8 @@ private:
 
         for (const TransformedVertex &iv : graphVertices) {
             const auto &vo = m_baseVertexVarOffsets.at(iv.origVertex);
-            thicknesses   .push_back(inflationParams.at(vo.thickness));
-            blendingParams.push_back(inflationParams.at(vo.blending));
+            thicknesses   .push_back(params.at(vo.thickness));
+            blendingParams.push_back(params.at(vo.blending));
         }
     }
 

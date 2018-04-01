@@ -37,18 +37,6 @@ IsoinflatorWrapper<N>::IsoinflatorWrapper(const std::string &wireMeshPath,
                 vertex_thickness, wireMeshPath, inflationGraphRadius);
 }
 
-// To be used when a mask of parameters (filtering parameters that are optimized) is used
-template<size_t N>
-IsoinflatorWrapper<N>::IsoinflatorWrapper(const std::string &wireMeshPath, const std::string &symmetryType,
-                            bool vertex_thickness, const std::vector<bool> &paramsMask, const std::vector<double> &params,
-                            size_t inflationGraphRadius) {
-    std::string inflatorName(symmetryType);
-    boost::algorithm::to_lower(inflatorName);
-    inflatorName = ((N == 2) ? "2D_" : "") + inflatorName;
-    m_inflator = Future::make_unique<IsosurfaceInflator>(
-            inflatorName, vertex_thickness, wireMeshPath, paramsMask, params, inflationGraphRadius);
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Inflation
 ////////////////////////////////////////////////////////////////////////////////

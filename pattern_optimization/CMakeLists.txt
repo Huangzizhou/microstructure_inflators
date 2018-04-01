@@ -18,6 +18,7 @@ add_library(inflators
         inflators/JamesInflatorWrapper.cc
         inflators/LuigiInflatorWrapper.cc
 		inflators/BoundaryPerturbationInflator.cc
+        inflators/ConstrainedIsoinflator.cc
 		inflators/HexaPillarsInflator.cpp)
 set_target_properties(inflators PROPERTIES CXX_STANDARD 11)
 

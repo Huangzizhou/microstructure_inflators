@@ -43,7 +43,7 @@ void IsosurfaceInflator::inflate(const vector<Real> &params) { m_imp->inflate(pa
 void IsosurfaceInflator::dumpInflationGraph(const std::string &path, const std::vector<Real> &params) const { m_imp->dumpInflationGraph(path, params); }
 
 void IsosurfaceInflator::rasterize(const vector<Real> &params, const std::string &resolution, const std::string &outPath) { m_imp->rasterize(params, resolution, outPath); }
-size_t       IsosurfaceInflator::numParams()                const { return m_imp->numOptimizedParams(); }
+size_t       IsosurfaceInflator::numParams()                const { return m_imp->numParams(); }
 vector<Real> IsosurfaceInflator::defaultParameters(Real t)  const { return m_imp->defaultParameters(t); }
 bool         IsosurfaceInflator::isThicknessParam(size_t p) const { return m_imp->isThicknessParam(p); }
 bool         IsosurfaceInflator:: isPositionParam(size_t p) const { return m_imp->isPositionParam(p); }
@@ -143,55 +143,3 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
 
     if (shouldDisablePostprocess) disablePostprocess();
 }
-
-// Constructor used when params mask (filtering) is applied
-IsosurfaceInflator::IsosurfaceInflator(const std::string &type, bool vertexThickness, const std::string &wireMeshPath,
-                                       const std::vector<bool> &paramsMask, const std::vector<double> &params, size_t inflationNeighborhoodEdgeDist) {
-    if (!vertexThickness) throw runtime_error("Only per-vertex thickness is currently supported.");
-    string name = type;
-    transform(name.begin(), name.end(), name.begin(), ::tolower);
-
-    // Decode symmetry type and mesher from the inflator name, which is
-    // composed of three parts:
-    // 1) a possible "2D_" prefix indicating a 2D inflator; this will set the mesher to MidplaneMesher
-    // 2) a symmetry type
-    // 3) a possible suffix selecting a custom mesher (only valid for 3D inflators):
-    //      "_preview"  (mesh with marching cubes instead of CGAL)
-    //      "_features" (mesh only the sharp feature curves that will be passed to CGAL)
-    std::unique_ptr<MesherBase> mesher;
-    size_t pos;
-    bool shouldDisablePostprocess = false;
-    if (name.find("2d_") == 0) {
-        mesher = Future::make_unique<MidplaneMesher>();
-        name = name.substr(3, string::npos);
-    }
-    else if ((pos = name.find("_preview")) != string::npos) {
-        mesher = Future::make_unique<IGLSurfaceMesherMC>();
-        name = name.substr(0, pos);
-        shouldDisablePostprocess = true;
-    }
-    else if ((pos = name.find("_features")) != string::npos) {
-        mesher = Future::make_unique<BoxIntersectionMesher>();
-        name = name.substr(0, pos);
-        shouldDisablePostprocess = true;
-    }
-
-    // The default mesher for 3D is CGAL.
-    if (!mesher) mesher = Future::make_unique<CGALClippedVolumeMesher>();
-
-    map<string, function<void()>> makeImplForSymmetry = {
-            {"cubic",           [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>         >>(wireMeshPath, std::move(mesher), paramsMask, params, inflationNeighborhoodEdgeDist); }},
-            {"orthotropic",     [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>   >>(wireMeshPath, std::move(mesher), paramsMask, params, inflationNeighborhoodEdgeDist); }},
-            {"diagonal",        [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Diagonal<>      >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
-            {"non_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::NonPeriodic<>>>(wireMeshPath, std::move(mesher), paramsMask, params, 0); }},
-            {"triply_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, std::move(mesher), paramsMask, params, inflationNeighborhoodEdgeDist); }},
-            {"doubly_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::DoublyPeriodic<>>>(wireMeshPath, std::move(mesher), paramsMask, params, inflationNeighborhoodEdgeDist); }},
-            {"square",          [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Square<>        >>(wireMeshPath, std::move(mesher), paramsMask, params, inflationNeighborhoodEdgeDist); }}
-    };
-
-    if (makeImplForSymmetry.count(name) == 0) throw std::runtime_error("Invalid inflator name: '" + type + "'");
-    makeImplForSymmetry[name]();
-
-    if (shouldDisablePostprocess) disablePostprocess();
-}
-
