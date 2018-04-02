@@ -92,8 +92,7 @@ public:
     // Non periodic case
     BoundaryPerturbationInflator(const std::vector<MeshIO::IOVertex>  &inVertices,
                                  const std::vector<MeshIO::IOElement> &inElements,
-                                 std::vector<CondPtr<N> > &bconds,
-                                 Real epsilon = 1e-5);
+                                 std::vector<CondPtr<N> > &bconds);
 
     ////////////////////////////////////////////////////////////////////////////
     // Inflation
@@ -117,7 +116,7 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     virtual bool isParametric() const override { return false; }
     virtual size_t numParameters() const override { return m_numParams; }
-    virtual std::vector<Real> defaultParameters() const { return std::vector<Real>(m_numParams); }
+    virtual std::vector<Real> defaultParameters() const override { return std::vector<Real>(m_numParams); }
     virtual ParameterType parameterType(size_t /* p */) const override {
         return ParameterType::Offset;
     }
@@ -195,8 +194,7 @@ private:
     // Non periodic case
     void m_setMesh(const std::vector<MeshIO::IOVertex>  &inVertices,
                    const std::vector<MeshIO::IOElement> &inElements,
-                   std::vector<CondPtr<N> > bconds,
-                   Real epsilon);
+                   std::vector<CondPtr<N> > bconds);
 };
 
 #endif /* end of include guard: BOUNDARYPERTURBATIONINFLATOR_HH */

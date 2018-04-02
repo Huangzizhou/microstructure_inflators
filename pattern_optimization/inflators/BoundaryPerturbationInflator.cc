@@ -35,11 +35,11 @@ template<size_t N>
 BoundaryPerturbationInflator<N>::BoundaryPerturbationInflator(
         const std::vector<MeshIO::IOVertex>  &inVertices,
         const std::vector<MeshIO::IOElement> &inElements,
-        std::vector<CondPtr<N> > &bconds, Real epsilon)
+        std::vector<CondPtr<N> > &bconds)
 {
     m_isPeriodicMesh = false;
     m_bconds = bconds;
-    m_setMesh(inVertices, inElements, bconds, epsilon);
+    m_setMesh(inVertices, inElements, bconds);
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -302,7 +302,7 @@ template<size_t N>
 void BoundaryPerturbationInflator<N>::m_setMesh(
         const std::vector<MeshIO::IOVertex>  &inVertices,
         const std::vector<MeshIO::IOElement> &inElements,
-        std::vector<CondPtr<N> > bconds, Real epsilon)
+        std::vector<CondPtr<N> > bconds)
 {
     m_mesh = Future::make_unique<Mesh>(inElements, inVertices);
 
@@ -330,7 +330,6 @@ void BoundaryPerturbationInflator<N>::m_setMesh(
     }
     std::vector<size_t> presentPairs;
     for (auto bv : m_mesh->boundaryVertices()) {
-        size_t bvi = bv.index();
         size_t vvi = bv.volumeVertex().index();
 
         for (size_t d = 0; d < N; ++d) {
