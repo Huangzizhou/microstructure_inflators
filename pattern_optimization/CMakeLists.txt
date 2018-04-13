@@ -17,9 +17,9 @@ add_library(inflators
         inflators/IsoinflatorWrapper.cc
         inflators/JamesInflatorWrapper.cc
         inflators/LuigiInflatorWrapper.cc
-		inflators/BoundaryPerturbationInflator.cc
+        inflators/BoundaryPerturbationInflator.cc
         inflators/ConstrainedIsoinflator.cc
-		inflators/HexaPillarsInflator.cpp)
+        inflators/HexaPillarsInflator.cpp)
 set_target_properties(inflators PROPERTIES CXX_STANDARD 11)
 
 # MeshFEM library
@@ -30,7 +30,7 @@ target_link_libraries(inflators MeshFEM json)
 ################################################################################
 
 # PyMesh Wires library
-#find_package(PyMesh QUIET)
+find_package(PyMesh QUIET)
 if(PYMESH_FOUND)
     target_link_libraries(inflators PyMesh::core PyMesh::wires)
     target_compile_definitions(inflators PUBLIC -DHAS_PYMESH)
@@ -48,7 +48,7 @@ else()
 endif()
 
 # Clipper library
-#find_package(Clipper QUIET)
+find_package(Clipper QUIET)
 if(CLIPPER_FOUND)
     target_include_directories(inflators SYSTEM PUBLIC ${CLIPPER_INCLUDE_DIRS})
     target_link_libraries(     inflators        ${CLIPPER_LIBRARIES})

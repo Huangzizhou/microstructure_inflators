@@ -56,7 +56,7 @@ struct Iterate : public IterateBase {
     using IterateBase::m_params;
 
     // Ortho base cell only? TODO: determine from inflator
-    Iterate(Inflator<_N> &inflator, size_t nParams, const double *params, std::string boundaryConditionsPath = "")
+    Iterate(Inflator<_N> &inflator, size_t nParams, const double *params)
         : IterateBase(inflator.isParametric())
     {
         m_params.resize(nParams);
