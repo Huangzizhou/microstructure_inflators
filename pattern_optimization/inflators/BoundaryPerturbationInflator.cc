@@ -305,14 +305,10 @@ void BoundaryPerturbationInflator<N>::m_setMesh(
         std::vector<CondPtr<N> > bconds)
 {
     m_mesh = Future::make_unique<Mesh>(inElements, inVertices);
-
-    // But vertex nodes are a prefix of all nodes, so we can ignore this.
-    m_isPeriodicBE.resize(m_mesh->numBoundaryElements());
-    for (auto be : m_mesh->boundaryElements())
-        m_isPeriodicBE[be.index()] = false; // TODO: should it be false for non periodic structures?
+    m_isPeriodicBE.assign(m_mesh->numBoundaryElements(), false);
 
     ////////////////////////////////////////////////////////////////////////
-    // Determine variables (apply periodic coordinate constraints)
+    // Determine variables
     ////////////////////////////////////////////////////////////////////////
     m_numVars.fill(2 * N); // variables 0..2N-1 always store the periodic (min/max in x, y, z)
     // face coordinates

@@ -716,7 +716,7 @@ public:
         }
 
         vector<Matrix<TReal, 2, Dynamic> > pillar_triangles;
-        if (num_upper_intervals >= 0) { // it is always =P
+        // if (num_upper_intervals >= 0) { // it is always =P
             for (unsigned index = 0; index < vertices_from_p1_to_p2.size(); index++) {
                 Point top_point = vertices_from_p1_to_p2[index];
                 Point a1, a2, b1, b2;
@@ -761,7 +761,7 @@ public:
                 pillar_triangles.insert(pillar_triangles.end(), new_pillar_triangles.begin(),
                                         new_pillar_triangles.end());
             }
-        }
+        // }
 
         // create topology in parallelogram
         simplex_to_whole_parallelogram(vertices, edges, parallelogram_side);
