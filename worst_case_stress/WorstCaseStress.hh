@@ -508,6 +508,8 @@ struct IntegratedWorstCaseObjective {
             OF &result = delta_j;
 #endif
             // j contribution to dilation integrand
+            // Part 1: int_w [j - strain(p^kl):stress^kl] grad(lambda_m) dx
+            // Part 1a: int_w j grad(lambda_m) dx
             Real dilationIntegrand = integrand.j(wcStress(e.index()), e.index());
             const auto C = e->E();
             for (size_t pq = 0; pq < flatLen(N); ++pq) {
@@ -527,12 +529,14 @@ struct IntegratedWorstCaseObjective {
                 }
 
                 // pq^th contribution to dilation integrand.
+                // Part 1b: int_w strain(p^kl):stress^kl * grad(lambda_m) dx
                 dilationIntegrand -= Quadrature<N, 2 * Strain::Deg>::integrate(
                         [&] (const EvalPt<N> &p) {
                     return strain_lambda(p).doubleContract(stress_u(p));
                 }) * shearDoubler;
 
                 // Delta strain term
+                // Part 2: int_w [grad(lambda_m) . (stress * p^kl + (strain(p^kl):C - tau) w^kl)] grad(phi_n) dx
                 for (auto n : e.nodes()) {
                     auto gradPhi_n = e->gradPhi(n.localIndex());
 

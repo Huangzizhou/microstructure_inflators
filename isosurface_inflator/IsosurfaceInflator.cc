@@ -43,9 +43,8 @@ void IsosurfaceInflator::inflate(const vector<Real> &params) { m_imp->inflate(pa
 void IsosurfaceInflator::dumpInflationGraph(const std::string &path, const std::vector<Real> &params) const { m_imp->dumpInflationGraph(path, params); }
 
 void IsosurfaceInflator::rasterize(const vector<Real> &params, const std::string &resolution, const std::string &outPath) { m_imp->rasterize(params, resolution, outPath); }
-
-vector<Real> IsosurfaceInflator::defaultParameters(Real t)  const { return m_imp->defaultParameters(t); }
 size_t       IsosurfaceInflator::numParams()                const { return m_imp->numParams(); }
+vector<Real> IsosurfaceInflator::defaultParameters(Real t)  const { return m_imp->defaultParameters(t); }
 bool         IsosurfaceInflator::isThicknessParam(size_t p) const { return m_imp->isThicknessParam(p); }
 bool         IsosurfaceInflator:: isPositionParam(size_t p) const { return m_imp->isPositionParam(p); }
 bool         IsosurfaceInflator:: isBlendingParam(size_t p) const { return m_imp->isBlendingParam(p); }
@@ -76,6 +75,9 @@ IsosurfaceInflator::trackSignedDistanceGradient(const IsosurfaceInflator::Point 
 
 void IsosurfaceInflator::disablePostprocess() { m_imp->m_noPostprocess = true; }
 void IsosurfaceInflator:: enablePostprocess() { m_imp->m_noPostprocess = false; }
+
+void IsosurfaceInflator::disableCheapPostprocess() { m_imp->m_cheapPostProcessing = false; }
+void IsosurfaceInflator:: enableCheapPostprocess() { m_imp->m_cheapPostProcessing = true; }
 
 // Printability checks/constraints
 bool IsosurfaceInflator::isPrintable(const std::vector<Real> &params) const { return m_imp->isPrintable(params); }
@@ -130,6 +132,7 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
         {"cubic",           [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>         >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
         {"orthotropic",     [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>   >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
         {"diagonal",        [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Diagonal<>      >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
+        {"non_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::NonPeriodic<>>>(wireMeshPath, std::move(mesher), 0); }},
         {"triply_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
         {"doubly_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::DoublyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
         {"square",          [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Square<>        >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }}

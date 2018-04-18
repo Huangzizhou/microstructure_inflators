@@ -32,6 +32,8 @@
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/algorithm/string/trim.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include "optimizers/ceres.hh"
 #include "optimizers/dlib.hh"
@@ -95,6 +97,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("cell_size,c",  po::value<double>(),                                    "Inflation cell size (James' inflator only. Default: 5mm)")
         ("vertexThickness,V",                                                    "Use vertex thickness instead of edge thickness (3D only)")
         ("proximityRegularizationWeight", po::value<double>(),                   "Use a quadratic proximity regularization term with the specified weight.")
+        ("proximityRegularizationZeroTarget",                                    "Use 0 vector as target parameter of proximity regularization cost function term.")
         ;
 
     po::options_description constraintOptions;
@@ -201,7 +204,9 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     auto &mat = HMG<_N>::material;
     if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
-    BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds,
+    BoundConstraints bdcs(inflator, job->radiusBounds, job->translationBounds, job->blendingBounds, job->metaBounds,
+                          job->custom1Bounds, job->custom2Bounds, job->custom3Bounds, job->custom4Bounds,
+                          job->custom5Bounds, job->custom6Bounds, job->custom7Bounds, job->custom8Bounds,
                           job->varLowerBounds, job->varUpperBounds);
 
     using TFConstraintConfig  = Constraints::IFConfigTensorFit<Simulator>;
@@ -219,8 +224,17 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     if (args.count("proximityRegularizationWeight")) {
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::enabled      = true;
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::targetParams = job->validatedInitialParams(inflator);
+        if (args.count("proximityRegularizationZeroTarget")) {
+            // Split up params.
+            vector<Real> targetParams(job->numParams(), 0.0);
+            ifactory->ObjectiveTerms::IFConfigProximityRegularization::targetParams = targetParams;
+        }
+        else {
+        }
+
         ifactory->ObjectiveTerms::IFConfigProximityRegularization::weight       = args["proximityRegularizationWeight"].as<double>();
     }
+
     ifactory->TensorFitTermConfig::targetS = targetS;
 
     ifactory->TFConstraintConfig ::enabled = false;

@@ -89,6 +89,11 @@ public:
                                  const std::vector<MeshIO::IOElement> &inElements,
                                  Real epsilon = 1e-5);
 
+    // Non periodic case
+    BoundaryPerturbationInflator(const std::vector<MeshIO::IOVertex>  &inVertices,
+                                 const std::vector<MeshIO::IOElement> &inElements,
+                                 std::vector<CondPtr<N> > &bconds);
+
     ////////////////////////////////////////////////////////////////////////////
     // Inflation
     ////////////////////////////////////////////////////////////////////////////
@@ -149,6 +154,15 @@ public:
 
     const Mesh &mesh() const { return *m_mesh; }
 
+    bool isInsideBoundaryCondition(size_t vi, std::vector<CondPtr<N> > &bconds) const {
+        for (CondPtr<N> bc : bconds) {
+            if (bc->containsPoint(m_mesh->vertex(vi).node()->p))
+                return true;
+        }
+
+        return false;
+    }
+
     virtual ~BoundaryPerturbationInflator() { }
 
 private:
@@ -156,6 +170,8 @@ private:
     std::array<std::vector<size_t>, N> m_varForCoordinate;
     std::array<std::vector<size_t>, N> m_paramForVariable;
     std::vector<bool> m_isPeriodicBE;
+    std::array<std::vector<bool>, N> m_bcVertexVariable; // say if variable is from boundary condition node
+    std::array<std::vector<Real>, N> m_bcVertexValue; // saves variable constant value when
 
     size_t m_numParams;
     std::array<size_t, N> m_numVars;
@@ -167,11 +183,18 @@ private:
     // Avoid perturbing interior vertices when parameter vector is zero.
     // (Useful for remeshing gradient descent.)
     bool m_noPerturb = false;
+    bool m_isPeriodicMesh = true;
 
     std::unique_ptr<Mesh> m_mesh;
+    std::vector<CondPtr<N> > m_bconds;
 
     void m_setMesh(const std::vector<MeshIO::IOVertex>  &inVertices,
                    const std::vector<MeshIO::IOElement> &inElements, Real epsilon);
+
+    // Non periodic case
+    void m_setMesh(const std::vector<MeshIO::IOVertex>  &inVertices,
+                   const std::vector<MeshIO::IOElement> &inElements,
+                   std::vector<CondPtr<N> > bconds);
 };
 
 #endif /* end of include guard: BOUNDARYPERTURBATIONINFLATOR_HH */

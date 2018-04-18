@@ -28,6 +28,8 @@ void postProcess(std::vector<MeshIO::IOVertex>  &vertices,
                  bool                      meshedFullPeriodCell,
                  bool                      requestFullPeriodCell,
                  const BBox<Point>         &meshCell,
-                 const MeshingOptions      &opts);
+                 const MeshingOptions      &opts,
+                 bool cheapPostProcessing,
+                 bool nonPeriodicity);
 
 #endif /* end of include guard: POSTPROCESS_HH */

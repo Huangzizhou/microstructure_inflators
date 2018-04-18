@@ -54,7 +54,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     p.add("topology", 1);
 
     po::options_description visible_opts;
-    visible_opts.add_options()("help",        "Produce this help message")
+    visible_opts.add_options()("help",                                           "Produce this help message")
         ("offsetBounds,o",      po::value<string>(),                             "offset bounds specifier (lower,upper)")
         ("translationBounds,t", po::value<string>(),                             "translation bounds specifier (lower,upper)")
         ("defaultThickness",    po::value<double>()->default_value(0.07),        "default thickness")
@@ -64,6 +64,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("initialParams,p",     po::value<string>(),                             "initial parameters (optional)")
         ("parameterConstraints,c", po::value<string>(),                          "parameter constraint expressions (semicolon-separated, optional)")
         ("symmetry",            po::value<string>()->default_value("orthotropic"),"symmetries to enforce (orthotropic (default), cubic, square, triply_periodic, doubly_periodic)")
+        ("limitedOffset,L",                                                       "Limit offset of nodes to within the base unit (0, 1)")
         ;
 
     po::options_description cli_opts;
@@ -145,8 +146,22 @@ int main(int argc, const char *argv[])
             for (size_t p = 0; p < defaultPositions.size(); ++p) {
                 // Position parameters should be first in the isosurface inflator
                 assert(wm.isPositionParam(p));
-                job->varLowerBounds.emplace(p, defaultPositions[p] + offsetBds[0]);
-                job->varUpperBounds.emplace(p, defaultPositions[p] + offsetBds[1]);
+                double lowerBound;
+                double upperBound;
+                if (args.count("limitedOffset"))
+                {
+                    lowerBound =  (defaultPositions[p] + offsetBds[0]) > 0 ? (defaultPositions[p] + offsetBds[0]) : 0;
+                    upperBound =  (defaultPositions[p] + offsetBds[1]) < 1 ? (defaultPositions[p] + offsetBds[1]) : 1;
+                }
+                else
+                {
+                    lowerBound = defaultPositions[p] + offsetBds[0];
+                    upperBound = defaultPositions[p] + offsetBds[1];
+                }
+
+                job->varLowerBounds.emplace(p, lowerBound);
+                job->varUpperBounds.emplace(p, upperBound);
+
             }
         }
 
@@ -181,7 +196,9 @@ int main(int argc, const char *argv[])
     else if (sym == "square"         ) { writeJob(WireMesh<Symmetry::Square<>>        (vertices, elements)); }
     else if (sym == "triply_periodic") { writeJob(WireMesh<Symmetry::TriplyPeriodic<>>(vertices, elements)); }
     else if (sym == "doubly_periodic") { writeJob(WireMesh<Symmetry::DoublyPeriodic<>>(vertices, elements)); }
+    else if (sym == "non_periodic"   ) { writeJob(WireMesh<Symmetry::NonPeriodic<>>(vertices, elements)); }
     else throw std::runtime_error("Unknown symmetry type: " + sym);
+   
 
     return 0;
 }

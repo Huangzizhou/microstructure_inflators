@@ -29,6 +29,7 @@
 #include <Utilities/apply.hh>
 #include "InflatorTypes.hh"
 #include "Symmetry.hh"
+#include "AutomaticDifferentiation.hh"
 
 struct TransformedVertex {
     using Point = Point3<double>;
@@ -519,7 +520,7 @@ public:
 
             void remove(size_t u) {
                 auto it = std::find(candidates.begin(),
-                                 candidates.end(), u);
+                                    candidates.end(), u);
                 if (it == candidates.end()) throw std::runtime_error("Attempted to remove nonexistant support candidate: " + std::to_string(u));
                 candidates.erase(it);
             }
@@ -662,6 +663,47 @@ public:
             C.row(i) = prunedConstraints[i];
         return C;
     }
+
+    // for a given vertex index, return parameters related to it
+    std::vector<int> pointToParametersIndices(Point point) {
+        std::vector<int> result;
+        int baseIdx = m_findBaseVertex(point);
+        int indepIdx = m_indepVtxForBaseVtx[baseIdx];
+        unsigned dofs = m_baseVertexPositioners[indepIdx].numDoFs();
+
+        for (unsigned i=0; i<dofs; i++)
+            result.push_back(m_baseVertexVarOffsets[baseIdx].position+i);
+
+        result.push_back(m_baseVertexVarOffsets[baseIdx].thickness);
+        result.push_back(m_baseVertexVarOffsets[baseIdx].blending);
+
+        return result;
+    }
+
+    // for a given parameter index, return the vertex related to it
+    Point parameterIndexToPoint(size_t p) {
+        Point result;
+
+        if (p < numPositionParams()) {
+            for (size_t i = 0; i < m_baseVertices.size(); ++i) {
+                size_t numDofs = m_baseVertexPositioners[i].numDoFs();
+                size_t offset = m_baseVertexVarOffsets[i].position;
+                if (p >= offset && p < (offset + numDofs)) {
+                    result = m_baseVertices[i];
+                }
+            }
+        }
+        else {
+            for (size_t i = 0; i < m_baseVertices.size(); ++i) {
+                if (p == m_baseVertexVarOffsets[i].thickness || p == m_baseVertexVarOffsets[i].blending) {
+                    result = m_baseVertices[i];
+                }
+            }
+        }
+
+        return result;
+    }
+
 
 private:
     std::vector<decltype(PatternSymmetry::nodePositioner(Point()))> m_baseVertexPositioners;

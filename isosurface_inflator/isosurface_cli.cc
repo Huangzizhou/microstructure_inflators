@@ -39,11 +39,13 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
     po::options_description visible_opts;
     visible_opts.add_options()("help,h", "Produce this help message")
                               ("disablePostprocessing,d",                    "Disable post-processing of mesher output")
+                              ("cheapPostprocessing",                        "Cheap post-processing of mesher output")
                               ("dumpBaseUnitGraph,B", po::value<string>(),   "Output the base unit inflation graph to the specified path")
                               ("dumpInflationGraph,D", po::value<string>(),  "Output the inflation graph to the specified path")
                               ("dumpReplicatedGraph,R", po::value<string>(), "Output the replicated pattern graph to the specified path")
                               ("mopts,m", po::value<string>(),               "Meshing options file")
                               ("params,p", po::value<string>(),              "Pattern parameters")
+                              ("paramsFile", po::value<string>(),            "Pattern parameters file")
                               ("nonReflectiveInflator",                      "use non-reflective inflator (reflective by default)")
                               ("ortho_cell,O",                               "Generate the ortho cell only (for ortho-cell meshers)")
                               ("inflation_graph_radius", po::value<size_t>()->default_value(2),   "Number of edges to traverse outward from the symmetry cell when building the inflation graph")
@@ -113,6 +115,22 @@ int main(int argc, char *argv[])
         for (const auto &p : pStrings)
             params.push_back(std::stod(p));
     }
+    else if (args.count("paramsFile")) {
+        string line;
+        std::ifstream paramsFile (args["paramsFile"].as<string>(), std::ifstream::in);
+        if (paramsFile.is_open()) {
+            while (getline(paramsFile, line)) {
+                istringstream stringStream(line);
+                vector<string> tokens;
+                copy(istream_iterator<string>(stringStream), istream_iterator<string>(), back_inserter(tokens));
+
+                params.clear();
+                for (const auto &p : tokens)
+                    params.push_back(std::stod(p));
+            }
+            paramsFile.close();
+        }
+    }
     else {
         cout << "Inflating default parameters: " << endl;
         for (Real p : params) cout << p << "\t";
@@ -129,6 +147,7 @@ int main(int argc, char *argv[])
 
     if (args.count("mopts")) inflator.meshingOptions().load(args["mopts"].as<string>());
     if (args.count("disablePostprocessing")) inflator.disablePostprocess();
+    if (args.count("cheapPostprocessing")) inflator.enableCheapPostprocess();
     inflator.setReflectiveInflator(args.count("nonReflectiveInflator") == 0);
 
     if (args.count("dumpShapeVelocities")) inflator.meshingOptions().debugSVelPath = args["dumpShapeVelocities"].as<string>();

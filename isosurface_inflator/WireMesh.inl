@@ -32,14 +32,26 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     if ((std::abs(dim[0]) < 1e-6) || (std::abs(dim[1]) < 1e-6))
         throw std::runtime_error("Degenerate pattern");
     const bool is2D = (std::abs(dim[2]) <= 1e-6);
+    if (std::is_same<Symmetry::NonPeriodic<typename PatternSymmetry::Tolerance>, Sym>::value) {
+        std::cout << "[NonPeriodic symmetry] Skip scaling ..." << std::endl;
 
-    for (const auto &v : inVertices) {
-        // transform graph to [-1, 1]
-        Point p(Point::Zero());
-        // Hack for 2D case: leave z coords at 0
-        for (size_t i = 0; i < (is2D ? 2 : 3); ++i)
-            p[i] = (v[i] - bb.minCorner[i]) * (2.0 / dim[i]) - 1.0;
-        m_fullVertices.push_back(p);
+        for (const auto &v : inVertices) {
+            Point p(Point::Zero());
+            // Hack for 2D case: leave z coords at 0
+            for (size_t i = 0; i < (is2D ? 2 : 3); ++i)
+                p[i] = v[i];
+            m_fullVertices.push_back(p);
+        }
+    }
+    else {
+        for (const auto &v : inVertices) {
+            // transform graph to [-1, 1]
+            Point p(Point::Zero());
+            // Hack for 2D case: leave z coords at 0
+            for (size_t i = 0; i < (is2D ? 2 : 3); ++i)
+                p[i] = (v[i] - bb.minCorner[i]) * (2.0 / dim[i]) - 1.0;
+            m_fullVertices.push_back(p);
+        }
     }
 
     // Determine the vertices in the symmetry base unit subgraph

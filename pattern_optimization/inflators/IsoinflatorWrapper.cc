@@ -17,6 +17,11 @@ template<size_t N> const std::vector<MeshIO::IOElement> &IsoinflatorWrapper<N>::
 template<size_t N> const std::vector<MeshIO::IOVertex>  &IsoinflatorWrapper<N>::vertices() const { return m_inflator->vertices(); }
 template<size_t N> void IsoinflatorWrapper<N>::clear() { m_inflator->clear(); }
 
+// cheap post processing can be used in isosurface_cli, skipping computation of normals and shape velocities
+template<size_t N> void IsoinflatorWrapper<N>::disableCheapPostprocess() { m_inflator->disableCheapPostprocess();}
+template<size_t N> void IsoinflatorWrapper<N>::enableCheapPostprocess() { m_inflator->enableCheapPostprocess();}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // Constructors
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,8 +82,8 @@ IsoinflatorWrapper<N>::volumeShapeVelocities() const
 
                 result[p](vi)  = truncateFrom3D<VectorND<N>>(n[vi]);
                 result[p](vi) *= nsv[p][vi];
-                // assert(!std::isnan(result[p](vi)));
-                // assert(!std::isnan(result[p](vi)));
+                //assert(!std::isnan(result[p](vi)));
+                //assert(!std::isnan(result[p](vi)));
             }
         }
 

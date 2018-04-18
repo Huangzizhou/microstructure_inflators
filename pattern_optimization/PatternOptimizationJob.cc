@@ -44,6 +44,20 @@ void parseVector(const ptree &pt, vector<Real> &v) {
     }
 }
 
+void parseVector(const ptree &pt, vector<bool> &v) {
+    v.clear();
+    for (const auto &val : pt) {
+        if (!val.first.empty()) throw runtime_error("Failed to parse vector");
+
+        if (val.second.get_value<int>() == 1) {
+            v.push_back(true);
+        }
+        else {
+            v.push_back(false);
+        }
+    }
+}
+
 std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     ifstream is(jobFile);
     if (!is.is_open())
@@ -77,8 +91,38 @@ std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     parseVector(radiusBounds, job->radiusBounds);
     parseVector(translationBounds, job->translationBounds);
 
+    if (pt.count("paramsMask"))
+        parseVector(pt.get_child("paramsMask"), job->paramsMask);
+
     if (pt.count("blendingBounds"))
         parseVector(pt.get_child("blendingBounds"), job->blendingBounds);
+
+    if (pt.count("metaBounds"))
+        parseVector(pt.get_child("metaBounds"), job->metaBounds);
+
+    if (pt.count("custom1Bounds"))
+        parseVector(pt.get_child("custom1Bounds"), job->custom1Bounds);
+
+    if (pt.count("custom2Bounds"))
+        parseVector(pt.get_child("custom2Bounds"), job->custom2Bounds);
+
+    if (pt.count("custom3Bounds"))
+        parseVector(pt.get_child("custom3Bounds"), job->custom3Bounds);
+
+    if (pt.count("custom4Bounds"))
+        parseVector(pt.get_child("custom4Bounds"), job->custom4Bounds);
+
+    if (pt.count("custom5Bounds"))
+        parseVector(pt.get_child("custom5Bounds"), job->custom5Bounds);
+
+    if (pt.count("custom6Bounds"))
+        parseVector(pt.get_child("custom6Bounds"), job->custom6Bounds);
+
+    if (pt.count("custom7Bounds"))
+        parseVector(pt.get_child("custom7Bounds"), job->custom7Bounds);
+
+    if (pt.count("custom8Bounds"))
+        parseVector(pt.get_child("custom8Bounds"), job->custom8Bounds);
 
     if (pt.count("paramConstraints") != 0) {
         auto constraints = pt.get_child("paramConstraints");
@@ -103,7 +147,7 @@ std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
         }
     }
 
-    job->targetVolume = pt.get_optional<double>("target volume");
+    job->targetVolume = pt.get_optional<double>("targetVolume");
 
     return job;
 }

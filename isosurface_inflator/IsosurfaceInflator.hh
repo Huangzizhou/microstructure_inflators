@@ -79,6 +79,9 @@ public:
     void disablePostprocess();
     void  enablePostprocess();
 
+    void disableCheapPostprocess();
+    void  enableCheapPostprocess();
+
     MeshingOptions &meshingOptions();
 
     bool isPrintable(const std::vector<Real> &params) const;
