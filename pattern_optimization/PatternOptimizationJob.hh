@@ -66,7 +66,7 @@ public:
             np = params.size();
         }
         else {
-            np = inflator.numParameters();
+            np = numParams();
         }
         //const size_t np = params.size();
         // Allow non-parametric inflator to ignore initialParams (if size mismatch)
@@ -82,6 +82,8 @@ public:
                 std::cerr << "param " << i
                           << " role: " << parameterTypeString(inflator.parameterType(i))
                           << std::endl;
+            std::cerr <<  "Inflator was expecting " << inflator.numParameters() << " parameters, but input contained only "
+                      << np << " values" << std::endl;
             throw std::runtime_error("Invalid number of parameters.");
         }
 
@@ -134,6 +136,7 @@ public:
     std::vector<std::string> parameterConstraints;
     std::map<size_t, Real> varLowerBounds, varUpperBounds;
     boost::optional<Real> targetVolume;
+    size_t numberCustomTypes = 0;
 };
 
 template<size_t _N>
@@ -145,11 +148,17 @@ public:
            << "\t\"dim\": " << _N << "," << std::endl
            << "\t\"target\": " << targetMaterial << "," << std::endl;
         if (targetVolume)
-            os << "\t\"target volume\": " << *targetVolume << "," << std::endl;
+            os << "\t\"targetVolume\": " << *targetVolume << "," << std::endl;
         if (initialParams.size()) {
             os << "\t\"initial_params\": [";
             for (size_t i = 0; i < initialParams.size(); ++i)
-                os << (i ? ", " : "") << initialParams[i];
+                os << (i ? ", " : "") << std::setprecision(10) << initialParams[i];
+            os << "]," << std::endl;
+        }
+        if (paramsMask.size()) {
+            os << "\t\"paramsMask\": [";
+            for (size_t i = 0; i < paramsMask.size(); ++i)
+                os << (i ? ", " : "") << paramsMask[i];
             os << "]," << std::endl;
         }
 
@@ -174,7 +183,7 @@ public:
         if (varLowerBounds.size() + varUpperBounds.size()) {
             os << "\t\"bounds\": [";
             bool first = true;
-            for (size_t p = 0; p < numParams(); ++p) {
+            for (size_t p = 0; p < initialParams.size(); ++p) {
                 if (varLowerBounds.count(p) + varUpperBounds.count(p) == 0)
                     continue;
                 if (!first) os << ",";
@@ -186,6 +195,23 @@ public:
             }
             os << std::endl << "\t]," << std::endl;
         }
+
+        if (numberCustomTypes > 0)
+            os << "\t\"custom1Bounds\": [" << custom1Bounds[0] << ", " << custom1Bounds[1] << "]," << std::endl;
+        if (numberCustomTypes > 1)
+            os << "\t\"custom2Bounds\": [" << custom2Bounds[0] << ", " << custom2Bounds[1] << "]," << std::endl;
+        if (numberCustomTypes > 2)
+            os << "\t\"custom3Bounds\": [" << custom3Bounds[0] << ", " << custom3Bounds[1] << "]," << std::endl;
+        if (numberCustomTypes > 3)
+            os << "\t\"custom4Bounds\": [" << custom4Bounds[0] << ", " << custom4Bounds[1] << "]," << std::endl;
+        if (numberCustomTypes > 4)
+            os << "\t\"custom5Bounds\": [" << custom5Bounds[0] << ", " << custom5Bounds[1] << "]," << std::endl;
+        if (numberCustomTypes > 5)
+            os << "\t\"custom6Bounds\": [" << custom6Bounds[0] << ", " << custom6Bounds[1] << "]," << std::endl;
+        if (numberCustomTypes > 6)
+            os << "\t\"custom7Bounds\": [" << custom7Bounds[0] << ", " << custom7Bounds[1] << "]," << std::endl;
+        if (numberCustomTypes > 7)
+            os << "\t\"custom8Bounds\": [" << custom8Bounds[0] << ", " << custom8Bounds[1] << "]," << std::endl;
 
         os << "\t\"radiusBounds\": [" << radiusBounds[0] << ", " << radiusBounds[1] << "]," << std::endl
            << "\t\"translationBounds\": [" << translationBounds[0] << ", " << translationBounds[1] << "]," << std::endl
