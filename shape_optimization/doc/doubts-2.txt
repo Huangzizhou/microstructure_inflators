@@ -1,0 +1,14 @@
+Main doubts:
+
+2015:
+1 - Section 5: FEM implementation: why piecewise linear integrand? How to
+    compute gradient and integrals in the FEM mesh? Are stress and strain linear in each triangle?
+2 - Section 6: The optimization problem: why S^H - S better than C^H - S?
+3 - Section 7: Material optimization: step 2 of algorithm
+
+2017:
+1 - Section 3: How the idea of extending the boundary shape velocity to the volume
+    works?
+2 - Section 4: Equation (9): difference between eigenvalue problems. Why this
+    one is different and cannot be simply solved by flattening?
+3 - Appendix B: how to prove eigenvalue derivative (not depend on eigenvectors)
