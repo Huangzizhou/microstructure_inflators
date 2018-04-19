@@ -1,0 +1,17 @@
+Main doubts:
+
+Supplement material 2017 (final submitted (not published)):
+1 - How to reach equation (10)?
+  Look at new published version of supplement material
+2 - Meaning of von Mises?
+  Extract stress that is normally responsible for breaking objects (shear part).
+3 - Principal stresses?
+  Eigenvectors of main directions of stress (max, min) and eigenvalues are the min and max values. To understand, look at $\sigma \dot n = \sigma n = T = \lambda n$.
+4 - Stress signal meaning (compress/tensile)?
+  Stress that generates negative tensile (opposite direction of normal), is compressing material.
+5 - Index to exterior product (x)?
+  It is like adding new dimension, e.g. $a_i b_j$ corresponds to $a (x) b$.
+6 - Confusion of lagrangian and eulerian derivatives in Reynolds Transport Theorem?
+  Use new published version of supplement material.
+7 - why derivative of strain w.r.t time equals strain of derivative of displacement w.r.t time?
+  Since strain corresponds to derivatives (gradient) of displacement w.r.t space only, the operations commute and we can derivate w.r.t time first.
