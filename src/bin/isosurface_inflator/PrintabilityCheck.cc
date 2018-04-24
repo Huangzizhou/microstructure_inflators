@@ -9,8 +9,9 @@
 //  Company:  New York University
 //  Created:  01/05/2017 00:29:14
 ////////////////////////////////////////////////////////////////////////////////
-#include "WireMesh.hh"
-#include "../pattern_optimization/LookupTable.hh"
+
+#include <isosurface_inflator/WireMesh.hh>
+#include <pattern_optimization/LookupTable.hh>
 
 #include <iostream>
 #include <vector>

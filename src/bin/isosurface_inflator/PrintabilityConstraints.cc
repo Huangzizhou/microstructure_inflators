@@ -14,7 +14,8 @@
 //  Company:  New York University
 //  Created:  12/20/2016 19:31:21
 ////////////////////////////////////////////////////////////////////////////////
-#include "WireMesh.hh"
+
+#include <isosurface_inflator/WireMesh.hh>
 #include <boost/algorithm/string.hpp>
 
 int main(int argc, const char *argv[]) {

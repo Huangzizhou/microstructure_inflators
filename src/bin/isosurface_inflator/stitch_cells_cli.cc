@@ -2,12 +2,12 @@
 // Example run:
 // ./isosurface_inflator/stitch_cells_cli $MICRO_DIR/isosurface_inflator/tests/patch.json -o out.obj
 ////////////////////////////////////////////////////////////////////////////////
-#include "StitchedWireMesh.hh"
-#include "PatternSignedDistance.hh"
-#include "MidplaneMesher.hh"
-#include "IGLSurfaceMesherMC.hh"
-#include "CLI11.hpp"
-#include "json.hpp"
+#include <isosurface_inflator/StitchedWireMesh.hh>
+#include <isosurface_inflator/PatternSignedDistance.hh>
+#include <isosurface_inflator/MidplaneMesher.hh>
+#include <isosurface_inflator/IGLSurfaceMesherMC.hh>
+#include <CLI11.hpp>
+#include <json.hpp>
 ////////////////////////////////////////////////////////////////////////////////
 
 using json = nlohmann::json;

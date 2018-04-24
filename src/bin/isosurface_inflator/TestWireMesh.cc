@@ -1,5 +1,6 @@
-#include "../WireMesh.hh"
+#include <isosurface_inflator/WireMesh.hh>
 #include <iostream>
+
 using namespace std;
 
 ////////////////////////////////////////////////////////////////////////////////

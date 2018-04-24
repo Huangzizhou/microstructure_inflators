@@ -1,9 +1,9 @@
-#include "SignedDistanceRegion.hh"
-#include "SignedDistance.hh"
-#include "MidplaneMesher.hh"
-#include "PatternSignedDistance.hh"
-#include "Joint.hh"
-#include "WireMesh.hh"
+#include <isosurface_inflator/SignedDistanceRegion.hh>
+#include <isosurface_inflator/SignedDistance.hh>
+#include <isosurface_inflator/MidplaneMesher.hh>
+#include <isosurface_inflator/PatternSignedDistance.hh>
+#include <isosurface_inflator/Joint.hh>
+#include <isosurface_inflator/WireMesh.hh>
 #include <stdexcept>
 
 using Point = Point3<double>;

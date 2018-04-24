@@ -1,9 +1,9 @@
-#include "InflatorTypes.hh"
-#include "CGALClippedVolumeMesher.hh"
-#include "IGLSurfaceMesherMC.hh"
-#include "MidplaneMesher.hh"
-#include "PaperVisualizationSDFunc.hh"
-#include "SignedDistance.hh"
+#include <isosurface_inflator/InflatorTypes.hh>
+#include <isosurface_inflator/CGALClippedVolumeMesher.hh>
+#include <isosurface_inflator/IGLSurfaceMesherMC.hh>
+#include <isosurface_inflator/MidplaneMesher.hh>
+#include <isosurface_inflator/PaperVisualizationSDFunc.hh>
+#include <isosurface_inflator/SignedDistance.hh>
 //#include <Utilities/apply.hh>
 
 int main(int argc, const char *argv[]) {

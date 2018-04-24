@@ -1,0 +1,9 @@
+add_executable(PatternOptimization_cli PatternOptimization_cli.cc)
+target_link_libraries(PatternOptimization_cli pattern_optimization optimizers inflators)
+
+add_executable(GenIsosurfaceJob GenIsosurfaceJob.cc)
+target_link_libraries(GenIsosurfaceJob pattern_optimization)
+set_target_properties(GenIsosurfaceJob PROPERTIES CXX_STANDARD 14)
+
+add_executable(OffsetBoundsToTranslationBounds OffsetBoundsToTranslationBounds.cc)
+target_link_libraries(OffsetBoundsToTranslationBounds isosurface_inflator pattern_optimization)

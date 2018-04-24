@@ -5,13 +5,16 @@
 //      Reads, writes, and processes a pattern lookup table.
 //      Format:
 //      pattern_num\tE\tnu\tanisotropy\tnum_params\tparam_0....
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  07/30/2015 18:50:10
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef LOOKUPTABLE_HH
 #define LOOKUPTABLE_HH
+
+#include <CSGFEM/ElasticityTensor.hh>
+#include <Eigen/Dense>
 
 #include <string>
 #include <stdexcept>
@@ -20,10 +23,8 @@
 #include <vector>
 #include <iomanip>
 #include <set>
-#include <CSGFEM/ElasticityTensor.hh>
-#include <Eigen/Dense>
-
 #include <sstream>
+
 std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
     std::stringstream ss(s);
     std::string item;
@@ -98,7 +99,7 @@ struct IsotropicLookupTable {
             os << std::setfill('0') << std::setw(4) << r.pattern << '\t';
             os.copyfmt(state);
             os << std::setprecision(16);
-            os << r.E << '\t' << r.nu << '\t' << r.anisotropy << '\t' << r.numParams(); 
+            os << r.E << '\t' << r.nu << '\t' << r.anisotropy << '\t' << r.numParams();
             for (auto p : r.patternParams)
                 os << '\t' << p;
             os.copyfmt(state);
@@ -156,7 +157,7 @@ struct IsotropicLookupTable {
     template<typename T> void  getParamValues(size_t p, std::vector<T> &out) const {
         if (p >= numParams()) {
             throw std::runtime_error("Invalid parameter " + std::to_string(p));
-        }                                                                           
+        }
                                                                                      out.clear(), out.reserve(size()); for (const auto &r : records) out.push_back(r.patternParams.at(p));
     }
 

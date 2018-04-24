@@ -101,6 +101,7 @@ public:
             case ThicknessType::Vertex: return m_numIndepBaseVertices;
             default: assert(false);
         }
+        return 0;
     }
 
     // There is a single blending parameter per base vertex.

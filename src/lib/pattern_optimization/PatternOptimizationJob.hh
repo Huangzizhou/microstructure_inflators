@@ -24,6 +24,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef PATTERNOPTIMIZATIONJOB_HH
 #define PATTERNOPTIMIZATIONJOB_HH
+
 #include <MeshFEM/Materials.hh>
 #include <inflators/Inflator.hh>
 #include <boost/optional.hpp>

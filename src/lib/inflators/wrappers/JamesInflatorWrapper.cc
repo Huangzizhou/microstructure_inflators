@@ -2,9 +2,9 @@
 
 #if JAMES_INFLATOR_ENABLED
 
+#include <MeshFEM/Future.hh>
 #include <Wires/Interfaces/PeriodicExploration.h>
 #include <stdexcept>
-#include <MeshFEM/Future.hh>
 
 using namespace PyMesh;
 

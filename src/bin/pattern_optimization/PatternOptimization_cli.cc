@@ -41,18 +41,17 @@
 #include <optimizers/wrappers/nlopt.hh>
 #include <optimizers/wrappers/knitro.hh>
 
-#include "PatternOptimizationIterate.hh"
-
-#include "PatternOptimizationJob.hh"
 #include <optimizers/BoundConstraints.hh>
-#include "IterateFactory.hh"
-#include "IterateManager.hh"
+#include <pattern_optimization/PatternOptimizationIterate.hh>
+#include <pattern_optimization/PatternOptimizationJob.hh>
+#include <pattern_optimization/IterateFactory.hh>
+#include <pattern_optimization/IterateManager.hh>
 
 #include <optimizers/OptimizerConfig.hh>
-#include "PatternOptimizationConfig.hh"
-#include "objective_terms/TensorFit.hh"
-#include "objective_terms/ProximityRegularization.hh"
-#include "constraints/TensorFit.hh"
+#include <pattern_optimization/PatternOptimizationConfig.hh>
+#include <pattern_optimization/objective_terms/TensorFit.hh>
+#include <pattern_optimization/objective_terms/ProximityRegularization.hh>
+#include <pattern_optimization/constraints/TensorFit.hh>
 
 namespace po = boost::program_options;
 using namespace std;

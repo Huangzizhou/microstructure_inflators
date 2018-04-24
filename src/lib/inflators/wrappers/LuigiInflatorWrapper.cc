@@ -2,7 +2,7 @@
 
 #if LUIGI_INFLATOR_ENABLED
 
-#include "../../inflators/luigi_wire_inflator/src/WireInflator2D.h"
+#include <luigi_wire_inflator/src/WireInflator2D.h>
 
 #include <MeshFEM/Future.hh>
 

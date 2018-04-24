@@ -14,9 +14,9 @@
 //  Created:  12/04/2017 16:46:17
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "StitchedWireMesh.hh"
-#include "IGLSurfaceMesherMC.hh"
-#include "PatternSignedDistance.hh"
+#include <isosurface_inflator/StitchedWireMesh.hh>
+#include <isosurface_inflator/IGLSurfaceMesherMC.hh>
+#include <isosurface_inflator/PatternSignedDistance.hh>
 #include <MeshFEM/MSHFieldParser.hh>
 #include <MeshFEM/MSHFieldWriter.hh>
 #include <MeshFEM/TetMesh.hh>

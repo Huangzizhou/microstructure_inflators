@@ -1,13 +1,12 @@
-#include "WireMesh.hh"
-#include "PatternSignedDistance.hh"
-
-#include "IsosurfaceInflatorConfig.hh"
-
-#include <iostream>
-#include <functional>
+#include <isosurface_inflator/WireMesh.hh>
+#include <isosurface_inflator/PatternSignedDistance.hh>
+#include <isosurface_inflator/IsosurfaceInflatorConfig.hh>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
+
+#include <iostream>
+#include <functional>
 
 namespace po = boost::program_options;
 using namespace std;

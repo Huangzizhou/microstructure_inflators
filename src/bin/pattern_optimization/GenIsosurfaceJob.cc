@@ -19,21 +19,20 @@
 //  Company:  New York University
 //  Created:  07/04/2016 17:47:39
 ////////////////////////////////////////////////////////////////////////////////
+
+#include <MeshFEM/Future.hh>
+#include <isosurface_inflator/WireMesh.hh>
+#include <pattern_optimization/PatternOptimizationJob.hh>
+
 #include <boost/program_options.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include <iostream>
 #include <cstdlib>
 #include <string>
 #include <cassert>
 #include <stdexcept>
-
-#include <MeshFEM/Future.hh>
-#include "PatternOptimizationJob.hh"
 #include <cmath>
-
-#include <boost/algorithm/string.hpp>
-
-#include "../isosurface_inflator/WireMesh.hh"
 
 namespace po = boost::program_options;
 using namespace std;
@@ -198,7 +197,7 @@ int main(int argc, const char *argv[])
     else if (sym == "doubly_periodic") { writeJob(WireMesh<Symmetry::DoublyPeriodic<>>(vertices, elements)); }
     else if (sym == "non_periodic"   ) { writeJob(WireMesh<Symmetry::NonPeriodic<>>(vertices, elements)); }
     else throw std::runtime_error("Unknown symmetry type: " + sym);
-   
+
 
     return 0;
 }

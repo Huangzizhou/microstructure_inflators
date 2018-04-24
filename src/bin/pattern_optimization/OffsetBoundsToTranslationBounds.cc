@@ -13,8 +13,8 @@
 #include <iostream>
 #include <cstdlib>
 
-#include "IsosurfaceInflator.hh"
-#include "../pattern_optimization/PatternOptimizationJob.hh"
+#include <isosurface_inflator/IsosurfaceInflator.hh>
+#include <pattern_optimization/PatternOptimizationJob.hh>
 
 int main(int argc, const char *argv[]) {
     if (argc != 6) {
