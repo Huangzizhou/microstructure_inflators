@@ -1,6 +1,6 @@
-#include <MeshIO.hh>
-#include <MSHFieldWriter.hh>
-#include <GlobalBenchmark.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
 #include "SpherePoints.hh"
 #include "JointViewer/ConvexHull.hh"
 #include "JointViewer/ConvexHullTriangulation.hh"

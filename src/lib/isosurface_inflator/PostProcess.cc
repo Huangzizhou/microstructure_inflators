@@ -1,11 +1,11 @@
 #include "PostProcess.hh"
-#include <GlobalBenchmark.hh>
 #include "IsosurfaceInflatorImpl.hh"
-#include <algorithms/get_element_components.hh>
-#include <filters/remove_dangling_vertices.hh>
-#include <filters/remove_small_components.hh>
-#include <PeriodicBoundaryMatcher.hh>
 #include "SnapAndReflect.hh"
+#include <MeshFEM/GlobalBenchmark.hh>
+#include <MeshFEM/algorithms/get_element_components.hh>
+#include <MeshFEM/filters/remove_dangling_vertices.hh>
+#include <MeshFEM/filters/remove_small_components.hh>
+#include <MeshFEM/PeriodicBoundaryMatcher.hh>
 
 using namespace std;
 
@@ -40,7 +40,7 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     using SMesh = SimplicialMesh<N>;
     std::unique_ptr<SMesh> bcm;
     bool done = false;
-    
+
     // Remove small components
     while (!done) {
         try {

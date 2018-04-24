@@ -11,14 +11,14 @@
 #ifndef SDCONVERSIONS_HH
 #define SDCONVERSIONS_HH
 
-#include <Fields.hh>
-#include <OneForm.hh>
-#include <Functions.hh>
+#include <MeshFEM/EdgeFields.hh>
+#include <MeshFEM/OneForm.hh>
+#include <MeshFEM/Functions.hh>
 
 #include <vector>
-#include <GaussQuadrature.hh>
+#include <MeshFEM/GaussQuadrature.hh>
 
-#include <MassMatrix.hh>
+#include <MeshFEM/MassMatrix.hh>
 #include "ShapeVelocityInterpolator.hh"
 
 namespace SDConversions {

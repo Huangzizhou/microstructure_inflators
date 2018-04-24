@@ -12,8 +12,8 @@
 #define MESHERBASE_HH
 
 #include "MeshingOptions.hh"
-#include <MeshIO.hh>
 #include "SignedDistanceRegion.hh"
+#include <MeshFEM/MeshIO.hh>
 
 class MesherBase {
 public:

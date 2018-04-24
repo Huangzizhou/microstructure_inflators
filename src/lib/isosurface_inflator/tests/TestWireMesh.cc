@@ -1,4 +1,4 @@
-#include "WireMesh.hh"
+#include "../WireMesh.hh"
 #include <iostream>
 using namespace std;
 

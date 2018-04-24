@@ -20,7 +20,7 @@
 #include <vector>
 #include <iomanip>
 #include <set>
-#include <ElasticityTensor.hh>
+#include <CSGFEM/ElasticityTensor.hh>
 #include <Eigen/Dense>
 
 #include <sstream>

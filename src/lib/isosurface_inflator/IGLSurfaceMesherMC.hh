@@ -2,9 +2,8 @@
 #define IGLSURFACEMESHERMC_HH
 
 #include "MesherBase.hh"
-#include <MeshIO.hh>
-
-#include <Parallelism.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <CSGFEM/Parallelism.hh>
 
 class IGLSurfaceMesherMC : public MesherBase {
 public:

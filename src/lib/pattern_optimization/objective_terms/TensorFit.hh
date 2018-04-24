@@ -5,13 +5,13 @@
 #include "../IterateFactory.hh"
 #include "../SDConversions.hh"
 
-#include <Fields.hh>
-#include <OneForm.hh>
-#include <ElasticityTensor.hh>
-#include <LinearIndexer.hh>
+#include <MeshFEM/EdgeFields.hh>
+#include <MeshFEM/OneForm.hh>
+#include <CSGFEM/ElasticityTensor.hh>
+#include <CSGFEM/LinearIndexer.hh>
 
-#include <PeriodicHomogenization.hh>
-#include <MSHFieldWriter.hh>
+#include <MeshFEM/PeriodicHomogenization.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
 
 #include <stdexcept>
 #include <iostream>

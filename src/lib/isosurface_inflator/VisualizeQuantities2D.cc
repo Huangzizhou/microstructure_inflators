@@ -3,9 +3,8 @@
 #include "MidplaneMesher.hh"
 #include "PatternSignedDistance.hh"
 #include "Joint.hh"
-#include <stdexcept>
-
 #include "WireMesh.hh"
+#include <stdexcept>
 
 using Point = Point3<double>;
 using Edge = std::pair<size_t, size_t>;

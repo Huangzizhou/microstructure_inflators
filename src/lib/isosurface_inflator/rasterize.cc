@@ -8,7 +8,7 @@
 //  Created:  11/17/2017 20:44:07
 ////////////////////////////////////////////////////////////////////////////////
 #include "rasterize.hh"
-#include <filters/gen_grid.hh>
+#include <MeshFEM/filters/gen_grid.hh>
 
 // Rasterizes the z = 0 midplane if 2 sizes are passed,
 // full bounding box if 3 sizes are passed.

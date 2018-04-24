@@ -21,12 +21,12 @@
 #define OBJECTIVETERM_HH
 
 #include <stdexcept>
-#include <Future.hh>
-#include <Flattening.hh>
-#include <MSHFieldWriter.hh>
+#include <MeshFEM/Future.hh>
+#include <CSGFEM/Flattening.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
 
-#include <Fields.hh>
-#include <OneForm.hh>
+#include <MeshFEM/EdgeFields.hh>
+#include <MeshFEM/OneForm.hh>
 
 namespace PatternOptimization {
 

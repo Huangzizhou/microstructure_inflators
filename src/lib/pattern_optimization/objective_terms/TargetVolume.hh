@@ -3,7 +3,7 @@
 
 #include "../ObjectiveTerm.hh"
 #include "../IterateFactory.hh"
-#include <OneForm.hh>
+#include <MeshFEM/OneForm.hh>
 #include <SDConversions.hh>
 
 namespace PatternOptimization {

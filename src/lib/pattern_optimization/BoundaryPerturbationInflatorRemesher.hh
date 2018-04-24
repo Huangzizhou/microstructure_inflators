@@ -15,13 +15,13 @@
 #include <iostream>
 #include <vector>
 #include <queue>
-#include <utils.hh>
+#include <CSGFEM/utils.hh>
 #include "PatternOptimizationConfig.hh"
 #include "BoundaryPerturbationInflator.hh"
-#include <filters/extract_hole_boundaries.hh>
-#include <filters/CurveCleanup.hh>
-#include <Triangulate.h>
-#include <Geometry.hh>
+#include <MeshFEM/filters/extract_hole_boundaries.hh>
+#include <MeshFEM/filters/CurveCleanup.hh>
+#include <MeshFEM/Triangulate.h>
+#include <MeshFEM/Geometry.hh>
 
 template<size_t N>
 void remeshPerturbedShape(const BoundaryPerturbationInflator<N> &m,

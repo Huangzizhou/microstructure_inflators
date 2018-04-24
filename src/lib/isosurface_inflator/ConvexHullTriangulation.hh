@@ -15,11 +15,11 @@
 #ifndef CONVEXHULLTRIANGULATION_HH
 #define CONVEXHULLTRIANGULATION_HH
 
+#include <MeshFEM/MeshIO.hh>
+
 #include <cassert>
 #include <sstream>
 #include <vector>
-
-#include <MeshIO.hh>
 
 template<class PointCollection>
 void convexHullFromTriangulation(const PointCollection &points,

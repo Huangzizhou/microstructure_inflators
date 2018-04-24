@@ -4,7 +4,7 @@
 /*! @file
 //      Snap representative base cell geometry to exactly fill [0, 1]^3, then
 //      reflect into [-1, 1]^3 via the orthotropic symmetry planes.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  09/30/2015 14:37:00
@@ -12,16 +12,15 @@
 #ifndef SNAPANDREFLECT_HH
 #define SNAPANDREFLECT_HH
 
+#include "Isometries.hh"
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/PeriodicBoundaryMatcher.hh>
+#include <MeshFEM/Concepts.hh>
 #include <vector>
 #include <queue>
 #include <ratio>
 #include <stdexcept>
-#include <MeshIO.hh>
-#include <MSHFieldWriter.hh>
-#include <PeriodicBoundaryMatcher.hh>
-
-#include <Concepts.hh>
-#include "Isometries.hh"
 
 #define SNAP_DEBUG 0
 
@@ -234,7 +233,7 @@ inline void dumbSnap3D(std::vector<MeshIO::IOVertex> &vertices,
 // | refx | base | + |
 // |      | (0)  |/| |
 // +------+------+ | |
-// |      |      | |/ 
+// |      |      | |/
 // |  reflect y  | |
 // |      |      |/
 // +------+------+
@@ -302,11 +301,11 @@ void reflectXYZ(size_t Dim, // Dimensions to reflect in (length of [x, y, z] pre
             // This actually matters! The inverted reflected elements cause a
             // cancellation during stiffness matrix assembly resulting in a
             // singular system.
-            size_t tmp = re[0];                                                      
-            re[0] = globalVertexIndex.at(re[1]);                                     
-            re[1] = globalVertexIndex.at(tmp);                                       
+            size_t tmp = re[0];
+            re[0] = globalVertexIndex.at(re[1]);
+            re[1] = globalVertexIndex.at(tmp);
             for (size_t d = 2; d < re.size(); ++d) re[d] = globalVertexIndex.at(re[d]);
-            reflectedElements.push_back(re);                                               
+            reflectedElements.push_back(re);
         }
     }
 }

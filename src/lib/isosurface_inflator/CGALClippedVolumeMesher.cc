@@ -17,7 +17,7 @@
 
 #include "BoxIntersection1DFeatures.hh"
 
-#include <GlobalBenchmark.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
 
 // avoid verbose function and named parameters call
 using namespace CGAL::parameters;

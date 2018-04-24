@@ -4,7 +4,7 @@
 /*! @file
 //      Mesh midplane slice through the 3D signed distance function. I.e. mesh
 //      the 1D intersection of the 3D pattern surface with the z = 0 midplane.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  02/03/2016 11:41:48
@@ -13,9 +13,8 @@
 #define MIDPLANEMESHER_HH
 
 #include "MesherBase.hh"
-#include <MeshIO.hh>
 #include "SignedDistanceRegion.hh"
-
+#include <MeshFEM/MeshIO.hh>
 #include <string>
 
 class MidplaneMesher : public MesherBase {

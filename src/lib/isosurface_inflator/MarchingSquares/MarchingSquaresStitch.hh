@@ -71,8 +71,8 @@
 #include <functional>
 
 #include <string>
-#include <MSHFieldWriter.hh>
-#include <GlobalBenchmark.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
 
 #include <queue>
 

@@ -17,8 +17,8 @@
 #include "SDConversions.hh"
 #include "ShapeVelocityInterpolatorOrthoCell.hh"
 
-#include <OrthotropicHomogenization.hh>
-#include <MassMatrix.hh>
+#include <MeshFEM/OrthotropicHomogenization.hh>
+#include <MeshFEM/MassMatrix.hh>
 
 #include <stdexcept>
 

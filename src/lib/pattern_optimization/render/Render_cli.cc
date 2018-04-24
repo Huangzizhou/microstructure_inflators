@@ -10,13 +10,13 @@
 
 #include <boost/program_options.hpp>
 
-#include <MeshIO.hh>
-#include <MSHFieldParser.hh>
-#include <EdgeFields.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/MSHFieldParser.hh>
+#include <MeshFEM/EdgeFields.hh>
 #include <LinearFEM.hh>
 
-#include <colors.hh>
-#include <draw.hh>
+#include <CSGFEM/colors.hh>
+#include <CSGFEM/draw.hh>
 
 namespace po = boost::program_options;
 using namespace std;

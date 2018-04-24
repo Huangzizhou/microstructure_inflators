@@ -25,12 +25,12 @@
 #ifndef SHAPEVELOCITYINTERPOLATOR_HH
 #define SHAPEVELOCITYINTERPOLATOR_HH
 
-#include <Laplacian.hh>
+#include <MeshFEM/Laplacian.hh>
 #include <limits>
 
-#include <Fields.hh>
-#include <OneForm.hh>
-#include <LinearIndexer.hh>
+#include <MeshFEM/EdgeFields.hh>
+#include <MeshFEM/OneForm.hh>
+#include <CSGFEM/LinearIndexer.hh>
 
 class ShapeVelocityInterpolator {
     static constexpr size_t NO_VAR = std::numeric_limits<size_t>::max(),

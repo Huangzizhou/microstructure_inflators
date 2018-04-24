@@ -4,13 +4,13 @@
 #include <utility>
 
 #include "MarchingSquares/MarchingSquaresStitch.hh"
-#include <filters/CurveCleanup.hh>
-#include <filters/ResampleCurve.hh>
-#include <Triangulate.h>
-#include <PeriodicBoundaryMatcher.hh>
+#include <MeshFEM/filters/CurveCleanup.hh>
+#include <MeshFEM/filters/ResampleCurve.hh>
+#include <MeshFEM/Triangulate.h>
+#include <MeshFEM/PeriodicBoundaryMatcher.hh>
 #include <stdexcept>
 
-#include <Utilities/EdgeSoupAdaptor.hh>
+#include <MeshFEM/Utilities/EdgeSoupAdaptor.hh>
 
 #include <boost/optional.hpp>
 

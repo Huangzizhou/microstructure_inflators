@@ -16,10 +16,10 @@
 //  Company:  New York University
 //  Created:  11/21/2015 14:04:43
 ////////////////////////////////////////////////////////////////////////////////
-#include <MeshIO.hh>
-#include <MSHFieldWriter.hh>
-#include <LinearElasticity.hh>
-#include <GlobalBenchmark.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/LinearElasticity.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
 
 #include <vector>
 #include <queue>

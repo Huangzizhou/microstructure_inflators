@@ -28,8 +28,8 @@
 #include <OpenGL/glu.h>
 #include <GLUT/glut.h>
 
-#include <colors.hh>
-#include <Future.hh>
+#include <CSGFEM/colors.hh>
+#include <MeshFEM/Future.hh>
 #include "../../LookupTable.hh"
 #include "../../../isosurface_inflator/PatternSignedDistance.hh"
 typedef IsotropicLookupTable<double> LUT;

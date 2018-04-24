@@ -1,6 +1,6 @@
 #include "SphereConvexHull.hh"
-#include <filters/gen_grid.hh>
-#include <GlobalBenchmark.hh>
+#include <MeshFEM/filters/gen_grid.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
 
 using namespace SD::Primitives;
 

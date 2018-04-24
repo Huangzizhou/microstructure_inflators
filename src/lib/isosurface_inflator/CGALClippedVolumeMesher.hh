@@ -22,7 +22,7 @@
 #define CGALCLIPPEDVOLUMEMESHER_HH
 
 #include "MesherBase.hh"
-#include <MeshIO.hh>
+#include <MeshFEM/MeshIO.hh>
 
 #include "SignedDistanceRegion.hh"
 

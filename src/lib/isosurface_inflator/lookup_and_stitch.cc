@@ -13,28 +13,29 @@
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Created:  12/04/2017 16:46:17
 ////////////////////////////////////////////////////////////////////////////////
-#include <MSHFieldParser.hh>
-#include <MSHFieldWriter.hh>
-#include <TetMesh.hh>
-#include <TriMesh.hh>
+
 #include "StitchedWireMesh.hh"
 #include "IGLSurfaceMesherMC.hh"
 #include "PatternSignedDistance.hh"
-#include <CollisionGrid.hh>
-#include <Utilities/NDArray.hh>
-#include <filters/merge_duplicate_vertices.hh>
-#include <filters/extrude.hh>
-#include <filters/quad_tri_subdiv.hh>
-#include <filters/gen_cursor.hh>
-#include <Triangulate.h>
-#include <util.h>
-#include <Future.hh>
+#include <MeshFEM/MSHFieldParser.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/TetMesh.hh>
+#include <MeshFEM/TriMesh.hh>
+#include <MeshFEM/DenseCollisionGrid.hh>
+#include <MeshFEM/Utilities/NDArray.hh>
+#include <MeshFEM/filters/merge_duplicate_vertices.hh>
+#include <MeshFEM/filters/extrude.hh>
+#include <MeshFEM/filters/quad_tri_subdiv.hh>
+#include <MeshFEM/filters/gen_cursor.hh>
+#include <MeshFEM/Triangulate.h>
+#include <MeshFEM/util.h>
+#include <MeshFEM/Future.hh>
+#include <boost/algorithm/string.hpp>
+#include <igl/decimate.h>
 #include <set>
 #include <map>
 #include <list>
-#include <boost/algorithm/string.hpp>
 
-#include <igl/decimate.h>
 
 struct EmbeddedVertex {
     Point3D p;
@@ -71,7 +72,7 @@ struct Database {
 
             std::vector<std::string> resultPathComponents;
             boost::split(resultPathComponents, lineComponents[0], boost::is_any_of("_"));
-            
+
             e.topology = std::stoi(resultPathComponents[2]);
             for (size_t i = 6; i < lineComponents.size(); ++i)
                 e.params.push_back(std::stod(lineComponents[i]));
@@ -168,7 +169,7 @@ int main(int argc, const char *argv[]) {
         assert((old == NONE) || (v == old));
         adj[u](i, j, k) = v;
     };
-    
+
     // Extract hex grid adjacencies from cell->vertex incidence (since we care
     // about corner neighbors)
     for (auto s : mesh.simplices()) {
@@ -209,7 +210,7 @@ int main(int argc, const char *argv[]) {
         adj[i].visit([&](size_t n) { nn += (n != NONE); });
         valence(i) = nn;
     }
-    
+
     MSHFieldWriter writer("debug.msh", fieldParser.vertices(), fieldParser.elements());
     writer.addField("valence", tetFieldFromCellField(valence), DomainType::PER_ELEMENT);
 
@@ -244,7 +245,7 @@ int main(int argc, const char *argv[]) {
     topologies.emplace( 746, std::make_shared<WireMesh<Symmetry::Orthotropic<>>>("/home/jpanetta/Research/microstructures/patterns/3D/reference_wires/pattern0746.wire"));
     topologies.emplace(1053, std::make_shared<WireMesh<Symmetry::Orthotropic<>>>("/home/jpanetta/Research/microstructures/patterns/3D/reference_wires/pattern1053.wire"));
     topologies.emplace(1065, std::make_shared<WireMesh<Symmetry::Orthotropic<>>>("/home/jpanetta/Research/microstructures/patterns/3D/reference_wires/pattern1065.wire"));
-    
+
     // Create geometry for each cell
     auto mesher = Future::make_unique<IGLSurfaceMesherMC>();
     mesher->meshingOptions.load(meshingOptions);
@@ -285,7 +286,7 @@ int main(int argc, const char *argv[]) {
         const size_t vtxOffset = globalVertices.size();
         for (auto &v : cellVertices) globalVertices.push_back(hexes[ci].interpolatePoint(0.5 * (v.point + Point3D(1, 1, 1))));
         for (auto e : cellElements) {
-            for (size_t &vi : e)  vi += vtxOffset; 
+            for (size_t &vi : e)  vi += vtxOffset;
             globalElements.emplace_back(std::move(e));
         }
     }
@@ -373,7 +374,7 @@ int main(int argc, const char *argv[]) {
             stitchedVertices.emplace_back(pt);
         }
         for (auto e : fillElements) {
-            for (size_t &vi : e)  vi += offset; 
+            for (size_t &vi : e)  vi += offset;
             stitchedElements.emplace_back(std::move(e));
         }
 
@@ -413,7 +414,7 @@ int main(int argc, const char *argv[]) {
             const size_t offset = supportColVertices.size();
             for (auto &v : colVerticesTri) supportColVertices.emplace_back(v);
             for (auto e : colElementsTri) {
-                for (size_t &vi : e)  vi += offset; 
+                for (size_t &vi : e)  vi += offset;
                 supportColElements.emplace_back(std::move(e));
             }
         }

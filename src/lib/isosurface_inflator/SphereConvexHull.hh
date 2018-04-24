@@ -18,10 +18,6 @@
 #ifndef SPHERECONVEXHULL_HH
 #define SPHERECONVEXHULL_HH
 
-#include <MeshIO.hh>
-#include <MSHFieldWriter.hh>
-#include <Geometry.hh>
-
 #include "InflatorTypes.hh"
 #include "SpherePoints.hh"
 #include "TriangleClosestPoint.hh"
@@ -29,12 +25,16 @@
 #include "SignedDistance.hh"
 #include "AutomaticDifferentiation.hh"
 
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/Geometry.hh>
+
 #ifdef GROUND_TRUTH_DEBUGGING
 #include <CGAL/Simple_cartesian.h>
 #include <CGAL/AABB_tree.h>
 #include <CGAL/AABB_traits.h>
 #include <CGAL/AABB_triangle_primitive.h>
-#include <filters/gen_grid.hh>
+#include <MeshFEM/filters/gen_grid.hh>
 #endif
 
 #include <array>

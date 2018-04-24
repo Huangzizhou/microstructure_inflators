@@ -18,15 +18,15 @@
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef PATTERNSIGNEDDISTANCE_HH
 #define PATTERNSIGNEDDISTANCE_HH
+
 #include "WireMesh.hh"
 #include "AutomaticDifferentiation.hh"
 #include "SignedDistance.hh"
 #include "Joint.hh"
 #include "TesselateSpheres.hh"
-
 #include "SignedDistanceRegion.hh"
 
-#include <Future.hh>
+#include <MeshFEM/Future.hh>
 
 #define VERTEX_SMOOTHNESS_MODULATION 1
 #define DISCONTINUITY_AVOIDING_CREASE_AVOIDANCE 1

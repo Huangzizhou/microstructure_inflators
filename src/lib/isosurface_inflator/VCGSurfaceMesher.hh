@@ -3,7 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
 //      VCG-based surface mesher (used for quick previews of the object).
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  11/11/2015 20:29:11
@@ -12,9 +12,8 @@
 #define VCGSURFACEMESHER_HH
 
 #include "MesherBase.hh"
-#include <MeshIO.hh>
-
 #include "SignedDistanceRegion.hh"
+#include <MeshFEM/MeshIO.hh>
 
 class VCGSurfaceMesher : public MesherBase {
 public:

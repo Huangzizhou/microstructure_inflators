@@ -18,18 +18,19 @@
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef SYMMETRY_HH
 #define SYMMETRY_HH
+
+#include "InflatorTypes.hh"
+#include "Isometries.hh"
+#include "NodePositioners.hh"
+#include "FuzzySign.hh"
+#include "AutomaticDifferentiation.hh"
+#include <MeshFEM/Geometry.hh>
 #include <ratio>
 #include <vector>
 #include <memory>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <Geometry.hh>
-#include "InflatorTypes.hh"
-#include "Isometries.hh"
-#include "NodePositioners.hh"
-#include "FuzzySign.hh"
-#include "AutomaticDifferentiation.hh"
 
 namespace Symmetry {
 

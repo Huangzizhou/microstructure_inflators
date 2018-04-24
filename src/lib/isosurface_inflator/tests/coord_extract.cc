@@ -2,7 +2,7 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
-#include <MeshIO.hh>
+#include <MeshFEM/MeshIO.hh>
 
 using namespace std;
 

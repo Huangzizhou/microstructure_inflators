@@ -1,7 +1,7 @@
 #ifndef CONSTRAINT_TENSORFIT_HH
 #define CONSTRAINT_TENSORFIT_HH
 
-#include "../Constraint.hh"
+#include <optimizers/Constraint.hh>
 
 namespace PatternOptimization {
 namespace Constraints {

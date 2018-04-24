@@ -6,7 +6,7 @@
 #include <vcg/complex/algorithms/create/marching_cubes.h>
 #include <vcg/complex/algorithms/create/mc_trivial_walker.h>
 
-#include <Parallelism.hh>
+#include <CSGFEM/Parallelism.hh>
 
 class MyFace;
 class MyVertex;

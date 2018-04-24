@@ -1,7 +1,6 @@
 add_library(intersection_check intersection_check.cc)
 
 # MeshFEM library
-find_package(MeshFEM REQUIRED)
 target_link_libraries(intersection_check MeshFEM)
 
 # CGAL library

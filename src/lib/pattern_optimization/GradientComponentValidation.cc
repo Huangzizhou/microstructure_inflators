@@ -10,11 +10,11 @@
 //  Company:  New York University
 //  Created:  12/26/2014 14:57:55
 ////////////////////////////////////////////////////////////////////////////////
-#include <MeshIO.hh>
-#include <LinearElasticity.hh>
-#include <Materials.hh>
-#include <PeriodicHomogenization.hh>
-#include <GlobalBenchmark.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/LinearElasticity.hh>
+#include <MeshFEM/Materials.hh>
+#include <MeshFEM/PeriodicHomogenization.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
 
 #include "Inflator.hh"
 #include "PatternOptimizationJob.hh"

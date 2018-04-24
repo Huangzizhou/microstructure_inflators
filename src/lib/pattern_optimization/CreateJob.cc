@@ -16,13 +16,13 @@
 //  Company:  New York University
 //  Created:  10/05/2014 12:59:00
 ////////////////////////////////////////////////////////////////////////////////
-#include <MeshIO.hh>
-#include <MSHFieldWriter.hh>
-#include <EdgeFields.hh>
-#include <MSHFieldParser.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/EdgeFields.hh>
+#include <MeshFEM/MSHFieldParser.hh>
 #include "PatternOptimizationJob.hh"
-#include <MSHFieldParser.hh>
-#include <utils.hh>
+#include <MeshFEM/MSHFieldParser.hh>
+#include <CSGFEM/utils.hh>
 
 #include <boost/program_options.hpp>
 

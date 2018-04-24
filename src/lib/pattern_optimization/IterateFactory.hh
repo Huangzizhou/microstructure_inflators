@@ -28,10 +28,9 @@
 
 #include "PatternOptimizationIterate.hh"
 #include "ObjectiveTermNormalizations.hh"
-#include "Inflator.hh"
-#include "BoundConstraints.hh"
-#include <Future.hh>
-
+#include <MeshFEM/Future.hh>
+#include <inflators/Inflator.hh>
+#include <optimizers/BoundConstraints.hh>
 #include <random>
 
 namespace PatternOptimization {

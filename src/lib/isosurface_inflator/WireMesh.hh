@@ -14,6 +14,12 @@
 #ifndef WIREMESH_HH
 #define WIREMESH_HH
 
+#include "InflatorTypes.hh"
+#include "Symmetry.hh"
+#include "AutomaticDifferentiation.hh"
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/Utilities/apply.hh>
+
 #include <vector>
 #include <string>
 #include <cassert>
@@ -24,12 +30,6 @@
 #include <array>
 #include <algorithm>
 #include <numeric>
-
-#include <MeshIO.hh>
-#include <Utilities/apply.hh>
-#include "InflatorTypes.hh"
-#include "Symmetry.hh"
-#include "AutomaticDifferentiation.hh"
 
 struct TransformedVertex {
     using Point = Point3<double>;

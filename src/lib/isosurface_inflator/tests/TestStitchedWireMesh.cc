@@ -1,7 +1,7 @@
-#include "StitchedWireMesh.hh"
-#include "PatternSignedDistance.hh"
-#include "MidplaneMesher.hh"
-#include "IGLSurfaceMesherMC.hh"
+#include "../StitchedWireMesh.hh"
+#include "../PatternSignedDistance.hh"
+#include "../MidplaneMesher.hh"
+#include "../IGLSurfaceMesherMC.hh"
 
 #include <memory>
 #include <iostream>

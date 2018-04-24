@@ -1,7 +1,7 @@
 #include <AntTweakBar.h>
-#include <Future.hh>
-#include <utils.hh>
-#include <colors.hh>
+#include <MeshFEM/Future.hh>
+#include <CSGFEM/utils.hh>
+#include <CSGFEM/colors.hh>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,8 +25,8 @@
 #include "ConvexHull.hh"
 
 #include "ellipse_cp/ellipse_newton.hh"
-#include <filters/gen_grid.hh>
-#include <MSHFieldWriter.hh>
+#include <MeshFEM/filters/gen_grid.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
 
 void drawArrow(const Point3D &tail,
                const Point3D &tip, Real radius,

@@ -15,9 +15,9 @@
 #ifndef NODEPOSITIONERS_HH
 #define NODEPOSITIONERS_HH
 
-#include <Geometry.hh>
 #include "InflatorTypes.hh"
 #include "FuzzySign.hh"
+#include <MeshFEM/Geometry.hh>
 
 // Offsets must keep a point on the base cube region (face, edge, node, cube
 // interior) on which it started.

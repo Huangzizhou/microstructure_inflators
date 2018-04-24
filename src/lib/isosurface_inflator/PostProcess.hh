@@ -11,10 +11,10 @@
 #ifndef POSTPROCESS_HH
 #define POSTPROCESS_HH
 
-#include <vector>
-#include <MeshIO.hh>
-#include <Geometry.hh>
 #include "IsosurfaceInflator.hh"
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/Geometry.hh>
+#include <vector>
 
 // Postprocess:
 //    Snap to base cell and then reflect if necessary

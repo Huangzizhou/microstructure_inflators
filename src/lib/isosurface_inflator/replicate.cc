@@ -8,10 +8,11 @@
 //  Company:  New York University
 //  Created:  01/07/2017 18:46:14
 ////////////////////////////////////////////////////////////////////////////////
-#include <MSHFieldParser.hh>
-#include <MSHFieldWriter.hh>
-#include <ComponentMask.hh>
-#include <filters/reflect.hh>
+
+#include <MeshFEM/MSHFieldParser.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/ComponentMask.hh>
+#include <MeshFEM/filters/reflect.hh>
 
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>

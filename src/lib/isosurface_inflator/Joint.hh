@@ -13,9 +13,8 @@
 #define JOINT_HH
 
 #include "SphereConvexHull.hh"
-#include <Future.hh>
 #include "AutomaticDifferentiation.hh"
-
+#include <MeshFEM/Future.hh>
 #include <stdexcept>
 
 enum class JointBlendMode { FULL, HULL, HULL_HALF_EDGE };

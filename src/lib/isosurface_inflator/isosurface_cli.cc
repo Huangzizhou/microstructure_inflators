@@ -1,15 +1,12 @@
 #include "IsosurfaceInflator.hh"
-#include "MSHFieldWriter.hh"
 #include "MeshingOptions.hh"
-
 #include "IsosurfaceInflatorConfig.hh"
-
-#include <iostream>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
+#include <CSGFEM/Parallelism.hh>
 #include <boost/algorithm/string.hpp>
-
 #include <boost/program_options.hpp>
-#include <GlobalBenchmark.hh>
-#include <Parallelism.hh>
+#include <iostream>
 
 namespace po = boost::program_options;
 using namespace std;

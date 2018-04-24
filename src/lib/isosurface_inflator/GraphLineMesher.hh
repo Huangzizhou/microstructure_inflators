@@ -3,7 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
 //      Mesher of the 1D pattern "inflation graph" (intended for debugging).
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  11/14/2015 12:44:30
@@ -12,7 +12,7 @@
 #define GRAPHLINEMESHER_HH
 
 #include "MeshingOptions.hh"
-#include <MeshIO.hh>
+#include <MeshFEM/MeshIO.hh>
 
 template<class SignedDistanceFunction>
 class GraphLineMesher {

@@ -50,7 +50,7 @@ add_library(isosurface_inflator
         rasterize.hh
 )
 
-target_include_directories(isosurface_inflator PUBLIC .)
+target_include_directories(isosurface_inflator PUBLIC ..)
 
 ################################################################################
 # Required libraries

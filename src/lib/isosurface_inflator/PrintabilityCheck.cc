@@ -9,6 +9,9 @@
 //  Company:  New York University
 //  Created:  01/05/2017 00:29:14
 ////////////////////////////////////////////////////////////////////////////////
+#include "WireMesh.hh"
+#include "../pattern_optimization/LookupTable.hh"
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -16,9 +19,6 @@
 
 #include <sstream>
 #include <iomanip>
-
-#include "WireMesh.hh"
-#include "../pattern_optimization/LookupTable.hh"
 
 int main(int argc, const char *argv[]) {
     if (argc != 4) {

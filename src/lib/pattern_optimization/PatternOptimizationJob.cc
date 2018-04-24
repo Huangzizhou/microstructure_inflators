@@ -16,17 +16,18 @@
 //          "paramConstraints": [ "p1 = p2 + 5", ... ],
 //          "bounds": [{ "var": 0, "lower": 1, "upper": 2 }]
 //      }
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  10/04/2014 17:15:02
 ////////////////////////////////////////////////////////////////////////////////
+
 #include "PatternOptimizationJob.hh"
 #include <stdexcept>
 #include <fstream>
 #include <string>
 #include <memory>
-#include <Future.hh>
+#include <MeshFEM/Future.hh>
 
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>

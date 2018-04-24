@@ -1,8 +1,9 @@
 #ifndef MESHINGOPTIONS_HH
 #define MESHINGOPTIONS_HH
+
+#include "Joint.hh"
 #include <string>
 #include <cmath>
-#include "Joint.hh"
 
 struct MeshingOptions {
     MeshingOptions() { }

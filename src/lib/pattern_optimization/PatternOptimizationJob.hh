@@ -17,14 +17,16 @@
 //          "paramConstraints": [ "p1 = p2 + 5", ... ],
 //          "bounds": [{ "var": 0, "lower": 1, "upper": 2 }]
 //      }
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  10/04/2014 17:15:02
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef PATTERNOPTIMIZATIONJOB_HH
 #define PATTERNOPTIMIZATIONJOB_HH
-#include <Materials.hh>
+#include <MeshFEM/Materials.hh>
+#include <inflators/Inflator.hh>
+#include <boost/optional.hpp>
 #include <vector>
 #include <map>
 #include <memory>
@@ -32,9 +34,6 @@
 #include <stdexcept>
 #include <fstream>
 #include <iomanip>
-#include <boost/optional.hpp>
-
-#include "Inflator.hh"
 
 namespace PatternOptimization  {
 class JobBase {
@@ -110,7 +109,7 @@ public:
 
     void writeJobFile(const std::string &jobFile) const {
         std::ofstream os(jobFile);
-        if (!os.is_open()) 
+        if (!os.is_open())
             throw std::runtime_error("Couldn't open output job file " + jobFile);
         writeJobFile(os);
     }

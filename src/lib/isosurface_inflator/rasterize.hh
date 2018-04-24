@@ -10,9 +10,9 @@
 #ifndef RASTERIZE_HH
 #define RASTERIZE_HH
 
-#include <MeshIO.hh>
-#include <Fields.hh>
 #include "SignedDistanceRegion.hh"
+#include <MeshFEM/MeshIO.hh>
+#include <CSGFEM/Fields.hh>
 
 
 // Rasterizes the z = 0 midplane if 2 sizes are passed,

@@ -5,19 +5,19 @@
 //      Represents an isometry, intended to be used as an element of a symmetry
 //      group. These can also be used to map points.
 //      These isometries are not necessarily orientation-preserving.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  06/26/2015 18:01:53
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef ISOMETRIES_HH
 #define ISOMETRIES_HH
+#include "InflatorTypes.hh"
+#include <MeshFEM/Future.hh>
 #include <memory>
 #include <iostream>
 #include <cassert>
 #include <string>
-#include <Future.hh>
-#include "InflatorTypes.hh"
 
 namespace Symmetry {
     enum class Axis : unsigned int { X = 0, Y = 1, Z = 2, ANY = 255 };

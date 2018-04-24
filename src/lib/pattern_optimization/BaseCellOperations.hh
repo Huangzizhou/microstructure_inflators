@@ -16,11 +16,11 @@
 #include <vector>
 #include <memory>
 #include <stdexcept>
-#include <Future.hh>
+#include <MeshFEM/Future.hh>
 
-#include <PeriodicHomogenization.hh>
-#include <BaseCellType.hh>
-#include <OrthotropicHomogenization.hh>
+#include <MeshFEM/PeriodicHomogenization.hh>
+#include <MeshFEM/BaseCellType.hh>
+#include <MeshFEM/OrthotropicHomogenization.hh>
 #include "SDConversions.hh"
 #include "SDConversionsOrthoCell.hh"
 

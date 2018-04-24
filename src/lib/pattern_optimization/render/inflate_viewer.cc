@@ -24,7 +24,7 @@
 #include <OpenGL/glu.h>
 #include <GLUT/glut.h>
 
-#include <MeshIO.hh>
+#include <MeshFEM/MeshIO.hh>
 #include "Inflator.hh"
 
 using namespace std;

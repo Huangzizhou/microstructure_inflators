@@ -20,15 +20,15 @@
 #ifndef STITCHEDWIREMESH_HH
 #define STITCHEDWIREMESH_HH
 
-#include <Utilities/NDArray.hh>
-#include <function_traits.hh>
-#include <Geometry.hh>
-#include <stdexcept>
-#include <PeriodicBoundaryMatcher.hh> // for FaceMembership
-#include <memory>
-#include <set>
 #include "Symmetry.hh"
 #include "WireMesh.hh"
+#include <MeshFEM/Utilities/NDArray.hh>
+#include <MeshFEM/Geometry.hh>
+#include <MeshFEM/function_traits.hh>
+#include <MeshFEM/PeriodicBoundaryMatcher.hh> // for FaceMembership
+#include <stdexcept>
+#include <memory>
+#include <set>
 
 // Stencil Visitors:
 //  Selectively visit cells of the grid if they belong to the neighborhood

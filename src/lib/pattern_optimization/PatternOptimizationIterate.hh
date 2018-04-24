@@ -4,7 +4,7 @@
 /*! @file
 //      Encapsulates the state of a pattern optimization iterate and provides
 //      objective/gradient/etc.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  12/26/2014 19:04:20
@@ -12,8 +12,19 @@
 #ifndef PATTERNOPTIMIZATIONITERATE_HH
 #define PATTERNOPTIMIZATIONITERATE_HH
 
-#include <EdgeFields.hh>
-#include <MSHFieldWriter.hh>
+#include "PatternOptimizationConfig.hh"
+#include "ObjectiveTerm.hh"
+#include "SDConversions.hh"
+#include "BaseCellOperations.hh"
+
+#include <MeshFEM/EdgeFields.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/TriMesh.hh>
+#include <MeshFEM/Future.hh>
+#include <inflators/Inflator.hh>
+#include <optimizers/EvaluatedObjectiveTerm.hh>
+#include <optimizers/IterateBase.hh>
 
 #include <iostream>
 #include <cstdio>
@@ -23,20 +34,6 @@
 #include <iomanip>
 #include <memory>
 #include <tuple>
-
-#include <MeshIO.hh>
-#include <TriMesh.hh>
-
-#include "PatternOptimizationConfig.hh"
-#include "ObjectiveTerm.hh"
-#include "EvaluatedObjectiveTerm.hh"
-#include "SDConversions.hh"
-#include "BaseCellOperations.hh"
-
-#include "IterateBase.hh"
-#include "Inflator.hh"
-
-#include <Future.hh>
 
 namespace PatternOptimization {
 
@@ -404,8 +401,8 @@ protected:
     Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> m_selfSupportingConstraints;
     bool m_hasSelfSupportingConstraints;
 
-    ObjectiveTermMap m_objectiveTerms; 
-    ConstraintMap    m_constraints; 
+    ObjectiveTermMap m_objectiveTerms;
+    ConstraintMap    m_constraints;
     bool m_dontReport = false; // If this is an approximated iterate, don't have optimizer report its value.
 };
 

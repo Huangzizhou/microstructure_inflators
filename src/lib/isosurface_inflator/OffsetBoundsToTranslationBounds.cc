@@ -13,8 +13,8 @@
 #include <iostream>
 #include <cstdlib>
 
-#include "../pattern_optimization/PatternOptimizationJob.hh"
 #include "IsosurfaceInflator.hh"
+#include "../pattern_optimization/PatternOptimizationJob.hh"
 
 int main(int argc, const char *argv[]) {
     if (argc != 6) {
@@ -28,7 +28,7 @@ int main(int argc, const char *argv[]) {
     std::string jobPath(argv[3]);
 
     Real offsetMin = std::stod(argv[4]),
-         offsetMax = std::stod(argv[5]); 
+         offsetMax = std::stod(argv[5]);
 
     const bool vertexThickness = true;
     IsosurfaceInflator inflator(mesher, vertexThickness, patternPath);

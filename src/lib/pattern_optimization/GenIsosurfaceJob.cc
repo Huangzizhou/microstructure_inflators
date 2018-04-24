@@ -27,7 +27,7 @@
 #include <cassert>
 #include <stdexcept>
 
-#include <Future.hh>
+#include <MeshFEM/Future.hh>
 #include "PatternOptimizationJob.hh"
 #include <cmath>
 

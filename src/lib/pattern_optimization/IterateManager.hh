@@ -8,7 +8,7 @@
 //
 //      IterateManagerBase provides a non-templated interface to the iterate
 //      manager.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  04/28/2016 17:30:15
@@ -16,9 +16,9 @@
 #ifndef ITERATEMANAGER_HH
 #define ITERATEMANAGER_HH
 
-#include <memory>
 #include "PatternOptimizationIterate.hh"
-#include "IterateManagerBase.hh"
+#include <optimizers/IterateManagerBase.hh>
+#include <memory>
 
 namespace PatternOptimization {
 

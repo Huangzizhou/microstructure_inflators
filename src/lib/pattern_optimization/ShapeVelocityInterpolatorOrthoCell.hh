@@ -22,13 +22,13 @@
 #ifndef SHAPEVELOCITYINTERPOLATORORTHOCELL_HH
 #define SHAPEVELOCITYINTERPOLATORORTHOCELL_HH
 
-#include <Laplacian.hh>
+#include <MeshFEM/Laplacian.hh>
 #include <limits>
 
-#include <Fields.hh>
-#include <OneForm.hh>
-#include <LinearIndexer.hh>
-#include <PeriodicBoundaryMatcher.hh>
+#include <MeshFEM/EdgeFields.hh>
+#include <MeshFEM/OneForm.hh>
+#include <CSGFEM/LinearIndexer.hh>
+#include <MeshFEM/PeriodicBoundaryMatcher.hh>
 
 template<size_t N>
 class ShapeVelocityInterpolatorOrthoCell {

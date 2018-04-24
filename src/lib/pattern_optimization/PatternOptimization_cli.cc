@@ -9,14 +9,14 @@
 //  Company:  New York University
 //  Created:  09/12/2014 01:15:28
 ////////////////////////////////////////////////////////////////////////////////
-#include <MeshIO.hh>
-#include "LinearElasticity.hh"
-#include <Materials.hh>
-#include <PeriodicHomogenization.hh>
-#include "GlobalBenchmark.hh"
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/LinearElasticity.hh>
+#include <MeshFEM/Materials.hh>
+#include <MeshFEM/PeriodicHomogenization.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
 
-#include "Inflator.hh"
-#include "MakeInflator.hh"
+#include <inflators/Inflator.hh>
+#include <inflators/MakeInflator.hh>
 
 #include <vector>
 #include <queue>
@@ -35,20 +35,20 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/algorithm/string.hpp>
 
-#include "optimizers/ceres.hh"
-#include "optimizers/dlib.hh"
-#include "optimizers/gradient_descent.hh"
-#include "optimizers/nlopt.hh"
-#include <optimizers/knitro.hh>
+#include <optimizers/wrappers/ceres.hh>
+#include <optimizers/wrappers/dlib.hh>
+#include <optimizers/wrappers/gradient_descent.hh>
+#include <optimizers/wrappers/nlopt.hh>
+#include <optimizers/wrappers/knitro.hh>
 
 #include "PatternOptimizationIterate.hh"
 
 #include "PatternOptimizationJob.hh"
-#include "BoundConstraints.hh"
+#include <optimizers/BoundConstraints.hh>
 #include "IterateFactory.hh"
 #include "IterateManager.hh"
 
-#include "OptimizerConfig.hh"
+#include <optimizers/OptimizerConfig.hh>
 #include "PatternOptimizationConfig.hh"
 #include "objective_terms/TensorFit.hh"
 #include "objective_terms/ProximityRegularization.hh"

@@ -4,7 +4,7 @@
 /*! @file
 //      Mesher of the 1D intersection of the bounding box with the domain's
 //      surface (intended for debugging).
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  11/12/2015 13:06:17
@@ -13,8 +13,8 @@
 #define BOXINTERSECTIONMESHER_HH
 
 #include "MesherBase.hh"
-#include <MeshIO.hh>
 #include "SignedDistanceRegion.hh"
+#include <MeshFEM/MeshIO.hh>
 
 class BoxIntersectionMesher : public MesherBase {
 public:

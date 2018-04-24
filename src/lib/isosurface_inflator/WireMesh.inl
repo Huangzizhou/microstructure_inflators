@@ -1,8 +1,8 @@
+#include <MeshFEM/Utilities/apply.hh>
+#include <MeshFEM/CollisionGrid.hh>
 #include <algorithm>
 #include <iterator>
 #include <type_traits>
-#include <Utilities/apply.hh>
-#include <CollisionGrid.hh>
 
 // Set from embedded graph
 template<class Sym>

@@ -1,10 +1,10 @@
 #ifndef INFLATORTYPES_HH
 #define INFLATORTYPES_HH
 
+#include <CSGFEM/Fields.hh>
+#include <MeshFEM/Geometry.hh>
 #include <Eigen/Dense>
 #include <vector>
-#include <Fields.hh>
-#include <Geometry.hh>
 
 // Inflator needs templated vector types for automatic differentiation
 template<typename Real> using Point3  = Eigen::Matrix<Real, 3, 1>;

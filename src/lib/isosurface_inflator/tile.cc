@@ -12,16 +12,15 @@
 //  Company:  New York University
 //  Created:  06/16/2017 08:12:35
 ////////////////////////////////////////////////////////////////////////////////
-#include <MSHFieldParser.hh>
-#include <MSHFieldWriter.hh>
-#include <Geometry.hh>
-#include <SimplicialMesh.hh>
-#include <PeriodicBoundaryMatcher.hh>
 
-#include <numeric>
-
+#include <MeshFEM/MSHFieldParser.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/Geometry.hh>
+#include <MeshFEM/SimplicialMesh.hh>
+#include <MeshFEM/PeriodicBoundaryMatcher.hh>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
+#include <numeric>
 
 namespace po = boost::program_options;
 using namespace std;

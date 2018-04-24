@@ -24,7 +24,7 @@
 //
 //      Note: the boolean intersection box is read from the signed distance
 //      function's "bounding box" member.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  09/23/2015 17:03:32
@@ -32,10 +32,10 @@
 #ifndef BOXINTERSECTION1DFEATURES_HH
 #define BOXINTERSECTION1DFEATURES_HH
 #include "InflatorTypes.hh"
-#include "MarchingSquares/MarchingSquaresStitch.hh"
-#include <MSHFieldWriter.hh>
-#include <list>
 #include "SignedDistanceRegion.hh"
+#include "MarchingSquares/MarchingSquaresStitch.hh"
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <list>
 
 // Axis-aligned 2D slice of the 3D signed distance function meant for running
 // marching squares on the bounding box faces.

@@ -6,18 +6,18 @@
 #include <algorithm>
 #include <map>
 
-#include <MeshIO.hh>
-#include <MSHFieldWriter.hh>
-#include <SimplicialMesh.hh>
-#include <Future.hh>
-#include <Utilities/apply.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/SimplicialMesh.hh>
+#include <MeshFEM/Future.hh>
+#include <MeshFEM/Utilities/apply.hh>
 
 #include "WireMesh.hh"
 #include "PatternSignedDistance.hh"
 #include "Isometries.hh"
 
 #include "../pattern_optimization/ShapeVelocityInterpolator.hh"
-#include <LinearElasticity.hh>
+#include <MeshFEM/LinearElasticity.hh>
 
 #include "IsosurfaceInflatorImpl.hh"
 
