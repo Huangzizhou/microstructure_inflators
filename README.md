@@ -1,7 +1,19 @@
 <!-- MarkdownTOC autolink="true" bracket="round" depth=3 -->
 <!-- /MarkdownTOC -->
 
-### Content of this repository
+
+Dependencies included directly or as submodules:
+
+- MeshFEM
+- [Ceres](https://github.com/ceres-solver/ceres-solver) + [glog](https://github.com/google/glog), optional (TODO)
+- [NLopt](https://github.com/stevengj/nlopt), optional (TODO)
+
+Dependencies *not* included:
+
+- CGAL, required
+
+
+### Folders
 
 | Folder | Description |
 |--------|-------------|
@@ -12,28 +24,3 @@
 | `worst_case_stress/`    | Compute the worst-case stress for a given pattern. |
 | `slice_supporter/`      | Generate raft + support structures below a microstructure (operates on slice images). |
 | `topology_enumeration/` | Combinatorially generate cubic topologies on the base tetrahedron |
-
-### Legacy stuff
-
-| Folder | Description |
-|--------|-------------|
-| `doc/`                     | N/A |
-| `driver/`                  | N/A |
-| `lookup_table/`            | N/A |
-| `lp_holes/`                | N/A |
-| `Luigi/`                   | N/A |
-| `material_optimization/`   | N/A |
-| `materials/`               | N/A |
-| `mesh/`                    | N/A |
-| `mex/`                     | N/A |
-| `Nico/`                    | N/A |
-| `orthotropic_fit/`         | N/A |
-| `parameter_lookup/`        | N/A |
-| `parameter_sweep/`         | N/A |
-| `periodic_homogenization/` | N/A |
-| `primal_dual/`             | N/A |
-| `quad_meshes/`             | N/A |
-| `results/`                 | N/A |
-| `sequential_laminates/`    | N/A |
-| `tools/`                   | N/A |
-| `wire_generator/`          | N/A |

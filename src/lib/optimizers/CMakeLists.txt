@@ -48,7 +48,6 @@ endif()
 # NLopt library
 find_package(NLopt QUIET)
 if(NLOPT_FOUND)
-    target_include_directories(optimizers SYSTEM PUBLIC ${NLOPT_INCLUDE_DIR})
     target_link_libraries(optimizers ${NLOPT_LIBRARIES})
     target_compile_definitions(optimizers PUBLIC -DHAS_NLOPT)
 else()
