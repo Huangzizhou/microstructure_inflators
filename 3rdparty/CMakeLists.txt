@@ -51,23 +51,6 @@ ExternalProject_Add(ceres_external
 )
 
 ################################################################################
-# Matheval
-################################################################################
-
-set(MATHEVAL_VERSION "1.0.2") # 1.1.11 doesn't work on the HPC cluster
-set(MATHEVAL_URL http://ftp.gnu.org/gnu/libmatheval/libmatheval-${MATHEVAL_VERSION}.tar.gz)
-set(MATHEVAL_MD5 6ba40aba212629142506f96b7a7dac7f)
-set(MATHEVAL_DIR "${CMAKE_CURRENT_LIST_DIR}/matheval")
-
-ExternalProject_Add(matheval_external
-    PREFIX "${MATHEVAL_DIR}"
-    URL ${MATHEVAL_URL}
-    URL_MD5 ${MATHEVAL_MD5}
-    CONFIGURE_COMMAND ${MATHEVAL_DIR}/src/matheval_external/configure --prefix=${MATHEVAL_DIR}
-    BUILD_COMMAND ${MAKE} ${MAKE_EXTRA_ARGS}
-)
-
-################################################################################
 # NLopt
 ################################################################################
 
