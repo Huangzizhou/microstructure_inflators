@@ -58,6 +58,7 @@ else()
 endif()
 
 ################################################################################
+
 add_library(optimizers
         optimizers/ceres.cc
         optimizers/dlib.cc
@@ -73,7 +74,7 @@ target_link_libraries(optimizers MeshFEM)
 if (APPLE)
     find_library(AccelerateFramework Accelerate)
     target_link_libraries(optimizers ${AccelerateFramework})
-endif (APPLE)
+endif()
 
 ################################################################################
 # Optional optimization libraries

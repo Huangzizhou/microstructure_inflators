@@ -56,6 +56,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-comment")
 # Common libraries
 ################################################################################
 
+# MeshFEM library
+if(NOT TARGET MeshFEM)
+    add_subdirectory(${THIRD_PARTY_DIR}/MeshFEM EXCLUDE_FROM_ALL)
+endif()
+
 # CLI11 library
 add_library(cli11 INTERFACE)
 target_include_directories(cli11 SYSTEM INTERFACE ${THIRD_PARTY_DIR}/cli11)
@@ -70,9 +75,9 @@ endif()
 # Sub-projects
 ################################################################################
 
-add_subdirectory(isosurface_inflator)
-add_subdirectory(pattern_optimization)
-add_subdirectory(worst_case_stress)
-add_subdirectory(shape_optimization)
-add_subdirectory(tools/hex-creator)
-add_subdirectory(topology_enumeration)
+add_subdirectory(src/lib/isosurface_inflator)
+add_subdirectory(src/lib/pattern_optimization)
+# add_subdirectory(worst_case_stress)
+# add_subdirectory(shape_optimization)
+# add_subdirectory(tools/hex-creator)
+# add_subdirectory(topology_enumeration)

@@ -15,7 +15,7 @@
 
 #include "../Inflator.hh"
 #include "IsoinflatorWrapper.hh"
-#include "../../tools/hex-creator/hexlib.h"
+#include "../../inflators/hex_inflator/hexlib.h"
 
 #include <memory>
 #include <utility>

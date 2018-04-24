@@ -2,7 +2,7 @@
 
 #if LUIGI_INFLATOR_ENABLED
 
-#include "../../Luigi/wireinflator2D/src/WireInflator2D.h"
+#include "../../inflators/luigi_wire_inflator/src/WireInflator2D.h"
 
 #include <Future.hh>
 
