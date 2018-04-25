@@ -14,12 +14,10 @@
 #include <MeshFEM/EdgeFields.hh>
 #include <MeshFEM/OneForm.hh>
 #include <MeshFEM/Functions.hh>
-
-#include <vector>
 #include <MeshFEM/GaussQuadrature.hh>
-
 #include <MeshFEM/MassMatrix.hh>
-#include "ShapeVelocityInterpolator.hh"
+#include <isosurface_inflator/ShapeVelocityInterpolator.hh>
+#include <vector>
 
 namespace SDConversions {
 
