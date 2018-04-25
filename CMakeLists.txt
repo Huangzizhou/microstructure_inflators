@@ -84,13 +84,8 @@ if(NOT TARGET MeshFEM)
 endif()
 
 # CLI11 library
-add_library(cli11 INTERFACE)
-target_include_directories(cli11 SYSTEM INTERFACE ${THIRD_PARTY_DIR}/cli11)
-
-# json library
-if(NOT TARGET json)
-    add_library(json INTERFACE)
-    target_include_directories(json SYSTEM INTERFACE ${THIRD_PARTY_DIR}/json)
+if(NOT TARGET CLI11::CLI11)
+    add_subdirectory(${THIRD_PARTY_DIR}/CLI11)
 endif()
 
 ################################################################################

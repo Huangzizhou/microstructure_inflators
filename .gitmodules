@@ -4,3 +4,6 @@
 [submodule "3rdparty/nlopt"]
 	path = 3rdparty/nlopt
 	url = git@github.com:stevengj/nlopt.git
+[submodule "3rdparty/CLI11"]
+	path = 3rdparty/CLI11
+	url = git@github.com:CLIUtils/CLI11.git
