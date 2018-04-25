@@ -15,7 +15,7 @@ Dependencies *not* included:
 TODOS:
 
 - [ ] Replace bfgs from Dlib by [CppNumericalSolvers](https://github.com/PatWie/CppNumericalSolvers)
-
+- [ ] Restore the gitbook doc and clean it up + use a single doc for both MeshFEM and this repo
 
 ### Folders
 

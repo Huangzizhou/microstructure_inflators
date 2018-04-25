@@ -12,4 +12,3 @@ target_link_libraries(IsosurfaceShapeDerivativeValidation_cli pattern_optimizati
 
 add_executable(VolumeShapeDerivativeValidation_cli VolumeShapeDerivativeValidation_cli.cc)
 target_link_libraries(VolumeShapeDerivativeValidation_cli pattern_optimization inflators MeshFEM)
-
