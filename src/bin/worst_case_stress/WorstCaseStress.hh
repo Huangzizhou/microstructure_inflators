@@ -574,7 +574,7 @@ struct IntegratedWorstCaseObjective {
             });
         delta_j = sum.combine([](const OF &a, const OF &b) { return a + b; } );
 #else
-        for (auto e : sim.mesh().elements()) { accumElementContrib(e.index()); }
+        for (auto e : mesh.elements()) { accumElementContrib(e.index()); }
 #endif
 
         BENCHMARK_STOP_TIMER_SECTION("Dilation and Delta strain");
