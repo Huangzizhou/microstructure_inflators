@@ -66,6 +66,7 @@ public:
         std::vector<Real> thicknesses;
         std::vector<Point3<Real>> points;
         m_wireMesh.inflationGraph(params, points, m_edges, thicknesses, m_blendingParams);
+        std::vector<Point3<Real>> orig_points = points; // Dangling-edge-in-base-cell test must be performed on pre-warped positions.
         m_jacobian = jacobian;
         for (auto &p : points) {
             p = m_jacobian * p;
@@ -89,9 +90,9 @@ public:
         // Construct joints at each vertex in the base unit.
         for (size_t u = 0; u < points.size(); ++u) {
             if (m_adjEdges[u].size() < 2) {
-                if (WMesh::PatternSymmetry::inBaseUnit(stripAutoDiff(points[u]))) {
+                if (WMesh::PatternSymmetry::inBaseUnit(stripAutoDiff(orig_points[u]))) {
                     std::cerr << "WARNING: dangling edge inside the base unit at ["
-                              << points[u].transpose()
+                              << orig_points[u].transpose()
                               << "] (neighboring cell's edge is probably protruding inside base cell)"
                               << std::endl;
                 }
