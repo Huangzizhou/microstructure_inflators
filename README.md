@@ -5,8 +5,8 @@
 Dependencies included directly or as submodules:
 
 - MeshFEM
-- [Ceres](https://github.com/ceres-solver/ceres-solver) + [glog](https://github.com/google/glog), optional (TODO)
-- [NLopt](https://github.com/stevengj/nlopt), optional (TODO)
+- [NLopt](https://github.com/stevengj/nlopt), optional
+- [Ceres](https://github.com/ceres-solver/ceres-solver) + [glog](https://github.com/google/glog), optional (as an external CMake project, via `./configure.sh`)
 
 Dependencies *not* included:
 
