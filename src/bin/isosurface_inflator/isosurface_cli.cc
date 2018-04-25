@@ -111,6 +111,7 @@ int main(int argc, char *argv[])
         params.clear();
         for (const auto &p : pStrings)
             params.push_back(std::stod(p));
+        std::cout << params.size() << std::endl;
     }
     else if (args.count("paramsFile")) {
         string line;

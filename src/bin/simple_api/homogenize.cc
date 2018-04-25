@@ -9,12 +9,10 @@
 //  Created:  05/12/2015 15:22:14
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <string>
-#include <vector>
+#include <CSGFEM/SymmetricMatrix.hh>
 #include <MeshFEM/util.h>
 #include <MeshFEM/Types.hh>
 #include <MeshFEM/GlobalBenchmark.hh>
-#include <CSGFEM/SymmetricMatrix.hh>
 #include <MeshFEM/FEMMesh.hh>
 #include <MeshFEM/MeshIO.hh>
 #include <MeshFEM/LinearElasticity.hh>
@@ -22,9 +20,10 @@
 #include <MeshFEM/PeriodicHomogenization.hh>
 #include <MeshFEM/MSHFieldWriter.hh>
 #include <MeshFEM/filters/remove_dangling_vertices.hh>
-
 #include <CLI/CLI.hpp>
 #include <json.hpp>
+#include <string>
+#include <vector>
 
 using json = nlohmann::json;
 using namespace PeriodicHomogenization;
@@ -400,5 +399,6 @@ int main(int argc, char *argv[]) {
 	auto exec = (dim == 3) ? ((args.degree == 2) ? execute<3, 2> : execute<3, 1>)
 						   : ((args.degree == 2) ? execute<2, 2> : execute<2, 1>);
 	exec(args, inVertices, inElements);
+
 	return 0;
 }
