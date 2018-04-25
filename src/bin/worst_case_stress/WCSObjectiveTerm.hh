@@ -1,14 +1,14 @@
 #ifndef WCSOBJECTIVETERM_HH
 #define WCSOBJECTIVETERM_HH
 
-#include <ObjectiveTerm.hh>
-#include <MSHFieldWriter.hh>
-
-#include <Fields.hh>
-#include <OneForm.hh>
-#include <stdexcept>
-
 #include "WorstCaseStress.hh"
+#include <pattern_optimization/ObjectiveTerm.hh>
+#include <pattern_optimization/ObjectiveTermNormalizations.hh>
+#include <pattern_optimization/IterateFactory.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/EdgeFields.hh>
+#include <MeshFEM/OneForm.hh>
+#include <stdexcept>
 
 namespace PatternOptimization {
 namespace ObjectiveTerms {

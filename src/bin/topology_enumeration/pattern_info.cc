@@ -3,16 +3,16 @@
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
 //      Gets useful information about a pattern topology
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  06/14/2016 15:32:28
 ////////////////////////////////////////////////////////////////////////////////
-#include <iostream> 
+#include <isosurface_inflator/WireMesh.hh>
+#include <iostream>
 #include <cstdlib>
 #include <string>
 #include <cassert>
-#include "../isosurface_inflator/WireMesh.hh"
 
 using namespace std;
 

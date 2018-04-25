@@ -1,7 +1,7 @@
 #include "IsoinflatorWrapper.hh"
 
-#include "../../isosurface_inflator/IsosurfaceInflator.hh"
-#include "../../isosurface_inflator/IsosurfaceInflatorConfig.hh"
+#include <isosurface_inflator/IsosurfaceInflator.hh>
+#include <isosurface_inflator/IsosurfaceInflatorConfig.hh>
 
 #include <boost/algorithm/string.hpp>
 #include <MeshFEM/Future.hh>

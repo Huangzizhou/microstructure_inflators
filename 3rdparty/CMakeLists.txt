@@ -49,20 +49,3 @@ ExternalProject_Add(ceres_external
         "-DGLOG_LIBRARY_DIR_HINTS:PATH=$ENV{GLOG_LIB}"
         "${CMAKE_EXTRA_ARGS}"
 )
-
-################################################################################
-# NLopt
-################################################################################
-
-set(NLOPT_VERSION "2.4.2")
-set(NLOPT_URL http://ab-initio.mit.edu/nlopt/nlopt-${NLOPT_VERSION}.tar.gz)
-set(NLOPT_MD5 d0b8f139a4acf29b76dbae69ade8ac54)
-set(NLOPT_DIR "${CMAKE_CURRENT_LIST_DIR}/nlopt")
-
-ExternalProject_Add(nlopt_external
-    PREFIX "${NLOPT_DIR}"
-    URL ${NLOPT_URL}
-    URL_MD5 ${NLOPT_MD5}
-    CONFIGURE_COMMAND ${NLOPT_DIR}/src/nlopt_external/configure --prefix=${NLOPT_DIR} --with-cxx --without-python --without-guile --without-matlab
-    BUILD_COMMAND ${MAKE} ${MAKE_EXTRA_ARGS}
-)

@@ -18,18 +18,19 @@
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef WORSTCASESTRESS_HH
 #define WORSTCASESTRESS_HH
+#include <MeshFEM/LinearElasticity.hh>
+#include <MeshFEM/PeriodicHomogenization.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
+#include <CSGFEM/VonMises.hh>
+#include <CSGFEM/Parallelism.hh>
+
+#include <pattern_optimization/SDConversions.hh>
+#include <pattern_optimization/BaseCellOperations.hh>
+
 #include <stdexcept>
 #include <cmath>
 #include <iostream>
-#include <LinearElasticity.hh>
-#include <PeriodicHomogenization.hh>
 #include <tuple>
-#include <GlobalBenchmark.hh>
-#include <VonMises.hh>
-#include <Parallelism.hh>
-
-#include "../pattern_optimization/SDConversions.hh"
-#include "../pattern_optimization/BaseCellOperations.hh"
 
 // Local alias of PeriodicHomogenization namespace.
 namespace {

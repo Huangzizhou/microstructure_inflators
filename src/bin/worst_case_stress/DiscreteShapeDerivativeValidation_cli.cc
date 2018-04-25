@@ -17,20 +17,22 @@
 //  Company:  New York University
 //  Created:  03/16/2016 18:14:07
 ////////////////////////////////////////////////////////////////////////////////
-#include <MeshIO.hh>
-#include <LinearElasticity.hh>
-#include <Materials.hh>
-#include <PeriodicHomogenization.hh>
-#include <GlobalBenchmark.hh>
-#include <iomanip>
-#include <Laplacian.hh>
+
+#include "WorstCaseStress.hh"
+
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/LinearElasticity.hh>
+#include <MeshFEM/Materials.hh>
+#include <MeshFEM/PeriodicHomogenization.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
+#include <MeshFEM/Laplacian.hh>
+#include <inflators/wrappers/BoundaryPerturbationInflator.hh>
+#include <pattern_optimization/ShapeVelocityInterpolator.hh>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
-#include "../pattern_optimization/inflators/BoundaryPerturbationInflator.hh"
-#include "../pattern_optimization/ShapeVelocityInterpolator.hh"
-#include "WorstCaseStress.hh"
+#include <iomanip>
 
 namespace po = boost::program_options;
 using namespace std;

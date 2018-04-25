@@ -1,8 +1,8 @@
 #include "quartic_form.hh"
-#include <Fields.hh>
-#include <Types.hh>
-#include <MeshIO.hh>
-#include <MSHFieldWriter.hh>
+#include <MeshFEM/EdgeFields.hh>
+#include <MeshFEM/Types.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
 
 #include <algorithm>
 #include <vector>

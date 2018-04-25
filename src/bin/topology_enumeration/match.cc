@@ -7,18 +7,18 @@
 //
 //      Patterns in the first directory are searched for in the second
 //      directory.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  06/12/2016 11:25:24
 ////////////////////////////////////////////////////////////////////////////////
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/Geometry.hh>
+#include <CSGFEM/utils.hh>
+
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
-
-#include <MeshIO.hh>
-#include <utils.hh>
-#include <Geometry.hh>
 
 using namespace std;
 
@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
 
             // Sort edges lexicographically
             sort(edges.begin(), edges.end());
-            
+
             // // Output sorted graph (debug)
             // std::vector<MeshIO::IOVertex> outVertices;
             // std::vector<MeshIO::IOElement> outElements;

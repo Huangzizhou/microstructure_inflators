@@ -16,12 +16,12 @@
 #include <cmath>
 #include <tuple>
 
-#include <MeshIO.hh>
-#include <MSHFieldWriter.hh>
-#include <LinearElasticity.hh>
-#include <Materials.hh>
-#include <PeriodicHomogenization.hh>
-#include <GlobalBenchmark.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
+#include <MeshFEM/LinearElasticity.hh>
+#include <MeshFEM/Materials.hh>
+#include <MeshFEM/PeriodicHomogenization.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>

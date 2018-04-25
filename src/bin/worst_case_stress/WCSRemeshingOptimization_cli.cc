@@ -20,12 +20,12 @@
 //  Company:  New York University
 //  Created:  12/28/2015 18:11:43
 ////////////////////////////////////////////////////////////////////////////////
-#include <GlobalBenchmark.hh>
-#include <MeshIO.hh>
-#include <LinearElasticity.hh>
-#include <Materials.hh>
-#include <PeriodicHomogenization.hh>
-#include <Future.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/LinearElasticity.hh>
+#include <MeshFEM/Materials.hh>
+#include <MeshFEM/PeriodicHomogenization.hh>
+#include <MeshFEM/Future.hh>
 
 #include <vector>
 #include <queue>

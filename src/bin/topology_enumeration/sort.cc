@@ -4,18 +4,18 @@
 /*! @file
 //      Sort the enumerated patterns by complexity. First by edge count, then by
 //      max valence.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  06/14/2016 03:38:41
 ////////////////////////////////////////////////////////////////////////////////
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/Geometry.hh>
+#include <CSGFEM/utils.hh>
+
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
-
-#include <MeshIO.hh>
-#include <utils.hh>
-#include <Geometry.hh>
 
 using namespace std;
 

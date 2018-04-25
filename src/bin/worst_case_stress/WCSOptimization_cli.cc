@@ -16,12 +16,14 @@
 //  Company:  New York University
 //  Created:  09/12/2014 01:15:28
 ////////////////////////////////////////////////////////////////////////////////
-#include <MeshIO.hh>
-#include <LinearElasticity.hh>
-#include <Materials.hh>
-#include <PeriodicHomogenization.hh>
-#include <GlobalBenchmark.hh>
-#include <Future.hh>
+#include "WCSObjectiveTerm.hh"
+
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/LinearElasticity.hh>
+#include <MeshFEM/Materials.hh>
+#include <MeshFEM/PeriodicHomogenization.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
+#include <MeshFEM/Future.hh>
 
 #include <vector>
 #include <queue>
@@ -40,35 +42,33 @@
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
 
-#include <Inflator.hh>
-#include <MakeInflator.hh>
-#include <PatternOptimizationJob.hh>
-#include <PatternOptimizationConfig.hh>
+#include <inflators/Inflator.hh>
+#include <inflators/MakeInflator.hh>
 
-#include <BoundConstraints.hh>
-#include <IterateFactory.hh>
-#include <IterateManager.hh>
+#include <pattern_optimization/PatternOptimizationJob.hh>
+#include <pattern_optimization/PatternOptimizationConfig.hh>
+#include <pattern_optimization/IterateFactory.hh>
+#include <pattern_optimization/IterateManager.hh>
+#include <pattern_optimization/PatternOptimizationIterate.hh>
 
-#include <optimizers/ceres.hh>
-#include <optimizers/dlib.hh>
-#include <optimizers/gradient_descent.hh>
-#include <optimizers/nlopt.hh>
-#include <optimizers/knitro.hh>
+#include <optimizers/BoundConstraints.hh>
+#include <optimizers/wrappers/ceres.hh>
+#include <optimizers/wrappers/dlib.hh>
+#include <optimizers/wrappers/gradient_descent.hh>
+#include <optimizers/wrappers/nlopt.hh>
+#include <optimizers/wrappers/knitro.hh>
 
-#include <PatternOptimizationIterate.hh>
+#include <optimizers/OptimizerConfig.hh>
+#include <pattern_optimization/PatternOptimizationConfig.hh>
+#include <pattern_optimization/objective_terms/TensorFit.hh>
+#include <pattern_optimization/objective_terms/IsotropicFit.hh>
+#include <pattern_optimization/objective_terms/IsotropicFitRel.hh>
+#include <pattern_optimization/objective_terms/ProximityRegularization.hh>
 
-#include <OptimizerConfig.hh>
-#include <PatternOptimizationConfig.hh>
-#include <objective_terms/TensorFit.hh>
-#include <objective_terms/IsotropicFit.hh>
-#include <objective_terms/IsotropicFitRel.hh>
-#include <objective_terms/ProximityRegularization.hh>
-#include "WCSObjectiveTerm.hh"
+#include <pattern_optimization/constraints/TensorFit.hh>
+#include <pattern_optimization/constraints/Printability.hh>
 
-#include <constraints/TensorFit.hh>
-#include <constraints/Printability.hh>
-
-#include <Parallelism.hh>
+#include <CSGFEM/Parallelism.hh>
 
 namespace po = boost::program_options;
 namespace PO = PatternOptimization;

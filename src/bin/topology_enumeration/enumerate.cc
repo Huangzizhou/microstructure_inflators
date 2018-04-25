@@ -5,15 +5,15 @@
 // ignores isometries mapping out of the midplane)
 //
 // Brute-force point merging.
-#include "../isosurface_inflator/Symmetry.hh"
 #include "intersection_check.hh"
+#include <isosurface_inflator/Symmetry.hh>
+#include <MeshFEM/MeshIO.hh>
 #include <vector>
 #include <array>
 #include <limits>
 #include <utility>
 #include <set>
 #include <queue>
-#include <MeshIO.hh>
 
 #include <sstream>
 #include <iomanip>
@@ -31,7 +31,7 @@ using Sym = Symmetry::Cubic<>;
 
 constexpr size_t NONE = numeric_limits<size_t>::max();
 
-vector<Isometry> symmetryGroup = Sym::symmetryGroup(); 
+vector<Isometry> symmetryGroup = Sym::symmetryGroup();
 Real epsilon = double(Sym::Tolerance::num) / double(Sym::Tolerance::den);
 Real epsilonSq = epsilon * epsilon;
 

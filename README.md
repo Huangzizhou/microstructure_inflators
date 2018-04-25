@@ -12,6 +12,10 @@ Dependencies *not* included:
 
 - CGAL, required
 
+TODOS:
+
+- [ ] Replace bfgs from Dlib by [CppNumericalSolvers](https://github.com/PatWie/CppNumericalSolvers)
+
 
 ### Folders
 
