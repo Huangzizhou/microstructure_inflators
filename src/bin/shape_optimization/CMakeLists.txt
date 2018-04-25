@@ -1,3 +1,10 @@
+################################################################################
+
+get_filename_component(CURRENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CURRENT_DIR})
+
+################################################################################
+
 add_executable(ShapeOptimization_cli ShapeOptimization_cli.cc)
 target_link_libraries(ShapeOptimization_cli pattern_optimization optimizers inflators json)
 

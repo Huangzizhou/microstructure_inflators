@@ -28,9 +28,10 @@ endif()
 # Dlib Library
 find_package(Dlib QUIET)
 if(DLIB_FOUND)
-    target_include_directories(optimizers SYSTEM PUBLIC ${DLIB_INCLUDE_DIR})
-    target_link_libraries(optimizers ${DLIB_LIBRARIES})
-    target_compile_definitions(optimizers PUBLIC -DHAS_DLIB)
+    # Complains when Dlib is compiled in Release and the main app is compiled in Debug
+    # target_include_directories(optimizers SYSTEM PUBLIC ${DLIB_INCLUDE_DIR})
+    # target_link_libraries(optimizers ${DLIB_LIBRARIES})
+    # target_compile_definitions(optimizers PUBLIC -DHAS_DLIB)
 else()
     message(STATUS "DLib not found; bfgs optimizer is disabled")
 endif()
