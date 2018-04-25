@@ -27,7 +27,7 @@
 #include <MeshFEM/GlobalBenchmark.hh>
 #include <MeshFEM/Laplacian.hh>
 #include <inflators/wrappers/BoundaryPerturbationInflator.hh>
-#include <pattern_optimization/ShapeVelocityInterpolator.hh>
+#include <isosurface_inflator/ShapeVelocityInterpolator.hh>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>

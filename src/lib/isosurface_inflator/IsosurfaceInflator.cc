@@ -15,8 +15,8 @@
 #include "WireMesh.hh"
 #include "PatternSignedDistance.hh"
 #include "Isometries.hh"
+#include "ShapeVelocityInterpolator.hh"
 
-#include "../pattern_optimization/ShapeVelocityInterpolator.hh"
 #include <MeshFEM/LinearElasticity.hh>
 
 #include "IsosurfaceInflatorImpl.hh"
