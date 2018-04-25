@@ -288,6 +288,7 @@ public:
         // Note: this actually computes a clockwise angle... switch to ccw
         // later? (But all class methods use the clockwise angle properly.)
         m_sinTheta = (r1 - r2) / m_axisLength;
+        m_sinTheta = std::max(Real(-1.0), std::min(Real(1.0), m_sinTheta)); // Avoid catastrophic failure in degenerate configurations
         m_theta = asin(m_sinTheta);
         m_cosTheta = sqrt(1 - m_sinTheta * m_sinTheta);
 
