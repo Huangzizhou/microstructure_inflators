@@ -50,6 +50,9 @@ if ( NOT CGAL_DIR )
       /usr/local/lib/CGAL
       /usr/lib/CGAL
 
+      # Look in the standard Macports install location
+      /opt/local/share/CGAL/cmake
+
       # Read from the CMakeSetup registry entries.  It is likely that
       # CGAL will have been recently built.
       [HKEY_CURRENT_USER\\Software\\Kitware\\CMakeSetup\\Settings\\StartPath;WhereBuild1]
