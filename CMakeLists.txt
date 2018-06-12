@@ -21,6 +21,7 @@ set(CMAKE_EXE_LINKER_FLAGS_RELWITHASSERT    "" CACHE STRING "Flags used during R
 set(CMAKE_SHARED_LINKER_FLAGS_RELWITHASSERT "" CACHE STRING "Flags used during RelWithAssertions builds" FORCE)
 set(CMAKE_MODULE_LINKER_FLAGS_RELWITHASSERT "" CACHE STRING "Flags used during RelWithAssertions builds" FORCE)
 set(CMAKE_STATIC_LINKER_FLAGS_RELWITHASSERT "" CACHE STRING "Flags used during RelWithAssertions builds" FORCE)
+
 mark_as_advanced(
     CMAKE_CXX_FLAGS_RELWITHASSERT
     CMAKE_C_FLAGS_RELWITHASSERT
@@ -28,7 +29,7 @@ mark_as_advanced(
     CMAKE_SHARED_LINKER_FLAGS_RELWITHASSERT
     CMAKE_MODULE_LINKER_FLAGS_RELWITHASSERT
     CMAKE_STATIC_LINKER_FLAGS_RELWITHASSERT
-    )
+)
 
 if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "No build type selected, default to RelWithAssert")
