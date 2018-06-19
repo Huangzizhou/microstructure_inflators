@@ -18,11 +18,11 @@ endif()
 option(DISABLE_CXX11_ABI_GCC "Don't use GCC's new C++11 ABI; needed to prevent linker errors with libraries compiled with the old ABI" ${DISABLE_CXX11_ABI_DEFAULT})
 
 if(DISABLE_CXX11_ABI_GCC)
-  set(CMAKE_EXTRA_ARGS "-DCMAKE_CXX_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0")
-  set(MAKE_EXTRA_ARGS "_GLIBCXX_USE_CXX11_ABI=0")
+    set(CMAKE_EXTRA_ARGS "-DCMAKE_CXX_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0")
+    set(MAKE_EXTRA_ARGS "_GLIBCXX_USE_CXX11_ABI=0")
 else()
-  set(CMAKE_EXTRA_ARGS "")
-  set(MAKE_EXTRA_ARGS "")
+    set(CMAKE_EXTRA_ARGS "")
+    set(MAKE_EXTRA_ARGS "")
 endif()
 
 ################################################################################

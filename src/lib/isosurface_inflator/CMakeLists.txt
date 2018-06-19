@@ -57,8 +57,11 @@ target_include_directories(isosurface_inflator PUBLIC ..)
 ################################################################################
 
 target_link_libraries(isosurface_inflator
+    PUBLIC
         MeshFEM
+    PRIVATE
         micro::cgal
         micro::vcglib
         micro::libigl
 )
+

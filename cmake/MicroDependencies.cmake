@@ -29,11 +29,10 @@ endif()
 # CGAL library
 if(NOT TARGET micro::cgal)
     add_library(micro_cgal INTERFACE)
-    find_package(CGAL REQUIRED COMPONENTS Core)
-    find_package(Boost 1.48 REQUIRED COMPONENTS thread system)
-    target_link_libraries(micro_cgal INTERFACE CGAL::CGAL CGAL::CGAL_Core ${Boost_LIBRARIES})
-    target_include_directories(micro_cgal SYSTEM INTERFACE
-        ${CGAL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${GMP_INCLUDE_DIR} ${MPFR_INCLUDE_DIR})
+    micro_download_cgal()
+    set(CGAL_DIR ${MICRO_EXTERNAL}/cgal)
+    find_package(CGAL CONFIG REQUIRED COMPONENTS PATHS ${CGAL_DIR} NO_DEFAULT_PATH)
+    target_link_libraries(micro_cgal INTERFACE CGAL::CGAL)
     add_library(micro::cgal ALIAS micro_cgal)
 endif()
 

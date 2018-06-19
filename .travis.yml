@@ -1,6 +1,7 @@
 dist: trusty
 sudo: false
 language: cpp
+cache: ccache
 matrix:
   include:
   - os: linux
@@ -12,11 +13,12 @@ matrix:
         packages:
         - gcc-7
         - g++-7
+        - libmpfr-dev
         - libboost-filesystem-dev
         - libboost-program-options-dev
         - libboost-system-dev
+        - libboost-thread-dev
         - libsuitesparse-dev
-        - libcgal-dev
     env:
     - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Debug"
   - os: osx
@@ -25,7 +27,8 @@ matrix:
     - MATRIX_EVAL="export CONFIG=Debug"
 
 install:
-- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install suite-sparse cgal; fi
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install suite-sparse ccache; fi
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then export PATH="/usr/local/opt/ccache/libexec:$PATH"; fi
 - eval "${MATRIX_EVAL}"
 
 script:
