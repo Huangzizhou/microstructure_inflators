@@ -5,17 +5,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CURRENT_DIR})
 
 ################################################################################
 
-add_executable(ShapeOptimization_cli ShapeOptimization_cli.cc)
-target_link_libraries(ShapeOptimization_cli pattern_optimization optimizers inflators json)
-
-add_executable(ShapeDerivativeValidation_cli ShapeDerivativeValidation_cli.cc)
-target_link_libraries(ShapeDerivativeValidation_cli pattern_optimization inflators MeshFEM)
-
-add_executable(GenerateParametersMask_cli GenerateParametersMask_cli.cc)
-target_link_libraries(GenerateParametersMask_cli pattern_optimization inflators)
-
-add_executable(IsosurfaceShapeDerivativeValidation_cli IsosurfaceShapeDerivativeValidation_cli.cc)
-target_link_libraries(IsosurfaceShapeDerivativeValidation_cli pattern_optimization inflators MeshFEM)
-
-add_executable(VolumeShapeDerivativeValidation_cli VolumeShapeDerivativeValidation_cli.cc)
-target_link_libraries(VolumeShapeDerivativeValidation_cli pattern_optimization inflators MeshFEM)
+micro_single_app(ShapeOptimization_cli pattern_optimization optimizers inflators json)
+micro_single_app(ShapeDerivativeValidation_cli pattern_optimization inflators MeshFEM)
+micro_single_app(GenerateParametersMask_cli pattern_optimization inflators)
+micro_single_app(IsosurfaceShapeDerivativeValidation_cli pattern_optimization inflators MeshFEM)
+micro_single_app(VolumeShapeDerivativeValidation_cli pattern_optimization inflators MeshFEM)

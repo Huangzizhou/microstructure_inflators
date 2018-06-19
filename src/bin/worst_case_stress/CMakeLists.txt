@@ -5,17 +5,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CURRENT_DIR})
 
 ################################################################################
 
-add_executable(DiscreteShapeDerivativeValidation_cli DiscreteShapeDerivativeValidation_cli.cc)
-target_link_libraries(DiscreteShapeDerivativeValidation_cli MeshFEM inflators)
-
-add_executable(MacroMicroStress_cli MacroMicroStress_cli.cc)
-target_link_libraries(MacroMicroStress_cli pattern_optimization MeshFEM)
-
-add_executable(WCS_cli WCS_cli.cc)
-target_link_libraries(WCS_cli pattern_optimization MeshFEM)
-
-add_executable(WCSOptimization_cli WCSOptimization_cli.cc)
-target_link_libraries(WCSOptimization_cli pattern_optimization optimizers inflators json)
-
-# add_executable(WCSRemeshingOptimization_cli WCSRemeshingOptimization_cli.cc)
-# target_link_libraries(WCSRemeshingOptimization_cli pattern_optimization)
+micro_single_app(DiscreteShapeDerivativeValidation_cli MeshFEM inflators)
+micro_single_app(MacroMicroStress_cli pattern_optimization MeshFEM)
+micro_single_app(WCS_cli pattern_optimization MeshFEM)
+micro_single_app(WCSOptimization_cli pattern_optimization optimizers inflators json)
+# micro_single_app(WCSRemeshingOptimization_cli pattern_optimization)
