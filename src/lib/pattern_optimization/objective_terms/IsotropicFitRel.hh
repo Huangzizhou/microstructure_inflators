@@ -19,7 +19,7 @@
 #define ISOTROPICFITREL_HH
 
 
-#include <CSGFEM/TensorProjection.hh>
+#include <MeshFEM/TensorProjection.hh>
 
 #include "../ObjectiveTerm.hh"
 #include "../IterateFactory.hh"
@@ -27,8 +27,8 @@
 
 #include <MeshFEM/EdgeFields.hh>
 #include <MeshFEM/OneForm.hh>
-#include <CSGFEM/ElasticityTensor.hh>
-#include <CSGFEM/LinearIndexer.hh>
+#include <MeshFEM/ElasticityTensor.hh>
+#include <MeshFEM/LinearIndexer.hh>
 
 #include <MeshFEM/PeriodicHomogenization.hh>
 #include <MeshFEM/MSHFieldWriter.hh>

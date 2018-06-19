@@ -21,7 +21,6 @@ target_include_directories(inflators PUBLIC ..)
 
 target_link_libraries(inflators
         MeshFEM
-        json
         micro::pymesh
         micro::vcglib
         micro::clipper

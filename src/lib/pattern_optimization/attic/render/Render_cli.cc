@@ -15,8 +15,8 @@
 #include <MeshFEM/EdgeFields.hh>
 #include <LinearFEM.hh>
 
-#include <CSGFEM/colors.hh>
-#include <CSGFEM/draw.hh>
+#include <MeshFEM/colors.hh>
+#include <MeshFEM/draw.hh>
 
 namespace po = boost::program_options;
 using namespace std;

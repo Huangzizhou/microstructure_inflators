@@ -7,8 +7,8 @@
 
 #include <MeshFEM/EdgeFields.hh>
 #include <MeshFEM/OneForm.hh>
-#include <CSGFEM/ElasticityTensor.hh>
-#include <CSGFEM/LinearIndexer.hh>
+#include <MeshFEM/ElasticityTensor.hh>
+#include <MeshFEM/LinearIndexer.hh>
 
 #include <MeshFEM/PeriodicHomogenization.hh>
 #include <MeshFEM/MSHFieldWriter.hh>

@@ -13,7 +13,7 @@
 #ifndef LOOKUPTABLE_HH
 #define LOOKUPTABLE_HH
 
-#include <CSGFEM/ElasticityTensor.hh>
+#include <MeshFEM/ElasticityTensor.hh>
 #include <Eigen/Dense>
 
 #include <string>

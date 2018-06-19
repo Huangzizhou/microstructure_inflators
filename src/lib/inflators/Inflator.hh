@@ -14,7 +14,7 @@
 #include <MeshFEM/MeshIO.hh>
 #include <MeshFEM/Functions.hh>
 #include <MeshFEM/BaseCellType.hh>
-#include <CSGFEM/Fields.hh>
+#include <MeshFEM/Fields.hh>
 
 #include <vector>
 #include <stdexcept>

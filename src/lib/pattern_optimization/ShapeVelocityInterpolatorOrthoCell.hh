@@ -27,7 +27,7 @@
 
 #include <MeshFEM/EdgeFields.hh>
 #include <MeshFEM/OneForm.hh>
-#include <CSGFEM/LinearIndexer.hh>
+#include <MeshFEM/LinearIndexer.hh>
 #include <MeshFEM/PeriodicBoundaryMatcher.hh>
 
 template<size_t N>

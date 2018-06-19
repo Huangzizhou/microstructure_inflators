@@ -15,7 +15,7 @@
 #include <iostream>
 #include <vector>
 #include <queue>
-#include <CSGFEM/utils.hh>
+#include <MeshFEM/utils.hh>
 #include "PatternOptimizationConfig.hh"
 #include "BoundaryPerturbationInflator.hh"
 #include <MeshFEM/filters/extract_hole_boundaries.hh>

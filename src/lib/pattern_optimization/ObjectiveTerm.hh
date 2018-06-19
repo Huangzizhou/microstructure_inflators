@@ -22,7 +22,7 @@
 
 #include <stdexcept>
 #include <MeshFEM/Future.hh>
-#include <CSGFEM/Flattening.hh>
+#include <MeshFEM/Flattening.hh>
 #include <MeshFEM/MSHFieldWriter.hh>
 
 #include <MeshFEM/EdgeFields.hh>

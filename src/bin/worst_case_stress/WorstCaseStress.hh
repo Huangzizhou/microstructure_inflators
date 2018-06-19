@@ -21,8 +21,8 @@
 #include <MeshFEM/LinearElasticity.hh>
 #include <MeshFEM/PeriodicHomogenization.hh>
 #include <MeshFEM/GlobalBenchmark.hh>
-#include <CSGFEM/VonMises.hh>
-#include <CSGFEM/Parallelism.hh>
+#include <MeshFEM/VonMises.hh>
+#include <MeshFEM/Parallelism.hh>
 
 #include <pattern_optimization/SDConversions.hh>
 #include <pattern_optimization/BaseCellOperations.hh>

@@ -28,7 +28,7 @@
 #include <OpenGL/glu.h>
 #include <GLUT/glut.h>
 
-#include <CSGFEM/colors.hh>
+#include <MeshFEM/colors.hh>
 #include <MeshFEM/Future.hh>
 #include "../../LookupTable.hh"
 #include "../../../isosurface_inflator/PatternSignedDistance.hh"

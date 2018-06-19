@@ -9,7 +9,7 @@
 //  Created:  05/12/2015 15:22:14
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <CSGFEM/SymmetricMatrix.hh>
+#include <MeshFEM/SymmetricMatrix.hh>
 #include <MeshFEM/util.h>
 #include <MeshFEM/Types.hh>
 #include <MeshFEM/GlobalBenchmark.hh>

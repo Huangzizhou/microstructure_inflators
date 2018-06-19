@@ -21,7 +21,7 @@
 #include "MeshingOptions.hh"
 #include <MeshFEM/MeshIO.hh>
 #include <MeshFEM/BaseCellType.hh>
-#include <CSGFEM/Parallelism.hh>
+#include <MeshFEM/Parallelism.hh>
 #include <string>
 #include <vector>
 

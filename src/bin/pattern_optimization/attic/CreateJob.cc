@@ -22,7 +22,7 @@
 #include <MeshFEM/MSHFieldParser.hh>
 #include "PatternOptimizationJob.hh"
 #include <MeshFEM/MSHFieldParser.hh>
-#include <CSGFEM/utils.hh>
+#include <MeshFEM/utils.hh>
 
 #include <boost/program_options.hpp>
 

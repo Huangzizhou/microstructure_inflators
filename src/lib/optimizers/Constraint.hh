@@ -16,7 +16,7 @@
 #include <MeshFEM/MSHFieldWriter.hh>
 #include <MeshFEM/EdgeFields.hh>
 #include <MeshFEM/OneForm.hh>
-#include <CSGFEM/Flattening.hh>
+#include <MeshFEM/Flattening.hh>
 #include <stdexcept>
 
 namespace PatternOptimization {

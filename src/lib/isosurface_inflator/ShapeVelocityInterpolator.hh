@@ -30,7 +30,7 @@
 
 #include <MeshFEM/EdgeFields.hh>
 #include <MeshFEM/OneForm.hh>
-#include <CSGFEM/LinearIndexer.hh>
+#include <MeshFEM/LinearIndexer.hh>
 
 class ShapeVelocityInterpolator {
     static constexpr size_t NO_VAR = std::numeric_limits<size_t>::max(),

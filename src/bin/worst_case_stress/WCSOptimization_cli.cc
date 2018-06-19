@@ -68,7 +68,7 @@
 #include <pattern_optimization/constraints/TensorFit.hh>
 #include <pattern_optimization/constraints/Printability.hh>
 
-#include <CSGFEM/Parallelism.hh>
+#include <MeshFEM/Parallelism.hh>
 
 namespace po = boost::program_options;
 namespace PO = PatternOptimization;

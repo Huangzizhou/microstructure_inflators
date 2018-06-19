@@ -11,7 +11,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include <MeshFEM/MeshIO.hh>
 #include <MeshFEM/Geometry.hh>
-#include <CSGFEM/utils.hh>
+#include <MeshFEM/utils.hh>
 
 #include <stdexcept>
 #include <iostream>

@@ -1,7 +1,7 @@
 #include <AntTweakBar.h>
 #include <MeshFEM/Future.hh>
-#include <CSGFEM/utils.hh>
-#include <CSGFEM/colors.hh>
+#include <MeshFEM/utils.hh>
+#include <MeshFEM/colors.hh>
 
 #include <stdlib.h>
 #include <stdio.h>

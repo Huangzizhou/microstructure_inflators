@@ -5,7 +5,7 @@
 #include <isosurface_inflator/IsosurfaceInflatorConfig.hh>
 #include <MeshFEM/MSHFieldWriter.hh>
 #include <MeshFEM/GlobalBenchmark.hh>
-#include <CSGFEM/Parallelism.hh>
+#include <MeshFEM/Parallelism.hh>
 #include <CLI/CLI.hpp>
 #include <json.hpp>
 #include <iostream>

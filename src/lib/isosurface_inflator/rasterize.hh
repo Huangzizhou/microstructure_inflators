@@ -12,7 +12,7 @@
 
 #include "SignedDistanceRegion.hh"
 #include <MeshFEM/MeshIO.hh>
-#include <CSGFEM/Fields.hh>
+#include <MeshFEM/Fields.hh>
 
 
 // Rasterizes the z = 0 midplane if 2 sizes are passed,

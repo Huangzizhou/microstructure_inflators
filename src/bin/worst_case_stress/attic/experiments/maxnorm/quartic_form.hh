@@ -12,8 +12,8 @@
 #ifndef QUARTIC_FORM_HH
 #define QUARTIC_FORM_HH
 
-#include <CSGFEM/ElasticityTensor.hh>
-#include <CSGFEM/SymmetricMatrix.hh>
+#include <MeshFEM/ElasticityTensor.hh>
+#include <MeshFEM/SymmetricMatrix.hh>
 #include <MeshFEM/Types.hh>
 
 template<typename Real, size_t N>

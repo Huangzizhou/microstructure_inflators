@@ -1,7 +1,7 @@
 #ifndef INFLATORTYPES_HH
 #define INFLATORTYPES_HH
 
-#include <CSGFEM/Fields.hh>
+#include <MeshFEM/Fields.hh>
 #include <MeshFEM/Geometry.hh>
 #include <Eigen/Dense>
 #include <vector>
