@@ -2,7 +2,7 @@
 # General Informations
 ################################################################################
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.2)
 project(Microstructures)
 
 # CMP0063: Honor visibility properties for all target types.
@@ -76,18 +76,10 @@ option(LIBIGL_WITH_VIEWER                 "Use OpenGL viewer"            ON)
 option(LIBIGL_WITH_XML                    "Use XML"                      OFF)
 
 ################################################################################
-# Common libraries
+# Dependencies
 ################################################################################
 
-# MeshFEM library
-if(NOT TARGET MeshFEM)
-    add_subdirectory(${THIRD_PARTY_DIR}/MeshFEM)
-endif()
-
-# CLI11 library
-if(NOT TARGET CLI11::CLI11)
-    add_subdirectory(${THIRD_PARTY_DIR}/CLI11)
-endif()
+include(MicroDependencies)
 
 ################################################################################
 # Subfolders

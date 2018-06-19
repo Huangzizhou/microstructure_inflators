@@ -6,16 +6,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CURRENT_DIR})
 ################################################################################
 
 add_library(intersection_check intersection_check.cc)
-
-# MeshFEM library
-target_link_libraries(intersection_check MeshFEM isosurface_inflator)
-
-# CGAL library
-find_package(CGAL REQUIRED COMPONENTS Core)
-find_package(Boost 1.48 REQUIRED thread system)
-target_link_libraries(intersection_check CGAL::CGAL CGAL::CGAL_Core ${Boost_LIBRARIES})
-target_include_directories(intersection_check SYSTEM PRIVATE
-    ${CGAL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${GMP_INCLUDE_DIR} ${MPFR_INCLUDE_DIR})
+target_link_libraries(intersection_check isosurface_inflator MeshFEM micro::cgal)
 
 ################################################################################
 # Independent binaries

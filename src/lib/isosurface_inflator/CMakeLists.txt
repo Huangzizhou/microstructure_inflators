@@ -53,33 +53,12 @@ add_library(isosurface_inflator
 target_include_directories(isosurface_inflator PUBLIC ..)
 
 ################################################################################
-# Required libraries
+# Dependencies
 ################################################################################
 
-# MeshFEM library
-target_link_libraries(isosurface_inflator MeshFEM)
-
-# CGAL library
-find_package(CGAL REQUIRED COMPONENTS Core)
-find_package(Boost 1.48 REQUIRED thread system)
-target_link_libraries(isosurface_inflator CGAL::CGAL CGAL::CGAL_Core ${Boost_LIBRARIES})
-target_include_directories(isosurface_inflator SYSTEM PRIVATE
-    ${CGAL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${GMP_INCLUDE_DIR} ${MPFR_INCLUDE_DIR})
-
-################################################################################
-# Optional libraries
-################################################################################
-
-# VCG library
-find_package(VCGlib)
-if(VCGLIB_FOUND)
-    target_link_libraries(isosurface_inflator VCGlib::core)
-    target_compile_definitions(isosurface_inflator PUBLIC -DHAS_VCG)
-endif()
-
-# libigl library
-find_package(LIBIGL QUIET)
-if(LIBIGL_FOUND)
-    target_link_libraries(isosurface_inflator igl::core)
-    target_compile_definitions(isosurface_inflator PUBLIC -DHAS_LIBIGL)
-endif()
+target_link_libraries(isosurface_inflator
+        MeshFEM
+        micro::cgal
+        micro::vcglib
+        micro::libigl
+)

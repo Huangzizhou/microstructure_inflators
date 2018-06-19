@@ -13,7 +13,14 @@
 set(CGAL_DIR_DESCRIPTION "directory containing CGALConfig.cmake. This is either the binary directory where CGAL was configured or PREFIX/lib/CGAL for an installation.")
 set(CGAL_DIR_MESSAGE     "CGAL not found. Set the CGAL_DIR cmake variable or environment variable to the ${CGAL_DIR_DESCRIPTION}")
 
-include(CMakeFindDependencyMacro)
+if(${CMAKE_VERSION} VERSION_LESS "3.9.0")
+	function(find_dependency)
+		find_package(${ARGN})
+	endfunction()
+else()
+	include(CMakeFindDependencyMacro)
+endif()
+
 find_dependency(CGAL
     CONFIG
     PATHS
