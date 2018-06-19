@@ -10,7 +10,11 @@ Dependencies included directly or as submodules:
 
 Dependencies *not* included:
 
-- CGAL, required
+- CGAL + Boost, required
+- Dlib, optional
+- Knitro, optional
+- Libigl, optional
+- VCGLib, optional
 
 TODOS:
 
