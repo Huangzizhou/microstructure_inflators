@@ -1,16 +1,18 @@
 <!-- MarkdownTOC autolink="true" bracket="round" depth=3 -->
 <!-- /MarkdownTOC -->
 
+[![Build Status](https://travis-ci.com/geometryprocessing/microstructures.svg?token=euzAY1sxC114E8ufzcZx&branch=master)](https://travis-ci.com/geometryprocessing/microstructures)
 
 Dependencies included directly or as submodules:
 
 - MeshFEM
 - [NLopt](https://github.com/stevengj/nlopt), optional
 - [Ceres](https://github.com/ceres-solver/ceres-solver) + [glog](https://github.com/google/glog), optional (as an external CMake project, via `./configure.sh`)
+- CGAL, required
 
 Dependencies *not* included:
 
-- CGAL + Boost, required
+- Boost, required
 - Dlib, optional
 - Knitro, optional
 - Libigl, optional
