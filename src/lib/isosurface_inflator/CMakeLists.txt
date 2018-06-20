@@ -4,8 +4,6 @@
 
 add_library(isosurface_inflator
         BoxIntersectionMesher.cc
-        CGALClippedVolumeMesher.cc
-        ConvexHullTriangulation.cc
         IsosurfaceInflator.cc
         MeshingOptions.cc
         MidplaneMesher.cc
@@ -50,18 +48,29 @@ add_library(isosurface_inflator
         rasterize.hh
 )
 
+add_library(isosurface_inflator_cgal
+        CGALClippedVolumeMesher.cc
+        ConvexHullTriangulation.cc
+)
+
 target_include_directories(isosurface_inflator PUBLIC ..)
 
 ################################################################################
 # Dependencies
 ################################################################################
 
-target_link_libraries(isosurface_inflator
+target_link_libraries(isosurface_inflator_cgal
     PUBLIC
         MeshFEM
     PRIVATE
         micro::cgal
+)
+
+target_link_libraries(isosurface_inflator
+    PUBLIC
+        MeshFEM
+    PRIVATE
+        isosurface_inflator_cgal
         micro::vcglib
         micro::libigl
 )
-
