@@ -27,13 +27,10 @@ if(NOT TARGET CLI11::CLI11)
 endif()
 
 # CGAL library
-if(NOT TARGET micro::cgal)
-    add_library(micro_cgal INTERFACE)
+if(NOT TARGET CGAL::CGAL)
     micro_download_cgal()
     set(CGAL_DIR ${MICRO_EXTERNAL}/cgal)
     find_package(CGAL CONFIG REQUIRED COMPONENTS PATHS ${CGAL_DIR} NO_DEFAULT_PATH)
-    target_link_libraries(micro_cgal INTERFACE CGAL::CGAL)
-    add_library(micro::cgal ALIAS micro_cgal)
 endif()
 
 # Accelerate framework
@@ -141,7 +138,7 @@ endif()
 
 # PyMesh Wires library
 if(NOT TARGET micro::pymesh)
-    find_package(PyMesh QUIET)
+    # find_package(PyMesh QUIET)
     if(PYMESH_FOUND)
         add_library(micro_pymesh INTERFACE)
         target_link_libraries(micro_pymesh INTERFACE PyMesh::core PyMesh::wires)

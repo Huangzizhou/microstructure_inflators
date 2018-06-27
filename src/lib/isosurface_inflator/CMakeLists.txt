@@ -63,7 +63,7 @@ target_link_libraries(isosurface_inflator_cgal
     PUBLIC
         MeshFEM
     PRIVATE
-        micro::cgal
+        CGAL::CGAL
 )
 
 target_link_libraries(isosurface_inflator
