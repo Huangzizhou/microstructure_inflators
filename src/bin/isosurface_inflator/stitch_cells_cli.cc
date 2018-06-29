@@ -80,7 +80,7 @@ void execute(const std::string &patchFilename, const std::string &meshingOptions
     PatternSignedDistance<double, StitchedWireMesh<N>> sdf(swm);
     sdf.setParameters(params, mesher->meshingOptions.jacobian, mesher->meshingOptions.jointBlendingMode);
 
-    std::vector<MeshIO::IOVertex > vertices;
+    std::vector<MeshIO::IOVertex> vertices;
     std::vector<MeshIO::IOElement> elements;
 
     mesher->meshInterfaceConsistently = true;

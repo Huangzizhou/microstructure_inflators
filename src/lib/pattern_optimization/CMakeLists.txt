@@ -1,3 +1,3 @@
 add_library(pattern_optimization PatternOptimizationJob.cc)
 target_include_directories(pattern_optimization PUBLIC ..)
-target_link_libraries(pattern_optimization isosurface_inflator)
+target_link_libraries(pattern_optimization inflators)

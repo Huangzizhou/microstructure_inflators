@@ -151,7 +151,7 @@ public:
         }
 
         // Output stitched graph for debugging
-        // _OutputGraph("test_stitch_graph.msh", stitchedVtxLoc, m_stitchedEdges);
+        // _OutputGraph("test_stitch_graph.obj", stitchedVtxLoc, m_stitchedEdges);
 
         m_numParams = 0;
         m_wmeshGrid.visit(SV([&](const WMeshSPtr &wm) { m_numParams += wm->numParams(); }));
@@ -235,7 +235,7 @@ public:
             stitchedBlendingParams.push_back(b / sv.size());
         }
 
-        // _OutputGraph("test_inflation_graph.msh", stitchedPoints, stitchedEdges);
+        // _OutputGraph("test_inflation_graph.obj", stitchedPoints, stitchedEdges);
     }
 
     // The stitching process can violate the self-supporting constraint.
@@ -435,6 +435,7 @@ private:
 ////////////////////////////////////////////////////////////////////////////////
 // Implementation detail
 ////////////////////////////////////////////////////////////////////////////////
+
 namespace detail {
     template<class V, typename ValType, size_t N>
     auto apply(V &&visitor, ValType &&val, const NDArrayIndex<N> & /* idxs */) -> decltype(visitor(val)) {
