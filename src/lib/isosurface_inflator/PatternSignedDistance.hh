@@ -61,7 +61,7 @@ public:
                        JointBlendMode blendMode = JointBlendMode::HULL) {
         // Clear all existing state.
         m_edgeGeometry.clear(), m_jointForVertex.clear(),
-        m_vertexSmoothness.clear(), m_adjEdges.clear();
+        m_vertexSmoothness.clear(), m_incidentEdges.clear();
 
         std::vector<Real> thicknesses;
         std::vector<Point3<Real>> points;
@@ -79,17 +79,17 @@ public:
                     thicknesses[e.first], thicknesses[e.second]);
         }
 
-        m_adjEdges.resize(points.size());
-        for (auto &ae : m_adjEdges) ae.clear();
+        m_incidentEdges.resize(points.size());
+        for (auto &ae : m_incidentEdges) ae.clear();
         for (size_t ei = 0; ei < m_edges.size(); ++ei) {
             const auto &e = m_edges[ei];
-            m_adjEdges.at(e.first ).push_back(ei);
-            m_adjEdges.at(e.second).push_back(ei);
+            m_incidentEdges.at(e.first ).push_back(ei);
+            m_incidentEdges.at(e.second).push_back(ei);
         }
 
         // Construct joints at each vertex in the base unit.
         for (size_t u = 0; u < points.size(); ++u) {
-            if (m_adjEdges[u].size() < 2) {
+            if (m_incidentEdges[u].size() < 2) {
                 if (WMesh::PatternSymmetry::inBaseUnit(stripAutoDiff(orig_points[u]))) {
                     std::cerr << "WARNING: dangling edge inside the base unit at ["
                               << orig_points[u].transpose()
@@ -103,7 +103,7 @@ public:
             }
             std::vector<Point3<Real>> centers(1, points[u]);
             std::vector<Real>         radii(1, thicknesses[u]);
-            for (size_t ei : m_adjEdges[u]) {
+            for (size_t ei : m_incidentEdges[u]) {
                 size_t v_other = m_edges[ei].first == u ? m_edges[ei].second
                                                         : m_edges[ei].first;
                 centers.push_back(points[v_other]);
@@ -125,7 +125,7 @@ public:
         for (size_t u = 0; u < points.size(); ++u) {
             // Min angle over all pairs of edges
             Real theta = 2 * M_PI;
-            for (size_t e1 : m_adjEdges[u]) {
+            for (size_t e1 : m_incidentEdges[u]) {
                 // Get other vertex of e1, and determine if it is that edge's
                 // "p1" or "p2" endpoint.
                 bool uIsP1OfE1 = false;
@@ -137,7 +137,7 @@ public:
                 assert(v1 != u);
                 Real angleDeficit1 = uIsP1OfE1 ? m_edgeGeometry.at(e1).angleAtP1()
                                                : m_edgeGeometry.at(e1).angleAtP2();
-                for (size_t e2 : m_adjEdges[u]) {
+                for (size_t e2 : m_incidentEdges[u]) {
                     if (e2 <= e1) continue;
                     bool uIsP1OfE2 = false;
                     size_t v2 = m_edges[e2].first;
@@ -207,7 +207,7 @@ public:
         }
 
         // for (size_t u = 0; u < points.size(); ++u) {
-        //     std::cout << "vertex " << u << " (valence " << m_adjEdges[u].size()
+        //     std::cout << "vertex " << u << " (valence " << m_incidentEdges[u].size()
         //          << ") smoothness: " << m_vertexSmoothness[u] << std::endl;
         // }
 #endif
@@ -255,13 +255,13 @@ public:
 
         if (!joint) {
             // Joints are not created for valence 1 vertices.
-            assert(m_adjEdges[vtx].size() == 1);
-            return JointDists<Real2>(edgeDists[m_adjEdges[vtx][0]],
-                                     edgeDists[m_adjEdges[vtx][0]]);
+            assert(m_incidentEdges[vtx].size() == 1);
+            return JointDists<Real2>(edgeDists[m_incidentEdges[vtx][0]],
+                                     edgeDists[m_incidentEdges[vtx][0]]);
         }
-        jointEdgeDists.clear(), jointEdgeDists.reserve(m_adjEdges[vtx].size());
+        jointEdgeDists.clear(), jointEdgeDists.reserve(m_incidentEdges[vtx].size());
         Real2 hardUnionedDist = safe_numeric_limits<Real2>::max();
-        for (size_t ei : m_adjEdges[vtx]) {
+        for (size_t ei : m_incidentEdges[vtx]) {
             jointEdgeDists.push_back(edgeDists[ei]);
             hardUnionedDist = std::min<Real2>(hardUnionedDist, edgeDists[ei]);
         }
@@ -312,9 +312,10 @@ public:
         // Compute hard-unioned distance to each joint and determine Nth closest
         std::vector<double> hard_distance(numVertices(), safe_numeric_limits<double>::max());
         for (size_t vtx = 0; vtx < numVertices(); ++vtx) {
-            for (size_t ei : m_adjEdges[vtx])
+            for (size_t ei : m_incidentEdges[vtx]) {
                 hard_distance[vtx] = std::min<double>(hard_distance[vtx],
                                                       stripAutoDiff(edgeDists[ei]));
+            }
         }
 
         double candidateDistThreshold;
@@ -326,8 +327,9 @@ public:
             std::nth_element(hd_copy.begin(), hd_copy.begin() + requestedCandidates,
                              hd_copy.end());
             candidateDistThreshold = hd_copy[requestedCandidates];
-            for (double hd : hard_distance)
+            for (double hd : hard_distance) {
                 if (hd <= candidateDistThreshold) ++numCandidates;
+            }
         }
         if (numCandidates > MAX_CANDIDATES) {
             std::cerr << "numCandidates: " << numCandidates << std::endl;
@@ -346,8 +348,9 @@ public:
                 // conservatively assume m_vertexSmoothness == 1.
                 double s = stripAutoDiff(m_blendingParams[vtx]);
                 double k = 1.0 / s;
-                for (size_t ei : m_adjEdges[vtx])
+                for (size_t ei : m_incidentEdges[vtx]) {
                     joint_smin += exp(-k * stripAutoDiff(edgeDists[ei]));
+                }
                 // joint_smin = -s * log(joint_smin);
                 //
                 // Individual joint_smin values are then smin-ed together with
@@ -355,8 +358,7 @@ public:
                 // exp(-(-s * log(joint_smin)) / maxOverlapSmoothingAmt)
                 // = exp(log(joint_smin))^(s/maxOverlapSmoothingAmt)
                 // = joint_smin^(s/maxOverlapSmoothingAmt)
-                conservativeSMin += pow(joint_smin,
-                                        s / maxOverlapSmoothingAmt);
+                conservativeSMin += pow(joint_smin, s / maxOverlapSmoothingAmt);
                 // conservativeSMin += exp(-joint_smin / maxOverlapSmoothingAmt);
             }
             // conservatively inside if
@@ -364,8 +366,9 @@ public:
             // <==> log(conservativeSMin) >= 0
             // <==> conservativeSMin >= 1
             //  ==> we are definitely outside if conservativeSMin < 1
-            if (conservativeSMin < 1)
+            if (conservativeSMin < 1) {
                 return 1.0;
+            }
         }
 
         // Compute both smoothed and hard-unioned distances to the two closest
@@ -386,8 +389,10 @@ public:
                     closestJDist = d;
                     sc_idx = c_idx;
                     c_idx = vtx;
+                } else {
+                    secondClosestJDist = d;
+                    sc_idx = vtx;
                 }
-                else { secondClosestJDist = d; sc_idx = vtx; }
             }
             ++i;
         }
@@ -498,7 +503,7 @@ public:
             std::cerr << "secondClosestJDist.hard:"  ; reportDerivatives(std::cerr, secondClosestJDist.hard); std::cerr << std::endl;
             std::cerr << std::endl;
 
-            for (size_t ei : m_adjEdges[c_idx]) {
+            for (size_t ei : m_incidentEdges[c_idx]) {
                 size_t a = m_edges[ei].first, b = m_edges[ei].second;
                 std::cerr << "Edge (" << a << ", " << b << ") dist " << edgeDists[ei] << " derivatives:";
                 reportDerivatives(std::cerr, edgeDists[ei]);
@@ -538,16 +543,16 @@ public:
             Real2 s;
             if (!joint) {
                 // Joints are not created for valence 1 vertices.
-                assert(m_adjEdges[u].size() == 1);
-                jdist = edgeDists[m_adjEdges[u][0]];
+                assert(m_incidentEdges[u].size() == 1);
+                jdist = edgeDists[m_incidentEdges[u][0]];
                 s = m_blendingParams[u];
 #if VERTEX_SMOOTHNESS_MODULATION
                 s *= m_vertexSmoothness[u];
 #endif
             }
             else {
-                jointEdgeDists.clear(), jointEdgeDists.reserve(m_adjEdges[u].size());
-                for (size_t ei : m_adjEdges[u])
+                jointEdgeDists.clear(), jointEdgeDists.reserve(m_incidentEdges[u].size());
+                for (size_t ei : m_incidentEdges[u])
                     jointEdgeDists.push_back(edgeDists[ei]);
                 s = joint->smoothingAmt(p);
 #if VERTEX_SMOOTHNESS_MODULATION
@@ -723,12 +728,12 @@ private:
                 // inlined exp_smin_reparam
                 Real2 k = 1 / smoothness;
                 Real2 smin = 0;
-                for (size_t ei : m_adjEdges[u])
+                for (size_t ei : m_incidentEdges[u])
                     smin += exp(-k * edgeDists[ei]);
                 dist = std::min<Real2>(dist, -log(smin) * smoothness);
             }
             else {
-                for (size_t ei : m_adjEdges[u])
+                for (size_t ei : m_incidentEdges[u])
                     dist = std::min<Real2>(dist, edgeDists.at(ei));
             }
         }
@@ -797,8 +802,8 @@ private:
     // prevent bulging of nearly straight joints.
     std::vector<Real>                m_vertexSmoothness;
     std::vector<Real>                m_blendingParams;
-    // Edges adjacent to a particular vertex.
-    std::vector<std::vector<size_t>> m_adjEdges;
+    // Edges incident to a particular vertex.
+    std::vector<std::vector<size_t>> m_incidentEdges;
 
     Eigen::Matrix<Real, 3, 3> m_jacobian;
 
