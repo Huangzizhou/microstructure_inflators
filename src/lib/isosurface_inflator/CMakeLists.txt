@@ -32,7 +32,6 @@ add_library(isosurface_inflator
         PaperVisualizationSDFunc.hh
         PatternSignedDistance.hh
         PostProcess.hh
-        ShapeVelocity.hh
         SignedDistance.hh
         SignedDistanceRegion.hh
         SnapAndReflect.hh

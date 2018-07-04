@@ -445,7 +445,7 @@ public:
         assert(smoothEffect2 >= -1e-9);
         smoothEffect1 = std::max<Real2>(smoothEffect1, 0.0);
         smoothEffect2 = std::max<Real2>(smoothEffect2, 0.0);
-        // Choose smoothing based on the gemoetric mean of the differences
+        // Choose smoothing based on the geometric mean of the differences
         // between distances to smooth and hard-unioned geometry.
         Real2 meanSmoothEffectSq = smoothEffect1 * smoothEffect2;
 

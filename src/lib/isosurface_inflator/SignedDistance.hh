@@ -302,7 +302,7 @@ public:
         // Note: we must cast the vector-type member variables to Real2 types
         // for the automatic differentation case. There's a chance this will
         // make the Real2 == Real case less efficient; we can add some
-        // SFINAE vodoo to optimize this if it's an issue.
+        // SFINAE voodoo to optimize this if it's an issue.
 
         Vector3<Real2> v(p - m_c1.template cast<Real2>());
         Real2 v_normSq = v.squaredNorm();
