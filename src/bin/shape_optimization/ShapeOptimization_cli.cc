@@ -530,7 +530,7 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
 int main(int argc, const char *argv[]) {
     po::variables_map args = parseCmdLine(argc, argv);
 
-#if HAS_TBB
+#if MICRO_WITH_TBB
     size_t np = tbb::task_scheduler_init::default_num_threads();
     if (args.count("numProcs")) {
         size_t manualNP = args["numProcs"].as<size_t>();

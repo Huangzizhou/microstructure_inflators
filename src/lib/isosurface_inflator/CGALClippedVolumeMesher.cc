@@ -1,6 +1,6 @@
 #include "CGALClippedVolumeMesher.hh"
 
-#if HAS_TBB
+#if MICRO_WITH_TBB
 #define CGAL_LINKED_WITH_TBB
 #define CGAL_CONCURRENT_MESH_3
 #endif

@@ -52,7 +52,7 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
                               ("rasterize,r",           po::value<string>(), "Rasterize the pattern to an indicator field on a regular grid")
                               ("rasterResolution",      po::value<string>()->default_value("20x20x20"),
                                                                              "Size of the rasterization grid (2D or 3D)")
-#if HAS_TBB
+#if MICRO_WITH_TBB
                               ("numProcs",              po::value<size_t>(), "Number of threads to use for TBB parallelism (CGAL mesher, etc.)")
 #endif
                               ;
@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 {
     auto args = parseCmdLine(argc, argv);
 
-#if HAS_TBB
+#if MICRO_WITH_TBB
     size_t np = tbb::task_scheduler_init::default_num_threads();
     if (args.count("numProcs")) {
         size_t manualNP = args["numProcs"].as<size_t>();

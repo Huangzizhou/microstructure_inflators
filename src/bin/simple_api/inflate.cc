@@ -34,7 +34,7 @@ struct Args {
     bool cheapPostprocessing = false;
     bool ortho_cell = false;
     bool assertPlanarNormals = false;
-    #if HAS_TBB
+    #if MICRO_WITH_TBB
     int numProcs = tbb::task_scheduler_init::default_num_threads();
     #endif
 };
@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
     app.add_flag("--cheapPostprocessing",      args.cheapPostprocessing,    "Cheap post-processing of mesher output");
     app.add_flag("-O,--ortho_cell",            args.ortho_cell,             "Generate the ortho cell only (for ortho-cell meshers)");
     app.add_flag("--assertPlanarNormals",      args.assertPlanarNormals,    "Verify that normals have a zero z component (relevant in 2D)");
-    #if HAS_TBB
+    #if MICRO_WITH_TBB
     app.add_option("--numProcs", args.numProcs, "Number of threads to use for TBB parallelism (CGAL mesher, etc.)");
     #endif
 
@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
         return app.exit(e);
     }
 
-#if HAS_TBB
+#if MICRO_WITH_TBB
     if (args.numProcs > tbb::task_scheduler_init::default_num_threads()) {
         std::cerr << "WARNING: specifying more than the default number of TBB threads." << std::endl;
     }

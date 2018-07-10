@@ -16,6 +16,26 @@ include(MicroDownloadExternal)
 # Required libraries
 ################################################################################
 
+# TBB library; must be brought in before MeshFEM to override! We need tbbmalloc,
+# which MeshFEM chooses not to build.
+if(NOT TARGET tbb::tbb)
+    set(TBB_BUILD_STATIC ON CACHE BOOL " " FORCE)
+    set(TBB_BUILD_SHARED OFF CACHE BOOL " " FORCE)
+    set(TBB_BUILD_TBBMALLOC ON CACHE BOOL " " FORCE)
+    set(TBB_BUILD_TBBMALLOC_PROXY OFF CACHE BOOL " " FORCE)
+    set(TBB_BUILD_TESTS OFF CACHE BOOL " " FORCE)
+
+    micro_download_tbb()
+    add_subdirectory(${MICRO_EXTERNAL}/tbb tbb)
+    set_property(TARGET tbb_static tbb_def_files PROPERTY FOLDER "dependencies")
+    set_target_properties(tbb_static PROPERTIES COMPILE_FLAGS "-Wno-implicit-fallthrough -Wno-missing-field-initializers -Wno-unused-parameter -Wno-keyword-macro")
+
+    add_library(micro_tbb INTERFACE)
+    target_include_directories(micro_tbb SYSTEM INTERFACE ${MESHFEM_EXTERNAL}/tbb/include)
+    target_link_libraries(micro_tbb INTERFACE tbb_static tbbmalloc_static)
+    add_library(tbb::tbb ALIAS micro_tbb)
+endif()
+
 # MeshFEM library
 if(NOT TARGET MeshFEM)
     add_subdirectory(${MICRO_EXTERNAL}/MeshFEM MeshFEM)

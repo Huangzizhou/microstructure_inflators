@@ -27,7 +27,7 @@ int main(int argc, const char *argv[]) {
     if      (mesherName == "cgal") mesher = Future::make_unique<CGALClippedVolumeMesher>();
     else if (mesherName ==  "igl") mesher = Future::make_unique<IGLSurfaceMesherMC>();
     else if (mesherName ==  "midplane") mesher = Future::make_unique<MidplaneMesher>();
-    else throw std::runtime_error("Unknown mesher; must be cgal or igl");
+    else throw std::runtime_error("Unknown mesher; must be cgal, midplane, or igl");
 
     mesher->meshingOptions.facetDistance = facet_distance;
     mesher->meshingOptions.cellSize = 1.0;
