@@ -45,6 +45,7 @@ add_library(isosurface_inflator
         WireMesh.hh
         WireMesh.inl
         rasterize.hh
+        TriplyPeriodicMinimalShell.hh
 )
 
 add_library(isosurface_inflator_cgal
