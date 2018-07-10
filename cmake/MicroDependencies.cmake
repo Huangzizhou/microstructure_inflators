@@ -30,10 +30,17 @@ if(NOT TARGET tbb::tbb)
     set_property(TARGET tbb_static tbb_def_files PROPERTY FOLDER "dependencies")
     set_target_properties(tbb_static PROPERTIES COMPILE_FLAGS "-Wno-implicit-fallthrough -Wno-missing-field-initializers -Wno-unused-parameter -Wno-keyword-macro")
 
+    add_library(tbb_tbb INTERFACE)
+    target_include_directories(tbb_tbb SYSTEM INTERFACE ${MESHFEM_EXTERNAL}/tbb/include)
+    target_link_libraries(tbb_tbb INTERFACE tbb_static tbbmalloc_static)
+    add_library(tbb::tbb ALIAS tbb_tbb)
+endif()
+
+if(NOT TARGET micro::tbb)
     add_library(micro_tbb INTERFACE)
-    target_include_directories(micro_tbb SYSTEM INTERFACE ${MESHFEM_EXTERNAL}/tbb/include)
-    target_link_libraries(micro_tbb INTERFACE tbb_static tbbmalloc_static)
-    add_library(tbb::tbb ALIAS micro_tbb)
+    target_link_libraries(micro_tbb INTERFACE tbb::tbb)
+    target_compile_definitions(micro_tbb INTERFACE -DMICRO_WITH_TBB)
+    add_library(micro::tbb ALIAS micro_tbb)
 endif()
 
 # MeshFEM library

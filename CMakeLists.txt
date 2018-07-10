@@ -88,6 +88,5 @@ include(MicroDependencies)
 # Subfolders
 ################################################################################
 
-add_definitions(-DMICRO_WITH_TBB)
 add_subdirectory(src/lib/)
 add_subdirectory(src/bin/)

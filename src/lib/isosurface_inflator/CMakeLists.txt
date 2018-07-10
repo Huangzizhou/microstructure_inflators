@@ -62,7 +62,7 @@ target_include_directories(isosurface_inflator PUBLIC ..)
 target_link_libraries(isosurface_inflator_cgal
     PUBLIC
         MeshFEM
-        tbb::tbb
+        micro::tbb
     PRIVATE
         CGAL::CGAL
 )

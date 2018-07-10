@@ -3,8 +3,9 @@
 #include <isosurface_inflator/IGLSurfaceMesherMC.hh>
 #include <isosurface_inflator/MidplaneMesher.hh>
 #include <isosurface_inflator/TriplyPeriodicMinimalShell.hh>
-#include <isosurface_inflator/SignedDistance.hh>
-//#include <Utilities/apply.hh>
+#include <isosurface_inflator/SnapAndReflect.hh>
+#include <MeshFEM/filters/remove_dangling_vertices.hh>
+#include <MeshFEM/TetMesh.hh>
 
 int main(int argc, const char *argv[]) {
     if (argc != 4) {
@@ -17,7 +18,7 @@ int main(int argc, const char *argv[]) {
     double facet_distance = std::stod(argv[3]);
 
     std::vector<Real> A = { 1.0, 1.0, 1.0 },
-                 lambda = { 1.0, 1.0, 1.0 },
+                 lambda = { 2.0, 2.0, 2.0 },
                       P = { 0.0, 0.0, 0.0 };
     std::vector<Vector3d> h = { Vector3d(1, 0, 0), Vector3d(0, 1, 0), Vector3d(0, 0, 1) };
     Real c = 0.25;
@@ -31,15 +32,25 @@ int main(int argc, const char *argv[]) {
 
     mesher->meshingOptions.facetDistance = facet_distance;
     mesher->meshingOptions.cellSize = 1.0;
-
     std::vector<MeshIO::IOVertex > vertices;
     std::vector<MeshIO::IOElement> elements;
+    mesher->mesh(sdfunc, vertices, elements);
 
-    std::vector<MeshIO::IOVertex > unionVertices;
-    std::vector<MeshIO::IOElement> unionElements;
+    remove_dangling_vertices(vertices, elements);
 
-    mesher->mesh(sdfunc, unionVertices,  unionElements);
-    MeshIO::save(outPath, unionVertices, unionElements);
+    TetMesh<> mesh(elements, vertices.size());
+    smartSnap3D(vertices, mesh, sdfunc.boundingBox());
+
+
+    {
+        std::vector<MeshIO::IOVertex > reflectedVertices;
+        std::vector<MeshIO::IOElement> reflectedElements;
+        reflectXYZ(3, vertices, elements, reflectedVertices, reflectedElements);
+        std::swap(vertices, reflectedVertices);
+        std::swap(elements, reflectedElements);
+    }
+
+    MeshIO::save(outPath, vertices, elements);
 
     return 0;
 }

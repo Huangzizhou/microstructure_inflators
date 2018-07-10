@@ -310,4 +310,38 @@ void reflectXYZ(size_t Dim, // Dimensions to reflect in (length of [x, y, z] pre
     }
 }
 
+// Same as above, but automatically determine vertices on the reflection plane
+template<typename Vertex, typename Element>
+void reflectXYZ(size_t Dim, // Dimensions to reflect in (length of [x, y, z] prefix)
+                const std::vector<Vertex> &vertices,
+                const std::vector<Element> &elements,
+                std::vector<Vertex>  &reflectedVertices,
+                std::vector<Element> &reflectedElements,
+                std::vector<size_t>   &vertexOrigin,
+                std::vector<Isometry> &vertexIsometry)
+{
+    std::vector<std::vector<bool>> onReflectionPlane(3, std::vector<bool>(vertices.size(), false));
+    for (size_t i = 0; i < vertices.size(); ++i) {
+        onReflectionPlane[0][i] = (vertices[i][0] == 0);
+        onReflectionPlane[1][i] = (vertices[i][1] == 0);
+        onReflectionPlane[2][i] = (vertices[i][2] == 0);
+    }
+    reflectXYZ(Dim, vertices, elements, onReflectionPlane, reflectedVertices, reflectedElements,
+               vertexOrigin, vertexIsometry);
+}
+
+// Same as above, but don't output vertexOrigin/vertexIsometry
+template<typename Vertex, typename Element>
+void reflectXYZ(size_t Dim, // Dimensions to reflect in (length of [x, y, z] prefix)
+                const std::vector<Vertex> &vertices,
+                const std::vector<Element> &elements,
+                std::vector<Vertex>  &reflectedVertices,
+                std::vector<Element> &reflectedElements)
+{
+    std::vector<size_t>   vertexOrigin;
+    std::vector<Isometry> vertexIsometry;
+    reflectXYZ(Dim, vertices, elements, reflectedVertices, reflectedElements,
+               vertexOrigin, vertexIsometry);
+}
+
 #endif /* end of include guard: SNAPANDREFLECT_HH */

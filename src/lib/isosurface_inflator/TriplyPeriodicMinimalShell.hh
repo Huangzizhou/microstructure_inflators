@@ -47,7 +47,7 @@ struct TriplyPeriodicMinimalShell : public SignedDistanceRegion<3> {
     }
 
     virtual const BBox<PointNd<3>> & boundingBox() const override {
-        static auto box = BBox<Point3D>(Point3D(-1, -1, -1), Point3D(2, 2, 2));
+        static auto box = BBox<Point3D>(Point3D(0, 0, 0), Point3D(1, 1, 1));
         return box;
     }
 
