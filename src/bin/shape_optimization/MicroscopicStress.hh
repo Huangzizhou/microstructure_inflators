@@ -20,14 +20,14 @@
 #include <stdexcept>
 #include <cmath>
 #include <iostream>
-#include <LinearElasticity.hh>
-#include <PeriodicHomogenization.hh>
+#include <MeshFEM/LinearElasticity.hh>
+#include <MeshFEM/PeriodicHomogenization.hh>
 #include <tuple>
-#include <GlobalBenchmark.hh>
-#include <VonMises.hh>
-#include <Parallelism.hh>
+#include <MeshFEM/GlobalBenchmark.hh>
+#include <MeshFEM/VonMises.hh>
+#include <MeshFEM/Parallelism.hh>
 
-#include "../pattern_optimization/SDConversions.hh"
+#include <pattern_optimization/SDConversions.hh>
 #include "NonPeriodicCellOperations.hh"
 
 template<size_t N>
@@ -301,7 +301,7 @@ struct IntegratedMicroscopicStressObjective {
                 });
         delta_j = sum.combine([](const OF &a, const OF &b) { return a + b; } );
 #else
-        for (auto e : sim.mesh().elements()) { accumElementContrib(e.index()); }
+        for (auto e : mesh.elements()) { accumElementContrib(e.index()); }
 #endif
 
         BENCHMARK_STOP_TIMER_SECTION("Dilation and Delta strain");

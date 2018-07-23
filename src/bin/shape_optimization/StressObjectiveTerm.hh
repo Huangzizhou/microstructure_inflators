@@ -5,11 +5,11 @@
 #ifndef STRESSOBJECTIVETERM_H
 #define STRESSOBJECTIVETERM_H
 
-#include <ObjectiveTerm.hh>
-#include <MSHFieldWriter.hh>
+#include <pattern_optimization/ObjectiveTerm.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
 
-#include <Fields.hh>
-#include <OneForm.hh>
+#include <MeshFEM/Fields.hh>
+#include <MeshFEM/OneForm.hh>
 #include <stdexcept>
 
 #include "MicroscopicStress.hh"

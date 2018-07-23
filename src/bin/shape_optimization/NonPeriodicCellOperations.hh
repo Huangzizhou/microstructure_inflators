@@ -16,10 +16,10 @@
 #include <vector>
 #include <memory>
 #include <stdexcept>
-#include <Future.hh>
+#include <MeshFEM/Future.hh>
 
-#include <LinearElasticity.hh>
-#include "SDConversions.hh"
+#include <MeshFEM/LinearElasticity.hh>
+#include <pattern_optimization/SDConversions.hh>
 
 using namespace std;
 

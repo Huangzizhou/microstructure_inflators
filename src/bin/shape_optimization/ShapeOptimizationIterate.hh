@@ -13,8 +13,8 @@
 #ifndef SHAPEOPTIMIZATIONITERATE_H
 #define SHAPEOPTIMIZATIONITERATE_H
 
-#include <EdgeFields.hh>
-#include <MSHFieldWriter.hh>
+#include <MeshFEM/EdgeFields.hh>
+#include <MeshFEM/MSHFieldWriter.hh>
 
 #include <iostream>
 #include <cstdio>
@@ -25,21 +25,21 @@
 #include <memory>
 #include <tuple>
 
-#include <MeshIO.hh>
-#include <TriMesh.hh>
-#include <filters/subdivide.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/TriMesh.hh>
+#include <MeshFEM/filters/subdivide.hh>
 
-#include "PatternOptimizationConfig.hh"
-#include "ObjectiveTerm.hh"
-#include "EvaluatedObjectiveTerm.hh"
-#include "SDConversions.hh"
+#include <pattern_optimization/PatternOptimizationConfig.hh>
+#include <pattern_optimization/ObjectiveTerm.hh>
+#include <optimizers/EvaluatedObjectiveTerm.hh>
+#include <pattern_optimization/SDConversions.hh>
 #include "NonPeriodicCellOperations.hh"
-#include "BoundaryConditions.hh"
+#include <MeshFEM/BoundaryConditions.hh>
 
-#include "IterateBase.hh"
-#include "Inflator.hh"
+#include <optimizers/IterateBase.hh>
+#include <inflators/Inflator.hh>
 
-#include <Future.hh>
+#include <MeshFEM/Future.hh>
 
 using namespace PatternOptimization;
 using namespace std;

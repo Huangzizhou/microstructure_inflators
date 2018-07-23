@@ -4,7 +4,7 @@
 #include "../ObjectiveTerm.hh"
 #include "../IterateFactory.hh"
 #include <MeshFEM/OneForm.hh>
-#include <SDConversions.hh>
+#include <pattern_optimization/SDConversions.hh>
 
 namespace PatternOptimization {
     namespace ObjectiveTerms {
