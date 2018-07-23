@@ -10,7 +10,7 @@
 //  Company:  New York University
 //  Created:  2/12/18
 ////////////////////////////////////////////////////////////////////////////////
-#include <MeshIO.hh>
+#include <MeshFEM/MeshIO.hh>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 #include "ParametersMask.h"

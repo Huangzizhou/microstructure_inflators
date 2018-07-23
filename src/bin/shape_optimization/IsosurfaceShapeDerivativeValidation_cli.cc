@@ -9,8 +9,8 @@
 //  Company:  New York University
 //  Created:  1/13/18
 ////////////////////////////////////////////////////////////////////////////////
-#include <MeshIO.hh>
-#include <LinearElasticity.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/LinearElasticity.hh>
 
 #include <set>
 
@@ -20,19 +20,19 @@
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
 
-#include <Inflator.hh>
-#include <MakeInflator.hh>
-#include <PatternOptimizationJob.hh>
+#include <inflators/Inflator.hh>
+#include <inflators/MakeInflator.hh>
+#include <pattern_optimization/PatternOptimizationJob.hh>
 
-#include <IterateFactory.hh>
-#include <IterateManager.hh>
+#include <pattern_optimization/IterateFactory.hh>
+#include <pattern_optimization/IterateManager.hh>
 
 #include "ShapeOptimizationIterate.hh"
 
 #include "StressObjectiveTerm.hh"
 #include "ParametersMask.h"
-#include "inflators/ConstrainedIsoinflator.hh"
-#include "../pattern_optimization/ShapeVelocityInterpolator.hh"
+#include <inflators/wrappers/ConstrainedIsoinflator.hh>
+#include <isosurface_inflator/ShapeVelocityInterpolator.hh>
 
 namespace po = boost::program_options;
 using namespace std;
