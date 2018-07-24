@@ -18,14 +18,14 @@
 //  Company:  New York University
 //  Created:  03/15/2018
 ////////////////////////////////////////////////////////////////////////////////
-#include <MeshIO.hh>
-#include <LinearElasticity.hh>
-#include <objective_terms/TargetVolume.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/LinearElasticity.hh>
+#include <pattern_optimization/objective_terms/TargetVolume.hh>
 
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
-#include "../pattern_optimization/inflators/BoundaryPerturbationInflator.hh"
+#include <inflators/wrappers/BoundaryPerturbationInflator.hh>
 
 namespace po = boost::program_options;
 using namespace std;

@@ -20,11 +20,11 @@
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 
-#include <LinearElasticity.hh>
-#include <BoundaryConditions.hh>
-#include <Future.hh>
-#include <WireMesh.hh>
-#include <Symmetry.hh>
+#include <MeshFEM/LinearElasticity.hh>
+#include <MeshFEM/BoundaryConditions.hh>
+#include <MeshFEM/Future.hh>
+#include <isosurface_inflator/WireMesh.hh>
+#include <isosurface_inflator/Symmetry.hh>
 
 using namespace std;
 

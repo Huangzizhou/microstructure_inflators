@@ -17,8 +17,8 @@
 //  Company:  New York University
 //  Created:  1/9/18
 ////////////////////////////////////////////////////////////////////////////////
-#include <MeshIO.hh>
-#include <LinearElasticity.hh>
+#include <MeshFEM/MeshIO.hh>
+#include <MeshFEM/LinearElasticity.hh>
 
 #include <set>
 
@@ -28,26 +28,26 @@
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
 
-#include <Inflator.hh>
-#include <MakeInflator.hh>
-#include <PatternOptimizationJob.hh>
+#include <inflators/Inflator.hh>
+#include <inflators/MakeInflator.hh>
+#include <pattern_optimization/PatternOptimizationJob.hh>
 
-#include <BoundConstraints.hh>
-#include <IterateFactory.hh>
-#include <IterateManager.hh>
+#include <optimizers/BoundConstraints.hh>
+#include <pattern_optimization/IterateFactory.hh>
+#include <pattern_optimization/IterateManager.hh>
 
-#include <optimizers/ceres.hh>
-#include <optimizers/gradient_descent.hh>
-#include <optimizers/nlopt.hh>
+#include <optimizers/wrappers/ceres.hh>
+#include <optimizers/wrappers/gradient_descent.hh>
+#include <optimizers/wrappers/nlopt.hh>
 
 #include "ShapeOptimizationIterate.hh"
 
-#include <objective_terms/ProximityRegularization.hh>
-#include <objective_terms/TargetVolume.hh>
+#include <pattern_optimization/objective_terms/ProximityRegularization.hh>
+#include <pattern_optimization/objective_terms/TargetVolume.hh>
 #include "StressObjectiveTerm.hh"
 #include "ParametersMask.h"
 
-#include <constraints/Printability.hh>
+#include <pattern_optimization/constraints/Printability.hh>
 
 namespace po = boost::program_options;
 namespace PO = PatternOptimization;
