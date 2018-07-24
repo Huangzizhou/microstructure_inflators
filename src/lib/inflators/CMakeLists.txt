@@ -2,18 +2,28 @@
 # Source files
 ################################################################################
 
-add_library(inflators
+set(SOURCES
         MakeInflator.cc
-        wrappers/EqualityConstrainedInflator.cc
-        wrappers/IsoinflatorWrapper.cc
-        wrappers/JamesInflatorWrapper.cc
-        wrappers/LuigiInflatorWrapper.cc
+        Inflator.hh
+        MakeInflator.hh
         wrappers/BoundaryPerturbationInflator.cc
+        wrappers/BoundaryPerturbationInflator.hh
         wrappers/ConstrainedIsoinflator.cc
+        wrappers/ConstrainedIsoinflator.hh
+        wrappers/EqualityConstrainedInflator.cc
+        wrappers/EqualityConstrainedInflator.hh
         wrappers/HexaPillarsInflator.cc
+        wrappers/HexaPillarsInflator.hh
+        wrappers/IsoinflatorWrapper.cc
+        wrappers/IsoinflatorWrapper.hh
+        wrappers/JamesInflatorWrapper.cc
+        wrappers/JamesInflatorWrapper.hh
+        wrappers/LuigiInflatorWrapper.cc
+        wrappers/LuigiInflatorWrapper.hh
 )
 
-target_include_directories(inflators PUBLIC ..)
+add_library(inflators ${SOURCES})
+micro_copy_headers(inflators ${SOURCES})
 
 ################################################################################
 # Dependencies
@@ -21,6 +31,7 @@ target_include_directories(inflators PUBLIC ..)
 
 target_link_libraries(inflators
         MeshFEM
+        hex_inflator
         isosurface_inflator
         micro::pymesh
         micro::vcglib

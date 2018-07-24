@@ -15,14 +15,12 @@
 #include <MeshFEM/Functions.hh>
 #include <MeshFEM/BaseCellType.hh>
 #include <MeshFEM/Fields.hh>
-
-#include <vector>
+#include <isosurface_inflator/MeshingOptions.hh>
+#include <iomanip>
+#include <iostream>
 #include <stdexcept>
 #include <string>
-#include <iostream>
-#include <iomanip>
-
-#include "../isosurface_inflator/MeshingOptions.hh"
+#include <vector>
 
 // Meta parameters are for EqualityConstrainedInflator (custom types allow you to use the optimization with different inflators)
 enum class ParameterType { Thickness, Offset, Blending, Meta, Custom1, Custom2, Custom3, Custom4, Custom5, Custom6, Custom7, Custom8 };

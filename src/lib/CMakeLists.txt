@@ -1,3 +1,5 @@
+add_subdirectory(hex_inflator)
+# add_subdirectory(luigi_wire_inflator)
 add_subdirectory(isosurface_inflator)
 add_subdirectory(inflators)
 add_subdirectory(optimizers)

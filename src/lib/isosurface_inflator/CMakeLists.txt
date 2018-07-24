@@ -2,36 +2,36 @@
 # Source files
 ################################################################################
 
-add_library(isosurface_inflator
-        BoxIntersectionMesher.cc
-        IsosurfaceInflator.cc
-        MeshingOptions.cc
-        MidplaneMesher.cc
-        VCGSurfaceMesher.cc
-        IGLSurfaceMesherMC.cc
-        PostProcess.cc
-        rasterize.cc
-
+set(SOURCES
         AutomaticDifferentiation.hh
         BoxIntersection1DFeatures.hh
+        BoxIntersectionMesher.cc
         BoxIntersectionMesher.hh
         CGALClippedVolumeMesher.hh
         ConvexHullTriangulation.hh
         FuzzySign.hh
+        IGLSurfaceMesherMC.cc
         IGLSurfaceMesherMC.hh
         InflatorTypes.hh
         Isometries.hh
+        IsosurfaceInflator.cc
         IsosurfaceInflator.hh
         IsosurfaceInflatorConfig.hh
         IsosurfaceInflatorImpl.hh
         Joint.hh
         MesherBase.hh
+        MeshingOptions.cc
         MeshingOptions.hh
+        MidplaneMesher.cc
         MidplaneMesher.hh
         NodePositioners.hh
         PaperVisualizationSDFunc.hh
         PatternSignedDistance.hh
+        PostProcess.cc
         PostProcess.hh
+        rasterize.cc
+        rasterize.hh
+        ShapeVelocityInterpolator.hh
         SignedDistance.hh
         SignedDistanceRegion.hh
         SnapAndReflect.hh
@@ -41,19 +41,20 @@ add_library(isosurface_inflator
         Symmetry.hh
         TesselateSpheres.hh
         TriangleClosestPoint.hh
+        TriplyPeriodicMinimalShell.hh
+        VCGSurfaceMesher.cc
         VCGSurfaceMesher.hh
         WireMesh.hh
         WireMesh.inl
-        rasterize.hh
-        TriplyPeriodicMinimalShell.hh
 )
+
+add_library(isosurface_inflator ${SOURCES})
+micro_copy_headers(isosurface_inflator ${SOURCES})
 
 add_library(isosurface_inflator_cgal
         CGALClippedVolumeMesher.cc
         ConvexHullTriangulation.cc
 )
-
-target_include_directories(isosurface_inflator PUBLIC ..)
 
 ################################################################################
 # Dependencies

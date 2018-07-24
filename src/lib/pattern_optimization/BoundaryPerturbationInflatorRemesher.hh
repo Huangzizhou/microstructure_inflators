@@ -5,23 +5,24 @@
 //      Remeshes the mesh created by a BoundaryPerturbationInflator. In
 //      particular, short boundary segments are merged, and the interior is
 //      remeshed using triangle.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  12/28/2015 17:56:39
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef BOUNDARYPERTURBATIONINFLATORREMESHER_HH
 #define BOUNDARYPERTURBATIONINFLATORREMESHER_HH
+
+#include "PatternOptimizationConfig.hh"
+#include "BoundaryPerturbationInflator.hh"
+#include <MeshFEM/filters/CurveCleanup.hh>
+#include <MeshFEM/filters/extract_hole_boundaries.hh>
+#include <MeshFEM/Geometry.hh>
+#include <MeshFEM/Triangulate.h>
+#include <MeshFEM/utils.hh>
 #include <iostream>
 #include <vector>
 #include <queue>
-#include <MeshFEM/utils.hh>
-#include "PatternOptimizationConfig.hh"
-#include "BoundaryPerturbationInflator.hh"
-#include <MeshFEM/filters/extract_hole_boundaries.hh>
-#include <MeshFEM/filters/CurveCleanup.hh>
-#include <MeshFEM/Triangulate.h>
-#include <MeshFEM/Geometry.hh>
 
 template<size_t N>
 void remeshPerturbedShape(const BoundaryPerturbationInflator<N> &m,

@@ -13,16 +13,15 @@
 #ifndef BASECELLOPERATIONS_HH
 #define BASECELLOPERATIONS_HH
 
-#include <vector>
-#include <memory>
-#include <stdexcept>
+#include "SDConversions.hh"
+#include "SDConversionsOrthoCell.hh"
 #include <MeshFEM/Future.hh>
-
 #include <MeshFEM/PeriodicHomogenization.hh>
 #include <MeshFEM/BaseCellType.hh>
 #include <MeshFEM/OrthotropicHomogenization.hh>
-#include "SDConversions.hh"
-#include "SDConversionsOrthoCell.hh"
+#include <vector>
+#include <memory>
+#include <stdexcept>
 
 template<class _Sim>
 class BaseCellOperations {

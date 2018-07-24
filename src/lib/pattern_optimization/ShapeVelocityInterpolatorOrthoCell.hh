@@ -23,12 +23,11 @@
 #define SHAPEVELOCITYINTERPOLATORORTHOCELL_HH
 
 #include <MeshFEM/Laplacian.hh>
-#include <limits>
-
 #include <MeshFEM/EdgeFields.hh>
 #include <MeshFEM/OneForm.hh>
 #include <MeshFEM/LinearIndexer.hh>
 #include <MeshFEM/PeriodicBoundaryMatcher.hh>
+#include <limits>
 
 template<size_t N>
 class ShapeVelocityInterpolatorOrthoCell {
@@ -132,7 +131,7 @@ public:
             std::unique_ptr<SPSDSystem<Real>> Lsys;
             std::vector<size_t> fixedVars;
             std::tie(Lsys, fixedVars) = m_buildSystem(c, sim);
-            
+
             // All fixed vars in the forward interpolation system are fixed to
             // zero in the adjoint system (then Lsys.solve() will actually apply
             // C^T L_ii^{-1} C)

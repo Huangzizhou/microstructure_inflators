@@ -16,10 +16,8 @@
 
 #include "SDConversions.hh"
 #include "ShapeVelocityInterpolatorOrthoCell.hh"
-
 #include <MeshFEM/OrthotropicHomogenization.hh>
 #include <MeshFEM/MassMatrix.hh>
-
 #include <stdexcept>
 
 namespace SDConversionsOrthoCell {
@@ -52,7 +50,7 @@ OneForm<T, _Sim::N> diff_bdry_from_diff_vol(
     ShapeVelocityInterpolatorOrthoCell<_Sim::N> interpolator(sim);
     return interpolator.adjoint(sim, diff_vol);
 }
-    
+
 // Compute the steepest descent boundary velocity field from a one-form on the
 // boundary:
 //      min      diff_bdry[vb]
@@ -125,7 +123,7 @@ typename _Sim::VField descent_from_diff_bdry(
         for (auto bv : mesh.boundaryVertices())
             result(bv.index())[c] = -x.at(bv.index());
     }
-    
+
     // Normalize:
     //  min_{||d||_M = 1}  g^T d ==> lambda d = -M^-1 g
     //  ||lambda d||_M = 1 ==> lambda^2 d^T M D = 1
@@ -135,7 +133,7 @@ typename _Sim::VField descent_from_diff_bdry(
     return result;
 }
 
-// Compute the steepest descent volume velocity field from a 
+// Compute the steepest descent volume velocity field from a
 // one-form in the volume.
 template<class _Sim>
 typename _Sim::VField descent_from_diff_vol(

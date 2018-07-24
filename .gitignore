@@ -6,3 +6,4 @@ cmake-build-*
 /3rdparty/.cache
 /3rdparty/ceres
 /3rdparty/cgal
+/3rdparty/tbb
