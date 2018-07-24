@@ -19,6 +19,7 @@ set(SOURCES
 		objective_terms/IsotropicFit.hh
 		objective_terms/IsotropicFitRel.hh
 		objective_terms/ProximityRegularization.hh
+		objective_terms/TargetVolume.hh
 		objective_terms/TensorFit.hh
 		constraints/Printability.hh
 		constraints/TensorFit.hh

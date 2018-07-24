@@ -217,9 +217,9 @@ public:
         // Extracted stitched graph from the replicated graph by averaging
         // merged vertices' values.
         stitchedEdges = m_stitchedEdges;
-        stitchedPoints.clear(), stitchedThicknesses.clear(), stitchedBlendingParams.clear();
+        stitchedPoints.clear(); stitchedThicknesses.clear(); stitchedBlendingParams.clear();
         const size_t nsv = m_stitchedVertices.size();
-        stitchedPoints.reserve(nsv), stitchedThicknesses.reserve(nsv), stitchedBlendingParams.reserve(nsv);
+        stitchedPoints.reserve(nsv); stitchedThicknesses.reserve(nsv); stitchedBlendingParams.reserve(nsv);
         for (const auto &sv : m_stitchedVertices) {
             // Take mean of location, thickness, and blending of all vertices
             // merged into this stitched output vertex.
