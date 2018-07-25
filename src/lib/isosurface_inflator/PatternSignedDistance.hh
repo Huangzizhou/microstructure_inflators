@@ -60,8 +60,10 @@ public:
                        const Eigen::Matrix<Real,3,3> &jacobian,
                        JointBlendMode blendMode = JointBlendMode::HULL) {
         // Clear all existing state.
-        m_edgeGeometry.clear(), m_jointForVertex.clear(),
-        m_vertexSmoothness.clear(), m_incidentEdges.clear();
+        m_edgeGeometry.clear();
+        m_jointForVertex.clear();
+        m_vertexSmoothness.clear();
+        m_incidentEdges.clear();
 
         std::vector<Real> thicknesses;
         std::vector<Point3<Real>> points;
@@ -75,8 +77,8 @@ public:
         // Vector of edge geometry uses same index as edges
         for (const auto &e : m_edges) {
             m_edgeGeometry.emplace_back(
-                    points[e.first],      points[e.second],
-                    thicknesses[e.first], thicknesses[e.second]);
+                points[e.first],      points[e.second],
+                thicknesses[e.first], thicknesses[e.second]);
         }
 
         m_incidentEdges.resize(points.size());
@@ -526,7 +528,7 @@ public:
     // Debug smoothing modulation field/smoothing amount
     template<typename Real2>
     std::pair<Real2, size_t> smoothnessAndClosestVtx(Point3<Real2> p) const {
-        p = WMesh::PatternSymmetry::mapToBaseUnit(p);
+        p = m_jacobian * WMesh::PatternSymmetry::mapToBaseUnit(p);
         std::vector<Real2> edgeDists;
         edgeDists.reserve(m_edgeGeometry.size());
         for (size_t i = 0; i < m_edgeGeometry.size(); ++i)

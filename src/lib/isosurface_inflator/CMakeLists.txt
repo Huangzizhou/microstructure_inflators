@@ -44,6 +44,8 @@ set(SOURCES
         TriplyPeriodicMinimalShell.hh
         VCGSurfaceMesher.cc
         VCGSurfaceMesher.hh
+        WireQuadMesh.cc
+        WireQuadMesh.hh
         WireMesh.hh
         WireMesh.inl
 )
