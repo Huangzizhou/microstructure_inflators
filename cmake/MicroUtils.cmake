@@ -21,15 +21,21 @@ function(micro_copy_headers target)
 		set(TARGET_SCOPE PUBLIC)
 	endif()
 
-	# Copy header files
-	foreach(filepath IN ITEMS ${ARGN})
-		set(filename "${filepath}")
-		# get_filename_component(filename "${filepath}" NAME)
-		if(${filename} MATCHES ".*\.(hh|h|inl)$")
-			configure_file(${filepath} ${PROJECT_BINARY_DIR}/include/${TARGET_NAME}/${TARGET_NAME}/${filename})
-		endif()
-	endforeach()
+	if(MICRO_COPY_HEADERS)
+		# Copy header files
+		foreach(filepath IN ITEMS ${ARGN})
+			set(filename "${filepath}")
+			# get_filename_component(filename "${filepath}" NAME)
+			if(${filename} MATCHES ".*\.(hh|h|inl)$")
+				configure_file(${filepath} ${PROJECT_BINARY_DIR}/include/${TARGET_NAME}/${TARGET_NAME}/${filename})
+			endif()
+		endforeach()
 
-	# Set target include directory
-	target_include_directories(${target} ${TARGET_SCOPE} ${PROJECT_BINARY_DIR}/include/${TARGET_NAME})
+		# Set target include directory
+		target_include_directories(${target} ${TARGET_SCOPE} ${PROJECT_BINARY_DIR}/include/${TARGET_NAME})
+	else()
+		# Set target include directory
+		target_include_directories(${target} ${TARGET_SCOPE} ..)
+	endif()
+
 endfunction()

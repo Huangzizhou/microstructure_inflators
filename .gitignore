@@ -1,8 +1,11 @@
+# Extra directories
+.vscode/
 .idea/
-
 build/
-cmake-build-*
+cmake-build-*/
+data
 
+# Dependencies
 /3rdparty/.cache
 /3rdparty/ceres
 /3rdparty/cgal
