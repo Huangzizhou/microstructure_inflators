@@ -13,6 +13,8 @@
 class WireQuadMesh {
 public:
     using PatternSymmetry = Symmetry::Null<>;
+    using WireMeshBasePtr = std::shared_ptr<WireMeshBase>;
+
     using Point = WireMeshBase::Point; // Point3<double>;
     using Edge  = WireMeshBase::Edge; // std::pair<size_t, size_t>
 
@@ -52,7 +54,12 @@ public:
         std::vector<double> &stitchedBlendingParams) const;
 
 private:
-    nlohmann::json m_allParams;
+    Eigen::MatrixXd m_V;
+    Eigen::MatrixXi m_F;
+
+    std::vector<WireMeshBasePtr> m_allTopologies;
+    std::vector<std::vector<double>> m_allParameters;
+
     size_t m_numParams = 0;
     ThicknessType m_thicknessType;
 };

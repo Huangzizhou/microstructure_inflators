@@ -50,6 +50,7 @@ endif()
 
 # CLI11 library
 if(NOT TARGET CLI11::CLI11)
+    micro_download_cli11()
     add_subdirectory(${MICRO_EXTERNAL}/CLI11)
 endif()
 
@@ -70,6 +71,13 @@ if(NOT TARGET micro::accelerate)
     else()
         add_library(micro::accelerate INTERFACE IMPORTED)
     endif()
+endif()
+
+# Catch2
+if(NOT TARGET Catch2::Catch2)
+    micro_download_catch()
+    add_subdirectory(${MICRO_EXTERNAL}/Catch2)
+    list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/Catch2/contrib)
 endif()
 
 ################################################################################
@@ -151,6 +159,7 @@ endif()
 
 # NLopt library
 if(NOT TARGET micro::nlopt)
+    micro_download_nlopt()
     find_package(NLopt QUIET)
     if(NLOPT_FOUND)
         add_library(micro_nlopt INTERFACE)

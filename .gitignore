@@ -7,6 +7,9 @@ data
 
 # Dependencies
 /3rdparty/.cache
+/3rdparty/Catch2
 /3rdparty/ceres
 /3rdparty/cgal
+/3rdparty/CLI11
+/3rdparty/nlopt
 /3rdparty/tbb

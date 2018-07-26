@@ -93,3 +93,4 @@ include(MicroDependencies)
 
 add_subdirectory(src/lib/)
 add_subdirectory(src/bin/)
+add_subdirectory(tests)
