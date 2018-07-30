@@ -91,7 +91,7 @@ int main(int argc, const char *argv[]) {
     app.add_option("-e,--elasticityTensor", args.elasticityTensor, "target tensor specifier (Young,Poisson)")->expected(2);
     app.add_option("-p,--initialParams", args.initialParams, "initial parameters (optional)");
     app.add_option("-c,--parameterConstraints", args.parameterConstraints, "parameter constraint expressions (semicolon-separated, optional)");
-    app.add_set("--symmetry", args.symmetry,
+    app.add_set("-s,--symmetry", args.symmetry,
         { "cubic", "orthotropic", "diagonal", "square", "triply_periodic", "doubly_periodic", "non_periodic", },
         "symmetries to enforce (orthotropic (default), cubic, square, diagonal, triply_periodic, doubly_periodic)");
     app.add_flag("-L,--limitedOffset", args.limitedOffset, "Limit offset of nodes to within the base unit (0, 1)");
@@ -139,8 +139,8 @@ int main(int argc, const char *argv[]) {
                 double lowerBound;
                 double upperBound;
                 if (args.limitedOffset) {
-                    lowerBound =  (defaultPositions[p] + offsetBds[0]) > 0 ? (defaultPositions[p] + offsetBds[0]) : 0;
-                    upperBound =  (defaultPositions[p] + offsetBds[1]) < 1 ? (defaultPositions[p] + offsetBds[1]) : 1;
+                    lowerBound = (defaultPositions[p] + offsetBds[0]) > 0 ? (defaultPositions[p] + offsetBds[0]) : 0;
+                    upperBound = (defaultPositions[p] + offsetBds[1]) < 1 ? (defaultPositions[p] + offsetBds[1]) : 1;
                 } else {
                     lowerBound = defaultPositions[p] + offsetBds[0];
                     upperBound = defaultPositions[p] + offsetBds[1];

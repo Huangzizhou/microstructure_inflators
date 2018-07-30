@@ -7,10 +7,7 @@
 #include <MeshFEM/GlobalBenchmark.hh>
 #include <MeshFEM/Parallelism.hh>
 #include <CLI/CLI.hpp>
-#include <json.hpp>
 #include <iostream>
-
-using json = nlohmann::json;
 
 ////////////////////////////////////////////////////////////////////////////////
 

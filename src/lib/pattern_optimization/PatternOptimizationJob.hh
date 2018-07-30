@@ -28,28 +28,23 @@
 #include <MeshFEM/Materials.hh>
 #include <inflators/Inflator.hh>
 #include <boost/optional.hpp>
-#include <vector>
-#include <map>
-#include <memory>
-#include <string>
-#include <stdexcept>
+#include <nlohmann/json.hpp>
 #include <fstream>
 #include <iomanip>
+#include <map>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace PatternOptimization  {
+
 class JobBase {
+
 public:
     virtual ~JobBase() { }
 
-    size_t numParams() const {
-        if (paramsMask.empty()) {
-            return initialParams.size();
-        }
-        else {
-            assert(paramsMask.size() == initialParams.size());
-            return std::count(paramsMask.begin(), paramsMask.begin()+paramsMask.size(), false);
-        }
-    }
+    size_t numParams() const;
 
     // Verifies that the correct number of parameters were specified in the job
     // (must match inflator). For non-parametric inflators (like the
@@ -57,66 +52,13 @@ public:
     // tolerated with a warning, in which case the initial parameters are taken
     // to be all zero.
     // Returns the (possibly modified) initial parameters
-    std::vector<Real> validatedInitialParams(const InflatorBase &inflator) const {
-        std::vector<Real> params(initialParams);
-        // Set params to the default if they're omitted in the job file
-        size_t np;
-        if (numParams() == 0) {
-            params = inflator.defaultParameters();
-            np = params.size();
-        }
-        else {
-            np = numParams();
-        }
-        //const size_t np = params.size();
-        // Allow non-parametric inflator to ignore initialParams (if size mismatch)
-        if (!inflator.isParametric()) {
-            if (np != inflator.numParameters()) {
-                std::cerr << "WARNING: ignoring incorrectly-sized initial parameters for non-parametric inflator." << std::endl;
-                params.assign(inflator.numParameters(), 0.0);
-            }
-            return params;
-        }
-        if (np != inflator.numParameters()) {
-            for (size_t i = 0; i < inflator.numParameters(); ++i)
-                std::cerr << "param " << i
-                          << " role: " << parameterTypeString(inflator.parameterType(i))
-                          << std::endl;
-            std::cerr <<  "Inflator was expecting " << inflator.numParameters() << " parameters, but input contained only "
-                      << np << " values" << std::endl;
-            throw std::runtime_error("Invalid number of parameters.");
-        }
+    std::vector<Real> validatedInitialParams(const InflatorBase &inflator) const;
 
-        for (const auto &boundEntry : varLowerBounds) {
-            if (boundEntry.first > params.size())
-                std::cerr << "WARNING: bound on nonexistent variable" << std::endl;
-        }
-
-        for (size_t p = 0; p < params.size(); ++p) {
-            if (varLowerBounds.count(p)) {
-                if (params[p] < varLowerBounds.at(p)) {
-                    std::cerr << "WARNING: param " << p << " clamped to lower bound." << std::endl;
-                    params[p] = varLowerBounds.at(p);
-                }
-                if (params[p] > varUpperBounds.at(p)) {
-                    std::cerr << "WARNING: param " << p << " clamped to upper bound." << std::endl;
-                    params[p] = varUpperBounds.at(p);
-                }
-            }
-        }
-
-        return params;
-    }
-
-    void writeJobFile(const std::string &jobFile) const {
-        std::ofstream os(jobFile);
-        if (!os.is_open())
-            throw std::runtime_error("Couldn't open output job file " + jobFile);
-        writeJobFile(os);
-    }
+    void writeJobFile(const std::string &jobFile) const;
 
     virtual void writeJobFile(std::ostream &os) const = 0;
 
+public:
     std::vector<Real> initialParams, radiusBounds, translationBounds;
     std::vector<bool> paramsMask;
     std::vector<std::string> metaParams;
@@ -139,94 +81,22 @@ public:
     size_t numberCustomTypes = 0;
 };
 
+// -----------------------------------------------------------------------------
+
 template<size_t _N>
 class Job : public JobBase {
 public:
-    virtual void writeJobFile(std::ostream &os) const {
-        os << std::setprecision(19);
-        os << "{" << std::endl
-           << "\t\"dim\": " << _N << "," << std::endl
-           << "\t\"target\": " << targetMaterial << "," << std::endl;
-        if (targetVolume)
-            os << "\t\"targetVolume\": " << *targetVolume << "," << std::endl;
-        if (initialParams.size()) {
-            os << "\t\"initial_params\": [";
-            for (size_t i = 0; i < initialParams.size(); ++i)
-                os << (i ? ", " : "") << std::setprecision(10) << initialParams[i];
-            os << "]," << std::endl;
-        }
-        if (paramsMask.size()) {
-            os << "\t\"paramsMask\": [";
-            for (size_t i = 0; i < paramsMask.size(); ++i)
-                os << (i ? ", " : "") << paramsMask[i];
-            os << "]," << std::endl;
-        }
+    virtual ~Job() = default;
 
-        if (trueParams.size() == initialParams.size()) {
-            os << "\t\"# true_params\": [";
-            for (size_t i = 0; i < trueParams.size(); ++i)
-                os << (i ? ", " : "") << trueParams[i];
-            os << "]," << std::endl;
-        }
-
-        if (parameterConstraints.size()) {
-            os << "\t\"paramConstraints\": [";
-            bool first = true;
-            for (const std::string &pc : parameterConstraints) {
-                if (!first) os << ",";
-                first = false;
-                os << std::endl << "\t\t\"" << pc << "\"";
-            }
-            os << "\t]," << std::endl;
-        }
-
-        if (varLowerBounds.size() + varUpperBounds.size()) {
-            os << "\t\"bounds\": [";
-            bool first = true;
-            for (size_t p = 0; p < initialParams.size(); ++p) {
-                if (varLowerBounds.count(p) + varUpperBounds.count(p) == 0)
-                    continue;
-                if (!first) os << ",";
-                first = false;
-                os << std::endl << "\t\t{\"var\": " << p;
-                if (varLowerBounds.count(p)) os << ", \"lower\": " << varLowerBounds.at(p);
-                if (varUpperBounds.count(p)) os << ", \"upper\": " << varUpperBounds.at(p);
-                os << "}";
-            }
-            os << std::endl << "\t]," << std::endl;
-        }
-
-        if (numberCustomTypes > 0)
-            os << "\t\"custom1Bounds\": [" << custom1Bounds[0] << ", " << custom1Bounds[1] << "]," << std::endl;
-        if (numberCustomTypes > 1)
-            os << "\t\"custom2Bounds\": [" << custom2Bounds[0] << ", " << custom2Bounds[1] << "]," << std::endl;
-        if (numberCustomTypes > 2)
-            os << "\t\"custom3Bounds\": [" << custom3Bounds[0] << ", " << custom3Bounds[1] << "]," << std::endl;
-        if (numberCustomTypes > 3)
-            os << "\t\"custom4Bounds\": [" << custom4Bounds[0] << ", " << custom4Bounds[1] << "]," << std::endl;
-        if (numberCustomTypes > 4)
-            os << "\t\"custom5Bounds\": [" << custom5Bounds[0] << ", " << custom5Bounds[1] << "]," << std::endl;
-        if (numberCustomTypes > 5)
-            os << "\t\"custom6Bounds\": [" << custom6Bounds[0] << ", " << custom6Bounds[1] << "]," << std::endl;
-        if (numberCustomTypes > 6)
-            os << "\t\"custom7Bounds\": [" << custom7Bounds[0] << ", " << custom7Bounds[1] << "]," << std::endl;
-        if (numberCustomTypes > 7)
-            os << "\t\"custom8Bounds\": [" << custom8Bounds[0] << ", " << custom8Bounds[1] << "]," << std::endl;
-
-        os << "\t\"radiusBounds\": [" << radiusBounds[0] << ", " << radiusBounds[1] << "]," << std::endl
-           << "\t\"translationBounds\": [" << translationBounds[0] << ", " << translationBounds[1] << "]," << std::endl
-           << "\t\"blendingBounds\": [" << blendingBounds[0] << ", " << blendingBounds[1] << "]" << std::endl;
-
-        os << "}" << std::endl;
-    }
-
-    virtual ~Job() { }
+    virtual void writeJobFile(std::ostream &os) const;
 
     Materials::Constant<_N> targetMaterial;
 };
 
+// -----------------------------------------------------------------------------
+
 std::unique_ptr<JobBase> parseJobFile(const std::string &jobFile);
 
-}
+} // namespace PatternOptimization
 
 #endif /* end of include guard: PATTERNOPTIMIZATIONJOB_HH */
