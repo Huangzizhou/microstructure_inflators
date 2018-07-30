@@ -173,7 +173,6 @@ int main(int argc, const char *argv[]) {
         job->writeJobFile(std::cout);
     };
 
-
     const auto sym = args.symmetry;
     if      (sym == "cubic"          ) { writeJob(WireMesh<Symmetry::Cubic<>>         (vertices, elements)); }
     else if (sym == "orthotropic"    ) { writeJob(WireMesh<Symmetry::Orthotropic<>>   (vertices, elements)); }

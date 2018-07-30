@@ -63,6 +63,13 @@ void parseVector(const ptree &pt, vector<bool> &v) {
     }
 }
 
+template<typename T>
+void read_vector_if_present(const nlohmann::json &entry, const std::string &key, std::vector<T> &x) {
+    if (entry.count(key)) {
+        x = entry[key].get<std::vector<T>>();
+    }
+}
+
 } // anonymous namespace
 
 // -----------------------------------------------------------------------------
@@ -76,6 +83,8 @@ size_t JobBase::numParams() const {
         return std::count(paramsMask.begin(), paramsMask.begin()+paramsMask.size(), false);
     }
 }
+
+// -----------------------------------------------------------------------------
 
 // Verifies that the correct number of parameters were specified in the job
 // (must match inflator). For non-parametric inflators (like the
@@ -134,10 +143,13 @@ std::vector<Real> JobBase::validatedInitialParams(const InflatorBase &inflator) 
     return params;
 }
 
+// -----------------------------------------------------------------------------
+
 void JobBase::writeJobFile(const std::string &jobFile) const {
     std::ofstream os(jobFile);
-    if (!os.is_open())
+    if (!os.is_open()) {
         throw std::runtime_error("Couldn't open output job file " + jobFile);
+    }
     writeJobFile(os);
 }
 
@@ -146,6 +158,10 @@ void JobBase::writeJobFile(const std::string &jobFile) const {
 template<size_t _N>
 void Job<_N>::writeJobFile(std::ostream &os) const {
     os << std::setprecision(19);
+    os << getJson().dump(4) << std::endl;
+    return;
+
+#if 0
     os << "{" << std::endl
        << "\t\"dim\": " << _N << "," << std::endl
        << "\t\"target\": " << targetMaterial << "," << std::endl;
@@ -220,14 +236,70 @@ void Job<_N>::writeJobFile(std::ostream &os) const {
        << "\t\"blendingBounds\": [" << blendingBounds[0] << ", " << blendingBounds[1] << "]" << std::endl;
 
     os << "}" << std::endl;
+#endif
+}
+
+template<size_t _N>
+nlohmann::json Job<_N>::getJson() const {
+    using json = nlohmann::json;
+
+    json job;
+
+    job["dim"] = _N;
+    job["target"] = targetMaterial.getJson();
+    if (targetVolume) {
+        job["targetVolume"] = targetVolume.value();
+    }
+    if (initialParams.size()) {
+        job["initial_params"] = initialParams;
+    }
+    if (paramsMask.size()) {
+        job["paramsMask"] = paramsMask;
+    }
+    if (trueParams.size() == initialParams.size()) {
+        job["true_params"] = trueParams;
+    }
+    if (parameterConstraints.size()) {
+        job["paramConstraints"] = parameterConstraints;
+    }
+    if (varLowerBounds.size() + varUpperBounds.size()) {
+        job["bounds"] = json::array();
+        for (size_t p = 0; p < initialParams.size(); ++p) {
+            if (varLowerBounds.count(p) + varUpperBounds.count(p) == 0) {
+                continue;
+            }
+            json entry = {
+                {"var", p},
+                {"lower", varLowerBounds.at(p)},
+                {"upper", varUpperBounds.at(p)}
+            };
+            job["bounds"].push_back(entry);
+        }
+    }
+
+    if (numberCustomTypes > 0) { job["custom1Bounds"] = custom1Bounds; }
+    if (numberCustomTypes > 1) { job["custom2Bounds"] = custom2Bounds; }
+    if (numberCustomTypes > 2) { job["custom3Bounds"] = custom3Bounds; }
+    if (numberCustomTypes > 3) { job["custom4Bounds"] = custom4Bounds; }
+    if (numberCustomTypes > 4) { job["custom5Bounds"] = custom5Bounds; }
+    if (numberCustomTypes > 5) { job["custom6Bounds"] = custom6Bounds; }
+    if (numberCustomTypes > 6) { job["custom7Bounds"] = custom7Bounds; }
+    if (numberCustomTypes > 7) { job["custom8Bounds"] = custom8Bounds; }
+
+    job["radiusBounds"] = radiusBounds;
+    job["translationBounds"] = translationBounds;
+    job["blendingBounds"] = blendingBounds;
+
+    return job;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     ifstream is(jobFile);
-    if (!is.is_open())
+    if (!is.is_open()) {
         throw runtime_error("Couldn't open job file " + jobFile);
+    }
     ptree pt;
     read_json(is, pt);
 
@@ -314,6 +386,63 @@ std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     }
 
     job->targetVolume = pt.get_optional<double>("targetVolume");
+
+    return job;
+}
+
+std::unique_ptr<JobBase> jobFromJson(const nlohmann::json &entry) {
+    size_t dim = entry["dim"];
+    auto materialSpec = entry["target"];
+
+    std::unique_ptr<JobBase> job;
+    if (dim == 2) {
+        auto job2D = Future::make_unique<Job<2>>();
+        job2D->targetMaterial.setFromJson(materialSpec);
+        job = std::move(job2D);
+    } else if (dim == 3) {
+        auto job3D = Future::make_unique<Job<3>>();
+        job3D->targetMaterial.setFromJson(materialSpec);
+        job = std::move(job3D);
+    } else {
+        throw runtime_error("Invalid dimension.");
+    }
+
+    if (entry.count("initial_params")) {
+        job->initialParams = entry["initial_params"].get<std::vector<Real>>();
+    }
+
+    job->radiusBounds = entry["radiusBounds"].get<std::vector<Real>>();;
+    job->translationBounds = entry["translationBounds"].get<std::vector<Real>>();;
+
+    read_vector_if_present(entry, "paramsMask", job->paramsMask);
+    read_vector_if_present(entry, "blendingBounds", job->blendingBounds);
+    read_vector_if_present(entry, "metaBounds", job->metaBounds);
+    read_vector_if_present(entry, "custom1Bounds", job->custom1Bounds);
+    read_vector_if_present(entry, "custom2Bounds", job->custom2Bounds);
+    read_vector_if_present(entry, "custom3Bounds", job->custom3Bounds);
+    read_vector_if_present(entry, "custom4Bounds", job->custom4Bounds);
+    read_vector_if_present(entry, "custom5Bounds", job->custom5Bounds);
+    read_vector_if_present(entry, "custom6Bounds", job->custom6Bounds);
+    read_vector_if_present(entry, "custom7Bounds", job->custom7Bounds);
+    read_vector_if_present(entry, "custom8Bounds", job->custom8Bounds);
+    read_vector_if_present(entry, "paramConstraints", job->parameterConstraints);
+
+    // individual variable overriding radius/translation bounds
+    if (entry.count("bounds") !=  0) {
+        try {
+            for (const auto &bound : entry["bounds"]) {
+                size_t var = bound["var"];
+                job->varLowerBounds[var] = bound["lower"];
+                job->varUpperBounds[var] = bound["upper"];
+            }
+        } catch (...) {
+            throw std::runtime_error("Couldn't parse variable bounds.");
+        }
+    }
+
+    if (entry.count("targetVolume")) {
+        job->targetVolume = entry["targetVolume"].get<Real>();
+    }
 
     return job;
 }

@@ -54,6 +54,9 @@ public:
     // Returns the (possibly modified) initial parameters
     std::vector<Real> validatedInitialParams(const InflatorBase &inflator) const;
 
+    // Export job file as a json dictionary
+    virtual nlohmann::json getJson() const = 0;
+
     void writeJobFile(const std::string &jobFile) const;
 
     virtual void writeJobFile(std::ostream &os) const = 0;
@@ -88,7 +91,10 @@ class Job : public JobBase {
 public:
     virtual ~Job() = default;
 
-    virtual void writeJobFile(std::ostream &os) const;
+    // Export job file as a json dictionary
+    virtual nlohmann::json getJson() const override;
+
+    virtual void writeJobFile(std::ostream &os) const override;
 
     Materials::Constant<_N> targetMaterial;
 };
@@ -96,6 +102,8 @@ public:
 // -----------------------------------------------------------------------------
 
 std::unique_ptr<JobBase> parseJobFile(const std::string &jobFile);
+
+std::unique_ptr<JobBase> jobFromJson(const nlohmann::json &job);
 
 } // namespace PatternOptimization
 
