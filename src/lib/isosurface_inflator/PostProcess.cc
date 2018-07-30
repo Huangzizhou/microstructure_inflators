@@ -65,7 +65,7 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
             BBox<Point> meshBB(vertices);
             BBox<Pt> cellND(truncateFrom3D<Pt>(meshBB.minCorner), truncateFrom3D<Pt>(meshBB.maxCorner));
 
-            auto pts = apply(vertices, [](const MeshIO::IOVertex &v) { return truncateFrom3D<Pt>(v.point); });
+            auto pts = MeshFEM::apply(vertices, [](const MeshIO::IOVertex &v) { return truncateFrom3D<Pt>(v.point); });
             std::vector<PeriodicBoundaryMatcher::FaceMembership<N>> fm;
             PeriodicBoundaryMatcher::determineCellBoundaryFaceMembership<N>(pts, cellND, fm, 0 /* epsilon */);
             std::vector<std::vector<size_t>> nodeSets;

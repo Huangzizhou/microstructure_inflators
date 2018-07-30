@@ -169,7 +169,7 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
         }
     }
 
-    auto keepVtx = apply(vtxEdgeDist, [=](size_t dist) { return dist <= m_inflationNeighborhoodEdgeDist; });
+    auto keepVtx = MeshFEM::apply(vtxEdgeDist, [=](size_t dist) { return dist <= m_inflationNeighborhoodEdgeDist; });
 
     // Reindex kept vertices
     m_inflVtx.clear();

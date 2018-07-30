@@ -48,7 +48,7 @@ struct VisSDFunc : public SignedDistanceRegion<3> {
     Real signedDistance(const Point3<Real> &p) const override {
         if (renderEdge >= 0) return m_inflatedEdges.at(renderEdge).signedDistance(p);
         if (renderJoint >= 0) {
-            auto edgeDistances = apply(m_inflatedEdges, [&](const IEdge &e) { return e.signedDistance(p); });
+            auto edgeDistances = MeshFEM::apply(m_inflatedEdges, [&](const IEdge &e) { return e.signedDistance(p); });
             std::vector<double> jointEdgeDists;
             return m_psd.distToVtxJoint(renderJoint, p, edgeDistances, jointEdgeDists).smooth;
         }
@@ -62,7 +62,7 @@ struct VisSDFunc : public SignedDistanceRegion<3> {
             return m_customEdges.at(renderCustomEdge).signedDistance(p);
         }
 
-        auto sphereDistances = apply(m_spheres, [&](const Sphere &s) { return s.signedDistance(p); });
+        auto sphereDistances = MeshFEM::apply(m_spheres, [&](const Sphere &s) { return s.signedDistance(p); });
         return *std::min_element(sphereDistances.begin(), sphereDistances.end());
     }
 

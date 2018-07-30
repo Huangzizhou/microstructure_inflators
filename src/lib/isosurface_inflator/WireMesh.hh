@@ -156,7 +156,7 @@ public:
     void periodCellGraph(std::vector<Point> &points,
                          std::vector<Edge>  &edges) const {
         edges  = m_periodCellEdge;
-        points = apply(m_periodCellVtx, [](const TransformedVertex &tv) { return tv.pt; });
+        points = MeshFEM::apply(m_periodCellVtx, [](const TransformedVertex &tv) { return tv.pt; });
     }
 
     // Full period cell graph and associated thickness/blending params under
