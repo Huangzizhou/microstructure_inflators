@@ -248,7 +248,7 @@ nlohmann::json Job<_N>::getJson() const {
     job["dim"] = _N;
     job["target"] = targetMaterial.getJson();
     if (targetVolume) {
-        job["targetVolume"] = targetVolume.value();
+        job["targetVolume"] = *targetVolume;
     }
     if (initialParams.size()) {
         job["initial_params"] = initialParams;
