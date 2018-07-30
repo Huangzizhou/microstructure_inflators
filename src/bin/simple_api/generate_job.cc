@@ -36,11 +36,6 @@
 
 namespace {
 
-    template<typename T, size_t N>
-    std::vector<T> to_std_vector(std::array<T, N> x) {
-        return std::vector<T>(x.begin(), x.end());
-    }
-
     // Split a string into tokens
     std::vector<std::string> split_string(const std::string &str, const std::string &delimiters) {
         // Skip delimiters at beginning.
@@ -67,12 +62,12 @@ namespace {
 
 struct Args {
     std::string topology;
-    // std::optional<std::array<double, 2>> offsetBounds;
-    // std::optional<std::array<double, 2>> translationBounds;
+    std::vector<double> offsetBounds;
+    std::vector<double> translationBounds;
     double defaultThickness = 0.07;
-    std::array<double, 2> radiusBounds = { 0.04, 0.2 };
-    std::array<double, 2> blendingBounds = { 0.005, 0.2};
-    std::array<double, 2> elasticityTensor = { 1, 0 };
+    std::vector<double> radiusBounds = { 0.04, 0.2 };
+    std::vector<double> blendingBounds = { 0.005, 0.2};
+    std::vector<double> elasticityTensor = { 1, 0 };
     std::vector<double> initialParams;
     std::string parameterConstraints;
     std::string symmetry = "orthotropic";
@@ -82,19 +77,18 @@ struct Args {
 // -----------------------------------------------------------------------------
 
 int main(int argc, const char *argv[]) {
-    #if 0
     Args args;
 
     // Parse arguments
     CLI::App app{"homogenize"};
 
     app.add_option("topology", args.topology, "Topology (line mesh)")->required()->check(CLI::ExistingFile);
-    auto offset_opt = app.add_option("-o,--offsetBounds", args.offsetBounds, "offset bounds specifier (lower,upper)");
-    auto translation_opt = app.add_option("-t,--translationBounds", args.translationBounds, "translation bounds specifier (lower,upper)");
+    auto offset_opt = app.add_option("-o,--offsetBounds", args.offsetBounds, "offset bounds specifier (lower,upper)")->expected(2);
+    auto translation_opt = app.add_option("-t,--translationBounds", args.translationBounds, "translation bounds specifier (lower,upper)")->expected(2);
     app.add_option("--defaultThickness", args.defaultThickness, "default thickness");
-    app.add_option("-r,--radiusBounds", args.radiusBounds, "radius bounds specifier (lower,upper)");
-    app.add_option("-b,--blendingBounds", args.blendingBounds, "blending bounds specifier (lower,upper)");
-    app.add_option("-e,--elasticityTensor", args.elasticityTensor, "target tensor specifier (Young,Poisson)");
+    app.add_option("-r,--radiusBounds", args.radiusBounds, "radius bounds specifier (lower,upper)")->expected(2);
+    app.add_option("-b,--blendingBounds", args.blendingBounds, "blending bounds specifier (lower,upper)")->expected(2);
+    app.add_option("-e,--elasticityTensor", args.elasticityTensor, "target tensor specifier (Young,Poisson)")->expected(2);
     app.add_option("-p,--initialParams", args.initialParams, "initial parameters (optional)");
     app.add_option("-c,--parameterConstraints", args.parameterConstraints, "parameter constraint expressions (semicolon-separated, optional)");
     app.add_set("--symmetry", args.symmetry,
@@ -135,8 +129,8 @@ int main(int argc, const char *argv[]) {
             job = move(job3D);
         }
 
-        if (args.offsetBounds) {
-            auto offsetBds = args.offsetBounds.value();
+        if (!args.offsetBounds.empty()) {
+            auto offsetBds = args.offsetBounds;
             auto defaultPositions = wm.defaultPositionParams();
 
             for (size_t p = 0; p < defaultPositions.size(); ++p) {
@@ -154,19 +148,18 @@ int main(int argc, const char *argv[]) {
 
                 job->varLowerBounds.emplace(p, lowerBound);
                 job->varUpperBounds.emplace(p, upperBound);
-
             }
         }
 
         // Set translation bounds, which will be ignored by the optimizer if
         // offsetBounds introduced per-variable bounds above
         job->translationBounds = {0.1, 0.8};
-        if (args.translationBounds) {
-            job->translationBounds = to_std_vector(args.translationBounds.value());
+        if (!args.translationBounds.empty()) {
+            job->translationBounds = args.translationBounds;
         }
 
-        job->radiusBounds = to_std_vector(args.radiusBounds);
-        job->blendingBounds = to_std_vector(args.blendingBounds);
+        job->radiusBounds = args.radiusBounds;
+        job->blendingBounds = args.blendingBounds;
 
         if (!args.parameterConstraints.empty()) {
             job->parameterConstraints = split_string(args.parameterConstraints, ";");
@@ -190,6 +183,5 @@ int main(int argc, const char *argv[]) {
     else if (sym == "doubly_periodic") { writeJob(WireMesh<Symmetry::DoublyPeriodic<>>(vertices, elements)); }
     else if (sym == "non_periodic"   ) { writeJob(WireMesh<Symmetry::NonPeriodic<>>(vertices, elements)); }
     else throw std::runtime_error("Unknown symmetry type: " + sym);
-#endif
     return 0;
 }

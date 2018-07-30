@@ -41,15 +41,6 @@ struct Args {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// void usage(int status, const po::options_description &visible_opts) {
-//     cerr << "Usage: ./isosurface_cli mesher_name pattern [out.msh options]" << endl;
-//     cerr << "eg: ./isosurface_cli cubic pattern0746.wire \"0.25 0.5 0.25 0.25 0.5 0.25 0.25 0.25 0.25\" out.msh" << endl;
-//     cout << visible_opts << endl;
-//     exit(status);
-// }
-
-////////////////////////////////////////////////////////////////////////////////
-
 int main(int argc, char *argv[]) {
     Args args;
 
