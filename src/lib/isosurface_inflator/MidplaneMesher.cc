@@ -12,7 +12,7 @@
 
 #include <MeshFEM/Utilities/EdgeSoupAdaptor.hh>
 
-#include <boost/optional.hpp>
+#include <nonstd/optional.hpp>
 
 #define     DEBUG_OUT 0
 #define SDF_DEBUG_OUT 0
@@ -124,7 +124,7 @@ mesh(const SignedDistanceRegion<3>  &sdf,
         // Only remesh the cell boundary if we need to "meshInterfaceConsistently"
         // (i.e. prevent Triangle from inserting Steiner points). Otherwise,
         // we'll let Triangle subdivide the boundary optimally.
-        boost::optional<double> cellBdryEdgeLen;
+        nonstd::optional<double> cellBdryEdgeLen;
         if (this->meshInterfaceConsistently) cellBdryEdgeLen = meshingOptions.maxEdgeLenFromMaxArea() / 2;
 
         if (meshingOptions.curveSimplifier == MeshingOptions::COLLAPSE) {

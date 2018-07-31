@@ -9,7 +9,8 @@ set(MICRO_ROOT     "${CMAKE_CURRENT_LIST_DIR}/..")
 set(MICRO_EXTERNAL "${MICRO_ROOT}/3rdparty")
 
 # Download and update 3rdparty libraries
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
+list(REMOVE_DUPLICATES CMAKE_MODULE_PATH)
 include(MicroDownloadExternal)
 
 ################################################################################
@@ -74,7 +75,7 @@ if(NOT TARGET micro::accelerate)
 endif()
 
 # Catch2
-if(NOT TARGET Catch2::Catch2)
+if(NOT TARGET Catch2::Catch2 AND (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR))
     micro_download_catch()
     add_subdirectory(${MICRO_EXTERNAL}/Catch2)
     list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/Catch2/contrib)

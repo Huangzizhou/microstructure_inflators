@@ -44,4 +44,5 @@ script:
 - cd build
 - cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON ..
 - make -j2
+- make test
 - ccache --show-stats

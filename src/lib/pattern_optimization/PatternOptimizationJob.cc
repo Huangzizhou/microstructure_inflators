@@ -29,11 +29,7 @@
 #include <memory>
 #include <MeshFEM/Future.hh>
 
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
-
 using namespace std;
-using boost::property_tree::ptree;
 
 namespace PatternOptimization {
 
@@ -41,6 +37,7 @@ namespace PatternOptimization {
 
 namespace {
 
+#if 0
 void parseVector(const ptree &pt, vector<Real> &v) {
     v.clear();
     for (const auto &val : pt) {
@@ -62,6 +59,7 @@ void parseVector(const ptree &pt, vector<bool> &v) {
         }
     }
 }
+#endif
 
 template<typename T>
 void read_vector_if_present(const nlohmann::json &entry, const std::string &key, std::vector<T> &x) {
@@ -300,6 +298,12 @@ std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     if (!is.is_open()) {
         throw runtime_error("Couldn't open job file " + jobFile);
     }
+
+    nlohmann::json config;
+    is >> config;
+    return jobFromJson(config);
+
+#if 0
     ptree pt;
     read_json(is, pt);
 
@@ -388,6 +392,7 @@ std::unique_ptr<JobBase> parseJobFile(const string &jobFile) {
     job->targetVolume = pt.get_optional<double>("targetVolume");
 
     return job;
+#endif
 }
 
 std::unique_ptr<JobBase> jobFromJson(const nlohmann::json &entry) {

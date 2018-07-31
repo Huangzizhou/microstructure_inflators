@@ -27,7 +27,7 @@
 
 #include <MeshFEM/Materials.hh>
 #include <inflators/Inflator.hh>
-#include <boost/optional.hpp>
+#include <nonstd/optional.hpp>
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <iomanip>
@@ -80,7 +80,7 @@ public:
     std::vector<Real> trueParams;
     std::vector<std::string> parameterConstraints;
     std::map<size_t, Real> varLowerBounds, varUpperBounds;
-    boost::optional<Real> targetVolume;
+    nonstd::optional<Real> targetVolume;
     size_t numberCustomTypes = 0;
 };
 
