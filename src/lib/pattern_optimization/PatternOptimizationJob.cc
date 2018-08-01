@@ -473,7 +473,7 @@ std::unique_ptr<JobBase> jobFromWireMesh(const WireMesh &wm, const nlohmann::jso
     })"_json;
 
     // Override with user-specified args
-    args.merge_patch(new_args);
+    args.update(new_args);
 
     auto targetModuli = args["elasticityTensor"];
 
@@ -532,7 +532,7 @@ std::unique_ptr<JobBase> jobFromWireMesh(const WireMesh &wm, const nlohmann::jso
     }
 
     return job;
-};
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Explicit template specialization

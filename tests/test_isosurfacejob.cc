@@ -21,8 +21,8 @@ void test_pattern(const std::string &filename) {
     if ( (dim == 3 && std::is_same<SymmetryType, Symmetry::Diagonal<>>::value)
         || (dim == 3 && std::is_same<SymmetryType, Symmetry::DoublyPeriodic<>>::value))
     {
-        // - Diagonal symmetry not implemented in 3D
-        // - Doubly periodic is for 2D only
+        // * Diagonal symmetry not implemented in 3D
+        // * Doubly periodic is for 2D only
         return;
     }
 
@@ -52,9 +52,11 @@ void test_all_patterns(const std::vector<std::string> &patterns) {
     }
 }
 
-TEST_CASE("generate isosurface job", "[isosurfacejob]") {
+////////////////////////////////////////////////////////////////////////////////
 
-    std::vector<std::string> patterns = {
+TEST_CASE("generate_isosurface_job", "[isosurface_job]") {
+
+    const std::vector<std::string> patterns = {
         DATA_DIR "patterns/2D/topologies/0001.obj",
         DATA_DIR "patterns/3D/reference_wires/pattern0000.wire",
     };

@@ -39,3 +39,12 @@ isosurface_cli 2D_orthotropic $MICRO_DIR//patterns/2D/topologies/0098.obj --para
 ```
 
 If you already have a mesh of the orthotropic cell (possibly with associated scalar/vector fields), you can use `isosurface_inflator/replicate` to produce the full period cell mesh. But, apart from visualization/printing, the orthotropic cell mesh should suffice for most operations (as long as you pass the `-O` flag to `PeriodicHomogenization_cli`, `WCS_cli`, `ConstStrainDisplacement_cli`, etc).
+
+##### Q7: What is the difference between the options `reflectiveInflator` and `generateFullPeriodCell` in `IsosurfaceInflator`? Aren't they redundant?
+
+They’re not redundant, but perhaps they should be named better.
+
+- If `generateFullPeriodCell` and `reflectiveInflator` are true, then if the pattern has orthotropic symmetries, the positive quadrant/octant are meshed and then reflected to the full period cell.
+- If `generateFullPeriodCell` is true and `reflectiveInflator` is false, then the full period cell is meshed directly.
+- If `generateFullPeriodCell` is false and `reflectiveInflator` is true, then only the positive quadrant/octant mesh is returned.
+- Can’t remember what happens in the false/false case.

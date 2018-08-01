@@ -20,7 +20,7 @@
 #include "rasterize.hh"
 
 #include <MeshFEM/GlobalBenchmark.hh>
-#include <boost/algorithm/string.hpp>
+#include <MeshFEM/StringUtils.hh>
 
 #include <type_traits>
 
@@ -227,8 +227,7 @@ public:
         ScalarField<Real> indicator;
 
 
-        std::vector<std::string> sizeStrings;
-        boost::split(sizeStrings, resolutionString, boost::is_any_of(",x"));
+        std::vector<std::string> sizeStrings = MeshFEM::split(resolutionString, ",x");
         std::vector<size_t> sizes;
         for (auto &s : sizeStrings) sizes.push_back(std::stoul(s));
         ::rasterize(pattern, sizes, vertices, elements, indicator);

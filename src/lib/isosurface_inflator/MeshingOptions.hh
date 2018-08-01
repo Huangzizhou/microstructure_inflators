@@ -2,6 +2,7 @@
 #define MESHINGOPTIONS_HH
 
 #include "Joint.hh"
+#include <nlohmann/json.hpp>
 #include <string>
 #include <cmath>
 
@@ -9,6 +10,9 @@ struct MeshingOptions {
     MeshingOptions() { }
     MeshingOptions(const std::string &jsonPath) {
         load(jsonPath);
+    }
+    MeshingOptions(const nlohmann::json &config) {
+        load(config);
     }
 
     // Jacobian
@@ -95,6 +99,7 @@ struct MeshingOptions {
     bool forceConsistentInterfaceMesh = false;
 
     void load(const std::string &jsonPath);
+    void load(const nlohmann::json &config);
 
     // Set nonempty to dump shape velocity debugging fields upon inflation.
     std::string debugSVelPath;

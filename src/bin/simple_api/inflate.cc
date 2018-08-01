@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
             params.push_back(x);
         }
         std::cout << params.size() << std::endl;
-    } else if (args.paramsFile.size()) {
+    } else if (!args.paramsFile.empty()) {
         std::ifstream paramsFile(args.paramsFile, std::ifstream::in);
         if (paramsFile) {
             std::string line;
