@@ -23,11 +23,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "PatternOptimizationJob.hh"
+#include <isosurface_inflator/WireMesh.hh>
+#include <MeshFEM/Future.hh>
+#include <MeshFEM/StringUtils.hh>
 #include <stdexcept>
 #include <fstream>
 #include <string>
 #include <memory>
-#include <MeshFEM/Future.hh>
 
 using namespace std;
 
@@ -453,11 +455,99 @@ std::unique_ptr<JobBase> jobFromJson(const nlohmann::json &entry) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+template<typename WireMesh>
+std::unique_ptr<JobBase> jobFromWireMesh(const WireMesh &wm, const nlohmann::json &new_args) {
+    // Default args
+    nlohmann::json args = R"({
+        "dim": 2,
+        "offsetBounds": [],
+        "translationBounds": [],
+        "defaultThickness": 0.07,
+        "radiusBounds": [0.04, 0.2],
+        "blendingBounds": [0.005, 0.2],
+        "elasticityTensor": [1, 0],
+        "initialParams": [],
+        "parameterConstraints": "",
+        "limitedOffset": false
+    })"_json;
+
+    // Override with user-specified args
+    args.merge_patch(new_args);
+
+    auto targetModuli = args["elasticityTensor"];
+
+    std::unique_ptr<JobBase> job;
+    if (args["dim"] == 2) {
+        auto job2D = Future::make_unique<PatternOptimization::Job<2>>();
+        job2D->targetMaterial.setIsotropic(targetModuli[0], targetModuli[1]);
+        job = move(job2D);
+    } else if (args["dim"] == 3) {
+        auto job3D = Future::make_unique<PatternOptimization::Job<3>>();
+        job3D->targetMaterial.setIsotropic(targetModuli[0], targetModuli[1]);
+        job = move(job3D);
+    } else {
+        throw std::runtime_error("Invalid dimension.");
+    }
+
+    if (!args["offsetBounds"].empty()) {
+        std::vector<double> offsetBds = args["offsetBounds"];
+        auto defaultPositions = wm.defaultPositionParams();
+
+        for (size_t p = 0; p < defaultPositions.size(); ++p) {
+            // Position parameters should be first in the isosurface inflator
+            assert(wm.isPositionParam(p));
+            double lowerBound;
+            double upperBound;
+            if (args["limitedOffset"]) {
+                lowerBound = (defaultPositions[p] + offsetBds[0]) > 0 ? (defaultPositions[p] + offsetBds[0]) : 0;
+                upperBound = (defaultPositions[p] + offsetBds[1]) < 1 ? (defaultPositions[p] + offsetBds[1]) : 1;
+            } else {
+                lowerBound = defaultPositions[p] + offsetBds[0];
+                upperBound = defaultPositions[p] + offsetBds[1];
+            }
+
+            job->varLowerBounds.emplace(p, lowerBound);
+            job->varUpperBounds.emplace(p, upperBound);
+        }
+    }
+
+    // Set translation bounds, which will be ignored by the optimizer if
+    // offsetBounds introduced per-variable bounds above
+    job->translationBounds = {0.1, 0.8};
+    if (!args["translationBounds"].empty()) {
+        job->translationBounds = args["translationBounds"].get<std::vector<double>>();
+    }
+
+    job->radiusBounds = args["radiusBounds"].get<std::vector<double>>();
+    job->blendingBounds = args["blendingBounds"].get<std::vector<double>>();
+
+    if (!args["parameterConstraints"].empty()) {
+        job->parameterConstraints = MeshFEM::split(args["parameterConstraints"], ";");
+    }
+
+    job->initialParams = wm.defaultParameters(args["defaultThickness"]);
+    if (!args["initialParams"].empty()) {
+        job->initialParams = args["initialParams"].get<std::vector<double>>();
+    }
+
+    return job;
+};
+
+////////////////////////////////////////////////////////////////////////////////
 // Explicit template specialization
 ////////////////////////////////////////////////////////////////////////////////
 
 template class Job<2>;
 template class Job<3>;
+
+template std::unique_ptr<JobBase> jobFromWireMesh(const WireMesh<Symmetry::Cubic<>> &wm, const nlohmann::json &args);
+template std::unique_ptr<JobBase> jobFromWireMesh(const WireMesh<Symmetry::Orthotropic<>> &wm, const nlohmann::json &args);
+template std::unique_ptr<JobBase> jobFromWireMesh(const WireMesh<Symmetry::Diagonal<>> &wm, const nlohmann::json &args);
+template std::unique_ptr<JobBase> jobFromWireMesh(const WireMesh<Symmetry::Square<>> &wm, const nlohmann::json &args);
+template std::unique_ptr<JobBase> jobFromWireMesh(const WireMesh<Symmetry::TriplyPeriodic<>> &wm, const nlohmann::json &args);
+template std::unique_ptr<JobBase> jobFromWireMesh(const WireMesh<Symmetry::DoublyPeriodic<>> &wm, const nlohmann::json &args);
+template std::unique_ptr<JobBase> jobFromWireMesh(const WireMesh<Symmetry::NonPeriodic<>> &wm, const nlohmann::json &args);
 
 ////////////////////////////////////////////////////////////////////////////////
 

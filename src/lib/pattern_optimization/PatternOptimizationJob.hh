@@ -101,9 +101,13 @@ public:
 
 // -----------------------------------------------------------------------------
 
+// Create new job based on a previously exported one
+std::unique_ptr<JobBase> jobFromJson(const nlohmann::json &job);
 std::unique_ptr<JobBase> parseJobFile(const std::string &jobFile);
 
-std::unique_ptr<JobBase> jobFromJson(const nlohmann::json &job);
+// Create new job for a given wire mesh, and additional arguments
+template<typename WireMesh>
+std::unique_ptr<JobBase> jobFromWireMesh(const WireMesh &wm, const nlohmann::json &args);
 
 } // namespace PatternOptimization
 

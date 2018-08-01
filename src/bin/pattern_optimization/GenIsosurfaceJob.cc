@@ -198,6 +198,5 @@ int main(int argc, const char *argv[])
     else if (sym == "non_periodic"   ) { writeJob(WireMesh<Symmetry::NonPeriodic<>>(vertices, elements)); }
     else throw std::runtime_error("Unknown symmetry type: " + sym);
 
-
     return 0;
 }

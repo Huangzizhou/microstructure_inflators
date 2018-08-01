@@ -23,6 +23,7 @@
 #include <MeshFEM/Future.hh>
 #include <isosurface_inflator/WireMesh.hh>
 #include <pattern_optimization/PatternOptimizationJob.hh>
+#include <nlohmann/json.hpp>
 #include <CLI/CLI.hpp>
 
 #include <iostream>
@@ -31,32 +32,6 @@
 #include <cassert>
 #include <stdexcept>
 #include <cmath>
-
-////////////////////////////////////////////////////////////////////////////////
-
-namespace {
-
-    // Split a string into tokens
-    std::vector<std::string> split_string(const std::string &str, const std::string &delimiters) {
-        // Skip delimiters at beginning.
-        std::string::size_type lastPos = str.find_first_not_of(delimiters, 0);
-        // Find first "non-delimiter".
-        std::string::size_type pos     = str.find_first_of(delimiters, lastPos);
-
-        std::vector<std::string> tokens;
-        while (std::string::npos != pos || std::string::npos != lastPos) {
-            // Found a token, add it to the vector.
-            tokens.push_back(str.substr(lastPos, pos - lastPos));
-            // Skip delimiters.  Note the "not_of"
-            lastPos = str.find_first_not_of(delimiters, pos);
-            // Find next "non-delimiter"
-            pos = str.find_first_of(delimiters, lastPos);
-        }
-
-        return tokens;
-    }
-
-} // anonymous namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -115,61 +90,21 @@ int main(int argc, const char *argv[]) {
     }
     size_t dim = (zmag < 1e-2) ? 2 : 3;
 
-    auto writeJob = [&] (auto wm) {
-        auto targetModuli = args.elasticityTensor;
+    auto writeJob = [&args, dim] (auto wm) {
+        nlohmann::json config = {
+            {"dim", dim},
+            {"offsetBounds", args.offsetBounds},
+            {"translationBounds", args.translationBounds},
+            {"defaultThickness", args.defaultThickness},
+            {"radiusBounds", args.radiusBounds},
+            {"blendingBounds", args.blendingBounds},
+            {"elasticityTensor", args.elasticityTensor},
+            {"initialParams", args.initialParams},
+            {"parameterConstraints", args.parameterConstraints},
+            {"limitedOffset", false},
+        };
 
-        std::unique_ptr<PatternOptimization::JobBase> job;
-        if (dim == 2) {
-            auto job2D = Future::make_unique<PatternOptimization::Job<2>>();
-            job2D->targetMaterial.setIsotropic(targetModuli[0], targetModuli[1]);
-            job = move(job2D);
-        } else {
-            auto job3D = Future::make_unique<PatternOptimization::Job<3>>();
-            job3D->targetMaterial.setIsotropic(targetModuli[0], targetModuli[1]);
-            job = move(job3D);
-        }
-
-        if (!args.offsetBounds.empty()) {
-            auto offsetBds = args.offsetBounds;
-            auto defaultPositions = wm.defaultPositionParams();
-
-            for (size_t p = 0; p < defaultPositions.size(); ++p) {
-                // Position parameters should be first in the isosurface inflator
-                assert(wm.isPositionParam(p));
-                double lowerBound;
-                double upperBound;
-                if (args.limitedOffset) {
-                    lowerBound = (defaultPositions[p] + offsetBds[0]) > 0 ? (defaultPositions[p] + offsetBds[0]) : 0;
-                    upperBound = (defaultPositions[p] + offsetBds[1]) < 1 ? (defaultPositions[p] + offsetBds[1]) : 1;
-                } else {
-                    lowerBound = defaultPositions[p] + offsetBds[0];
-                    upperBound = defaultPositions[p] + offsetBds[1];
-                }
-
-                job->varLowerBounds.emplace(p, lowerBound);
-                job->varUpperBounds.emplace(p, upperBound);
-            }
-        }
-
-        // Set translation bounds, which will be ignored by the optimizer if
-        // offsetBounds introduced per-variable bounds above
-        job->translationBounds = {0.1, 0.8};
-        if (!args.translationBounds.empty()) {
-            job->translationBounds = args.translationBounds;
-        }
-
-        job->radiusBounds = args.radiusBounds;
-        job->blendingBounds = args.blendingBounds;
-
-        if (!args.parameterConstraints.empty()) {
-            job->parameterConstraints = split_string(args.parameterConstraints, ";");
-        }
-
-        job->initialParams = wm.defaultParameters(args.defaultThickness);
-        if (!args.initialParams.empty()) {
-            job->initialParams = args.initialParams;
-        }
-
+        auto job = PatternOptimization::jobFromWireMesh(wm, config);
         job->writeJobFile(std::cout);
     };
 
