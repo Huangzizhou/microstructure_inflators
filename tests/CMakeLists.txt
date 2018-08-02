@@ -15,6 +15,9 @@ target_link_libraries(unit_tests PUBLIC
 	pattern_optimization
 )
 
+# Use C++14
+set_target_properties(unit_tests PROPERTIES CXX_STANDARD 14)
+
 # Data directory
 set(DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../data/")
 target_compile_definitions(unit_tests PUBLIC -DDATA_DIR=\"${DATA_DIR}\")
