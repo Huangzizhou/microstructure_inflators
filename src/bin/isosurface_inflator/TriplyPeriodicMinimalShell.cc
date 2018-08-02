@@ -6,20 +6,24 @@
 #include <isosurface_inflator/SnapAndReflect.hh>
 #include <MeshFEM/filters/remove_dangling_vertices.hh>
 #include <MeshFEM/TetMesh.hh>
+#include <MeshFEM/LinearElasticity.hh>
+#include <MeshFEM/OrthotropicHomogenization.hh>
 
 int main(int argc, const char *argv[]) {
-    if (argc != 4) {
-        std::cerr << "usage: ./VisualizeQuantities cgal out_path facet_distance" << std::endl;
+    if (argc != 5) {
+        std::cerr << "usage:   ./TriplyPeriodicMinimalShell mesher out_path t facet_distance" << std::endl;
+        std::cerr << "example: ./TriplyPeriodicMinimalShell cgal out.msh 1.0 1e-3" << std::endl;
         exit(-1);
     }
 
     std::string mesherName(argv[1]),
                 outPath(argv[2]);
-    double facet_distance = std::stod(argv[3]);
+    double t = std::stod(argv[3]);
+    double facet_distance = std::stod(argv[4]);
 
-    std::vector<Real> A = { 1.0, 1.0, 1.0 },
-                 lambda = { 2.0, 2.0, 2.0 },
-                      P = { 0.0, 0.0, 0.0 };
+    std::vector<Real> A = {        1.0,        1.0,        1.0 },
+                 lambda = {    2.0 / t,    2.0 / t,    2.0 / t },
+                      P = {          0,          0,          0 };
     std::vector<Vector3d> h = { Vector3d(1, 0, 0), Vector3d(0, 1, 0), Vector3d(0, 0, 1) };
     Real c = 0.25;
     TriplyPeriodicMinimalShell sdfunc(A, h, lambda, P, c);
@@ -38,10 +42,12 @@ int main(int argc, const char *argv[]) {
 
     remove_dangling_vertices(vertices, elements);
 
+    MeshIO::save("pre_snap.msh", vertices, elements);
+
     TetMesh<> mesh(elements, vertices.size());
     smartSnap3D(vertices, mesh, sdfunc.boundingBox());
 
-
+#if 0
     {
         std::vector<MeshIO::IOVertex > reflectedVertices;
         std::vector<MeshIO::IOElement> reflectedElements;
@@ -49,8 +55,24 @@ int main(int argc, const char *argv[]) {
         std::swap(vertices, reflectedVertices);
         std::swap(elements, reflectedElements);
     }
+#endif
 
     MeshIO::save(outPath, vertices, elements);
+
+    LinearElasticity::HomogenousSimulator<3, 2> sim(elements, vertices);
+    std::cout.precision(19);
+    std::cout << "Volume:\t" << sim.mesh().volume() << std::endl;
+
+    std::vector<VectorField<Real, 3>> w_ij;
+    PeriodicHomogenization::Orthotropic::solveCellProblems(w_ij, sim, 1e-7);
+    auto Eh = PeriodicHomogenization::Orthotropic::homogenizedElasticityTensorDisplacementForm(w_ij, sim);
+    std::cout << "Homogenized elasticity tensor:" << std::endl;
+
+    auto moduli = Eh.getOrthotropicParameters();
+
+    std::cout << "Moduli:";
+    for (Real val : moduli) std::cout << "\t" << val;
+    std::cout << std::endl;
 
     return 0;
 }

@@ -482,16 +482,14 @@ public:
             std::cerr << "secondClosestJDist.smooth:"; std::cerr << secondClosestJDist.smooth << std::endl;
             std::cerr << "         overlapSmoothAmt:"; std::cerr <<          overlapSmoothAmt << std::endl;
 
-            const auto & cJoint = m_jointForVertex[c_idx];
-            const auto &scJoint = m_jointForVertex[sc_idx];
-            Real2  cSmoothness =  cJoint->smoothingAmt(p);
-            Real2 scSmoothness = scJoint->smoothingAmt(p);
-            if (VERTEX_SMOOTHNESS_MODULATION) {
-                 cSmoothness *= m_vertexSmoothness[ c_idx];
-                scSmoothness *= m_vertexSmoothness[sc_idx];
-            }
-            std::cerr << "      closestJDist smoothing amt:"; std::cerr <<  cSmoothness << std::endl;
-            std::cerr << "secondClosestJDist smoothing amt:"; std::cerr << scSmoothness << std::endl;
+            auto getSmoothingAmt = [&](size_t vidx) -> Real2 {
+                const auto &joint = m_jointForVertex[vidx];
+                if (joint) return joint->smoothingAmt(p) * (VERTEX_SMOOTHNESS_MODULATION ? m_vertexSmoothness[vidx] : 1.0);
+                return 0.0;
+            };
+
+            std::cerr << "      closestJDist smoothing amt:"; std::cerr << getSmoothingAmt( c_idx) << std::endl;
+            std::cerr << "secondClosestJDist smoothing amt:"; std::cerr << getSmoothingAmt(sc_idx) << std::endl;
 
             if (hasInvalidDerivatives(dist))
                 std::cerr << "Invalid derivatives computed in combinedJointDistances evaluation" << std::endl;

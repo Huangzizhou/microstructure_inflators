@@ -117,6 +117,7 @@ void execute(const std::vector<std::string> &components, const std::string &in_m
 
     for (size_t i = 0; i < N; ++i) {
         size_t nTiles = std::stoi(components[i]);
+        if (nTiles == 0) continue; // no reflections needed to tile 0 times.
         {
             size_t nt = nTiles;
             while (nt >>= 1) ++nReflections[i];
