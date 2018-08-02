@@ -21,11 +21,13 @@ matrix:
         - libsuitesparse-dev
     env:
     - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Debug"
+
   - os: osx
     osx_image: xcode8.3
     compiler: clang
     env:
     - MATRIX_EVAL="export CONFIG=Debug"
+    - MATRIX_EVAL="export CONFIG=Release"
 
 install:
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install suite-sparse ccache; fi
@@ -45,5 +47,5 @@ script:
 - cd build
 - cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON ..
 - make -j2
-# - make test
+- if [[ "$CONFIG" == "Release" ]]; then make test; fi
 - ccache --show-stats
