@@ -22,11 +22,34 @@ matrix:
     env:
     - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Debug"
 
+  - os: linux
+    compiler: gcc-7
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - gcc-7
+        - g++-7
+        - libmpfr-dev
+        - libboost-filesystem-dev
+        - libboost-program-options-dev
+        - libboost-system-dev
+        - libboost-thread-dev
+        - libsuitesparse-dev
+    env:
+    - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Release"
+
   - os: osx
     osx_image: xcode8.3
     compiler: clang
     env:
     - MATRIX_EVAL="export CONFIG=Debug"
+
+  - os: osx
+    osx_image: xcode8.3
+    compiler: clang
+    env:
     - MATRIX_EVAL="export CONFIG=Release"
 
 install:
