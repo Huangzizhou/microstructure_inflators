@@ -104,8 +104,19 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
 
     SMesh &symBaseCellMesh = *bcm;
 
-    // For periodic structures, snap vertices to the meshing cell bounding box.
-    if (!nonPeriodicity) {
+    if (nonPeriodicity) {
+        // We should not compute boundary velocities for elements touching the meshCell boundary.
+        using FM = PeriodicBoundaryMatcher::FaceMembership<3>;
+        onMinFace.assign(3, std::vector<bool>(vertices.size(), false));
+        onMaxFace.assign(3, std::vector<bool>(vertices.size(), false));
+        for (size_t i = 0; i < vertices.size(); ++i) {
+            FM fm(vertices[i], meshCell, 0); // zero tolerance!
+            onMinFace[0][i] = fm.onMinFace(0), onMaxFace[0][i] = fm.onMaxFace(0);
+            onMinFace[1][i] = fm.onMinFace(1), onMaxFace[1][i] = fm.onMaxFace(1);
+            onMinFace[2][i] = fm.onMinFace(2), onMaxFace[2][i] = fm.onMaxFace(2);
+        }
+    }
+    else {
         try {
             if (N == 3) smartSnap3D(vertices, symBaseCellMesh, meshCell);
         }
@@ -144,32 +155,26 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
     // MeshIO::save("post_snap.msh", vertices, elements);
 
 
-    // For periodic structures, mark internal cell-face vertices: vertices on
-    // the meshing cell boundary that actually lie inside the object (i.e. they
-    // are only mesh boundary vertices because of the intersection of the
-    // periodic pattern with the meshing box).
+    // Mark internal cell-face vertices: vertices on the meshing cell
+    // boundary that actually lie inside the object (i.e. they are only mesh
+    // boundary vertices because of the intersection of the periodic pattern with
+    // the meshing box).
     // This this is not the case if any non-cell-face triangle is incident
-    vector<bool> internalCellFaceVertex;
-    if (nonPeriodicity) {
-        internalCellFaceVertex.assign(symBaseCellMesh.numBoundaryVertices(), false);
-    }
-    else {
-        internalCellFaceVertex.assign(symBaseCellMesh.numBoundaryVertices(), true);
-        for (auto bs : symBaseCellMesh.boundarySimplices()) {
-            bool isCellFace = false;
-            for (size_t d = 0; d < N; ++d) {
-                bool onMin = true, onMax = true;
-                for (auto bv : bs.vertices()) {
-                    onMin &= onMinFace[d].at(bv.volumeVertex().index());
-                    onMax &= onMaxFace[d].at(bv.volumeVertex().index());
-                }
-                isCellFace |= (onMin | onMax);
+    vector<bool> internalCellFaceVertex(symBaseCellMesh.numBoundaryVertices(), true);
+    for (auto bs : symBaseCellMesh.boundarySimplices()) {
+        bool isCellFace = false;
+        for (size_t d = 0; d < N; ++d) {
+            bool onMin = true, onMax = true;
+            for (auto bv : bs.vertices()) {
+                onMin &= onMinFace[d].at(bv.volumeVertex().index());
+                onMax &= onMaxFace[d].at(bv.volumeVertex().index());
             }
-            if (isCellFace) continue;
-
-            for (auto bv : bs.vertices())
-                internalCellFaceVertex.at(bv.index()) = false;
+            isCellFace |= (onMin | onMax);
         }
+        if (isCellFace) continue;
+
+        for (auto bv : bs.vertices())
+            internalCellFaceVertex.at(bv.index()) = false;
     }
 
     // Compute parameter shape velocities on all (true) boundary vertices

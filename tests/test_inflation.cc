@@ -123,7 +123,7 @@ TEST_CASE("inflate_default_pattern", "[isosurface_inflation]") {
     SECTION("2d_cubic")           { test_inflation("2d_cubic", pattern_2d);           }
     SECTION("2d_orthotropic")     { test_inflation("2d_orthotropic", pattern_2d);     }
     SECTION("2d_diagonal")        { test_inflation("2d_diagonal", pattern_2d);        }
-    // SECTION("2d_non_periodic")    { test_inflation("2d_non_periodic", pattern_2d);    } // Not working
+    SECTION("2d_non_periodic")    { test_inflation("2d_non_periodic", pattern_2d);    }
     SECTION("2d_doubly_periodic") { test_inflation("2d_doubly_periodic", pattern_2d); }
     SECTION("2d_square")          { test_inflation("2d_square", pattern_2d);          }
     SECTION("3d_cubic")           { test_inflation("cubic", pattern_3d);              }
