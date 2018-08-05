@@ -13,3 +13,16 @@ data
 /3rdparty/CLI11
 /3rdparty/nlopt
 /3rdparty/tbb
+
+# LaTeX
+*.bbl
+*.blg
+*.log
+*.out
+*.pdf
+*.aux
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.run.xml
+*-blx.bib
