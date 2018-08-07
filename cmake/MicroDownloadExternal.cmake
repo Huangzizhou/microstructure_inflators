@@ -48,18 +48,15 @@ endfunction()
 ## nlopt
 function(micro_download_nlopt)
     micro_download_project(nlopt
-        # GIT_REPOSITORY https://github.com/stevengj/nlopt.git
-        # GIT_TAG        58444833fdafdfc2046f8fdfdc5a40bdb486b017
-        GIT_REPOSITORY https://github.com/jdumas/nlopt.git
-        GIT_TAG        269c997f2703915c0d32c2534e6734a51b51514e
+        GIT_REPOSITORY https://github.com/stevengj/nlopt.git
+        GIT_TAG        8da50d516fe0a0da42c06b66329b02cf6e44236e
     )
 endfunction()
 
 ## libigl
 function(micro_download_libigl)
     micro_download_project(libigl
-        # GIT_REPOSITORY https://github.com/libigl/libigl.git
-        GIT_REPOSITORY https://github.com/ithron/libigl.git
-        GIT_TAG        08cba2bf250743d185ce99e87f4c9a04913eb793
+        GIT_REPOSITORY https://github.com/libigl/libigl.git
+        GIT_TAG        593ec26c4c45da18fab5d930536407450ffea632
     )
 endfunction()
