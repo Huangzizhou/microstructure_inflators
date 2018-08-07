@@ -19,6 +19,8 @@ matrix:
         - libboost-system-dev
         - libboost-thread-dev
         - libsuitesparse-dev
+        - xorg-dev
+        - libglu1-mesa-dev
     env:
     - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Debug"
 
@@ -37,6 +39,8 @@ matrix:
         - libboost-system-dev
         - libboost-thread-dev
         - libsuitesparse-dev
+        - xorg-dev
+        - libglu1-mesa-dev
     env:
     - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Release"
 
