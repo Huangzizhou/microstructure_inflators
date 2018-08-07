@@ -32,14 +32,11 @@ enum class PatternType {
 // topology is consistent.
 //
 // @param[in]  V                { #V x 3 matrix of vertex positions }
-// @param[in]  F                { #F x 3 matrix of triangle indexes }
 // @param[out] border_vertices  { List of vertices along each side }
 //
 // @return     { Type of periodicity of the pattern. }
 //
-PatternType compute_pattern_type(
-	const Eigen::MatrixXd &V, const Eigen::MatrixXi &F,
-	std::array<Eigen::VectorXi, 4> &border_vertices)
+PatternType compute_pattern_type(const Eigen::MatrixXd &V, std::array<Eigen::VectorXi, 4> &border_vertices)
 {
 	Eigen::Vector2d lower = V.colwise().minCoeff().head<2>();
 	Eigen::Vector2d upper = V.colwise().maxCoeff().head<2>();
@@ -157,6 +154,7 @@ bool instanciate_pattern(
 	Eigen::MatrixXd &OV,
 	Eigen::MatrixXi &OF,
 	bool remap_duplicated_vertices,
+	double tolerance,
 	Eigen::VectorXi *remap_vertices,
 	Eigen::VectorXi *parent_face,
 	Eigen::MatrixXi *boundary_edges)
@@ -168,18 +166,21 @@ bool instanciate_pattern(
 	// List of vertices along each border (from lv to (lv+1)%4)
 	std::vector<std::array<Eigen::VectorXi, 4>> border_vertices(num_quads);
 	for (size_t q = 0; q < num_quads; ++q) {
-		compute_pattern_type(PV[q], PF[q], border_vertices[q]);
+		compute_pattern_type(PV[q], border_vertices[q]);
 	}
+
+	std::function<const Eigen::MatrixXi *(int)> PF_func;
+	if (!PF.empty()) { PF_func = [&](int q) { return &PF[q]; }; }
 
 	// Call generic function
 	return instanciate_pattern_aux(
 		IV, IQ,
 		[&](int q) { return &PV[q]; },
-		[&](int q) { return &PF[q]; },
+		PF_func,
 		[&](int q) { return border_vertices[q]; },
 		OV, OF,
 		remap_duplicated_vertices,
-		-1,
+		tolerance,
 		remap_vertices,
 		parent_face,
 		boundary_edges
@@ -213,7 +214,7 @@ bool instanciate_pattern_aux(
 	int num_corners = -1;
 	for (int q = 0; q < num_quads; ++q) {
 		num_vertices += (int) PV(q)->rows();
-		num_facets += (int) PF(q)->rows();
+		if (PF) { num_facets += (int) PF(q)->rows(); }
 		int size = num_corners = (int) PF(q)->cols();
 		if (num_corners < 0) { num_corners = size; }
 		else { assert(num_corners == size); }
@@ -239,11 +240,11 @@ bool instanciate_pattern_aux(
 			+ (u*(1-v)).matrix()*b
 			+ (u*v).matrix()*c
 			+ ((1-u)*v).matrix()*d;
-		F.middleRows(f0, PF(q)->rows()) = PF(q)->array() + v0;
+		if (PF) { F.middleRows(f0, PF(q)->rows()) = PF(q)->array() + v0; }
 		parent_face.segment(f0, PF(q)->rows()).setConstant(q);
 		vertex_offset(q) = v0;
 		v0 += (int) PV(q)->rows();
-		f0 += (int) PF(q)->rows();
+		if (PF) { f0 += (int) PF(q)->rows(); }
 	}
 
 	// Remapped vertex id (after duplicate removal)
@@ -321,7 +322,7 @@ bool instanciate_pattern_aux(
 	// Retrieve edges on the boundary of the original mesh
 	typedef std::pair<int, int> Edge;
 	std::vector<Edge> boundary_edges;
-	if (boundary_edges_ptr) {
+	if (boundary_edges_ptr && PF) {
 		for (int q = 0; q < num_quads; ++q) {
 			Eigen::MatrixXi E;
 			igl::edges(*PF(q), E);

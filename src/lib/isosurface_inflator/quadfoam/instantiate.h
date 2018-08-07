@@ -55,6 +55,7 @@ bool instanciate_pattern(
 	Eigen::MatrixXd &OV,
 	Eigen::MatrixXi &OF,
 	bool remap_duplicated_vertices = true,
+	double tolerance = -1.0,
 	Eigen::VectorXi *vertex_id_map = nullptr,
 	Eigen::VectorXi *parent_face = nullptr,
 	Eigen::MatrixXi *boundary_edges = nullptr

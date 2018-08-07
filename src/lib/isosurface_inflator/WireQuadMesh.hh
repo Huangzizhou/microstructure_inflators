@@ -23,11 +23,14 @@ public:
 
     ThicknessType thicknessType() const { return m_thicknessType; }
 
-    // Inflation parameters for the whole mesh (simple concatenation)
-    std::vector<double> params() const;
+    // Set currently active quad
+    void setActiveQuad(int idx);
 
-    // Representative cell bounding box (region to be meshed)
-    BBox<Point3D> boundingBox() const;
+    // Return wiremesh associated to the currently active quad
+    const WireMeshBase &activeWireMesh() const { assert(m_activeQuad >= 0); return *m_allTopologies[m_activeQuad]; }
+
+    // Inflation parameters for active quad
+    std::vector<double> params() const { assert(m_activeQuad >= 0); return m_allParameters[m_activeQuad]; }
 
     // Build the inflation graph for the whole quad mesh, stitching together adjacent nodes
     // (averaging stitched points' locations, thicknesses, and blending params).
@@ -48,11 +51,20 @@ private:
     Eigen::MatrixXd m_V;
     Eigen::MatrixXi m_F;
 
+    int m_activeQuad = -1;
+    ThicknessType m_thicknessType = ThicknessType::Vertex;
+
     std::vector<WireMeshBasePtr> m_allTopologies;
     std::vector<std::vector<double>> m_allParameters;
     std::vector<Eigen::Matrix2d> m_allJacobians; // ref square [-1,1]² to mapped parallelogram
 
-    ThicknessType m_thicknessType = ThicknessType::Vertex;
+    // Index of the first vertex of a quad's graph in the concatenated graph (before de-duplication)
+    Eigen::VectorXi m_vertexOffset;
+    Eigen::MatrixXd m_graphReducedVertices; // vertex position after de-duplication
+    Eigen::VectorXi m_graphFullToReduced; // map full -> reduce vertex idx
+
+    std::vector<std::vector<size_t>> m_stitchedVertices;
+    std::vector<Edge> m_stitchedEdges;
 };
 
 #endif

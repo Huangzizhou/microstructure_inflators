@@ -2,6 +2,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 #include "WireQuadMesh.hh"
+#include "quadfoam/instantiate.h"
 ////////////////////////////////////////////////////////////////////////////////
 
 namespace {
@@ -33,6 +34,14 @@ std::shared_ptr<WireMeshBase> load_wire_mesh(const std::string &sym, const std::
     return nullptr;
 }
 
+template<typename T>
+void sort_unique(std::vector<T> &x) {
+    std::sort(x.begin(), x.end());
+    auto it = std::unique(x.begin(), x.end());
+    x.resize(std::distance(x.begin(), it));
+}
+
+
 } // anonymous namespace
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -42,6 +51,7 @@ WireQuadMesh::WireQuadMesh(
     const std::vector<MeshIO::IOElement> &F,
     const nlohmann::json &params)
 {
+    // Read input parameters
     size_t numQuads = F.size();
     m_allTopologies.clear(); m_allTopologies.resize(numQuads);
     m_allParameters.clear(); m_allParameters.resize(numQuads);
@@ -61,6 +71,7 @@ WireQuadMesh::WireQuadMesh(
         // m_allJacobians[i] = jacobian.transpose();
     }
 
+    // Copy background quad mesh
     m_V.resize(V.size(), 3);
     m_F.resize(F.size(), 4);
     for (int v = 0; v < (int) V.size(); ++v) {
@@ -74,31 +85,65 @@ WireQuadMesh::WireQuadMesh(
             m_F(f, lv) = F[f][lv];
         }
     }
+
+    // Compute vertex id offset in concatenated graph
+    m_vertexOffset.resize(numQuads + 1);
+    m_vertexOffset.setZero();
+    std::vector<Eigen::MatrixXd> allVertices;
+    std::vector<Edge> allEdges;
+    for (size_t f = 0; f < numQuads; ++f) {
+        std::vector<Point> verts;
+        std::vector<Edge>  edges;
+        m_allTopologies[f]->periodCellGraph(verts, edges);
+        m_vertexOffset[f+1] = m_vertexOffset[f] + verts.size();
+        Eigen::MatrixXd V(verts.size(), 3);
+        for (int i = 0; i < verts.size(); ++i) {
+            V.row(i) = verts[i].transpose();
+        }
+        // Remap from [-1,1] to [0,1]
+        V = V.array() * 0.5 + 0.5;
+        allVertices.push_back(V);
+        for (const auto &e : edges) {
+            allEdges.emplace_back(e.first + m_vertexOffset[f], e.second + m_vertexOffset[f]);
+        }
+    };
+
+    // Stitch input graph and remove duplicate vertices
+    Eigen::MatrixXi tmpF;
+    bool success = quadfoam::instanciate_pattern(
+        m_V, m_F,
+        allVertices, {},
+        m_graphReducedVertices,
+        tmpF,
+        true,
+        PatternSymmetry::tolerance,
+        &m_graphFullToReduced
+    );
+    if (!success) {
+        throw std::runtime_error("Could not stitch the wiremesh together!");
+    }
+
+    // Build inverse map `m_stitchedVertices`, as well as the set `m_stitchedEdges`
+    m_stitchedVertices.resize(m_graphReducedVertices.size(), {});
+    for (size_t i = 0; i < m_graphFullToReduced.size(); ++i) {
+        int j = m_graphFullToReduced[i];
+        assert(j < m_graphReducedVertices.size());
+        m_stitchedVertices[j].push_back(i);
+    }
+    for (auto &e : allEdges) {
+        m_stitchedEdges.emplace_back(m_graphFullToReduced[e.first], m_graphFullToReduced[e.second]);
+    }
+    sort_unique(m_stitchedEdges);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Inflation parameters for the whole mesh (simple concatenation)
-std::vector<double> WireQuadMesh::params() const {
-    std::vector<double> params;
-    for (const auto &p : m_allParameters) {
-        params.insert(params.end(), p.begin(), p.end());
-    }
-    return params;
-}
-
-// Representative cell bounding box (region to be meshed)
-BBox<Point3D> WireQuadMesh::boundingBox() const {
-    Eigen::RowVector3d minV = m_V.colwise().minCoeff().array();
-    Eigen::RowVector3d maxV = m_V.colwise().maxCoeff().array();
-    Point3D a = minV.transpose();
-    Point3D b = maxV.transpose();
-    BBox<Point3D> bbox(a, b);
-    return bbox;
+// Set currently active quad
+void WireQuadMesh::setActiveQuad(int idx) {
+    m_activeQuad = idx;
 }
 
 // -----------------------------------------------------------------------------
-
 
 // Build the inflation graph for the active quad mesh, stitching together adjacent
 // nodes (averaging stitched points' locations, thicknesses, and blending params).
@@ -136,14 +181,6 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
         for (double t : thicknesses)    allThicknesses.push_back(t);
         for (double b : blendingParams) allBlendingParams.push_back(b);
     };
-
-    // The vertices that were merged into a particular stitched output vertex.
-    std::vector<std::vector<size_t>> m_stitchedVertices;
-    std::vector<Edge> m_stitchedEdges;
-
-    /////////////////////////////////////
-    // TODO: Stitch graph on quad mesh //
-    /////////////////////////////////////
 
     // Extracted stitched graph from the replicated graph by averaging
     // merged vertices' values.
