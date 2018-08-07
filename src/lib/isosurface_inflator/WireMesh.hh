@@ -65,7 +65,7 @@ enum class ThicknessType { Vertex, Edge };
 struct BaseVtxVarOffsets { size_t position, thickness, blending; };
 
 // Parts of WireMesh's interface that can be implemented without the
-// PatternSymmetry template parameter (or nan be made virtual)
+// PatternSymmetry template parameter (or can be made virtual)
 class WireMeshBase {
 public:
     using Point = Point3<double>;

@@ -147,6 +147,7 @@ endif()
 
 # libigl library
 if(NOT TARGET micro::libigl)
+    micro_download_libigl()
     find_package(LIBIGL QUIET)
     if(LIBIGL_FOUND)
         add_library(micro_libigl INTERFACE)

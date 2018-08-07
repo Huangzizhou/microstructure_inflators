@@ -1,14 +1,15 @@
-////////////////////////////////////////////////////////////////////////////////
-///
+#if HAS_LIBIGL
+
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
-
+////////////////////////////////////////////////////////////////////////////////
 #include "Symmetry.hh"
 #include "WireMesh.hh"
 #include <json.hpp>
 #include <stdexcept>
 #include <memory>
 #include <set>
+////////////////////////////////////////////////////////////////////////////////
 
 class WireQuadMesh {
 public:
@@ -20,28 +21,18 @@ public:
 
     WireQuadMesh(const std::vector<MeshIO::IOVertex> &V, const std::vector<MeshIO::IOElement> &F, const nlohmann::json &params);
 
-    size_t numParams() const { return m_numParams; }
-
     ThicknessType thicknessType() const { return m_thicknessType; }
 
-    // Set active quad in the background mesh
-    void setActiveQuad(int idx);
-
-    // Retrieve inflation parameters for the active quad
+    // Inflation parameters for the whole mesh (simple concatenation)
     std::vector<double> params() const;
 
-    // Retrieve Jacobian matrix mapping the reference square [-1,1]² to the active quad
-    Eigen::Matrix3d jacobian() const;
+    // Representative cell bounding box (region to be meshed)
+    BBox<Point3D> boundingBox() const;
 
     // Build the inflation graph for the whole quad mesh, stitching together adjacent nodes
     // (averaging stitched points' locations, thicknesses, and blending params).
     //
-    // Note that the result needs to pre-warp the output point positions by the inverse of
-    // the Jacobian mapping the reference square [0,1]² to the active quad. The reason for
-    // that is so that `PatternSignedDistance` can be used to mesh the base cell separately
-    // (the SDF-based mesher expects a base unit cell inside a specific bounding box, etc.).
-    //
-    // @param[in]  allParams               { Optimization variables for the active quad }
+    // @param[in]  allParams               { Inflation parameters for the whole mesh }
     // @param[out] stitchedPoints          { Graph vertices positions }
     // @param[out] stitchedEdges           { Graph edges indices }
     // @param[out] stitchedThicknesses     { Graph edge thicknesses }
@@ -59,7 +50,9 @@ private:
 
     std::vector<WireMeshBasePtr> m_allTopologies;
     std::vector<std::vector<double>> m_allParameters;
+    std::vector<Eigen::Matrix2d> m_allJacobians; // ref square [-1,1]² to mapped parallelogram
 
-    size_t m_numParams = 0;
-    ThicknessType m_thicknessType;
+    ThicknessType m_thicknessType = ThicknessType::Vertex;
 };
+
+#endif

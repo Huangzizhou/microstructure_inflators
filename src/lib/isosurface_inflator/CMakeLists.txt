@@ -48,6 +48,10 @@ set(SOURCES
         WireQuadMesh.hh
         WireMesh.hh
         WireMesh.inl
+        quadfoam/navigation.cpp
+        quadfoam/navigation.h
+        quadfoam/instantiate.cpp
+        quadfoam/instantiate.h
 )
 
 add_library(isosurface_inflator ${SOURCES})
@@ -73,8 +77,8 @@ target_link_libraries(isosurface_inflator_cgal
 target_link_libraries(isosurface_inflator
     PUBLIC
         MeshFEM
+        micro::libigl
     PRIVATE
         isosurface_inflator_cgal
         micro::vcglib
-        micro::libigl
 )

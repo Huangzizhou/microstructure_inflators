@@ -16,9 +16,24 @@
 #include <MeshFEM/Geometry.hh>
 #include <vector>
 
-// Postprocess:
-//    Snap to base cell and then reflect if necessary
-//    Compute vertex normals and normal shape velocities
+// Postprocess: Snap to base cell and then reflect if necessary Compute vertex normals and normal
+// shape velocities
+//
+// @param[int,out] vertices               { Input mesh vertices positions }
+// @param[int,out] elements               { Input mesh elements (triangles or tets) }
+// @param[out]     normalShapeVelocities  { The normal shape velocities }
+// @param[out]     vertexNormals          { The vertex normals }
+// @param[in]      inflator               { The inflator }
+// @param[in]      meshedFullPeriodCell   { ??? }
+// @param[in]      requestFullPeriodCell  { ??? }
+// @param[in]      meshCell               { Bounding box }
+// @param[in]      opts                   { Meshing options }
+// @param[in]      cheapPostProcessing    { Enable cheap post processing (???) }
+// @param[in]      nonPeriodicity         { Whether the cell is not periodic }
+//
+// @tparam         N                      { Dimension }
+// @tparam         Point                  { Point type }
+//
 template<size_t N, class Point>
 void postProcess(std::vector<MeshIO::IOVertex>  &vertices,
                  std::vector<MeshIO::IOElement> &elements,

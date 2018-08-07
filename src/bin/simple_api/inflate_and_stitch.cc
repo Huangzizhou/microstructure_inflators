@@ -51,10 +51,10 @@ void execute(const std::string &inputMesh,
 
     // Setup SDF function
     WireQuadMesh wm(VI, FI, pattern);
-    wm.setActiveQuad(0);
 
     PatternSignedDistance<double, WireQuadMesh> sdf(wm);
-    sdf.setParameters(wm.params(), wm.jacobian(), mesher->meshingOptions.jointBlendingMode);
+    sdf.setParameters(wm.params(), mesher->meshingOptions.jacobian, mesher->meshingOptions.jointBlendingMode);
+    sdf.setBoundingBox(wm.boundingBox());
 
     // Mesh active quad and save result
     {
@@ -69,6 +69,24 @@ void execute(const std::string &inputMesh,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+// Input json for the quad mesh:
+// [
+//     {
+//         "params": [...],
+//         "jacobian": [...],
+//         "symmetry": "diagonal",
+//         "pattern": "0905.obj"
+//     },
+//     {
+//         "params": [...],
+//         "jacobian": [...],
+//         "symmetry": "diagonal",
+//         "pattern": "0905.obj"
+//     },
+//     ...
+// ]
+
 
 int main(int argc, char * argv[]) {
     // Default arguments

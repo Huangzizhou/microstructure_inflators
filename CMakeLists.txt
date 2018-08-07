@@ -62,7 +62,7 @@ include(MicroUtils)
 option(MICRO_COPY_HEADERS "Copy headers into build directory" OFF) # For debugging purposes
 
 # Options for libigl modules
-option(LIBIGL_USE_STATIC_LIBRARY          "Use libigl as static library" ON)
+option(LIBIGL_USE_STATIC_LIBRARY          "Use libigl as static library" OFF)
 option(LIBIGL_WITH_ANTTWEAKBAR            "Use AntTweakBar"              OFF)
 option(LIBIGL_WITH_CGAL                   "Use CGAL"                     OFF)
 option(LIBIGL_WITH_COMISO                 "Use CoMiso"                   OFF)

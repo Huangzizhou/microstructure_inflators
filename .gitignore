@@ -13,6 +13,8 @@ data
 /3rdparty/CLI11
 /3rdparty/nlopt
 /3rdparty/tbb
+/3rdparty/libigl
+
 
 # LaTeX
 *.bbl

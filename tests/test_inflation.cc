@@ -110,6 +110,7 @@ void test_mesher(const std::string &name, const std::string &topology) {
         mesher->meshInterfaceConsistently = true;
         mesher->mesh(sdf, vertices_out, elements_out);
 
+        (void) name;
         // MeshIO::save(name + ".obj", vertices_out, elements_out);
     }
 }

@@ -54,3 +54,12 @@ function(micro_download_nlopt)
         GIT_TAG        269c997f2703915c0d32c2534e6734a51b51514e
     )
 endfunction()
+
+## libigl
+function(micro_download_libigl)
+    micro_download_project(libigl
+        # GIT_REPOSITORY https://github.com/libigl/libigl.git
+        GIT_REPOSITORY https://github.com/ithron/libigl.git
+        GIT_TAG        08cba2bf250743d185ce99e87f4c9a04913eb793
+    )
+endfunction()
