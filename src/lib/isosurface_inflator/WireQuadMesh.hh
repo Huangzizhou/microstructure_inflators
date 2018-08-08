@@ -3,6 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 ////////////////////////////////////////////////////////////////////////////////
+#include "BilinearMap.hh"
 #include "Symmetry.hh"
 #include "WireMesh.hh"
 #include <json.hpp>
@@ -19,6 +20,17 @@ public:
     using Point = WireMeshBase::Point; // Point3<double>;
     using Edge  = WireMeshBase::Edge; // std::pair<size_t, size_t>
 
+    struct MapToBaseUnit {
+        BilinearMap func_;
+        MapToBaseUnit(BilinearMap f = BilinearMap()) : func_(f) { }
+
+        template<typename Real>
+        Point3<Real> operator() (Point3<Real> p) const {
+            return func_.apply(p[0], p[1]);
+        }
+    };
+
+public:
     WireQuadMesh(const std::vector<MeshIO::IOVertex> &V, const std::vector<MeshIO::IOElement> &F, const nlohmann::json &params);
 
     ThicknessType thicknessType() const { return m_thicknessType; }
@@ -31,6 +43,8 @@ public:
 
     // Inflation parameters for active quad
     std::vector<double> params() const { assert(m_activeQuad >= 0); return m_allParameters[m_activeQuad]; }
+
+    MapToBaseUnit mapFunctor() const { return MapToBaseUnit(m_bilinearMap); }
 
     // Build the inflation graph for the whole quad mesh, stitching together adjacent nodes
     // (averaging stitched points' locations, thicknesses, and blending params).
@@ -53,6 +67,8 @@ private:
 
     int m_activeQuad = -1;
     ThicknessType m_thicknessType = ThicknessType::Vertex;
+
+    BilinearMap m_bilinearMap;
 
     std::vector<WireMeshBasePtr> m_allTopologies;
     std::vector<std::vector<double>> m_allParameters;

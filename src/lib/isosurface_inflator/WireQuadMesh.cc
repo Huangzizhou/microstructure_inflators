@@ -91,7 +91,7 @@ WireQuadMesh::WireQuadMesh(
         m_allTopologies[f]->periodCellGraph(verts, edges);
         m_vertexOffset[f+1] = m_vertexOffset[f] + verts.size();
         Eigen::MatrixXd V(verts.size(), 3);
-        for (int i = 0; i < verts.size(); ++i) {
+        for (int i = 0; i < (int) verts.size(); ++i) {
             V.row(i) = verts[i].transpose();
         }
         // Remap from [-1,1] to [0,1]
@@ -119,7 +119,7 @@ WireQuadMesh::WireQuadMesh(
 
     // Build inverse map `m_stitchedVertices`, as well as the set `m_stitchedEdges`
     m_stitchedVertices.resize(m_graphReducedVertices.size(), {});
-    for (size_t i = 0; i < m_graphFullToReduced.size(); ++i) {
+    for (size_t i = 0; i < (size_t) m_graphFullToReduced.size(); ++i) {
         int j = m_graphFullToReduced[i];
         assert(j < m_graphReducedVertices.size());
         m_stitchedVertices[j].push_back(i);
@@ -131,13 +131,17 @@ WireQuadMesh::WireQuadMesh(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Bilinear map for a quad (a,b,c,d):
-// (u,v) --> a + u*v*(a - b + c - d) + u*(-a + b) + v*(-a + d)
-
 
 // Set currently active quad
 void WireQuadMesh::setActiveQuad(int idx) {
     m_activeQuad = idx;
+    Point2d pts[4];
+    for (int lv = 0; lv < 4; ++lv) {
+        int v = m_F(idx, lv);
+        pts[lv][0] = m_V(v, 0);
+        pts[lv][1] = m_V(v, 1);
+    }
+    m_bilinearMap = BilinearMap(pts);
 }
 
 // -----------------------------------------------------------------------------
@@ -223,7 +227,14 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
     // on the jacobian of the bilinear map (that maps the ref square [-1,1]² to
     // the active quad).
 
+    for (int i = 0; i < stitchedPoints.size(); ++i) {
+        Point3d p = stitchedPoints[i];
+        auto jac = m_bilinearMap.jacobian(p[0], p[1]);
+        double scaling = std::sqrt(jac.determinant());
 
+        stitchedThicknesses[i] *= scaling;
+        stitchedBlendingParams[i] *= scaling;
+    }
 
     // _OutputGraph("test_inflation_graph.obj", stitchedPoints, stitchedEdges);
 }

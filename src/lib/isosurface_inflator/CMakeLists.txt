@@ -4,6 +4,8 @@
 
 set(SOURCES
         AutomaticDifferentiation.hh
+        BilinearMap.cc
+        BilinearMap.hh
         BoxIntersection1DFeatures.hh
         BoxIntersectionMesher.cc
         BoxIntersectionMesher.hh

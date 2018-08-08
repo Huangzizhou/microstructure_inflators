@@ -20,7 +20,8 @@ template<size_t N>
 void execute(const std::string &inputMesh,
     const std::string &meshingOptions,
     const std::string &patternParameters,
-    const std::string &outputMesh)
+    const std::string &outputMesh,
+    int index)
 {
     // Load pattern parameters
     json pattern;
@@ -51,9 +52,11 @@ void execute(const std::string &inputMesh,
 
     // Setup SDF function
     WireQuadMesh wm(VI, FI, pattern);
+    wm.setActiveQuad(index);
 
-    PatternSignedDistance<double, WireQuadMesh> sdf(wm);
+    PatternSignedDistance<double, WireQuadMesh, WireQuadMesh::MapToBaseUnit> sdf(wm);
     sdf.setParameters(wm.params(), mesher->meshingOptions.jacobian, mesher->meshingOptions.jointBlendingMode);
+    sdf.setMapFunctor(wm.mapFunctor());
 
     /////////////////////////////////////////
     // TODO: Set bilinear map into the SDF //
@@ -98,12 +101,14 @@ int main(int argc, char * argv[]) {
         std::string output = "out.msh";
         std::string meshing_options = "";
         std::string params = "";
+        int active_quad = 0;
     } args;
 
     // Parse arguments
     CLI::App app{"stitch_cells_cli"};
     app.add_option("input,-i,--input", args.input, "Input quad mesh.")->required();
     app.add_option("output,-o,--output", args.output, "Output triangle mesh.");
+    app.add_option("-x,--active_quad", args.active_quad, "Index of the quad to mesh.");
     app.add_option("-m,--meshing", args.meshing_options, "Meshing options (json file).")->check(CLI::ExistingFile);
     app.add_option("-p,--params", args.params, "Pattern parameters per quad (json file).")->check(CLI::ExistingFile);
     try {
@@ -112,7 +117,7 @@ int main(int argc, char * argv[]) {
         return app.exit(e);
     }
 
-    execute<2>(args.input, args.meshing_options, args.params, args.output);
+    execute<2>(args.input, args.meshing_options, args.params, args.output, args.active_quad);
 
     return 0;
 }

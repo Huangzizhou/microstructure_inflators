@@ -51,6 +51,10 @@ public:
         }
     }
 
+    void setMapFunctor(MapFunctor f) {
+        m_mapFunctor = std::move(f);
+    }
+
     // Always support double type for compatibility with SignedDistanceRegion
     virtual double signedDistance(const Point3D &p) const override { return stripAutoDiff(m_signedDistanceImpl(autodiffCast<Point3<Real>>(p))); }
 
@@ -799,10 +803,6 @@ private:
     template<typename Real>
     Point3<Real> mapToBaseUnit(Point3<Real> p) const {
         return m_mapFunctor(p);
-    }
-
-    void setMapFunctor(MapFunctor f) {
-        m_mapFunctor = std::move(f);
     }
 
 private:
