@@ -42,7 +42,6 @@ void sort_unique(std::vector<T> &x) {
     x.resize(std::distance(x.begin(), it));
 }
 
-
 } // anonymous namespace
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -94,7 +93,7 @@ WireQuadMesh::WireQuadMesh(
         for (int i = 0; i < (int) verts.size(); ++i) {
             V.row(i) = verts[i].transpose();
         }
-        // Remap from [-1,1] to [0,1]
+        // Remap from [-1,1] to [0,1] for `quadfoam::instanciate_pattern()`
         V = V.array() * 0.5 + 0.5;
         allVertices.push_back(V);
         for (const auto &e : edges) {
@@ -128,20 +127,52 @@ WireQuadMesh::WireQuadMesh(
         m_stitchedEdges.emplace_back(m_graphFullToReduced[e.first], m_graphFullToReduced[e.second]);
     }
     sort_unique(m_stitchedEdges);
+
+    // Set active quad to -1 (initialize bilinear map and bounding box)
+    setActiveQuad(-1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 // Set currently active quad
 void WireQuadMesh::setActiveQuad(int idx) {
-    m_activeQuad = idx;
-    Point2d pts[4];
-    for (int lv = 0; lv < 4; ++lv) {
-        int v = m_F(idx, lv);
-        pts[lv][0] = m_V(v, 0);
-        pts[lv][1] = m_V(v, 1);
+    if (idx < 0) {
+        // Meshing domain = the whole mesh
+        m_bilinearMap = BilinearMap(); // identity
+        Point3d minV = m_V.colwise().minCoeff().transpose();
+        Point3d maxV = m_V.colwise().maxCoeff().transpose();
+        m_bbox = BBox<Point3d>(minV, maxV);
+    } else {
+        // Meshing domain restricted to the reference square [-1,1]²
+        m_activeQuad = idx;
+        Point2d pts[4];
+        for (int lv = 0; lv < 4; ++lv) {
+            int v = m_F(idx, lv);
+            pts[lv][0] = m_V(v, 0);
+            pts[lv][1] = m_V(v, 1);
+        }
+        m_bilinearMap = BilinearMap(pts);
+        m_bbox = BBox<Point3d>(Point3d(-1, -1, -1), Point3d(1, 1, 1));
     }
-    m_bilinearMap = BilinearMap(pts);
+}
+
+// Return wiremesh associated to the currently active quad
+const WireMeshBase &WireQuadMesh::activeWireMesh() const {
+    if (m_activeQuad < 0) {
+        throw std::runtime_error("No active quad has been selected!");
+    } else {
+        return *m_allTopologies[m_activeQuad];
+    }
+}
+
+// Inflation parameters the whole graph (simple concatenation)
+std::vector<double> WireQuadMesh::params() const {
+    // Otherwise simply concatenate all parameters together
+    std::vector<double> params;
+    for (const auto &p : m_allParameters) {
+        params.insert(params.end(), p.begin(), p.end());
+    }
+    return params;
 }
 
 // -----------------------------------------------------------------------------
@@ -214,10 +245,6 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
             b  += allBlendingParams.at(v);
         }
 
-        //////////////////////////////////
-        // TODO: Size based on Jacobian //
-        //////////////////////////////////
-
         stitchedPoints.push_back(pt / sv.size());
         stitchedThicknesses.push_back(t / sv.size());
         stitchedBlendingParams.push_back(b / sv.size());
@@ -227,7 +254,7 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
     // on the jacobian of the bilinear map (that maps the ref square [-1,1]² to
     // the active quad).
 
-    for (int i = 0; i < stitchedPoints.size(); ++i) {
+    for (int i = 0; i < (int) stitchedPoints.size(); ++i) {
         Point3d p = stitchedPoints[i];
         auto jac = m_bilinearMap.jacobian(p[0], p[1]);
         double scaling = std::sqrt(jac.determinant());

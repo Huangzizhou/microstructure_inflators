@@ -57,6 +57,7 @@ void execute(const std::string &inputMesh,
     PatternSignedDistance<double, WireQuadMesh, WireQuadMesh::MapToBaseUnit> sdf(wm);
     sdf.setParameters(wm.params(), mesher->meshingOptions.jacobian, mesher->meshingOptions.jointBlendingMode);
     sdf.setMapFunctor(wm.mapFunctor());
+    sdf.setBoundingBox(wm.boundingBox());
 
     /////////////////////////////////////////
     // TODO: Set bilinear map into the SDF //

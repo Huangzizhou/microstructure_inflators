@@ -12,6 +12,10 @@
 #include <set>
 ////////////////////////////////////////////////////////////////////////////////
 
+//
+// By default, if no active quad is chosen (index < 0), then we should mesh
+// the entire graph!!
+//
 class WireQuadMesh {
 public:
     using PatternSymmetry = Symmetry::Null<>;
@@ -39,12 +43,14 @@ public:
     void setActiveQuad(int idx);
 
     // Return wiremesh associated to the currently active quad
-    const WireMeshBase &activeWireMesh() const { assert(m_activeQuad >= 0); return *m_allTopologies[m_activeQuad]; }
+    const WireMeshBase &activeWireMesh() const;
 
-    // Inflation parameters for active quad
-    std::vector<double> params() const { assert(m_activeQuad >= 0); return m_allParameters[m_activeQuad]; }
+    // Inflation parameters the whole graph (simple concatenation)
+    std::vector<double> params() const;
 
     MapToBaseUnit mapFunctor() const { return MapToBaseUnit(m_bilinearMap); }
+
+    BBox<Point3d> boundingBox() const { return m_bbox; }
 
     // Build the inflation graph for the whole quad mesh, stitching together adjacent nodes
     // (averaging stitched points' locations, thicknesses, and blending params).
@@ -69,6 +75,7 @@ private:
     ThicknessType m_thicknessType = ThicknessType::Vertex;
 
     BilinearMap m_bilinearMap;
+    BBox<Point3d> m_bbox;
 
     std::vector<WireMeshBasePtr> m_allTopologies;
     std::vector<std::vector<double>> m_allParameters;

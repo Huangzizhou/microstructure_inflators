@@ -12,10 +12,18 @@
 
 #include "InflatorTypes.hh"
 
+// Unit test:
+// By default it maps the square [-1,1]² to itself, and the jacobian is constant
+// and equal to the identity.
 class BilinearMap {
 
 public:
-    BilinearMap() = default;
+    BilinearMap()
+        : a(-1, -1, 0)
+        , b( 1, -1, 0)
+        , c( 1,  1, 0)
+        , d(-1,  1, 0)
+    { }
 
     template<typename T>
     BilinearMap(T pts) {
