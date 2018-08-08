@@ -56,7 +56,7 @@ private:
 
     std::vector<WireMeshBasePtr> m_allTopologies;
     std::vector<std::vector<double>> m_allParameters;
-    std::vector<Eigen::Matrix2d> m_allJacobians; // ref square [-1,1]² to mapped parallelogram
+    std::vector<Eigen::Matrix3d> m_allJacobians; // ref square [-1,1]² to mapped parallelogram
 
     // Index of the first vertex of a quad's graph in the concatenated graph (before de-duplication)
     Eigen::VectorXi m_vertexOffset;

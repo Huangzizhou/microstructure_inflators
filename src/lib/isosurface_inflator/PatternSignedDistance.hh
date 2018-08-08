@@ -31,7 +31,16 @@
 #define VERTEX_SMOOTHNESS_MODULATION 1
 #define DISCONTINUITY_AVOIDING_CREASE_AVOIDANCE 1
 
-template<typename _Real, class WMesh>
+template<class WMesh>
+struct MapToBaseUnit {
+    // Non-static so it can be a closure (see implementation of generic lambdas in C++14)
+    template<typename Real>
+    Point3<Real> operator() (Point3<Real> p) const {
+        return WMesh::PatternSymmetry::mapToBaseUnit(p);
+    }
+};
+
+template<typename _Real, class WMesh, class MapFunctor = MapToBaseUnit<WMesh>>
 class PatternSignedDistance : public SignedDistanceRegion<3> {
 public:
     using Real = _Real;
@@ -526,7 +535,7 @@ public:
     // Debug smoothing modulation field/smoothing amount
     template<typename Real2>
     std::pair<Real2, size_t> smoothnessAndClosestVtx(Point3<Real2> p) const {
-        p = m_jacobian * WMesh::PatternSymmetry::mapToBaseUnit(p);
+        p = m_jacobian * mapToBaseUnit(p);
         std::vector<Real2> edgeDists;
         edgeDists.reserve(m_edgeGeometry.size());
         for (size_t i = 0; i < m_edgeGeometry.size(); ++i)
@@ -683,7 +692,7 @@ public:
         outFile << "}" << std::endl;
     }
 
-    virtual ~PatternSignedDistance() override { }
+    virtual ~PatternSignedDistance() override = default;
 
 private:
     ////////////////////////////////////////////////////////////////////////////
@@ -692,7 +701,7 @@ private:
     // Additional Real type to support automatic differentiation wrt. p only
     template<typename Real2, bool DebugDerivatives = false>
     Real2 m_signedDistanceImpl(Point3<Real2> p) const {
-        p = m_jacobian * WMesh::PatternSymmetry::mapToBaseUnit(p);
+        p = m_jacobian * mapToBaseUnit(p);
         std::vector<Real2> edgeDists;
         Real2 closestEdgeDist = 1e5;
         if (m_edgeGeometry.size() == 0) return 1.0;
@@ -771,7 +780,7 @@ private:
     template<typename Real2>
     typename std::enable_if<!(IsAutoDiffType<Real>::value || IsAutoDiffType<Real2>::value), bool>::type
     m_isInsideImpl(Point3<Real2> p) const {
-        p = m_jacobian * WMesh::PatternSymmetry::mapToBaseUnit(p);
+        p = m_jacobian * mapToBaseUnit(p);
         std::vector<double> edgeDists;
         edgeDists.reserve(m_edgeGeometry.size());
         // Definitely inside if we're inside one of the edges: assumes blending
@@ -787,8 +796,19 @@ private:
         return combinedJointDistances<Real, true/* accelerated version*/>(p, edgeDists, 0 /* closestEdge */) <= 0;
     }
 
+    template<typename Real>
+    Point3<Real> mapToBaseUnit(Point3<Real> p) const {
+        return m_mapFunctor(p);
+    }
+
+    void setMapFunctor(MapFunctor f) {
+        m_mapFunctor = std::move(f);
+    }
+
 private:
     const WMesh &m_wireMesh;
+
+    MapFunctor m_mapFunctor;
 
     // Bounding box for the meshing cell. Defaults to the representative cell
     // for the symmetry type, but can be changed manually for debugging

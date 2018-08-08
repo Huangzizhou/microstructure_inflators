@@ -101,6 +101,8 @@ struct MeshingOptions {
     void load(const std::string &jsonPath);
     void load(const nlohmann::json &config);
 
+    static Eigen::Matrix3d read_jacobian(const nlohmann::json &entry);
+
     // Set nonempty to dump shape velocity debugging fields upon inflation.
     std::string debugSVelPath;
     // Don't inflate; instead, load pre-existing mesh.

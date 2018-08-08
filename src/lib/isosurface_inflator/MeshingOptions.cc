@@ -179,21 +179,28 @@ void MeshingOptions::load(const nlohmann::json &config) {
         }
     }
     if (config.count("jacobian")) {
-        std::vector<double> x = config["jacobian"];
-        if (x.size() == 4) {
-            jacobian <<
-                x[0], x[1], 0,
-                x[2], x[3], 0,
-                0   , 0   , 1;
-        } else if (x.size() == 9) {
-            // We read data as row-major matrix, but Eigen matrices default
-            // to column-major storage, hence the transpose
-            std::copy_n(x.data(), 9, jacobian.data());
-            jacobian.transposeInPlace();
-        } else {
-            throw std::runtime_error("Invalid Jacobian matrix size: " + std::to_string(x.size()));
-        }
+        jacobian = read_jacobian(config["jacobian"]);
     } else {
         jacobian.setIdentity();
     }
 }
+
+Eigen::Matrix3d MeshingOptions::read_jacobian(const nlohmann::json &entry) {
+    Eigen::Matrix3d jacobian = Eigen::Matrix3d::Identity();
+    std::vector<double> x = entry;
+    if (x.size() == 4) {
+        jacobian <<
+            x[0], x[1], 0,
+            x[2], x[3], 0,
+            0   , 0   , 1;
+    } else if (x.size() == 9) {
+        // We read data as row-major matrix, but Eigen matrices default
+        // to column-major storage, hence the transpose
+        std::copy_n(x.data(), 9, jacobian.data());
+        jacobian.transposeInPlace();
+    } else {
+        throw std::runtime_error("Invalid Jacobian matrix size: " + std::to_string(x.size()));
+    }
+    return jacobian;
+}
+

@@ -2,6 +2,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 #include "WireQuadMesh.hh"
+#include "MeshingOptions.hh"
 #include "quadfoam/instantiate.h"
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -61,14 +62,7 @@ WireQuadMesh::WireQuadMesh(
         m_allParameters[i] = entry["params"].get<std::vector<double>>();
         m_allTopologies[i] = load_wire_mesh(entry["symmetry"], entry["pattern"]);
         assert(m_allTopologies[i]->thicknessType() == m_thicknessType);
-
-        // Read jacobian as a row-major matrix, but Eigen matrices default
-        // to column-major storage, hence the transpose
-        // std::vector<double> x = entry["jacobian"];
-        // Eigen::Matrix3d jacobian;
-        // std::copy_n(x.data(), 9, jacobian.data());
-        // jacobian.transposeInPlace();
-        // m_allJacobians[i] = jacobian.transpose();
+        m_allJacobians[i] = MeshingOptions::read_jacobian(entry["jacobian"]);
     }
 
     // Copy background quad mesh
@@ -137,6 +131,9 @@ WireQuadMesh::WireQuadMesh(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Bilinear map for a quad (a,b,c,d):
+// (u,v) --> a + u*v*(a - b + c - d) + u*(-a + b) + v*(-a + d)
+
 
 // Set currently active quad
 void WireQuadMesh::setActiveQuad(int idx) {
@@ -167,7 +164,8 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
 
     // Build period cell graph for each wire mesh separately
     int paramOffset = 0;
-    for (const auto &wmesh : m_allTopologies) {
+    for (int i = 0; i < m_F.rows(); ++i) {
+        const auto wmesh = m_allTopologies[i];
         const size_t np = wmesh->numParams();
         std::vector<Real> wmparams(&allParams[paramOffset], &allParams[paramOffset] + np);
         paramOffset += np;
@@ -177,9 +175,18 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
         std::vector<double> blendingParams;
         wmesh->periodCellGraph(wmparams, points, edges, thicknesses, blendingParams);
 
+        // Graph parameters (radii & blending) are expressed in the world space, i.e. after
+        // mapping the reference square [-1,1]² to the target parallelogram.
+        // In order to stitch adjacent pattern inscribed in different parallelograms,
+        // we first need to scale the radii and blending params by sqrt(jac^-1(i))`,
+        // where i is the index of the element (quad), and jac is the jacobian (linear mapping)
+        // mapping the reference square [-1,1]² to the parallelogram of the element i.
+
+        double scaling = std::sqrt(m_allJacobians[i].inverse().determinant());
+
         for (const auto &v : points)    allVerts.emplace_back(v);
-        for (double t : thicknesses)    allThicknesses.push_back(t);
-        for (double b : blendingParams) allBlendingParams.push_back(b);
+        for (double t : thicknesses)    allThicknesses.push_back(scaling * t);
+        for (double b : blendingParams) allBlendingParams.push_back(scaling * b);
     };
 
     // Extracted stitched graph from the replicated graph by averaging
@@ -211,6 +218,12 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
         stitchedThicknesses.push_back(t / sv.size());
         stitchedBlendingParams.push_back(b / sv.size());
     }
+
+    // Now, for each vertices, scale back the (radius, blending) parameters based
+    // on the jacobian of the bilinear map (that maps the ref square [-1,1]² to
+    // the active quad).
+
+
 
     // _OutputGraph("test_inflation_graph.obj", stitchedPoints, stitchedEdges);
 }
