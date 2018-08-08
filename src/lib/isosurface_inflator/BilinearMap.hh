@@ -12,7 +12,6 @@
 
 #include "InflatorTypes.hh"
 
-// Unit test:
 // By default it maps the square [-1,1]² to itself, and the jacobian is constant
 // and equal to the identity.
 class BilinearMap {
@@ -36,12 +35,12 @@ public:
 
     template<typename Real>
     Point3<Real> apply(Real u, Real v) const {
-        return a*(4*u*v - 4*u - 4*v + 4) + b*(-4*u*v + 4*u + 2*v - 2) + c*(4*u*v - 2*u - 2*v + 1) + d*(-4*u*v + 2*u + 4*v - 2);
+        return (a*(u*v - u - v + 1) + b*(-u*v + u - v + 1) + c*(u*v + u + v + 1) + d*(-u*v - u + v + 1))/4;
     }
 
     Eigen::Matrix3d jacobian(double u, double v) const {
-        Point3d dfdu = -2*a + 2*b + 2*(2*v - 1)*(a - b + c - d);
-        Point3d dfdv = -2*a + 2*d + 2*(2*u - 1)*(a - b + c - d);
+        Point3d dfdu = -a/2 + b/2 + (v/2 + 1/2)*(a - b + c - d)/2;
+        Point3d dfdv = -a/2 + d/2 + (u/2 + 1/2)*(a - b + c - d)/2;
         Eigen::Matrix3d jac;
         jac <<
             dfdu[0], dfdv[0], 0,
