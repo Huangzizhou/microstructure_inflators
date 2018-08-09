@@ -36,3 +36,7 @@ target_link_libraries(pattern_optimization PUBLIC
 		inflators
 		optimizers
 )
+
+if(MICRO_WITH_SANITIZERS)
+	add_sanitizers(pattern_optimization)
+endif()

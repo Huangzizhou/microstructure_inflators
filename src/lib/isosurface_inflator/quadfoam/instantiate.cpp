@@ -3,7 +3,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "instantiate.h"
 #include "navigation.h"
-#include <igl/is_border_vertex.h>
 #include <igl/remove_duplicate_vertices.h>
 #include <igl/remove_unreferenced.h>
 #include <igl/is_boundary_edge.h>
@@ -146,7 +145,7 @@ Eigen::VectorXi vertex_degree(const Eigen::MatrixXd &V, const Eigen::MatrixXi &F
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool instanciate_pattern(
+bool instantiate_pattern(
 	const Eigen::MatrixXd &IV,
 	const Eigen::MatrixXi &IQ,
 	const std::vector<Eigen::MatrixXd> &PV,
@@ -160,7 +159,7 @@ bool instanciate_pattern(
 	Eigen::MatrixXi *boundary_edges)
 {
 	assert(PV.size() == (size_t) IQ.rows());
-	assert(PF.size() == (size_t) IQ.rows());
+	assert(PF.empty() || PF.size() == (size_t) IQ.rows());
 	size_t num_quads = IQ.rows();
 
 	// List of vertices along each border (from lv to (lv+1)%4)
@@ -173,7 +172,7 @@ bool instanciate_pattern(
 	if (!PF.empty()) { PF_func = [&](int q) { return &PF[q]; }; }
 
 	// Call generic function
-	return instanciate_pattern_aux(
+	return instantiate_pattern_aux(
 		IV, IQ,
 		[&](int q) { return &PV[q]; },
 		PF_func,
@@ -189,7 +188,7 @@ bool instanciate_pattern(
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool instanciate_pattern_aux(
+bool instantiate_pattern_aux(
 	const Eigen::MatrixXd &IV,
 	const Eigen::MatrixXi &IF,
 	std::function<const Eigen::MatrixXd *(int)> PV,
@@ -206,7 +205,6 @@ bool instanciate_pattern_aux(
 	int num_quads = (int) IF.rows();
 
 	auto valence = vertex_degree(IV, IF);
-	auto border = igl::is_border_vertex(IV, IF);
 
 	// Instantiate (duplicating vertices)
 	int num_vertices = 0;
@@ -214,10 +212,14 @@ bool instanciate_pattern_aux(
 	int num_corners = -1;
 	for (int q = 0; q < num_quads; ++q) {
 		num_vertices += (int) PV(q)->rows();
-		if (PF) { num_facets += (int) PF(q)->rows(); }
-		int size = num_corners = (int) PF(q)->cols();
-		if (num_corners < 0) { num_corners = size; }
-		else { assert(num_corners == size); }
+		if (PF) {
+			num_facets += (int) PF(q)->rows();
+			int size = (int) PF(q)->cols();
+			if (num_corners < 0) { num_corners = size; }
+			else { assert(num_corners == size); }
+		} else {
+			num_corners = 0;
+		}
 	}
 	Eigen::MatrixXd V(num_vertices, 3);
 	Eigen::MatrixXi F(num_facets, num_corners);
@@ -240,8 +242,13 @@ bool instanciate_pattern_aux(
 			+ (u*(1-v)).matrix()*b
 			+ (u*v).matrix()*c
 			+ ((1-u)*v).matrix()*d;
-		if (PF) { F.middleRows(f0, PF(q)->rows()) = PF(q)->array() + v0; }
-		parent_face.segment(f0, PF(q)->rows()).setConstant(q);
+		if (PVN.cols() > 2) {
+			V.middleRows(v0, PVN.rows()).col(2) += PVN.col(2);
+		}
+		if (PF) {
+			F.middleRows(f0, PF(q)->rows()) = PF(q)->array() + v0;
+			parent_face.segment(f0, PF(q)->rows()).setConstant(q);
+		}
 		vertex_offset(q) = v0;
 		v0 += (int) PV(q)->rows();
 		if (PF) { f0 += (int) PF(q)->rows(); }

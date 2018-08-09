@@ -243,7 +243,7 @@ void execute(const Args &args,
 				VField cstrainDisp = cstrainDisp_ij[index];
 				Eigen::Matrix<Real, _N, Eigen::Dynamic> cstrainDisp_v = sim.template nodeToVertexField<VField>(
 						cstrainDisp).data();
-				assert(mesh.numVertices() == cstrainDisp_v.cols());
+				assert((long int) mesh.numVertices() == cstrainDisp_v.cols());
 				for (size_t vi = 0; vi < mesh.numVertices(); ++vi) {
 					VectorND<_N> p = mesh.vertex(vi).node()->p;
 					VectorND<_N> cstrainDisp_vi = cstrainDisp_v.col(vi);
@@ -317,7 +317,7 @@ void execute(const Args &args,
 		// Tiled vertex indieces are of the form:
 		//   base_vertex_index + vtxOffset(i, j, k)
 		//
-		auto vtxIdxOffset = [=](int i, int j, int k) -> size_t {
+		auto vtxIdxOffset = [tilings,numCellVertices](int i, int j, int k) -> size_t {
 			return numCellVertices * (i * tilings[2] * tilings[1] + j * tilings[2] + k);
 		};
 

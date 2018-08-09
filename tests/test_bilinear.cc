@@ -21,7 +21,7 @@ TEST_CASE("bilinear_map", "[bilinear_map]") {
     BilinearMap f;
 
     // Verify that the default bilinear map is indeed identity and that its
-    // Jacobian is also constant and equal to the identity.
+    // Jacobian is constant and equal to the identity.
 
     SECTION("fixed") {
         Eigen::Matrix<double, 5, 2> pts;

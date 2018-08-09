@@ -4,6 +4,7 @@
 #include "WireQuadMesh.hh"
 #include "MeshingOptions.hh"
 #include "quadfoam/instantiate.h"
+#include "quadfoam/jacobians.h"
 ////////////////////////////////////////////////////////////////////////////////
 
 namespace {
@@ -35,11 +36,50 @@ std::shared_ptr<WireMeshBase> load_wire_mesh(const std::string &sym, const std::
     return nullptr;
 }
 
+// -----------------------------------------------------------------------------
+
 template<typename T>
 void sort_unique(std::vector<T> &x) {
     std::sort(x.begin(), x.end());
     auto it = std::unique(x.begin(), x.end());
     x.resize(std::distance(x.begin(), it));
+}
+
+Eigen::MatrixXd to_eigen_matrix(const std::vector<WireQuadMesh::Point> &verts) {
+    Eigen::MatrixXd V(verts.size(), 3);
+    for (int i = 0; i < (int) verts.size(); ++i) {
+        V.row(i) = verts[i].transpose();
+    }
+    return V;
+}
+
+std::vector<WireQuadMesh::Point> to_std_vector(const Eigen::MatrixXd &V) {
+    std::vector<WireQuadMesh::Point> verts(V.rows());
+    for (int i = 0; i < (int) verts.size(); ++i) {
+        verts[i] = V.row(i).transpose();
+    }
+    return verts;
+}
+
+// -----------------------------------------------------------------------------
+
+void build_stitched_graph(
+    const Eigen::MatrixXd & reduced_positions,
+    const Eigen::VectorXi & full_to_reduced,
+    const std::vector<WireQuadMesh::Edge> & all_edges,
+    std::vector<std::vector<size_t>> & stitchedVertices,
+    std::vector<WireQuadMesh::Edge> & stitchedEdges)
+{
+    stitchedVertices.resize(reduced_positions.rows(), {});
+    for (size_t i = 0; i < (size_t) full_to_reduced.size(); ++i) {
+        int j = full_to_reduced[i];
+        assert(j < reduced_positions.size());
+        stitchedVertices[j].push_back(i);
+    }
+    for (auto &e : all_edges) {
+        stitchedEdges.emplace_back(full_to_reduced[e.first], full_to_reduced[e.second]);
+    }
+    sort_unique(stitchedEdges);
 }
 
 } // anonymous namespace
@@ -56,12 +96,17 @@ WireQuadMesh::WireQuadMesh(
     m_allTopologies.clear(); m_allTopologies.resize(numQuads);
     m_allParameters.clear(); m_allParameters.resize(numQuads);
     m_allJacobians.clear(); m_allJacobians.resize(numQuads);
+    bool need_compute_jacobians = false;
     for (size_t i = 0; i < numQuads; ++i) {
         auto entry = params[i];
         m_allParameters[i] = entry["params"].get<std::vector<double>>();
         m_allTopologies[i] = load_wire_mesh(entry["symmetry"], entry["pattern"]);
         assert(m_allTopologies[i]->thicknessType() == m_thicknessType);
-        m_allJacobians[i] = MeshingOptions::read_jacobian(entry["jacobian"]);
+        if (entry.count("jacobian")) {
+            m_allJacobians[i] = MeshingOptions::read_jacobian(entry["jacobian"]);
+        } else {
+            need_compute_jacobians = true;
+        }
     }
 
     // Copy background quad mesh
@@ -79,57 +124,64 @@ WireQuadMesh::WireQuadMesh(
         }
     }
 
+    if (need_compute_jacobians) {
+        std::cerr << "Missing Jacobian information, will compute values based on input mesh." << std::endl;
+        compute_jacobians();
+    }
+
     // Compute vertex id offset in concatenated graph
-    m_vertexOffset.resize(numQuads + 1);
-    m_vertexOffset.setZero();
     std::vector<Eigen::MatrixXd> allVertices;
     std::vector<Edge> allEdges;
-    for (size_t f = 0; f < numQuads; ++f) {
+    for (size_t f = 0, vertex_offset = 0; f < numQuads; ++f) {
         std::vector<Point> verts;
         std::vector<Edge>  edges;
         m_allTopologies[f]->periodCellGraph(verts, edges);
-        m_vertexOffset[f+1] = m_vertexOffset[f] + verts.size();
-        Eigen::MatrixXd V(verts.size(), 3);
-        for (int i = 0; i < (int) verts.size(); ++i) {
-            V.row(i) = verts[i].transpose();
-        }
-        // Remap from [-1,1] to [0,1] for `quadfoam::instanciate_pattern()`
-        V = V.array() * 0.5 + 0.5;
-        allVertices.push_back(V);
-        for (const auto &e : edges) {
-            allEdges.emplace_back(e.first + m_vertexOffset[f], e.second + m_vertexOffset[f]);
-        }
+        allVertices.push_back(to_eigen_matrix(verts));
+        for (const auto &e : edges) { allEdges.emplace_back(e.first + vertex_offset, e.second + vertex_offset); }
+        vertex_offset += verts.size();
+        // _OutputGraph("test_inflation_graph.obj", verts, edges);
     };
 
     // Stitch input graph and remove duplicate vertices
-    Eigen::MatrixXi tmpF;
-    bool success = quadfoam::instanciate_pattern(
-        m_V, m_F,
-        allVertices, {},
-        m_graphReducedVertices,
-        tmpF,
-        true,
-        PatternSymmetry::tolerance,
-        &m_graphFullToReduced
-    );
+    Eigen::MatrixXd reducedPositions;
+    Eigen::MatrixXi reducedFaces;
+    Eigen::VectorXi fullToReduced;
+    bool success = quadfoam::instantiate_pattern(m_V, m_F, allVertices, {},
+        reducedPositions, reducedFaces, true, PatternSymmetry::tolerance, &fullToReduced);
     if (!success) {
         throw std::runtime_error("Could not stitch the wiremesh together!");
     }
 
-    // Build inverse map `m_stitchedVertices`, as well as the set `m_stitchedEdges`
-    m_stitchedVertices.resize(m_graphReducedVertices.size(), {});
-    for (size_t i = 0; i < (size_t) m_graphFullToReduced.size(); ++i) {
-        int j = m_graphFullToReduced[i];
-        assert(j < m_graphReducedVertices.size());
-        m_stitchedVertices[j].push_back(i);
-    }
-    for (auto &e : allEdges) {
-        m_stitchedEdges.emplace_back(m_graphFullToReduced[e.first], m_graphFullToReduced[e.second]);
-    }
-    sort_unique(m_stitchedEdges);
+    // Build inverse map (list of full ids mapped to a single id)
+    std::vector<std::vector<size_t>> stitchedVertices;
+    std::vector<WireQuadMesh::Edge> stitchedEdges;
+    build_stitched_graph(reducedPositions, fullToReduced, allEdges,
+        stitchedVertices, stitchedEdges);
+
+    // [Debug]
+    // std::vector<Point3d> allPts;
+    // for (int i = 0; i < reducedPositions.rows(); ++i) {
+    //     Eigen::RowVector3d x = reducedPositions.row(i);
+    //     allPts.push_back(Point3d(x[0], x[1], x[2]));
+    // }
+    // _OutputGraph("test_inflation_graph.msh", allPts, stitchedEdges);
 
     // Set active quad to -1 (initialize bilinear map and bounding box)
     setActiveQuad(-1);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Fill m_allJacobians based on the background quad mesh (m_V, m_F)
+void WireQuadMesh::compute_jacobians() {
+    using json = nlohmann::json;
+    Eigen::MatrixXd Q, P;
+    quadfoam::jacobians(m_V, m_F, Q, P);
+    assert(m_F.rows() == (int) m_allJacobians.size());
+    for (int i = 0; i < m_F.rows(); ++i) {
+        json obj = json::array({Q(i, 0), Q(i, 1), Q(i, 2), Q(i, 3)});
+        m_allJacobians[i] = MeshingOptions::read_jacobian(obj);
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -152,7 +204,7 @@ void WireQuadMesh::setActiveQuad(int idx) {
             pts[lv][1] = m_V(v, 1);
         }
         m_bilinearMap = BilinearMap(pts);
-        m_bbox = BBox<Point3d>(Point3d(-1, -1, -1), Point3d(1, 1, 1));
+        m_bbox = BBox<Point3d>(Point3d(-1, -1, 0), Point3d(1, 1, 0));
     }
 }
 
@@ -192,14 +244,14 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
     std::vector<double> &stitchedThicknesses,
     std::vector<double> &stitchedBlendingParams) const
 {
-    std::vector<Point>  allVerts;
-    std::vector<Edge>   allEdges;
+    std::vector<Eigen::MatrixXd> allVertices;
+    std::vector<Edge> allEdges;
     std::vector<double> allThicknesses;
     std::vector<double> allBlendingParams;
 
     // Build period cell graph for each wire mesh separately
     int paramOffset = 0;
-    for (int i = 0; i < m_F.rows(); ++i) {
+    for (int i = 0, vertex_offset = 0; i < m_F.rows(); ++i) {
         const auto wmesh = m_allTopologies[i];
         const size_t np = wmesh->numParams();
         std::vector<Real> wmparams(&allParams[paramOffset], &allParams[paramOffset] + np);
@@ -217,35 +269,51 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
         // where i is the index of the element (quad), and jac is the jacobian (linear mapping)
         // mapping the reference square [-1,1]² to the parallelogram of the element i.
 
-        double scaling = std::sqrt(m_allJacobians[i].inverse().determinant());
+        double scaling = 1.0 / std::sqrt(m_allJacobians[i].determinant());
+        std::cout << scaling << std::endl;
 
-        for (const auto &v : points)    allVerts.emplace_back(v);
+        allVertices.push_back(to_eigen_matrix(points));
+        for (const auto &e : edges) { allEdges.emplace_back(e.first + vertex_offset, e.second + vertex_offset); }
         for (double t : thicknesses)    allThicknesses.push_back(scaling * t);
         for (double b : blendingParams) allBlendingParams.push_back(scaling * b);
+        vertex_offset += points.size();
     };
+
+    // Stitch input graph and remove duplicate vertices
+    Eigen::MatrixXd reducedPositions;
+    Eigen::MatrixXi reducedFaces;
+    Eigen::VectorXi fullToReduced;
+    bool success = quadfoam::instantiate_pattern(m_V, m_F, allVertices, {},
+        reducedPositions, reducedFaces, true, PatternSymmetry::tolerance, &fullToReduced);
+    if (!success) {
+        throw std::runtime_error("Could not stitch the wiremesh together!");
+    }
+
+    // Build inverse map (list of full ids mapped to a single id)
+    std::vector<std::vector<size_t>> stitchedVertices;
+    build_stitched_graph(reducedPositions, fullToReduced, allEdges,
+        stitchedVertices, stitchedEdges);
 
     // Extracted stitched graph from the replicated graph by averaging
     // merged vertices' values.
-    stitchedEdges = m_stitchedEdges;
-    stitchedPoints.clear();
+    stitchedPoints = to_std_vector(reducedPositions);
     stitchedThicknesses.clear();
     stitchedBlendingParams.clear();
-    const size_t nsv = m_stitchedVertices.size();
-    stitchedPoints.reserve(nsv);
+    const size_t nsv = stitchedVertices.size();
     stitchedThicknesses.reserve(nsv);
     stitchedBlendingParams.reserve(nsv);
-    for (const auto &sv : m_stitchedVertices) {
+    for (const auto &sv : stitchedVertices) {
         // Take mean of location, thickness, and blending of all vertices
         // merged into this stitched output vertex.
         Point pt(Point::Zero());
         double t = 0, b = 0.0;
         for (size_t v : sv) {
-            pt += allVerts.at(v);
+            // pt += allVerts.at(v);
             t  += allThicknesses.at(v);
             b  += allBlendingParams.at(v);
         }
 
-        stitchedPoints.push_back(pt / sv.size());
+        // stitchedPoints.push_back(pt / sv.size());
         stitchedThicknesses.push_back(t / sv.size());
         stitchedBlendingParams.push_back(b / sv.size());
     }
@@ -258,12 +326,13 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
         Point3d p = stitchedPoints[i];
         auto jac = m_bilinearMap.jacobian(p[0], p[1]);
         double scaling = std::sqrt(jac.determinant());
+        std::cout << scaling << std::endl;
 
         stitchedThicknesses[i] *= scaling;
         stitchedBlendingParams[i] *= scaling;
     }
 
-    // _OutputGraph("test_inflation_graph.obj", stitchedPoints, stitchedEdges);
+    _OutputGraph("test_inflation_graph.obj", stitchedPoints, stitchedEdges);
 }
 
 #endif

@@ -30,7 +30,9 @@ public:
 
         template<typename Real>
         Point3<Real> operator() (Point3<Real> p) const {
-            return func_.apply(p[0], p[1]);
+            Point3<Real> q = func_.apply(p[0], p[1]);
+            q[2] = p[2];
+            return q;
         }
     };
 
@@ -68,6 +70,10 @@ public:
         std::vector<double> &stitchedBlendingParams) const;
 
 private:
+    // Fill m_allJacobians based on the background quad mesh (m_V, m_F)
+    void compute_jacobians();
+
+private:
     Eigen::MatrixXd m_V;
     Eigen::MatrixXi m_F;
 
@@ -80,14 +86,6 @@ private:
     std::vector<WireMeshBasePtr> m_allTopologies;
     std::vector<std::vector<double>> m_allParameters;
     std::vector<Eigen::Matrix3d> m_allJacobians; // ref square [-1,1]² to mapped parallelogram
-
-    // Index of the first vertex of a quad's graph in the concatenated graph (before de-duplication)
-    Eigen::VectorXi m_vertexOffset;
-    Eigen::MatrixXd m_graphReducedVertices; // vertex position after de-duplication
-    Eigen::VectorXi m_graphFullToReduced; // map full -> reduce vertex idx
-
-    std::vector<std::vector<size_t>> m_stitchedVertices;
-    std::vector<Edge> m_stitchedEdges;
 };
 
 #endif

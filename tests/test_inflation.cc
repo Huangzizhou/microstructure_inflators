@@ -48,12 +48,14 @@ void test_inflation(const std::string &mesher, const std::string &pattern) {
     std::cout << "Dilating " << mesher << ":\n\t" << pattern << std::endl;
     inflator.inflate(params);
 
+    #ifdef DUMP_OUTPUT
     if (MeshFEM::startswith(mesher, "2d_")) {
         MeshIO::save(mesher + ".obj", inflator.vertices(), inflator.elements());
     } else {
         std::cout << "Saving " << mesher << ".mesh" << std::endl;
         MeshIO::save(mesher + ".mesh", inflator.vertices(), inflator.elements());
     }
+    #endif
 
     // Verify that normals have a zero z component in 2D
     if (MeshFEM::startswith(mesher, "2d_")) {
@@ -112,7 +114,9 @@ void test_mesher(const std::string &name, const std::string &topology) {
         mesher->mesh(sdf, vertices_out, elements_out);
 
         (void) name;
+        #ifdef DUMP_OUTPUT
         MeshIO::save(name + ".obj", vertices_out, elements_out);
+        #endif
     }
 }
 

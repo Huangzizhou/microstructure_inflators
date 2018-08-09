@@ -59,10 +59,6 @@ void execute(const std::string &inputMesh,
     sdf.setMapFunctor(wm.mapFunctor());
     sdf.setBoundingBox(wm.boundingBox());
 
-    /////////////////////////////////////////
-    // TODO: Set bilinear map into the SDF //
-    /////////////////////////////////////////
-
     // Mesh active quad and save result
     {
         std::vector<MeshIO::IOVertex> vertices;

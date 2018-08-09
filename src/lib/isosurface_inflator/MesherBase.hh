@@ -23,6 +23,8 @@ public:
 
     MeshingOptions meshingOptions;
 
+    virtual ~MesherBase() = default;
+
     // Whether the mesher should attempt to make the boundary mesh lying on the
     // symmetry cell interface depend only on the interface geometry, allowing
     // meshes to be stitched together when the geometry matches.

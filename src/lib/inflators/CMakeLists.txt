@@ -37,3 +37,7 @@ target_link_libraries(inflators
         micro::vcglib
         micro::clipper
 )
+
+if(MICRO_WITH_SANITIZERS)
+    add_sanitizers(inflators)
+endif()

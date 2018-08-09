@@ -50,6 +50,8 @@ set(SOURCES
         WireQuadMesh.hh
         WireMesh.hh
         WireMesh.inl
+        quadfoam/jacobians.cpp
+        quadfoam/jacobians.h
         quadfoam/navigation.cpp
         quadfoam/navigation.h
         quadfoam/instantiate.cpp
@@ -84,3 +86,8 @@ target_link_libraries(isosurface_inflator
         isosurface_inflator_cgal
         micro::vcglib
 )
+
+if(MICRO_WITH_SANITIZERS)
+    add_sanitizers(isosurface_inflator_cgal)
+    add_sanitizers(isosurface_inflator)
+endif()

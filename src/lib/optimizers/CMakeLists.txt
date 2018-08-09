@@ -38,3 +38,7 @@ target_link_libraries(optimizers
         micro::nlopt
         micro::knitro
 )
+
+if(MICRO_WITH_SANITIZERS)
+    add_sanitizers(optimizers)
+endif()

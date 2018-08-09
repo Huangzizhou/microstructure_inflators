@@ -60,3 +60,11 @@ function(micro_download_libigl)
         GIT_TAG        593ec26c4c45da18fab5d930536407450ffea632
     )
 endfunction()
+
+## Sanitizers
+function(micro_download_sanitizers)
+    micro_download_project(sanitizers-cmake
+        GIT_REPOSITORY https://github.com/arsenm/sanitizers-cmake.git
+        GIT_TAG        6947cff3a9c9305eb9c16135dd81da3feb4bf87f
+    )
+endfunction()

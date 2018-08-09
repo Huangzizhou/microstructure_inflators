@@ -31,7 +31,7 @@ namespace quadfoam {
 ///
 /// @return     { True in case of success }
 ///
-bool instanciate_pattern_aux(
+bool instantiate_pattern_aux(
 	const Eigen::MatrixXd &IV,
 	const Eigen::MatrixXi &IF,
 	std::function<const Eigen::MatrixXd *(int)> PV,
@@ -47,7 +47,7 @@ bool instanciate_pattern_aux(
 );
 
 // Each quad has its own pattern mesh (PV, PF)
-bool instanciate_pattern(
+bool instantiate_pattern(
 	const Eigen::MatrixXd &IV,
 	const Eigen::MatrixXi &IF,
 	const std::vector<Eigen::MatrixXd> &PV,

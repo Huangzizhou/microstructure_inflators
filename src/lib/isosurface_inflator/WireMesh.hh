@@ -71,6 +71,8 @@ public:
     using Point = Point3<double>;
     using Edge = std::pair<size_t, size_t>;
 
+    virtual ~WireMeshBase() = default;
+
     virtual void set(const std::vector<MeshIO::IOVertex > &inVertices,
                      const std::vector<MeshIO::IOElement> &inElements) = 0;
 

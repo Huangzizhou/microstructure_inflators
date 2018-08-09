@@ -60,6 +60,7 @@ include(MicroUtils)
 
 # Microstructure options
 option(MICRO_COPY_HEADERS "Copy headers into build directory" OFF) # For debugging purposes
+option(MICRO_WITH_SANITIZERS "Enable sanitizers in compilation targets" OFF)
 
 # Options for libigl modules
 option(LIBIGL_USE_STATIC_LIBRARY          "Use libigl as static library" OFF)
@@ -81,9 +82,27 @@ option(LIBIGL_WITH_TRIANGLE               "Use Triangle"                 ON)
 option(LIBIGL_WITH_VIEWER                 "Use OpenGL viewer"            ON)
 option(LIBIGL_WITH_XML                    "Use XML"                      OFF)
 
+option(SANITIZE_ADDRESS   "Sanitize Address"       ON)
+option(SANITIZE_MEMORY    "Sanitize Memory"        OFF)
+option(SANITIZE_THREAD    "Sanitize Thread"        OFF)
+option(SANITIZE_UNDEFINED "Sanitize Undefined"     OFF)
+
+################################################################################
+
+# set(MICRO_WITH_SANITIZERS ON  CACHE BOOL "" FORCE)
+# set(SANITIZE_ADDRESS   ON  CACHE BOOL "" FORCE)
+# set(SANITIZE_MEMORY    OFF CACHE BOOL "" FORCE)
+# # set(SANITIZE_THREAD    OFF CACHE BOOL "" FORCE)
+# set(SANITIZE_UNDEFINED OFF  CACHE BOOL "" FORCE)
+
 ################################################################################
 # Dependencies
 ################################################################################
+
+# Sanitizers
+if(MICRO_WITH_SANITIZERS)
+	list(APPEND CMAKE_MODULE_PATH ${THIRD_PARTY_DIR}/sanitizers-cmake/cmake)
+endif()
 
 include(MicroDependencies)
 

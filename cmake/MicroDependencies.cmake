@@ -201,3 +201,9 @@ if(NOT TARGET micro::vcglib)
         add_library(micro::vcglib INTERFACE IMPORTED)
     endif()
 endif()
+
+# Sanitizers
+if(MICRO_WITH_SANITIZERS)
+    micro_download_sanitizers()
+    find_package(Sanitizers)
+endif()
