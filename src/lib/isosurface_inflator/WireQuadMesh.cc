@@ -310,7 +310,7 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
     Eigen::MatrixXi reducedFaces;
     Eigen::VectorXi fullToReduced;
     bool success = quadfoam::instantiate_pattern(m_V, m_F, allVertices, {},
-        reducedPositions, reducedFaces, true, PatternSymmetry::tolerance, &fullToReduced);
+        reducedPositions, reducedFaces, true, -1, &fullToReduced);
     if (!success) {
         throw std::runtime_error("Could not stitch the wiremesh together!");
     }

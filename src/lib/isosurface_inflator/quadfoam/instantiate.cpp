@@ -166,6 +166,11 @@ bool instantiate_pattern(
 	std::vector<std::array<Eigen::VectorXi, 4>> border_vertices(num_quads);
 	for (size_t q = 0; q < num_quads; ++q) {
 		compute_pattern_type(PV[q], border_vertices[q]);
+		// std::cout << PV[q] << std::endl;
+		// for (auto x : border_vertices[q]) {
+		// 	std::cout << x << std::endl;
+		// }
+		// std::cout << std::endl;
 	}
 
 	std::function<const Eigen::MatrixXi *(int)> PF_func;

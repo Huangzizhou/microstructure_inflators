@@ -95,9 +95,10 @@ void test_quad_mesh(const std::string &mesh, const std::string &topology) {
 
             #ifdef DUMP_OUTPUT
             std::cout << "Saving stuff" << std::endl;
-            std::string basename = MeshFEM::replace_ext(MeshFEM::split(mesh, "/").back(), "");
+            std::string pattern_name = MeshFEM::replace_ext(MeshFEM::split(topology, "/").back(), "");
+            std::string background_name = MeshFEM::replace_ext(MeshFEM::split(mesh, "/").back(), "");
             std::string suffix = (index < 0 ? "whole" : "q" + std::to_string(index));
-            MeshIO::save(basename + "_" + SymmetryTraits<SymmetryType>::value + "_" + suffix + ".obj", vertices_out, elements_out);
+            MeshIO::save(pattern_name + "_" + background_name + "_" + SymmetryTraits<SymmetryType>::value + "_" + suffix + ".obj", vertices_out, elements_out);
             #endif
         }
     }
@@ -118,24 +119,41 @@ void test_quad_meshes(const std::vector<std::string> &meshes, const std::string 
 #define SECTION(x)
 #endif
 
-TEST_CASE("inflate_and_stitch", "[isosurface_inflation]") {
 // int main(void) {
-    std::string pattern_2d = DATA_DIR "patterns/2D/topologies/0001.obj";
+TEST_CASE("inflate_and_stitch", "[isosurface_inflation]") {
 
-    std::vector<std::string> meshes = {
-        DATA_DIR "tests/quad_grid_orient_perfect.obj",
-        DATA_DIR "tests/quad_grid_orient_fuzzy.obj",
-        DATA_DIR "tests/quad_irregular_orient_fuzzy.obj",
-        DATA_DIR "tests/quad_self_repeating.obj",
-        DATA_DIR "tests/quad_rhombi_regular.obj",
-    };
+    SECTION("pattern_0001") {
+        std::string pattern_2d = DATA_DIR "patterns/2D/topologies/0001.obj";
 
-    // test_inflation("2d_diagonal", pattern_2d);
+        std::vector<std::string> meshes = {
+            DATA_DIR "tests/quad_grid_orient_perfect.obj",
+            DATA_DIR "tests/quad_grid_orient_fuzzy.obj",
+            DATA_DIR "tests/quad_irregular_orient_fuzzy.obj",
+            DATA_DIR "tests/quad_self_repeating.obj",
+            DATA_DIR "tests/quad_rhombi_regular.obj",
+        };
 
-    // SECTION("2d_square")          { test_quad_meshes<Symmetry::Square<>>(meshes, pattern_2d);          }
-    SECTION("2d_diagonal")        { test_quad_meshes<Symmetry::Diagonal<>>(meshes, pattern_2d);        }
-    // SECTION("2d_orthotropic")     { test_quad_meshes<Symmetry::Orthotropic<>>(meshes, pattern_2d);     }
-    // SECTION("2d_doubly_periodic") { test_quad_meshes<Symmetry::DoublyPeriodic<>>(meshes, pattern_2d);  }
+        SECTION("2d_square")          { test_quad_meshes<Symmetry::Square<>>(meshes, pattern_2d);          }
+        SECTION("2d_diagonal")        { test_quad_meshes<Symmetry::Diagonal<>>(meshes, pattern_2d);        }
+        SECTION("2d_orthotropic")     { test_quad_meshes<Symmetry::Orthotropic<>>(meshes, pattern_2d);     }
+        SECTION("2d_doubly_periodic") { test_quad_meshes<Symmetry::DoublyPeriodic<>>(meshes, pattern_2d);  }
+    }
+
+    SECTION("pattern_0905") {
+        std::string pattern_2d = DATA_DIR "patterns/2D/topologies/0905.obj";
+
+        std::vector<std::string> meshes = {
+            DATA_DIR "tests/quad_grid_orient_perfect.obj",
+            DATA_DIR "tests/quad_grid_orient_fuzzy.obj",
+            DATA_DIR "tests/quad_irregular_orient_fuzzy.obj",
+            DATA_DIR "tests/quad_self_repeating.obj",
+            // DATA_DIR "tests/quad_rhombi_regular.obj", // TODO: DEBUG SEGFAULT HERE
+        };
+
+        // test_inflation("2d_diagonal", pattern_2d);
+
+        SECTION("2d_diagonal")        { test_quad_meshes<Symmetry::Diagonal<>>(meshes, pattern_2d); }
+    }
 }
 
 #endif

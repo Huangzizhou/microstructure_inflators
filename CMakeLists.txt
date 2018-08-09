@@ -89,7 +89,7 @@ option(SANITIZE_UNDEFINED "Sanitize Undefined"     OFF)
 # set(MICRO_WITH_SANITIZERS ON  CACHE BOOL "" FORCE)
 # set(SANITIZE_ADDRESS   ON  CACHE BOOL "" FORCE)
 # set(SANITIZE_MEMORY    OFF CACHE BOOL "" FORCE)
-# # set(SANITIZE_THREAD    OFF CACHE BOOL "" FORCE)
+# set(SANITIZE_THREAD    OFF CACHE BOOL "" FORCE)
 # set(SANITIZE_UNDEFINED OFF  CACHE BOOL "" FORCE)
 
 ################################################################################
