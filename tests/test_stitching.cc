@@ -1,6 +1,7 @@
 #if HAS_LIBIGL
 
 ////////////////////////////////////////////////////////////////////////////////
+#include "test_common.hh"
 #include <isosurface_inflator/PatternSignedDistance.hh>
 #include <isosurface_inflator/IsosurfaceInflator.hh>
 #include <isosurface_inflator/MidplaneMesher.hh>
@@ -30,27 +31,6 @@ const nlohmann::json default_meshing_options = R"({
     "maxArea"                 : 0.001,
     "featureAngleThreshold"   : 0.7853981633974483
 })"_json;
-
-using json = nlohmann::json;
-
-////////////////////////////////////////////////////////////////////////////////
-
-template<typename Symmetry> struct SymmetryTraits { };
-
-#define SYMMETRY_NAME(sym, name)                  \
-    template<>                                    \
-    struct SymmetryTraits<sym> {                  \
-        static constexpr char value[] = name;     \
-    };                                            \
-    constexpr char SymmetryTraits<sym>::value []; \
-
-SYMMETRY_NAME(Symmetry::Cubic<>, "cubic")
-SYMMETRY_NAME(Symmetry::Orthotropic<>, "orthotropic")
-SYMMETRY_NAME(Symmetry::Diagonal<>, "diagonal")
-SYMMETRY_NAME(Symmetry::Square<>, "square")
-SYMMETRY_NAME(Symmetry::TriplyPeriodic<>, "triply_periodic")
-SYMMETRY_NAME(Symmetry::DoublyPeriodic<>, "doubly_periodic")
-SYMMETRY_NAME(Symmetry::NonPeriodic<>, "non_periodic")
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -146,14 +126,16 @@ TEST_CASE("inflate_and_stitch", "[isosurface_inflation]") {
         DATA_DIR "tests/quad_grid_orient_perfect.obj",
         DATA_DIR "tests/quad_grid_orient_fuzzy.obj",
         DATA_DIR "tests/quad_irregular_orient_fuzzy.obj",
+        DATA_DIR "tests/quad_self_repeating.obj",
+        DATA_DIR "tests/quad_rhombi_regular.obj",
     };
 
     // test_inflation("2d_diagonal", pattern_2d);
 
-    SECTION("2d_orthotropic")     { test_quad_meshes<Symmetry::Orthotropic<>>(meshes, pattern_2d);     }
+    // SECTION("2d_square")          { test_quad_meshes<Symmetry::Square<>>(meshes, pattern_2d);          }
     SECTION("2d_diagonal")        { test_quad_meshes<Symmetry::Diagonal<>>(meshes, pattern_2d);        }
-    SECTION("2d_doubly_periodic") { test_quad_meshes<Symmetry::DoublyPeriodic<>>(meshes, pattern_2d);  }
-    SECTION("2d_square")          { test_quad_meshes<Symmetry::Square<>>(meshes, pattern_2d);          }
+    // SECTION("2d_orthotropic")     { test_quad_meshes<Symmetry::Orthotropic<>>(meshes, pattern_2d);     }
+    // SECTION("2d_doubly_periodic") { test_quad_meshes<Symmetry::DoublyPeriodic<>>(meshes, pattern_2d);  }
 }
 
 #endif

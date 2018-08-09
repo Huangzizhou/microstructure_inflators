@@ -184,8 +184,18 @@ void WireQuadMesh::compute_jacobians() {
         m_allJacobians[i] = MeshingOptions::read_jacobian(obj);
 
         // Scale computed Jacobian in order to preserve area/volume
-        // m_allJacobians[i].topLeftCorner<2, 2>() *= 1.0 / std::sqrt(m_allJacobians[i].topLeftCorner<2, 2>().determinant());
+        m_allJacobians[i].topLeftCorner<2, 2>() *= 1.0 / std::sqrt(m_allJacobians[i].topLeftCorner<2, 2>().determinant());
     }
+}
+
+BilinearMap WireQuadMesh::getBilinearMap(int i) const {
+    Point2d pts[4];
+    for (int lv = 0; lv < 4; ++lv) {
+        int v = m_F(i, lv);
+        pts[lv][0] = m_V(v, 0);
+        pts[lv][1] = m_V(v, 1);
+    }
+    return BilinearMap(pts);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -201,13 +211,7 @@ void WireQuadMesh::setActiveQuad(int idx) {
     } else {
         // Meshing domain restricted to the reference square [-1,1]²
         m_activeQuad = idx;
-        Point2d pts[4];
-        for (int lv = 0; lv < 4; ++lv) {
-            int v = m_F(idx, lv);
-            pts[lv][0] = m_V(v, 0);
-            pts[lv][1] = m_V(v, 1);
-        }
-        m_bilinearMap = BilinearMap(pts);
+        m_bilinearMap = getBilinearMap(idx);
         m_bbox = BBox<Point3d>(Point3d(-1, -1, 0), Point3d(1, 1, 0));
     }
 }
@@ -272,19 +276,32 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
         std::vector<double> blendingParams;
         wmesh->periodCellGraph(wmparams, points, edges, thicknesses, blendingParams);
 
-        // Graph parameters (radii & blending) are expressed in the world space, i.e. after
-        // mapping the reference square [-1,1]² to the target parallelogram.
-        // In order to stitch adjacent pattern inscribed in different parallelograms,
-        // we first need to scale the radii and blending params by sqrt(jac^-1(i))`,
-        // where i is the index of the element (quad), and jac is the jacobian (linear mapping)
-        // mapping the reference square [-1,1]² to the parallelogram of the element i.
+        // Graph parameters (radii & blending) for each cell are expressed in
+        // the parallelogram space (i.e. after mapping the reference square [-1,1]²
+        // to the target parallelogram).
+        //
+        // Whether we are meshing a single cell or the whole mesh, the evaluation
+        // of the SDF is performed in world space (the i.e. after mapping to the
+        // actual quadrilateral on the mesh).
+        //
+        // The scaling we thus need to apply is the Jacobian of the transformation
+        // that goes from the pattern's target parallelogram to the actual physical
+        // quadrilateral of the cell (which may not be a parallelogram).
 
-        double scaling = std::sqrt(m_allJacobians[i].determinant());
+        double pre_scaling = 1.0 / std::sqrt(m_allJacobians[i].determinant());
+        auto map = getBilinearMap(i);
 
         allVertices.push_back(to_eigen_matrix(points));
         for (const auto &e : edges) { allEdges.emplace_back(e.first + vertex_offset, e.second + vertex_offset); }
-        for (double t : thicknesses)    allThicknesses.push_back(scaling * t);
-        for (double b : blendingParams) allBlendingParams.push_back(scaling * b);
+
+        int numVertices = (int) points.size();
+        assert(numVertices == (int) thicknesses.size());
+        assert(numVertices == (int) blendingParams.size());
+        for (int lv = 0; lv < numVertices; ++lv) {
+            double scaling = pre_scaling * std::sqrt(map.jacobian(points[lv][0], points[lv][1]).determinant());
+            allThicknesses.push_back(scaling * thicknesses[lv]);
+            allBlendingParams.push_back(scaling * blendingParams[lv]);
+        }
         vertex_offset += points.size();
     };
 

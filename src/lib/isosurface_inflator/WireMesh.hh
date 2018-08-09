@@ -303,8 +303,8 @@ public:
                         std::vector<Edge> &edges,
                         std::vector<Real> &thicknesses,
                         std::vector<Real> &blendingParams) const {
-        m_getGraphForParameters(m_inflVtx, m_inflEdge, params, points, edges,
-                                thicknesses, blendingParams);
+        getGraphForParameters(m_inflVtx, m_inflEdge, params, points, edges,
+                              thicknesses, blendingParams);
     }
 
     // Full period cell graph and associated thickness/blending params under
@@ -314,8 +314,8 @@ public:
                          std::vector<Edge>   &edges,
                          std::vector<double> &thicknesses,
                          std::vector<double> &blendingParams) const override {
-        m_getGraphForParameters(m_periodCellVtx, m_periodCellEdge, params, points, edges,
-                                thicknesses, blendingParams);
+        getGraphForParameters(m_periodCellVtx, m_periodCellEdge, params, points, edges,
+                              thicknesses, blendingParams);
     }
 
     // Construct (stitched) replicated graph along with the maps from parameters
@@ -714,7 +714,7 @@ private:
     // Get the positioned graph and decoded per-vertex variables for a
     // particular graph (e.g. inflation graph) under parameter values "params"
     template<typename Real>
-    void m_getGraphForParameters(
+    void getGraphForParameters(
                         const std::vector<TransformedVertex> &graphVertices,
                         const std::vector<Edge>              &graphEdges,
                         const std::vector<Real> &params,

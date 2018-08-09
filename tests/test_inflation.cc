@@ -1,4 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
+#include "test_common.hh"
 #include <isosurface_inflator/IsosurfaceInflator.hh>
 #include <isosurface_inflator/MeshingOptions.hh>
 #include <isosurface_inflator/IsosurfaceInflatorConfig.hh>
@@ -82,12 +83,21 @@ void test_inflation(const std::string &mesher, const std::string &pattern) {
 ////////////////////////////////////////////////////////////////////////////////
 
 template<int N, typename SymmetryType>
-void test_mesher(const std::string &name, const std::string &topology) {
+void test_mesher(const std::string &topology, bool skewed = false) {
     // Create mesher and load meshing options
     std::unique_ptr<MesherBase> mesher;
     if (N == 2) { mesher = std::make_unique<MidplaneMesher>(); }
     if (N == 3) { mesher = std::make_unique<IGLSurfaceMesherMC>(); }
-    mesher->meshingOptions.load(default_meshing_options);
+
+    nlohmann::json opt = default_meshing_options;
+    if (skewed) {
+        opt["jacobian"] = {
+            0.537285, -0.537285, 0,
+            0.930605,  0.930605, 0,
+            0       ,  0       , 1
+        };
+    }
+    mesher->meshingOptions.load(opt);
 
     // Load input wire mesh
     std::vector<MeshIO::IOVertex> vertices_in;
@@ -113,9 +123,11 @@ void test_mesher(const std::string &name, const std::string &topology) {
         mesher->meshInterfaceConsistently = true;
         mesher->mesh(sdf, vertices_out, elements_out);
 
-        (void) name;
         #ifdef DUMP_OUTPUT
-        MeshIO::save(name + ".obj", vertices_out, elements_out);
+        std::string basename = MeshFEM::replace_ext(MeshFEM::split(topology, "/").back(), "");
+        std::string symmetry_name = SymmetryTraits<SymmetryType>::value;
+        std::string postfix = (skewed ? "_skewed" : "");
+        MeshIO::save(basename + "_" + symmetry_name + postfix + ".obj", vertices_out, elements_out);
         #endif
     }
 }
@@ -141,11 +153,19 @@ TEST_CASE("inflate_default_pattern", "[isosurface_inflation]") {
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST_CASE("inflate_mesher_explicit", "[isosurface_inflation]") {
-    std::string pattern_2d = DATA_DIR "patterns/2D/topologies/0001.obj";
-    std::string pattern_3d = DATA_DIR "patterns/3D/reference_wires/pattern0000.wire";
+    SECTION("pattern_0001") {
+        std::string pattern_2d = DATA_DIR "patterns/2D/topologies/0001.obj";
+        std::string pattern_3d = DATA_DIR "patterns/3D/reference_wires/pattern0000.wire";
 
-    SECTION("2d_orthotropic")     { test_mesher<2, Symmetry::Orthotropic<>>("2d_orthotropic", pattern_2d);     }
-    SECTION("2d_diagonal")        { test_mesher<2, Symmetry::Diagonal<>>("2d_diagonal", pattern_2d);        }
-    SECTION("2d_doubly_periodic") { test_mesher<2, Symmetry::DoublyPeriodic<>>("2d_doubly_periodic", pattern_2d); }
-    SECTION("2d_square")          { test_mesher<2, Symmetry::Square<>>("2d_square", pattern_2d);          }
+        SECTION("2d_orthotropic")     { test_mesher<2, Symmetry::Orthotropic<>>(pattern_2d);    }
+        SECTION("2d_diagonal")        { test_mesher<2, Symmetry::Diagonal<>>(pattern_2d);       }
+        SECTION("2d_doubly_periodic") { test_mesher<2, Symmetry::DoublyPeriodic<>>(pattern_2d); }
+        SECTION("2d_square")          { test_mesher<2, Symmetry::Square<>>(pattern_2d);         }
+    }
+
+    SECTION("patter_0905") {
+        std::string pattern_2d = DATA_DIR "patterns/2D/topologies/0905.obj";
+
+        SECTION("2d_diagonal")        { test_mesher<2, Symmetry::Diagonal<>>(pattern_2d, true); }
+    }
 }

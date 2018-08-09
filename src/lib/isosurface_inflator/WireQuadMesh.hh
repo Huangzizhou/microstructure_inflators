@@ -57,6 +57,8 @@ public:
 
     BBox<Point3d> boundingBox() const { return m_bbox; }
 
+    BilinearMap getBilinearMap(int i) const;
+
     // Build the inflation graph for the whole quad mesh, stitching together adjacent nodes
     // (averaging stitched points' locations, thicknesses, and blending params).
     //
