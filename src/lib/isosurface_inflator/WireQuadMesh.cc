@@ -3,6 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "WireQuadMesh.hh"
 #include "MeshingOptions.hh"
+#include <igl/doublearea.h>
 #include "quadfoam/instantiate.h"
 #include "quadfoam/jacobians.h"
 ////////////////////////////////////////////////////////////////////////////////
@@ -181,6 +182,9 @@ void WireQuadMesh::compute_jacobians() {
     for (int i = 0; i < m_F.rows(); ++i) {
         json obj = json::array({Q(i, 0), Q(i, 1), Q(i, 2), Q(i, 3)});
         m_allJacobians[i] = MeshingOptions::read_jacobian(obj);
+
+        // Scale computed Jacobian in order to preserve area/volume
+        // m_allJacobians[i].topLeftCorner<2, 2>() *= 1.0 / std::sqrt(m_allJacobians[i].topLeftCorner<2, 2>().determinant());
     }
 }
 
@@ -227,6 +231,12 @@ std::vector<double> WireQuadMesh::params() const {
     return params;
 }
 
+Eigen::VectorXd WireQuadMesh::areas() const {
+    Eigen::VectorXd A;
+    igl::doublearea(m_V, m_F, A);
+    return A;
+}
+
 // -----------------------------------------------------------------------------
 
 // Build the inflation graph for the active quad mesh, stitching together adjacent
@@ -269,8 +279,7 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
         // where i is the index of the element (quad), and jac is the jacobian (linear mapping)
         // mapping the reference square [-1,1]² to the parallelogram of the element i.
 
-        double scaling = 1.0 / std::sqrt(m_allJacobians[i].determinant());
-        std::cout << scaling << std::endl;
+        double scaling = std::sqrt(m_allJacobians[i].determinant());
 
         allVertices.push_back(to_eigen_matrix(points));
         for (const auto &e : edges) { allEdges.emplace_back(e.first + vertex_offset, e.second + vertex_offset); }
@@ -322,15 +331,15 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
     // on the jacobian of the bilinear map (that maps the ref square [-1,1]² to
     // the active quad).
 
-    for (int i = 0; i < (int) stitchedPoints.size(); ++i) {
-        Point3d p = stitchedPoints[i];
-        auto jac = m_bilinearMap.jacobian(p[0], p[1]);
-        double scaling = std::sqrt(jac.determinant());
-        std::cout << scaling << std::endl;
+    // for (int i = 0; i < (int) stitchedPoints.size(); ++i) {
+    //     Point3d p = stitchedPoints[i];
+    //     auto jac = m_bilinearMap.jacobian(p[0], p[1]);
+    //     double scaling = 1.0 / std::sqrt(jac.determinant());
+    //     std::cout << scaling << std::endl;
 
-        stitchedThicknesses[i] *= scaling;
-        stitchedBlendingParams[i] *= scaling;
-    }
+    //     // stitchedThicknesses[i] *= scaling;
+    //     // stitchedBlendingParams[i] *= scaling;
+    // }
 
     _OutputGraph("test_inflation_graph.obj", stitchedPoints, stitchedEdges);
 }

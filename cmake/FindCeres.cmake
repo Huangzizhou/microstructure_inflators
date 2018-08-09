@@ -4,7 +4,7 @@ if(NOT Ceres_DIR)
 
   find_path(Ceres_DIR CeresConfig.cmake
     PATHS
-      ${THIRD_PARTY_DIR}/ceres
+      ${MICRO_EXTERNAL}/ceres
     PATH_SUFFIXES
       lib/cmake/Ceres
       lib64/cmake/Ceres

@@ -2,11 +2,12 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 #include <isosurface_inflator/PatternSignedDistance.hh>
+#include <isosurface_inflator/IsosurfaceInflator.hh>
 #include <isosurface_inflator/MidplaneMesher.hh>
 #include <isosurface_inflator/IGLSurfaceMesherMC.hh>
 #include <isosurface_inflator/WireQuadMesh.hh>
 #include <MeshFEM/StringUtils.hh>
-// #include <catch2/catch.hpp>
+#include <catch2/catch.hpp>
 #include <memory>
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -59,7 +60,6 @@ void test_quad_mesh(const std::string &mesh, const std::string &topology) {
     std::unique_ptr<MesherBase> mesher;
     if (N == 2) { mesher = std::make_unique<MidplaneMesher>(); }
     if (N == 3) { mesher = std::make_unique<IGLSurfaceMesherMC>(); }
-    mesher->meshingOptions.load(default_meshing_options);
 
     // Load input quad mesh
     std::vector<MeshIO::IOVertex> vertices_in;
@@ -88,8 +88,16 @@ void test_quad_mesh(const std::string &mesh, const std::string &topology) {
 
     // Wire mesh embedded into a quad mesh
     WireQuadMesh wm(vertices_in, elements_in, data);
+    Eigen::VectorXd A = wm.areas();
 
-    for (int index = -1; index < 0 /* (int) elements_in.size() */; ++index) {
+    for (int index : {-1, 0}) {
+        // Set meshing options
+        json opt = default_meshing_options;
+        double factor = (index < 0 ? A.sum() / A.mean() : 1.0);
+        opt["maxArea"] = opt["maxArea"].get<double>() / factor;
+        opt["marchingSquaresGridSize"] = std::round(opt["marchingSquaresGridSize"].get<double>() * std::sqrt(factor));
+        mesher->meshingOptions.load(opt);
+
         // Set SDF
         wm.setActiveQuad(index);
         PatternSignedDistance<double, WireQuadMesh, WireQuadMesh::MapToBaseUnit> sdf(wm);
@@ -106,6 +114,7 @@ void test_quad_mesh(const std::string &mesh, const std::string &topology) {
             mesher->mesh(sdf, vertices_out, elements_out);
 
             #ifdef DUMP_OUTPUT
+            std::cout << "Saving stuff" << std::endl;
             std::string basename = MeshFEM::replace_ext(MeshFEM::split(mesh, "/").back(), "");
             std::string suffix = (index < 0 ? "whole" : "q" + std::to_string(index));
             MeshIO::save(basename + "_" + SymmetryTraits<SymmetryType>::value + "_" + suffix + ".obj", vertices_out, elements_out);
@@ -125,23 +134,26 @@ void test_quad_meshes(const std::vector<std::string> &meshes, const std::string 
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifndef SECTION
 #define SECTION(x)
+#endif
 
-// TEST_CASE("inflate_and_stitch", "[isosurface_inflation]") {
-int main(void) {
+TEST_CASE("inflate_and_stitch", "[isosurface_inflation]") {
+// int main(void) {
     std::string pattern_2d = DATA_DIR "patterns/2D/topologies/0001.obj";
 
     std::vector<std::string> meshes = {
-        DATA_DIR "tests/quad_grid_orient_fuzzy.obj",
         DATA_DIR "tests/quad_grid_orient_perfect.obj",
+        DATA_DIR "tests/quad_grid_orient_fuzzy.obj",
         DATA_DIR "tests/quad_irregular_orient_fuzzy.obj",
     };
 
-    SECTION("2d_cubic")           { test_quad_meshes<Symmetry::Cubic<>>(meshes, pattern_2d);           }
-    // SECTION("2d_orthotropic")     { test_quad_meshes<Symmetry::Orthotropic<>>(meshes, pattern_2d);     }
-    // SECTION("2d_diagonal")        { test_quad_meshes<Symmetry::Diagonal<>>(meshes, pattern_2d);        }
-    // SECTION("2d_doubly_periodic") { test_quad_meshes<Symmetry::DoublyPeriodic<>>(meshes, pattern_2d);  }
-    // SECTION("2d_square")          { test_quad_meshes<Symmetry::Square<>>(meshes, pattern_2d);          }
+    // test_inflation("2d_diagonal", pattern_2d);
+
+    SECTION("2d_orthotropic")     { test_quad_meshes<Symmetry::Orthotropic<>>(meshes, pattern_2d);     }
+    SECTION("2d_diagonal")        { test_quad_meshes<Symmetry::Diagonal<>>(meshes, pattern_2d);        }
+    SECTION("2d_doubly_periodic") { test_quad_meshes<Symmetry::DoublyPeriodic<>>(meshes, pattern_2d);  }
+    SECTION("2d_square")          { test_quad_meshes<Symmetry::Square<>>(meshes, pattern_2d);          }
 }
 
 #endif

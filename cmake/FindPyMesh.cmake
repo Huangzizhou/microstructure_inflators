@@ -11,7 +11,7 @@
 
 set(_PYMESH_SEARCH_PATHS
 		"$ENV{PYMESH_PATH}"
-		${THIRD_PARTY_DIR}/PyMesh
+		${MICRO_EXTERNAL}/PyMesh
 		"C:/Program Files/PyMesh/"
 		"$ENV{HOME}/external/git/PyMesh"
 )

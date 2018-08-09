@@ -12,7 +12,7 @@ find_path(VCGLIB_INCLUDE
 		"vcg/complex/complex.h"
 		PATHS
 			ENV VCGLIB_INC
-			${THIRD_PARTY_DIR}/VCGLIB
+			${MICRO_EXTERNAL}/VCGLIB
 			"C:/Program Files/VCGlib/"
 			"$ENV{HOME}/external/git/vcglib"
 )

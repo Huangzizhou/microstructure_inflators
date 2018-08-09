@@ -50,6 +50,9 @@ public:
     // Inflation parameters the whole graph (simple concatenation)
     std::vector<double> params() const;
 
+    // Area of each quad of the background mesh
+    Eigen::VectorXd areas() const;
+
     MapToBaseUnit mapFunctor() const { return MapToBaseUnit(m_bilinearMap); }
 
     BBox<Point3d> boundingBox() const { return m_bbox; }

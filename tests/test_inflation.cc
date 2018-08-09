@@ -126,7 +126,6 @@ TEST_CASE("inflate_default_pattern", "[isosurface_inflation]") {
     auto pattern_2d = DATA_DIR "patterns/2D/topologies/0001.obj";
     auto pattern_3d = DATA_DIR "patterns/3D/reference_wires/pattern0000.wire";
 
-    SECTION("2d_cubic")           { test_inflation("2d_cubic", pattern_2d);           }
     SECTION("2d_orthotropic")     { test_inflation("2d_orthotropic", pattern_2d);     }
     SECTION("2d_diagonal")        { test_inflation("2d_diagonal", pattern_2d);        }
     SECTION("2d_non_periodic")    { test_inflation("2d_non_periodic", pattern_2d);    }
@@ -145,7 +144,6 @@ TEST_CASE("inflate_mesher_explicit", "[isosurface_inflation]") {
     std::string pattern_2d = DATA_DIR "patterns/2D/topologies/0001.obj";
     std::string pattern_3d = DATA_DIR "patterns/3D/reference_wires/pattern0000.wire";
 
-    SECTION("2d_cubic")           { test_mesher<2, Symmetry::Cubic<>>("2d_cubic", pattern_2d);           }
     SECTION("2d_orthotropic")     { test_mesher<2, Symmetry::Orthotropic<>>("2d_orthotropic", pattern_2d);     }
     SECTION("2d_diagonal")        { test_mesher<2, Symmetry::Diagonal<>>("2d_diagonal", pattern_2d);        }
     SECTION("2d_doubly_periodic") { test_mesher<2, Symmetry::DoublyPeriodic<>>("2d_doubly_periodic", pattern_2d); }
