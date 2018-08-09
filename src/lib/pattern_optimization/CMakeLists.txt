@@ -32,9 +32,12 @@ micro_copy_headers(pattern_optimization ${SOURCES})
 # Dependencies
 ################################################################################
 
-target_link_libraries(pattern_optimization PUBLIC
+target_link_libraries(pattern_optimization
+	PUBLIC
 		inflators
 		optimizers
+	PRIVATE
+        warnings::all
 )
 
 if(MICRO_WITH_SANITIZERS)

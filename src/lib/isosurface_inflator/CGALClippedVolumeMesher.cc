@@ -5,6 +5,8 @@
 #define CGAL_CONCURRENT_MESH_3
 #endif
 
+#include "BoxIntersection1DFeatures.hh"
+#include <MeshFEM/GlobalBenchmark.hh>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Mesh_triangulation_3.h>
 #include <CGAL/Mesh_complex_3_in_triangulation_3.h>
@@ -12,12 +14,7 @@
 #include <CGAL/Implicit_mesh_domain_3.h>
 #include <CGAL/Mesh_domain_with_polyline_features_3.h>
 #include <CGAL/make_mesh_3.h>
-
 #include <vector>
-
-#include "BoxIntersection1DFeatures.hh"
-
-#include <MeshFEM/GlobalBenchmark.hh>
 
 // avoid verbose function and named parameters call
 using namespace CGAL::parameters;
@@ -90,7 +87,7 @@ mesh(const SignedDistanceRegion<3> &sdf,
                             ((v1.point[0] != v2.point[0]) ||
                              (v1.point[1] != v2.point[1]) ||
                              (v1.point[2] != v2.point[2]))) {
-                        throw std::runtime_error("Inexact intersection of polylines"); 
+                        throw std::runtime_error("Inexact intersection of polylines");
                     }
                 }
             }

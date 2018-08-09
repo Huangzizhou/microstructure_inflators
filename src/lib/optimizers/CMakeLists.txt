@@ -30,6 +30,7 @@ micro_copy_headers(optimizers ${SOURCES})
 ################################################################################
 
 target_link_libraries(optimizers
+    PUBLIC
         MeshFEM
         inflators
         micro::accelerate
@@ -37,6 +38,8 @@ target_link_libraries(optimizers
         micro::ceres
         micro::nlopt
         micro::knitro
+    PRIVATE
+        warnings::all
 )
 
 if(MICRO_WITH_SANITIZERS)

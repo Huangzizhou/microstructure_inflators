@@ -14,6 +14,7 @@ target_link_libraries(unit_tests PUBLIC
 	Catch2::Catch2
 	isosurface_inflator
 	pattern_optimization
+	warnings::all
 )
 
 if(MICRO_WITH_SANITIZERS)

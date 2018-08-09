@@ -30,12 +30,15 @@ micro_copy_headers(inflators ${SOURCES})
 ################################################################################
 
 target_link_libraries(inflators
+    PUBLIC
         MeshFEM
         hex_inflator
         isosurface_inflator
         micro::pymesh
         micro::vcglib
         micro::clipper
+    PRIVATE
+        warnings::all
 )
 
 if(MICRO_WITH_SANITIZERS)

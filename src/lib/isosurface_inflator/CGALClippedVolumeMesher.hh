@@ -13,7 +13,7 @@
 //          template<R> signedDistance(Point3<R> p) const
 //          template<R> boundingSphere(Point3<R> &c, R &r) const
 //      boundingBox() determines the clipping region.
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  09/29/2015 15:42:57
@@ -31,6 +31,8 @@ public:
     using Real = typename SignedDistanceRegion<3>::Real;
     using MesherBase::MesherBase;
     using MesherBase::meshingOptions;
+
+    virtual ~CGALClippedVolumeMesher() = default;
 
     virtual void mesh(const SignedDistanceRegion<3> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,

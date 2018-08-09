@@ -6,7 +6,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CURRENT_DIR})
 ################################################################################
 
 add_library(intersection_check intersection_check.cc)
-target_link_libraries(intersection_check isosurface_inflator MeshFEM CGAL::CGAL)
+target_link_libraries(intersection_check isosurface_inflator MeshFEM CGAL::CGAL warnings::all)
 
 ################################################################################
 # Independent binaries

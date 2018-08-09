@@ -85,6 +85,7 @@ target_link_libraries(isosurface_inflator
     PRIVATE
         isosurface_inflator_cgal
         micro::vcglib
+        warnings::all
 )
 
 if(MICRO_WITH_SANITIZERS)

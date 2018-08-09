@@ -12,7 +12,7 @@ endif()
 
 ################################################################################
 
-set(THIRD_PARTY_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/)
+set(MICRO_EXTERNAL ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 set(CMAKE_CXX_FLAGS_RELWITHASSERT        "-O3" CACHE STRING "Flags used during RelWithAssertions builds" FORCE)
@@ -49,9 +49,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 # CMake plugin for vscode
 include(CMakeToolsHelpers OPTIONAL)
-
-# Enable more warnings
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-comment")
 
 # Helper functions
 include(MicroUtils)
@@ -101,7 +98,7 @@ option(SANITIZE_UNDEFINED "Sanitize Undefined"     OFF)
 
 # Sanitizers
 if(MICRO_WITH_SANITIZERS)
-	list(APPEND CMAKE_MODULE_PATH ${THIRD_PARTY_DIR}/sanitizers-cmake/cmake)
+	list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/sanitizers-cmake/cmake)
 endif()
 
 include(MicroDependencies)
