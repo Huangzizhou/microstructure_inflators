@@ -25,7 +25,7 @@ set(SOURCES
 		constraints/TensorFit.hh
 )
 
-add_library(pattern_optimization ${SOURCES})
+micro_add_library(pattern_optimization ${SOURCES})
 micro_copy_headers(pattern_optimization ${SOURCES})
 
 ################################################################################

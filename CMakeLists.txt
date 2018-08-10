@@ -56,8 +56,9 @@ include(MicroUtils)
 ################################################################################
 
 # Microstructure options
-option(MICRO_COPY_HEADERS "Copy headers into build directory" OFF) # For debugging purposes
-option(MICRO_WITH_SANITIZERS "Enable sanitizers in compilation targets" OFF)
+option(MICRO_COPY_HEADERS    "Copy headers into build directory; for debugging purposes"            OFF)
+option(MICRO_WITH_SANITIZERS "Enable sanitizers in compilation targets"                             OFF)
+option(MICRO_FAST_COMPILE    "Speed up compilation by excluding all targets from the default build" OFF)
 
 # Options for libigl modules
 option(LIBIGL_USE_STATIC_LIBRARY          "Use libigl as static library" OFF)
@@ -86,7 +87,8 @@ option(SANITIZE_UNDEFINED "Sanitize Undefined"     OFF)
 
 ################################################################################
 
-# set(MICRO_WITH_SANITIZERS ON  CACHE BOOL "" FORCE)
+# set(MICRO_FAST_COMPILE ON CACHE BOOL "" FORCE)
+# set(MICRO_WITH_SANITIZERS ON CACHE BOOL "" FORCE)
 # set(SANITIZE_ADDRESS   ON  CACHE BOOL "" FORCE)
 # set(SANITIZE_MEMORY    OFF CACHE BOOL "" FORCE)
 # set(SANITIZE_THREAD    OFF CACHE BOOL "" FORCE)

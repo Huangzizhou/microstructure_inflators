@@ -1,6 +1,12 @@
+################################################################################
+
 # Create single-source application
 function(micro_single_app name)
-    add_executable(${name} ${name}.cc)
+    if(MICRO_FAST_COMPILE)
+        add_executable(${name} EXCLUDE_FROM_ALL ${name}.cc)
+    else()
+        add_executable(${name} ${name}.cc)
+    endif()
     target_link_libraries(${name} ${ARGN})
     target_link_libraries(${name} warnings::all)
 
@@ -9,6 +15,28 @@ function(micro_single_app name)
     endif()
 
 endfunction()
+
+################################################################################
+
+function(micro_add_library name)
+    if(MICRO_FAST_COMPILE)
+        add_library(${name} EXCLUDE_FROM_ALL ${ARGN})
+    else()
+        add_library(${name} ${ARGN})
+    endif()
+endfunction()
+
+################################################################################
+
+function(micro_add_executable name)
+    if(MICRO_FAST_COMPILE)
+        add_executable(${name} EXCLUDE_FROM_ALL ${ARGN})
+    else()
+        add_executable(${name} ${ARGN})
+    endif()
+endfunction()
+
+################################################################################
 
 # Copy header files into the target folder of the build directory
 # Only works with relatives paths so far

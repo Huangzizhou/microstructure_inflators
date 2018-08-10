@@ -22,7 +22,7 @@ set(SOURCES
         wrappers/LuigiInflatorWrapper.hh
 )
 
-add_library(inflators ${SOURCES})
+micro_add_library(inflators ${SOURCES})
 micro_copy_headers(inflators ${SOURCES})
 
 ################################################################################

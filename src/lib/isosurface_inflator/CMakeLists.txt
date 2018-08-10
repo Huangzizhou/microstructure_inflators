@@ -58,10 +58,10 @@ set(SOURCES
         quadfoam/instantiate.h
 )
 
-add_library(isosurface_inflator ${SOURCES})
+micro_add_library(isosurface_inflator ${SOURCES})
 micro_copy_headers(isosurface_inflator ${SOURCES})
 
-add_library(isosurface_inflator_cgal
+micro_add_library(isosurface_inflator_cgal
         CGALClippedVolumeMesher.cc
         ConvexHullTriangulation.cc
 )
