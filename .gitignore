@@ -11,10 +11,11 @@ data
 /3rdparty/ceres
 /3rdparty/cgal
 /3rdparty/CLI11
-/3rdparty/nlopt
-/3rdparty/tbb
+/3rdparty/cotire
 /3rdparty/libigl
+/3rdparty/nlopt
 /3rdparty/sanitizers-cmake
+/3rdparty/tbb
 
 
 # LaTeX

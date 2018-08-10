@@ -14,6 +14,10 @@ function(micro_single_app name)
         add_sanitizers(${name})
     endif()
 
+    if(MICRO_WITH_COTIRE)
+        cotire(${name})
+    endif()
+
 endfunction()
 
 ################################################################################
@@ -24,6 +28,9 @@ function(micro_add_library name)
     else()
         add_library(${name} ${ARGN})
     endif()
+    if(MICRO_WITH_COTIRE)
+        cotire(${name})
+    endif()
 endfunction()
 
 ################################################################################
@@ -33,6 +40,9 @@ function(micro_add_executable name)
         add_executable(${name} EXCLUDE_FROM_ALL ${ARGN})
     else()
         add_executable(${name} ${ARGN})
+    endif()
+    if(MICRO_WITH_COTIRE)
+        cotire(${name})
     endif()
 endfunction()
 

@@ -81,6 +81,11 @@ if(NOT TARGET Catch2::Catch2 AND (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR))
     list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/Catch2/contrib)
 endif()
 
+# Cotire
+if(MICRO_WITH_COTIRE)
+    micro_download_cotire()
+endif()
+
 ################################################################################
 # Optional libraries
 ################################################################################

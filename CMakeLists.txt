@@ -59,6 +59,7 @@ include(MicroUtils)
 option(MICRO_COPY_HEADERS    "Copy headers into build directory; for debugging purposes"            OFF)
 option(MICRO_WITH_SANITIZERS "Enable sanitizers in compilation targets"                             OFF)
 option(MICRO_FAST_COMPILE    "Speed up compilation by excluding all targets from the default build" OFF)
+option(MICRO_WITH_COTIRE     "Use precompiled headers to speed up the build"                        OFF)
 
 # Options for libigl modules
 option(LIBIGL_USE_STATIC_LIBRARY          "Use libigl as static library" OFF)
@@ -103,7 +104,14 @@ if(MICRO_WITH_SANITIZERS)
 	list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/sanitizers-cmake/cmake)
 endif()
 
+# Other dependencies
 include(MicroDependencies)
+
+# Cotire
+if(MICRO_WITH_COTIRE)
+    list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/cotire/CMake)
+    include(cotire)
+endif()
 
 ################################################################################
 # Subfolders

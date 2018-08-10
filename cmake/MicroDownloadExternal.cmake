@@ -68,3 +68,11 @@ function(micro_download_sanitizers)
         GIT_TAG        6947cff3a9c9305eb9c16135dd81da3feb4bf87f
     )
 endfunction()
+
+## Cotire
+function(micro_download_cotire)
+    micro_download_project(cotire
+        GIT_REPOSITORY https://github.com/sakra/cotire.git
+        GIT_TAG        391bf6b7609e14f5976bd5247b68d63cbf8d4d12
+    )
+endfunction()
