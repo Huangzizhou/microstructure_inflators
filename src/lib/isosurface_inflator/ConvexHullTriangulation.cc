@@ -1,11 +1,13 @@
 #include "ConvexHullTriangulation.hh"
 
+#include "DisableWarnings.hh"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Triangulation_3.h>
 #include <CGAL/Triangulation_vertex_base_with_info_3.h>
 #include <CGAL/spatial_sort.h>
 #include <CGAL/Spatial_sort_traits_adapter_3.h>
 #include <CGAL/property_map.h>
+#include "EnableWarnings.hh"
 
 #include <iterator>
 

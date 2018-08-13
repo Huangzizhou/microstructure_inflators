@@ -7,6 +7,7 @@
 
 #include "BoxIntersection1DFeatures.hh"
 #include <MeshFEM/GlobalBenchmark.hh>
+#include "DisableWarnings.hh"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Mesh_triangulation_3.h>
 #include <CGAL/Mesh_complex_3_in_triangulation_3.h>
@@ -14,6 +15,7 @@
 #include <CGAL/Implicit_mesh_domain_3.h>
 #include <CGAL/Mesh_domain_with_polyline_features_3.h>
 #include <CGAL/make_mesh_3.h>
+#include "EnableWarnings.hh"
 #include <vector>
 
 // avoid verbose function and named parameters call

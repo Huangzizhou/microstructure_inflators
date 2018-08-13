@@ -30,10 +30,12 @@
 #include <MeshFEM/Geometry.hh>
 
 #ifdef GROUND_TRUTH_DEBUGGING
+#include "DisableWarnings.hh"
 #include <CGAL/Simple_cartesian.h>
 #include <CGAL/AABB_tree.h>
 #include <CGAL/AABB_traits.h>
 #include <CGAL/AABB_triangle_primitive.h>
+#include "EnableWarnings.hh"
 #include <MeshFEM/filters/gen_grid.hh>
 #endif
 
