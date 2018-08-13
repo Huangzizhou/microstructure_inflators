@@ -52,7 +52,9 @@ endif()
 # CLI11 library
 if(NOT TARGET CLI11::CLI11)
     micro_download_cli11()
-    add_subdirectory(${MICRO_EXTERNAL}/CLI11)
+    add_library(CLI11 INTERFACE)
+    target_include_directories(CLI11 SYSTEM INTERFACE ${MICRO_EXTERNAL}/CLI11/include)
+    add_library(CLI11::CLI11 ALIAS CLI11)
 endif()
 
 # CGAL library
