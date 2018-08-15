@@ -62,7 +62,7 @@ enum class ThicknessType { Vertex, Edge };
 // components follow contiguously.
 // Note that base vertices can share variables (e.g., for patterns with only
 // triply periodic symmetry).
-struct BaseVtxVarOffsets { size_t position, thickness, blending; };
+struct BaseVtxVarOffsets { size_t position, thickness, blending; std::vector<size_t> blendingPoly; };
 
 // Parts of WireMesh's interface that can be implemented without the
 // PatternSymmetry template parameter (or can be made virtual)
@@ -109,17 +109,21 @@ public:
     // There is a single blending parameter per base vertex.
     size_t numBlendingParameters() const { return m_numIndepBaseVertices; }
 
-    size_t numParams() const { return numPositionParams() + numThicknessParams() + numBlendingParameters(); }
+    // There are m_blendingPolySize blending poly parameters for each base vertex
+    size_t numBlendingPolyParams() const {return m_numIndepBaseVertices * m_blendingPolySize;}
+
+    size_t numParams() const { return numPositionParams() + numThicknessParams() + numBlendingParameters() + numBlendingPolyParams(); }
 
     virtual std::vector<double> defaultPositionParams() const = 0;
 
     // Position parameters come first, followed by thickness and blending
-    std::vector<double> defaultParameters(double thickness = 0.07) const {
+    std::vector<double> defaultParameters(double thickness = 0.07, double blending = 0.01) const {
         std::vector<double> params;
         params.reserve(numParams());
         params = defaultPositionParams();
         auto dtp = defaultThicknessParams(thickness); params.insert(params.end(), dtp.begin(), dtp.end());
-        auto dbp =  defaultBlendingParams(); params.insert(params.end(), dbp.begin(), dbp.end());
+        auto dbp =  defaultBlendingParams(blending); params.insert(params.end(), dbp.begin(), dbp.end());
+        auto dbpp =  defaultBlendingPolyParams(); params.insert(params.end(), dbpp.begin(), dbpp.end());
         return params;
     }
 
@@ -136,15 +140,82 @@ public:
         return std::vector<double>(numThicknessParams(), thickness);
     }
 
-    std::vector<double> defaultBlendingParams() const {
-        return std::vector<double>(numBlendingParameters(), 0.01);
+    std::vector<double> defaultBlendingParams(double blending = 0.01) const {
+        return std::vector<double>(numBlendingParameters(), blending);
+    }
+
+    std::vector<double> defaultBlendingPolyParams() const {
+        std::vector<double> result(numBlendingPolyParams(), 0.0001);
+
+        // Look in Maple scripts in shape_optimization/doc to check why the methods have this initialization
+        switch (m_blendingPolySize) {
+            case 8:
+                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
+                    result[i+7*m_numIndepBaseVertices] = 0.0;
+                }
+            case 7:
+                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
+                    result[i+6*m_numIndepBaseVertices] = 0.0;
+                }
+            case 6:
+                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
+                    result[i+5*m_numIndepBaseVertices] = 0.0;
+                }
+            case 5:
+                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
+                    result[i+4*m_numIndepBaseVertices] = 0.0;
+                }
+            case 4:
+                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
+                    result[i+3*m_numIndepBaseVertices] = 0.0;
+                }
+            case 3:
+                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
+                    result[i+2*m_numIndepBaseVertices] = 0.0;
+                }
+            case 2:
+                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
+                    result[i+m_numIndepBaseVertices] = 0.1e-3;
+                }
+            case 1:
+                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
+                    result[i] = 0.01;
+                }
+            case 0:
+                break;
+            default:
+                throw std::runtime_error("More blending parameters than supported");
+        }
+
+        return result;
     }
 
     // Position parameters come first, followed by thickness and blending
-    void validateParamIdx(size_t p) const { if (p >= numParams()) throw std::runtime_error("Invalid parameter index"); }
-    bool  isPositionParam(size_t p) const { validateParamIdx(p); return p < numPositionParams(); }
-    bool isThicknessParam(size_t p) const { validateParamIdx(p); return (p >= numPositionParams()) && (p < numPositionParams() + numThicknessParams()); }
-    bool  isBlendingParam(size_t p) const { validateParamIdx(p); return p >= numPositionParams() + numThicknessParams(); };
+    void validateParamIdx(size_t p) const {
+        if (p >= numParams())
+            throw std::runtime_error("Invalid parameter index");
+    }
+
+    bool  isPositionParam(size_t p) const {
+        validateParamIdx(p);
+        return p < numPositionParams();
+    }
+    bool isThicknessParam(size_t p) const {
+        validateParamIdx(p);
+        return (p >= numPositionParams()) && (p < numPositionParams() + numThicknessParams());
+    }
+    bool  isBlendingParam(size_t p) const {
+        validateParamIdx(p);
+        return (p >= numPositionParams() + numThicknessParams()) && (p < numPositionParams() + numThicknessParams() + numBlendingParameters());
+    };
+
+    int  isBlendingPolyParam(size_t p) const {
+        validateParamIdx(p);
+        if (p >= (numPositionParams() + numThicknessParams() + numBlendingParameters())) {
+            return (p - (numPositionParams() + numThicknessParams() + numBlendingParameters())) / m_numIndepBaseVertices;
+        }
+        return -1;
+    };
 
     virtual bool isPrintable(const std::vector<Real> &params, bool verticalInterfacesSupported = false) const = 0;
 
@@ -152,7 +223,8 @@ public:
                                 std::vector<Point3<double>> &points,
                                 std::vector<Edge> &edges,
                                 std::vector<double> &thicknesses,
-                                std::vector<double> &blendingParams) const = 0;
+                                std::vector<double> &blendingParams,
+                                std::vector<std::vector<double>> &blendingPolyCoeffs) const = 0;
 
     // Full period cell graph in its default configuration.
     void periodCellGraph(std::vector<Point> &points,
@@ -178,6 +250,9 @@ public:
                          std::vector<TransformedEdge  > &outEdges) const = 0;
 
     virtual std::vector<Isometry> symmetryGroup() const = 0;
+
+    virtual std::vector<int> pointToParametersIndices(Point inputPoint, const std::vector<Real> &params) const = 0;
+    virtual Point parameterIndexToPoint(size_t p) const = 0;
 
 protected:
     // All vertex/edges of the pattern
@@ -222,6 +297,8 @@ protected:
 
     ThicknessType m_thicknessType = ThicknessType::Vertex;
 
+    size_t m_blendingPolySize = 0;
+
     virtual double m_tolerance() const = 0;
 };
 
@@ -230,12 +307,19 @@ class WireMesh : public WireMeshBase {
 public:
     using PatternSymmetry = Symmetry_;
 
-    WireMesh(const std::string &wirePath, size_t inflationNeighborhoodEdgeDist = 2)
-        : m_inflationNeighborhoodEdgeDist(inflationNeighborhoodEdgeDist) { load(wirePath); }
+    WireMesh(const std::string &wirePath, size_t inflationNeighborhoodEdgeDist = 2, size_t blendingPolySize = 0)
+            : m_inflationNeighborhoodEdgeDist(inflationNeighborhoodEdgeDist) {
+        m_blendingPolySize = blendingPolySize;
+        load(wirePath);
+    }
     WireMesh(const std::vector<MeshIO::IOVertex > &inVertices,
              const std::vector<MeshIO::IOElement> &inElements,
-             size_t inflationNeighborhoodEdgeDist = 2)
-        : m_inflationNeighborhoodEdgeDist(inflationNeighborhoodEdgeDist) { set(inVertices, inElements); }
+             size_t inflationNeighborhoodEdgeDist = 2,
+             size_t blendingPolySize = 0)
+            : m_inflationNeighborhoodEdgeDist(inflationNeighborhoodEdgeDist) {
+        m_blendingPolySize = blendingPolySize;
+        set(inVertices, inElements);
+    }
 
     virtual std::vector<Isometry> symmetryGroup() const override {
         return PatternSymmetry::symmetryGroup();
@@ -284,8 +368,9 @@ public:
                                 std::vector<Point3<double>> &points,
                                 std::vector<Edge> &edges,
                                 std::vector<double> &thicknesses,
-                                std::vector<double> &blendingParams) const override {
-        inflationGraph<double>(params, points, edges, thicknesses, blendingParams);
+                                std::vector<double> &blendingParams,
+                                std::vector<std::vector<double>> &blendingPolyCoeffs) const override {
+        inflationGraph<double>(params, points, edges, thicknesses, blendingParams, blendingPolyCoeffs);
     }
 
     // The inflation graph includes all vertices and edges in the base symmetry
@@ -302,9 +387,10 @@ public:
                         std::vector<Point3<Real>> &points,
                         std::vector<Edge> &edges,
                         std::vector<Real> &thicknesses,
-                        std::vector<Real> &blendingParams) const {
+                        std::vector<Real> &blendingParams,
+                        std::vector<std::vector<Real>> &blendingPolyCoeffs) const {
         getGraphForParameters(m_inflVtx, m_inflEdge, params, points, edges,
-                              thicknesses, blendingParams);
+                                thicknesses, blendingParams, blendingPolyCoeffs);
     }
 
     // Full period cell graph and associated thickness/blending params under
@@ -314,8 +400,9 @@ public:
                          std::vector<Edge>   &edges,
                          std::vector<double> &thicknesses,
                          std::vector<double> &blendingParams) const override {
+        std::vector<std::vector<Real>> emptyBlendingPolyCoeffs;
         getGraphForParameters(m_periodCellVtx, m_periodCellEdge, params, points, edges,
-                              thicknesses, blendingParams);
+                                thicknesses, blendingParams, emptyBlendingPolyCoeffs);
     }
 
     // Construct (stitched) replicated graph along with the maps from parameters
@@ -667,10 +754,35 @@ public:
         return C;
     }
 
-    // for a given vertex index, return parameters related to it
-    std::vector<int> pointToParametersIndices(Point point) {
+    // for a given point, return parameters related to it
+    virtual std::vector<int> pointToParametersIndices(Point inputPoint, const std::vector<Real> &params) const override {
+        if (params.size() != numParams())
+            throw std::runtime_error("Invalid number of params.");
+
+        // Position the base graph vertices using params
+        std::vector<Point3<Real>> baseGraphPos;
+        baseGraphPos.reserve(m_baseVertices.size());
+        for (size_t i = 0; i < m_baseVertices.size(); ++i) {
+            const auto &pos = m_baseVertexPositioners[i];
+            size_t offset = m_baseVertexVarOffsets[i].position;
+            baseGraphPos.push_back(pos.template getPosition<Real>(&params[offset]));
+        }
+
+        // Now, for each point, verifies if it is close enough to the input one
+        int baseIdx = -1;
+        for (const TransformedVertex &iv : m_inflVtx) {
+            Point p = iv.iso.apply(baseGraphPos.at(iv.origVertex));
+
+            if ((p - inputPoint).squaredNorm() < (PatternSymmetry::tolerance * PatternSymmetry::tolerance))
+                baseIdx = iv.origVertex;
+        }
+
+        if (baseIdx == -1) {
+            std::cout << "Failed to find " << inputPoint << std::endl;
+            throw std::runtime_error("Failed to find input point");
+        }
+
         std::vector<int> result;
-        int baseIdx = m_findBaseVertex(point);
         int indepIdx = m_indepVtxForBaseVtx[baseIdx];
         unsigned dofs = m_baseVertexPositioners[indepIdx].numDoFs();
 
@@ -680,11 +792,15 @@ public:
         result.push_back(m_baseVertexVarOffsets[baseIdx].thickness);
         result.push_back(m_baseVertexVarOffsets[baseIdx].blending);
 
+        for (size_t i=0; i<m_blendingPolySize; i++) {
+            result.push_back(m_baseVertexVarOffsets[baseIdx].blendingPoly[i]);
+        }
+
         return result;
     }
 
     // for a given parameter index, return the vertex related to it
-    Point parameterIndexToPoint(size_t p) {
+    virtual Point parameterIndexToPoint(size_t p) const override {
         Point result;
 
         if (p < numPositionParams()) {
@@ -707,7 +823,6 @@ public:
         return result;
     }
 
-
 private:
     std::vector<decltype(PatternSymmetry::nodePositioner(Point()))> m_baseVertexPositioners;
 
@@ -715,13 +830,14 @@ private:
     // particular graph (e.g. inflation graph) under parameter values "params"
     template<typename Real>
     void getGraphForParameters(
-                        const std::vector<TransformedVertex> &graphVertices,
-                        const std::vector<Edge>              &graphEdges,
-                        const std::vector<Real> &params,
-                        std::vector<Point3<Real>> &points,
-                        std::vector<Edge> &edges,
-                        std::vector<Real> &thicknesses,
-                        std::vector<Real> &blendingParams) const {
+            const std::vector<TransformedVertex> &graphVertices,
+            const std::vector<Edge>              &graphEdges,
+            const std::vector<Real> &params,
+            std::vector<Point3<Real>> &points,
+            std::vector<Edge> &edges,
+            std::vector<Real> &thicknesses,
+            std::vector<Real> &blendingParams,
+            std::vector<std::vector<Real>> &blendingPolyCoeffs) const {
         if (params.size() != numParams())
             throw std::runtime_error("Invalid number of params.");
 
@@ -747,11 +863,17 @@ private:
 
         thicknesses   .clear(), thicknesses   .reserve(graphVertices.size());
         blendingParams.clear(), blendingParams.reserve(graphVertices.size());
+        blendingPolyCoeffs.clear(), blendingPolyCoeffs.reserve(graphVertices.size());
 
         for (const TransformedVertex &iv : graphVertices) {
             const auto &vo = m_baseVertexVarOffsets.at(iv.origVertex);
             thicknesses   .push_back(params.at(vo.thickness));
             blendingParams.push_back(params.at(vo.blending));
+            std::vector<Real> blendingPoly(m_blendingPolySize);
+            for (unsigned i=0; i< m_blendingPolySize; i++) {
+                blendingPoly[i] = params.at(vo.blendingPoly[i]);
+            }
+            blendingPolyCoeffs.push_back(blendingPoly);
         }
     }
 

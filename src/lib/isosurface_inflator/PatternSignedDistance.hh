@@ -20,6 +20,7 @@
 #define PATTERNSIGNEDDISTANCE_HH
 
 #include "WireMesh.hh"
+#include "WireQuadMesh.hh"
 #include "AutomaticDifferentiation.hh"
 #include "SignedDistance.hh"
 #include "Joint.hh"
@@ -71,16 +72,22 @@ public:
 
     void setParameters(const std::vector<Real> &params,
                        const Eigen::Matrix<Real,3,3> &jacobian,
-                       JointBlendMode blendMode = JointBlendMode::HULL) {
+                       JointBlendMode blendMode = JointBlendMode::HULL,
+                       JointBlendFunction blendFunction = JointBlendFunction::EXPONENTIAL) {
         // Clear all existing state.
         m_edgeGeometry.clear();
         m_jointForVertex.clear();
         m_vertexSmoothness.clear();
         m_incidentEdges.clear();
 
+        if (blendFunction != JointBlendFunction::EXPONENTIAL && std::is_same<WMesh, class WireQuadMesh>::value) {
+            std::cerr << "Selected type of blending function is not implemented for WireQuadMesh" << std::endl;
+            throw std::runtime_error("Selected type of blending function is not implemented for WireQuadMesh");
+        }
+
         std::vector<Real> thicknesses;
         std::vector<Point3<Real>> points;
-        m_wireMesh.inflationGraph(params, points, m_edges, thicknesses, m_blendingParams);
+        m_wireMesh.inflationGraph(params, points, m_edges, thicknesses, m_blendingParams, m_blendingPolyCoeffs);
         std::vector<Point3<Real>> orig_points = points; // Dangling-edge-in-base-cell test must be performed on pre-warped positions.
         m_jacobian = jacobian;
         for (auto &p : points) {
@@ -105,7 +112,11 @@ public:
         // Construct joints at each vertex in the base unit.
         for (size_t u = 0; u < points.size(); ++u) {
             if (m_incidentEdges[u].size() < 2) {
-                if (WMesh::PatternSymmetry::inBaseUnit(stripAutoDiff(orig_points[u]))) {
+                if (std::is_same<Symmetry::NonPeriodic<typename WMesh::PatternSymmetry::Tolerance, 2>, typename WMesh::PatternSymmetry>::value ||
+                    std::is_same<Symmetry::NonPeriodic<typename WMesh::PatternSymmetry::Tolerance, 3>, typename WMesh::PatternSymmetry>::value) {
+                    // no problem if we are working with non periodic structures
+                }
+                else if (WMesh::PatternSymmetry::inBaseUnit(stripAutoDiff(orig_points[u]))) {
                     std::cerr << "WARNING: dangling edge inside the base unit at ["
                               << orig_points[u].transpose()
                               << "] (neighboring cell's edge is probably protruding inside base cell)"
@@ -125,7 +136,7 @@ public:
                 radii.push_back(thicknesses[v_other]);
             }
             m_jointForVertex.emplace_back(
-                Future::make_unique<Joint<Real>>(centers, radii, m_blendingParams[u], blendMode));
+                Future::make_unique<Joint<Real>>(centers, radii, m_blendingParams[u], blendMode, blendFunction, m_blendingPolyCoeffs[u]));
         }
 
 #if VERTEX_SMOOTHNESS_MODULATION
@@ -271,15 +282,25 @@ public:
         if (!joint) {
             // Joints are not created for valence 1 vertices.
             assert(m_incidentEdges[vtx].size() == 1);
-            return JointDists<Real2>(edgeDists[m_incidentEdges[vtx][0]],
+            JointDists<Real2> result(edgeDists[m_incidentEdges[vtx][0]],
                                      edgeDists[m_incidentEdges[vtx][0]]);
+
+            if (std::isnan(stripAutoDiff(result.smooth)) || std::isnan(stripAutoDiff(result.hard)) || std::isinf(stripAutoDiff(result.smooth)) || std::isinf(stripAutoDiff(result.hard))) {
+                std::cerr << "result.smooth: "        << result.smooth        << std::endl;
+                std::cerr << "result.hard: "          << result.hard          << std::endl;
+            }
+
+            return result;
         }
         jointEdgeDists.clear(), jointEdgeDists.reserve(m_incidentEdges[vtx].size());
         Real2 hardUnionedDist = safe_numeric_limits<Real2>::max();
+
+        // Add all distances
         for (size_t ei : m_incidentEdges[vtx]) {
             jointEdgeDists.push_back(edgeDists[ei]);
             hardUnionedDist = std::min<Real2>(hardUnionedDist, edgeDists[ei]);
         }
+
         if (DebugOutput) {
             std::cerr << "hardUnionedDist derivatives:";
             reportDerivatives(std::cerr, hardUnionedDist);
@@ -292,8 +313,37 @@ public:
             std::cerr << "js derivatives:"; reportDerivatives(std::cerr,  joint->smoothingAmt(p)); std::cerr << std::endl;
             std::cerr << "vs derivatives:"; reportDerivatives(std::cerr, m_vertexSmoothness[vtx]); std::cerr << std::endl;
         }
-        return JointDists<Real2>(SD::exp_smin_reparam_accurate<Real2>(jointEdgeDists, s),
-                                 hardUnionedDist);
+
+        // obtain blending polynomial coefficients
+        std::vector<Real2> smoothingPolyCoeffs = joint->template smoothingPolyCoeffs<Real2>();
+
+        // If extra blending parameters are given, uses a different function based on polynomials
+        JointDists<Real2> result;
+        if (joint->m_blendFunction == JointBlendFunction::EXPONENTIAL) {
+            result = JointDists<Real2>(SD::exp_smin_reparam_accurate<Real2>(jointEdgeDists, s), hardUnionedDist);
+        }
+        else if (joint->m_blendFunction == JointBlendFunction::POLY_SYMMETRIC) {
+            result = JointDists<Real2>(SD::exp_smin_symmetric_params<Real2>(jointEdgeDists, s, smoothingPolyCoeffs), hardUnionedDist);
+        }
+        else if (joint->m_blendFunction == JointBlendFunction::POLY_NONCONVEX) {
+            result = JointDists<Real2>(SD::exp_smin_nonconvex_params<Real2>(jointEdgeDists, s, smoothingPolyCoeffs), hardUnionedDist);
+        }
+        else {
+            result = JointDists<Real2>(SD::exp_smin_piecewise_params<Real2>(jointEdgeDists, s, smoothingPolyCoeffs), hardUnionedDist);
+        }
+
+        if (hasInvalidDerivatives(result.smooth) || hasInvalidDerivatives(result.hard) || std::isnan(stripAutoDiff(result.smooth)) || std::isinf(stripAutoDiff(result.hard))) {
+            std::cout << "vertex: " << vtx << std::endl;
+
+            std::cerr << "  result.smooth: "; std::cerr << result.smooth << std::endl;
+            std::cerr << "  result.hard: "; std::cerr << result.hard << std::endl;
+
+            std::cerr << "Report derivatives: " << std::endl;
+            std::cerr << "  result.smooth: "  ; reportDerivatives(std::cerr, result.smooth); std::cerr << std::endl; std::cerr << std::endl;
+            std::cerr << "  result.hard: "  ; reportDerivatives(std::cerr, result.hard); std::cerr << std::endl; std::cerr << std::endl;
+        }
+
+        return result;
     }
 
     // InsideOutsideAccelerate: do we just need an inside/outside query? If so,
@@ -439,7 +489,8 @@ public:
             // weights[i] = 0.5 * (1.0 - tanh(posDist * 100 - 3.0));
             weights[i] = 0.5 * (1.0 - tanh(dist * 50 - 1.0));
             smoothEffects[i] = candidateJDists[i].hard - candidateJDists[i].smooth;
-            assert(smoothEffects[i] >= -1e-9);
+            // with the new parameters, can we guarantee that the smooth distance is smaller than the hard one?
+            //assert(smoothEffects[i] >= -1e-9);
             smoothEffects[i] = std::max<Real2>(smoothEffects[i], 0.0);
         }
         Real2 weightedAvgOfGeometricMeanSq = 0;
@@ -452,6 +503,11 @@ public:
         }
         weightedAvgOfGeometricMeanSq /= totalWeight;
         Real2 overlapSmoothAmt = maxOverlapSmoothingAmt * tanh(1000.0 * weightedAvgOfGeometricMeanSq);
+
+        if (std::isnan(stripAutoDiff(overlapSmoothAmt)) || std::isinf(stripAutoDiff(overlapSmoothAmt))) {
+            std::cerr << "overlapSmoothAmt: "          << overlapSmoothAmt          << std::endl;
+        }
+
 #else
         Real2 smoothEffect1 =       closestJDist.hard -       closestJDist.smooth;
         Real2 smoothEffect2 = secondClosestJDist.hard - secondClosestJDist.smooth;
@@ -470,6 +526,8 @@ public:
 
         Real2 dist = SD::exp_smin_reparam_accurate(closestJDist.smooth,
                                              secondClosestJDist.smooth, overlapSmoothAmt);
+        //Real2 dist = std::min(closestJDist.smooth, secondClosestJDist.smooth); // true min
+
         if (std::isnan(stripAutoDiff(dist)) || std::isinf(stripAutoDiff(dist))) {
             std::cerr.precision(19);
             std::cerr << "closestJDist.smooth: "       << closestJDist.smooth       << std::endl;
@@ -495,6 +553,7 @@ public:
             std::cerr << "secondClosestJDist.smooth:"; std::cerr << secondClosestJDist.smooth << std::endl;
             std::cerr << "         overlapSmoothAmt:"; std::cerr <<          overlapSmoothAmt << std::endl;
 
+            const auto &scJoint = m_jointForVertex[sc_idx]; // scJoint could be NULL (in non-periodic cases)
             auto getSmoothingAmt = [&](size_t vidx) -> Real2 {
                 const auto &joint = m_jointForVertex[vidx];
                 if (joint) return joint->smoothingAmt(p) * (VERTEX_SMOOTHNESS_MODULATION ? m_vertexSmoothness[vidx] : 1.0);
@@ -502,18 +561,25 @@ public:
             };
 
             std::cerr << "      closestJDist smoothing amt:"; std::cerr << getSmoothingAmt( c_idx) << std::endl;
-            std::cerr << "secondClosestJDist smoothing amt:"; std::cerr << getSmoothingAmt(sc_idx) << std::endl;
+            if (scJoint != NULL) {
+                std::cerr << "secondClosestJDist smoothing amt:";
+                std::cerr << getSmoothingAmt(sc_idx) << std::endl;
+            }
 
             if (hasInvalidDerivatives(dist))
                 std::cerr << "Invalid derivatives computed in combinedJointDistances evaluation" << std::endl;
             std::cerr << "dist:"                     ; reportDerivatives(std::cerr,                      dist); std::cerr << std::endl; std::cerr << std::endl;
             std::cerr << "closestJDist.smooth:"      ; reportDerivatives(std::cerr,       closestJDist.smooth); std::cerr << std::endl; std::cerr << std::endl;
-            std::cerr << "secondClosestJDist.smooth:"; reportDerivatives(std::cerr, secondClosestJDist.smooth); std::cerr << std::endl; std::cerr << std::endl;
+            if (scJoint != NULL) {
+                std::cerr << "secondClosestJDist.smooth:"; reportDerivatives(std::cerr, secondClosestJDist.smooth); std::cerr << std::endl; std::cerr << std::endl;
+            }
             std::cerr << "overlapSmoothAmt:"         ; reportDerivatives(std::cerr,          overlapSmoothAmt); std::cerr << std::endl; std::cerr << std::endl;
 
             std::cerr << "Hard derivatives:" << std::endl;
             std::cerr << "closestJDist.hard:"        ; reportDerivatives(std::cerr,       closestJDist.hard); std::cerr << std::endl;
-            std::cerr << "secondClosestJDist.hard:"  ; reportDerivatives(std::cerr, secondClosestJDist.hard); std::cerr << std::endl;
+            if (scJoint != NULL) {
+                std::cerr << "secondClosestJDist.hard:"; reportDerivatives(std::cerr, secondClosestJDist.hard); std::cerr << std::endl;
+            }
             std::cerr << std::endl;
 
             for (size_t ei : m_incidentEdges[c_idx]) {
@@ -752,6 +818,13 @@ private:
         }
 #endif
 
+        // TODO - SAVE FOR LATER: Use frame function in 2D combined with the current dist, to create elements inside a given frame domain
+        //Real2 frame = 2.0 * tanh(pow(p[0]/(1.072), 10.0)) +  2.0 * tanh(pow(p[1]/(1.072),10.0))  -  1.0;
+        //Real2 frame = 2.0 * tanh(pow(p[0]/(1.072), 1000.0)) +  2.0 * tanh(pow(p[1]/(1.072), 1000.0))  -  1.0;
+        //Real2 s = 1e-20 + dist - dist;
+
+        //dist = SD::exp_smax_reparam_accurate(dist, frame, s);
+
         if (std::isnan(stripAutoDiff(dist)) || std::isinf(stripAutoDiff(dist))) {
             std::cerr << "ERROR, invalid dist: " << dist << "at: " << stripAutoDiff(p).transpose() << std::endl;
             std::cerr << "Edge dists:";
@@ -822,6 +895,7 @@ private:
     // prevent bulging of nearly straight joints.
     std::vector<Real>                m_vertexSmoothness;
     std::vector<Real>                m_blendingParams;
+    std::vector<std::vector<Real>>   m_blendingPolyCoeffs; // blending polynomial coefficients used for each vertex
     // Edges incident to a particular vertex.
     std::vector<std::vector<size_t>> m_incidentEdges;
 

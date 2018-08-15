@@ -15,8 +15,10 @@
 #include "InflatorTypes.hh"
 #include "TriangleClosestPoint.hh"
 #include "AutomaticDifferentiation.hh"
+#include "PiecewiseBlending.hh"
+#include "PolynomialConvexBlending.hh"
+#include "NonConvexBlending.hh"
 #include <vector>
-
 
 namespace SD {
 
@@ -84,16 +86,6 @@ Real exp_smin_reparam_accurate(Real a, Real b, Real s = 1.0/32) {
     return (a + b) / 2.0 - s * (log_cosh(d_div_s) + log(2.0));
 }
 
-// exponential smooth min one or more values (s = 1/32);
-template<typename Real>
-Real exp_smin_reparam(const std::vector<Real> &values, Real s = 1.0/32) {
-    Real res = 0;
-    Real k = 1.0 / s;
-    for (Real v : values)
-        res += exp(-k * v);
-    return -log(res) / k;
-}
-
 // We can rewrite the smin of N numbers in a more numerically stable way by
 // decomposing into the average and difference of the numbers:
 // (a + b + ...) / N - s log(exp((avg - a)/(2s)) + exp((avg - b)/(2s)) + ...)
@@ -130,6 +122,16 @@ Real exp_smin_reparam_accurate(const std::vector<Real> &values, Real s) {
     return avg - s * log(res);
 }
 
+// exponential smooth min one or more values (s = 1/32);
+template<typename Real>
+Real exp_smin_reparam(const std::vector<Real> &values, Real s = 1.0/32) {
+    Real res = 0;
+    Real k = 1.0 / s;
+    for (Real v : values)
+        res += exp(-k * v);
+    return -log(res) / k;
+}
+
 // Minimum max(a, b) - min(a, b) such that
 // min(a, b) - exp_smin(a, b) < tol
 // (Note: exp_smin always under-estimates, so this is a bound on the absolute
@@ -142,7 +144,7 @@ Real exp_smin_radius(Real k = 20, Real tol = 1e-3) {
 template<typename Real>
 Real poly_smin(Real a, Real b, Real k = 0.2) {
     Real h = clamp(0.5 + 0.5 * (b - a) / k, Real(0.0), Real(1.0));
-        return mix(b, a, h) - k * h * (1.0 - h);
+    return mix(b, a, h) - k * h * (1.0 - h);
 }
 
 // power smooth min (k = 8);

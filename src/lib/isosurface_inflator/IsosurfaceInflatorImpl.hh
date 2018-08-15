@@ -32,6 +32,7 @@ public:
     virtual bool   isThicknessParam(size_t p) const = 0;
     virtual bool    isPositionParam(size_t p) const = 0;
     virtual bool    isBlendingParam(size_t p) const = 0;
+    virtual int     isBlendingPolyParam(size_t p) const = 0;
 
     virtual       MeshingOptions &meshingOptions()       = 0;
     virtual const MeshingOptions &meshingOptions() const = 0;
@@ -181,10 +182,11 @@ public:
     using Point = IsosurfaceInflator::Point;
     typedef PatternSignedDistance<Real, WMesh> PSD;
     typedef typename WMesh::PatternSymmetry PatternSymmetry;
-    IsosurfaceInflatorImpl(const std::string &wireMeshPath, std::unique_ptr<MesherBase> &&m, size_t inflationNeighborhoodEdgeDist)
-        : wmesh(wireMeshPath, inflationNeighborhoodEdgeDist), pattern(wmesh), mesher(std::move(m)) {
+    IsosurfaceInflatorImpl(const std::string &wireMeshPath, std::unique_ptr<MesherBase> &&m, size_t inflationNeighborhoodEdgeDist, size_t blendingPolySize)
+        : wmesh(wireMeshPath, inflationNeighborhoodEdgeDist, blendingPolySize), pattern(wmesh), mesher(std::move(m)) {
 
-        m_nonPeriodicity = std::is_same<PatternSymmetry, Symmetry::NonPeriodic<typename PatternSymmetry::Tolerance>>::value;
+        m_nonPeriodicity = std::is_same<PatternSymmetry, Symmetry::NonPeriodic<typename PatternSymmetry::Tolerance, 2>>::value ||
+                           std::is_same<PatternSymmetry, Symmetry::NonPeriodic<typename PatternSymmetry::Tolerance, 3>>::value;
     }
 
     virtual void meshPattern(const std::vector<Real> &params) override {
@@ -202,7 +204,7 @@ public:
         if (config.dumpReplicatedGraph()) { wmesh.saveReplicatedBaseUnit(config.replicatedGraphPath); }
         if (config.dumpBaseUnitGraph())   { wmesh.saveBaseUnit(          config.baseUnitGraphPath); }
 
-        pattern.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode);
+        pattern.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode, meshingOptions().jointBlendingFunction);
 
         // Change the pattern's meshing domain if we're forcing meshing of the
         // full TriplyPeriodic base cell.
@@ -220,7 +222,7 @@ public:
     // Rasterize to a indicator scalar field on a 2D/3D grid
     // (Infer dimension from resolutionString, which specifies rasterization grid size along each dimension)
     virtual void rasterize(const std::vector<Real> &params, const std::string &resolutionString, const std::string &outPath) override {
-        pattern.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode);
+        pattern.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode, meshingOptions().jointBlendingFunction);
 
         std::vector<MeshIO::IOVertex > vertices;
         std::vector<MeshIO::IOElement> elements;
@@ -282,7 +284,7 @@ public:
             distGradX[p]  = dist.derivatives();
         };
 
-#if USE_TBB
+#if MICRO_WITH_TBB
         tbb::parallel_for(
             tbb::blocked_range<size_t>(0, nEvals),
             [&](const tbb::blocked_range<size_t> &r) {
@@ -331,7 +333,7 @@ public:
         params.reserve(params.size());
         for (size_t p = 0; p < nParams; ++p)
             params.emplace_back(inflatedParams[p], nParams, p);
-        patternAutodiff.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode);
+        patternAutodiff.setParameters(params, meshingOptions().jacobian, meshingOptions().jointBlendingMode, meshingOptions().jointBlendingFunction);
 
         auto evalAtPtIdx = [&](size_t e) {
             ADScalar sd = patternAutodiff.signedDistance(evalPoints[e].template cast<ADScalar>().eval());
@@ -351,7 +353,7 @@ public:
                 }
             }
         };
-#if USE_TBB
+#if MICRO_WITH_TBB
         tbb::parallel_for(
             tbb::blocked_range<size_t>(0, nEvals),
             [&](const tbb::blocked_range<size_t> &r) {
@@ -386,6 +388,7 @@ public:
     virtual bool  isThicknessParam(size_t p) const override { return wmesh.isThicknessParam(p); }
     virtual bool   isPositionParam(size_t p) const override { return wmesh.isPositionParam(p); }
     virtual bool   isBlendingParam(size_t p) const override { return wmesh.isBlendingParam(p); }
+    virtual int    isBlendingPolyParam(size_t p) const override { return wmesh.isBlendingPolyParam(p); }
 
     virtual       MeshingOptions &meshingOptions()       override { return mesher->meshingOptions; }
     virtual const MeshingOptions &meshingOptions() const override { return mesher->meshingOptions; }

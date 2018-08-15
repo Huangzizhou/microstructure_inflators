@@ -28,6 +28,7 @@ void MeshingOptions::load(const std::string &jsonPath) {
         "curveSimplifier",
         "forceMaxBdryEdgeLen",
         "jointBlendingMode",
+        "jointBlendingFunction",
         "forceConsistentInterfaceMesh",
         "jacobian"
     };
@@ -70,6 +71,8 @@ void MeshingOptions::load(const std::string &jsonPath) {
             curveSimplifier = COLLAPSE;
         else if (boost::iequals(simp, "resample"))
             curveSimplifier = RESAMPLE;
+        else if (boost::iequals(simp, "none"))
+                curveSimplifier = NONE;
         else throw std::runtime_error("Unknown curve simplifier '" + simp +
                                       "'; expected 'collapse' or 'resample'");
     }
@@ -88,6 +91,25 @@ void MeshingOptions::load(const std::string &jsonPath) {
         }
         else { throw std::runtime_error("Unrecognized blending mode: " + modeString); }
     }
+
+    if (pt.count("jointBlendingFunction")) {
+        const std::string functionString = pt.get<std::string>("jointBlendingFunction");
+
+        if (boost::iequals(functionString, "EXPONENTIAL")) {
+            jointBlendingFunction = JointBlendFunction::EXPONENTIAL;
+        }
+        else if (boost::iequals(functionString, "POLY_SYMMETRIC")) {
+            jointBlendingFunction = JointBlendFunction::POLY_SYMMETRIC;
+        }
+        else if (boost::iequals(functionString, "POLY_NONCONVEX")) {
+            jointBlendingFunction = JointBlendFunction::POLY_NONCONVEX;
+        }
+        else if (boost::iequals(functionString, "POLY_PIECEWISE")) {
+            jointBlendingFunction = JointBlendFunction::POLY_PIECEWISE;
+        }
+        else { throw std::runtime_error("Unrecognized blending function: " + functionString); }
+    }
+
     if (pt.count("jacobian")) {
         std::vector<double> x;
         for (auto& item : pt.get_child("jacobian")) {
@@ -122,6 +144,7 @@ void MeshingOptions::load(const nlohmann::json &config) {
         "curveSimplifier",
         "forceMaxBdryEdgeLen",
         "jointBlendingMode",
+        "jointBlendingFunction",
         "forceConsistentInterfaceMesh",
         "jacobian"
     };
@@ -162,6 +185,8 @@ void MeshingOptions::load(const nlohmann::json &config) {
             curveSimplifier = COLLAPSE;
         } else if (simp == "resample") {
             curveSimplifier = RESAMPLE;
+        } else if (simp == "none") {
+                curveSimplifier = NONE;
         } else {
             throw std::runtime_error("Unknown curve simplifier '" + simp + "'; expected 'collapse' or 'resample'");
         }
@@ -178,6 +203,26 @@ void MeshingOptions::load(const nlohmann::json &config) {
             throw std::runtime_error("Unrecognized blending mode: " + modeString);
         }
     }
+
+    if (config.count("jointBlendingFunction")) {
+        const std::string functionString = MeshFEM::lowercase(config["jointBlendingFunction"]);
+        if (functionString == "exponential") {
+            jointBlendingFunction = JointBlendFunction::EXPONENTIAL;
+        }
+        else if (functionString == "poly_symmetric") {
+            jointBlendingFunction = JointBlendFunction::POLY_SYMMETRIC;
+        }
+        else if (functionString == "poly_nonconvex") {
+            jointBlendingFunction = JointBlendFunction::POLY_NONCONVEX;
+        }
+        else if (functionString =="poly_piecewise") {
+            jointBlendingFunction = JointBlendFunction::POLY_PIECEWISE;
+        }
+        else {
+            throw std::runtime_error("Unrecognized blending function: " + functionString);
+        }
+    }
+
     if (config.count("jacobian")) {
         jacobian = read_jacobian(config["jacobian"]);
     } else {

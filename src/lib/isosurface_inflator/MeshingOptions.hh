@@ -18,8 +18,9 @@ struct MeshingOptions {
     // Jacobian
     Eigen::Matrix3d jacobian = Eigen::Matrix3d::Identity();
 
-    // Joint blending mode:
+    // Joint blending mode and function:
     JointBlendMode jointBlendingMode = JointBlendMode::FULL;
+    JointBlendFunction jointBlendingFunction = JointBlendFunction::EXPONENTIAL;
 
     // CGAL volume mesher options
     double domainErrorBound          = 1e-5;
@@ -62,7 +63,7 @@ struct MeshingOptions {
     bool curvatureAdaptive = false;
     // Whether an edge-collapse or smooth curve resampling is used to
     // post-process the marching squares result
-    enum {COLLAPSE, RESAMPLE} curveSimplifier = RESAMPLE;
+    enum {COLLAPSE, RESAMPLE, NONE} curveSimplifier = RESAMPLE;
     // Derived parameters
     // Always determine max edge length from the maxArea param
     double maxEdgeLenFromMaxArea() const {

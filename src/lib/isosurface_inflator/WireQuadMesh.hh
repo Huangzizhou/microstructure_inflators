@@ -72,7 +72,8 @@ public:
         std::vector<Point>  &stitchedPoints,
         std::vector<Edge>   &stitchedEdges,
         std::vector<double> &stitchedThicknesses,
-        std::vector<double> &stitchedBlendingParams) const;
+        std::vector<double> &stitchedBlendingParams,
+        std::vector<std::vector<double>> &stitchedBlendingPolyParams) const;
 
 private:
     // Fill m_allJacobians based on the background quad mesh (m_V, m_F)

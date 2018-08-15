@@ -256,7 +256,9 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
     std::vector<WireQuadMesh::Point> &stitchedPoints,
     std::vector<WireQuadMesh::Edge> &stitchedEdges,
     std::vector<double> &stitchedThicknesses,
-    std::vector<double> &stitchedBlendingParams) const
+    std::vector<double> &stitchedBlendingParams,
+    std::vector<std::vector<double>> &stitchedBlendingPolyParams
+) const
 {
     std::vector<Eigen::MatrixXd> allVertices;
     std::vector<Edge> allEdges;
@@ -343,6 +345,9 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
         stitchedThicknesses.push_back(t / sv.size());
         stitchedBlendingParams.push_back(b / sv.size());
     }
+
+    stitchedBlendingPolyParams.clear();
+    stitchedBlendingPolyParams.resize(stitchedVertices.size());
 
     // Now, for each vertices, scale back the (radius, blending) parameters based
     // on the jacobian of the bilinear map (that maps the ref square [-1,1]² to

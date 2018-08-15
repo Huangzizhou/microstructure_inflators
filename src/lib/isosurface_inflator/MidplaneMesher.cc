@@ -148,6 +148,9 @@ mesh(const SignedDistanceRegion<3>  &sdf,
                 ++i;
             }
         }
+        else if (meshingOptions.curveSimplifier == MeshingOptions::NONE) {
+            // do nothing
+        }
         else throw std::runtime_error("Illegal curve simplifier");
     }
     BENCHMARK_STOP_TIMER("Curve Cleanup");
@@ -162,12 +165,16 @@ mesh(const SignedDistanceRegion<3>  &sdf,
 
     // Determine which polygon is touching the bbox (there should be exactly one):
     // this is the only non-hole polygon.
+    // Using the actual bounding box of polygons vertices should take care of cases
+    // including non periodic instances
     std::vector<bool> isHoleBdry;
     size_t numHoles = 0;
+    double tol = 1e-5;
+    BBox<Point2d> inner_bb(result.points);
     for (const auto &poly : polygons) {
         bool isHole = true;
         for (const auto &p : poly) {
-            if (PeriodicBoundaryMatcher::FaceMembership<2>(p, slice.boundingBox()).count()) {
+            if (PeriodicBoundaryMatcher::FaceMembership<2>(p, inner_bb, tol).count()) {
                 isHole = false;
                 break;
             }
@@ -231,8 +238,11 @@ mesh(const SignedDistanceRegion<3>  &sdf,
         }
     }
 
-    if (holePts.size() != numHoles)
+    if (holePts.size() != numHoles) {
         std::cerr << "WARNING: couldn't find all holes" << std::endl;
+        std::cerr << "WARNING: There were suppose to be " << numHoles
+                  << " holes. We found only: " << holePts.size() << std::endl;
+    }
     BENCHMARK_STOP_TIMER("Hole detection");
 
 

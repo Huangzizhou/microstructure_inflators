@@ -28,11 +28,12 @@
 class IsosurfaceInflator {
 public:
     typedef Eigen::Matrix<Real, 3, 1> Point;
-    enum class ParameterType { Thickness, Position, Blending };
+    enum class ParameterType { Thickness, Position, Blending, Custom1, Custom2, Custom3, Custom4, Custom5, Custom6, Custom7, Custom8 };
 
     IsosurfaceInflator(const std::string &type, bool vertexThickness,
                        const std::string &wireMeshPath,
-                       size_t inflationNeighborhoodEdgeDist = 2);
+                       size_t inflationNeighborhoodEdgeDist = 2,
+                       size_t blendingPolySize = 0);
 
     void inflate(const std::vector<Real> &params);
     std::vector<Real> defaultParameters(Real thickness = 0.07) const;
@@ -72,6 +73,7 @@ public:
     bool isThicknessParam(size_t p) const;
     bool isPositionParam(size_t p) const;
     bool isBlendingParam(size_t p) const;
+    int  isBlendingPolyParam(size_t p) const;
 
     bool hasOrthotropicSymmetry() const;
 
@@ -88,6 +90,8 @@ public:
 
     Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
     selfSupportingConstraints(const std::vector<Real> &params) const;
+
+    BBox<Point3<Real>> meshingCell() const;
 
     ~IsosurfaceInflator();
 

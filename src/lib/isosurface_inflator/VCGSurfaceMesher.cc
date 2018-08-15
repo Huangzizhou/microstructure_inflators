@@ -59,7 +59,7 @@ mesh(const SignedDistanceRegion<3> &sdf,
         }
     };
 
-#if USE_TBB
+#if MICRO_WITH_TBB
     // Doesn't actually speed things up that much (for simple geometry), since
     // marching cubes seems to be the bottleneck).
     tbb::parallel_for(tbb::blocked_range<size_t>(0, gs),
