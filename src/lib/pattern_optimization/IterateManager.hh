@@ -44,6 +44,11 @@ struct IterateManager : public IterateManagerBase {
     virtual size_t numParameters()  const override { return m_iterFactory->numParameters(); }
     virtual bool    isParametric()  const override { return m_iterFactory->isParametric(); }
 
+    // Use information of current solution to update inflator
+    virtual void update() override {
+        m_iterFactory->update();
+    }
+
     virtual ~IterateManager() { }
 private:
     std::unique_ptr<_ItFactory> m_iterFactory;

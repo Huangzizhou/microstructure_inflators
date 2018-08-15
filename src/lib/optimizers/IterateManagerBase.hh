@@ -18,6 +18,8 @@ struct IterateManagerBase {
     virtual size_t numParameters() const = 0;
     virtual bool    isParametric() const = 0;
 
+    virtual void update() = 0;
+
     virtual ~IterateManagerBase() { }
 };
 

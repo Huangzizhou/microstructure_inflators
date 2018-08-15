@@ -109,6 +109,10 @@ struct IterateBase {
 
     virtual bool hasConstraint(const std::string &name) const = 0;
 
+    // Verifies if current solution is viable: this means deciding if it
+    // respects or not the imposed constraints
+    virtual bool hasViableSolution(Real eq_tol = 1e-2, Real ineq_tol = 1e-14) const = 0;
+
     bool isParametric() const { return m_parametricOptimization; }
 
     virtual bool shouldReport() const = 0;

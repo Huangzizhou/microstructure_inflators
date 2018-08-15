@@ -129,6 +129,10 @@ public:
             throw std::runtime_error("This inflator doesn't support subdivision");
     }
 
+    virtual void update() {
+        // Most inflators do not update!! However, some of them can use information of current solution to update their structures
+    }
+
     virtual ~InflatorBase() { }
 
 protected:
@@ -197,6 +201,22 @@ public:
             }
         }
         return result;
+    }
+
+    // The meshing cell box.
+    virtual BBox<Vector3D> meshingCell() {
+        Vector3D cell_min;
+        Vector3D cell_max;
+        cell_min.fill(-1.0);
+        cell_max.fill(1.0);
+
+        if (N == 2) {
+            cell_min[2] = 0.0;
+            cell_max[2] = 0.0;
+        }
+
+        BBox<Vector3D> cell(cell_min, cell_max);
+        return cell;
     }
 
     virtual ~Inflator() { }

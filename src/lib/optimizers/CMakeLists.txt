@@ -10,6 +10,7 @@ set(SOURCES
         IterateBase.hh
         IterateManagerBase.hh
         OptimizerConfig.hh
+        SolutionManager.hh
         wrappers/ceres.cc
         wrappers/ceres.hh
         wrappers/dlib.cc

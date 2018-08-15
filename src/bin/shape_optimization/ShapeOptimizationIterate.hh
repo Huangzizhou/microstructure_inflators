@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// PatternOptimizationIterate.hh
+// ShapeOptimizationIterate.hh
 ////////////////////////////////////////////////////////////////////////////////
 /*! @file
 //      Encapsulates the state of a shape optimization iterate and provides
@@ -65,8 +65,17 @@ namespace ShapeOptimization {
                 : IterateBase(inflator.isParametric()), m_inflator(inflator)
         {
             m_params.resize(nParams);
-            for (size_t i = 0; i < nParams; ++i)
+            std::cout << "filtered params: ";
+            for (size_t i = 0; i < nParams; ++i) {
                 m_params[i] = params[i];
+
+                // Only prints first 40 parameters...
+                if (i < 40)
+                    std::cout << "\t" << m_params[i];
+                else if (i == 40)
+                    std::cout << "..." << std::endl;
+            }
+            std::cout << std::endl;
 
             // Printability check and constraints
             m_printable = inflator.isPrintable(m_params);
@@ -117,25 +126,25 @@ namespace ShapeOptimization {
         void solveIterationProblem() {
             BENCHMARK_START_TIMER_SECTION("Solve Laplace");
 
-            // std::cout << "Start building simulator << std::endl;"
+            // std::cout << "Start building simulator" << std::endl;
             BENCHMARK_START_TIMER("Build simulator");
             m_sim = Future::make_unique<_Sim>(m_inflator.elements(), m_inflator.vertices());
             BENCHMARK_STOP_TIMER("Build simulator");
             // std::cout << "Done" << std::endl;
             // std::cout << "Solving PDE" << std::endl;
 
-            // TODO: consider other frames? Should take value from symmetry?
-            VectorND<_Sim::N> cell_min;
-            VectorND<_Sim::N> cell_max;
-            cell_min.fill(-1.0);
-            cell_max.fill(1.0);
+            // Obtain meshing cell and verify which parts of the mesh are "internal"
+            BBox<Vector3D> cell3D = m_inflator.meshingCell();
+            VectorND<_Sim::N> cell_min = truncateFrom3D<VectorND<_Sim::N>>(cell3D.minCorner);
+            VectorND<_Sim::N> cell_max = truncateFrom3D<VectorND<_Sim::N>>(cell3D.maxCorner);
             BBox<VectorND<_Sim::N>> cell(cell_min, cell_max);
 
             m_sim->setInternalElements(cell);
 
-            //TODO: no rigid motion?
             vector<CondPtr<_N> > bconds = readBoundaryConditions<_N>(m_boundaryConditionsPath,
                                                                      m_sim->mesh().boundingBox(), m_noRigidMotion);
+
+            //MeshIO::save("debug.msh", mesh());
 
             try {
                 m_nonPeriodicCellOps = NonPeriodicCellOperations<_Sim>::construct(*m_sim, bconds);
@@ -333,6 +342,40 @@ namespace ShapeOptimization {
                         Future::make_unique<EvaluatedConstraint>(c.type, name,
                                                                  c.evaluate(), c.jacobian(svels)));
             }
+        }
+
+        // Verifies if current solution is viable: this means deciding if it
+        // respects or not the imposed constraints
+        // Verifies if current solution is viable: this means deciding if it
+        // respects or not the imposed constraints
+        virtual bool hasViableSolution(Real eq_tol, Real ineq_tol) const override {
+            bool success = true;
+
+            // Analyze if the constraints are satisfied
+            for (auto &c : m_constraints) {
+                if (c.second->type == ConstraintType::EQUALITY) {
+                    SField result = c.second->evaluate();
+                    for (unsigned i=0; i<result.size(); i++) {
+                        Real value = result(i);
+                        if (std::abs(value) > eq_tol) {
+                            success = false;
+                        }
+                    }
+                }
+                else {
+                    SField result = c.second->evaluate();
+                    for (unsigned i=0; i<result.size(); i++) {
+                        Real value = result(i);
+                        if (value < -ineq_tol) {
+                            success = false;
+                        }
+                    }
+                }
+
+
+            }
+
+            return success;
         }
 
         virtual void writeMeshAndFields(const std::string &path) const override {

@@ -3,6 +3,7 @@
 #if HAS_DLIB
 #include <dlib/optimization.h>
 #include <vector>
+#include "../SolutionManager.hh"
 
 using dlib_vector = dlib::matrix<double, 0, 1>;
 using namespace PatternOptimization;
@@ -53,24 +54,29 @@ class ReportingStopStrategy : public dlib::objective_delta_stop_strategy {
     typedef dlib::objective_delta_stop_strategy Base;
 public:
     ReportingStopStrategy(double min_delta, unsigned long max_iter,
-                          const IterateManagerBase &imanager, const std::string &outPath)
-        : Base(min_delta, max_iter), m_imanager(imanager), m_outPath(outPath), m_iter(0) { }
+                          IterateManagerBase &imanager, const std::string &outPath)
+        : Base(min_delta, max_iter), m_iter(0), m_solutionManager(imanager) {
+        m_solutionManager.m_outPath = outPath;
+    }
 
     template <typename T>
     bool should_continue_search(const T& x, const double funct_value,
         const T& funct_derivative) {
-        m_imanager.get().writeDescription(std::cout);
-        std::cout << std::endl;
-        if (m_outPath != "")
-            m_imanager.get().writeMeshAndFields(m_outPath + "_" + std::to_string(m_iter));
+
+        std::vector<double> params(x.nr());
+        for (size_t i=0; i<params.size(); i++) {
+            params[i] = x(i);
+        }
+
+        m_solutionManager.updateAndReport(params);
+
         ++m_iter;
         return Base::should_continue_search(x, funct_value, funct_derivative);
     }
 
 private:
-    const IterateManagerBase &m_imanager;
-    std::string m_outPath;
     size_t m_iter;
+    SolutionManager m_solutionManager;
 };
 
 void optimize_dlib_bfgs(ScalarField<Real> &params,
@@ -114,9 +120,150 @@ void optimize_dlib_bfgs(ScalarField<Real> &params,
         params[p] = optParams(p);
 }
 
+dlib_vector scalarFieldToDlibVector(ScalarField<Real> input) {
+    dlib_vector result(input.size());
+    for (size_t p = 0; p < input.size(); ++p)
+        result(p) = input[p];
+    return result;
+}
+
+ScalarField<Real> dlibVectorToScalarField(dlib_vector input) {
+    ScalarField<Real> result(input.nr());
+    for (size_t p = 0; p < input.nr(); ++p)
+        result[p] = input(p);
+    return result;
+}
+
+ScalarField<Real> computeBfgsDirection(ScalarField<Real> params, ScalarField<Real> grad, dlib::bfgs_search_strategy &strategy) {
+    ScalarField<Real> result;
+
+    dlib_vector xDlib = scalarFieldToDlibVector(params);
+    dlib_vector gradDlib = scalarFieldToDlibVector(grad);
+    dlib_vector directionDlib = strategy.get_next_direction(xDlib, 0.0, gradDlib);
+    ScalarField<Real> direction = dlibVectorToScalarField(directionDlib);
+
+    // Normalize according to grad norm
+    //result = direction * (grad.norm() / direction.norm());
+
+    return direction;
+}
+
+void optimize_dlib_custom_bfgs(ScalarField<Real> &params,
+                        const PatternOptimization::BoundConstraints &bds,
+                        PatternOptimization::IterateManagerBase &im,
+                        const PatternOptimization::OptimizerConfig &oconfig,
+                        const std::string &outPath)
+{
+    double step_size = oconfig.gd_step;
+    int success_iterations = 0;
+    int failure_iterations = 0;
+    std::vector<Real> oldParamsCopy;
+    std::vector<Real> directionCopy;
+    double val = std::numeric_limits<Real>::max();
+    double bestVal = std::numeric_limits<Real>::max();
+    double previousVal = std::numeric_limits<Real>::max();
+    double minimumStep = 1e-15;
+
+    dlib::bfgs_search_strategy strategy = dlib::bfgs_search_strategy();
+
+    for (size_t i = 0; i < oconfig.niters; ++i) {
+        //std::cout << "[Dlib] New bfgs iteration" << std::endl;
+
+        if (step_size < minimumStep)
+            return;
+
+        try {
+            auto &it = im.get(params.size(), params.data());
+
+            ScalarField<Real> direction = computeBfgsDirection(params, -it.steepestDescent(), strategy);
+            //std::cout << "[Dlib] Direction norm: " << direction.norm() << std::endl;
+
+            val = it.evaluate();
+            if (val <= (previousVal + 1e-10)) {
+                //std::cout << "[Dlib] Previous good val: " << previousVal << std::endl;
+                previousVal = val;
+
+                // Save direction and params
+                direction.getFlattened(directionCopy);
+                params.getFlattened(oldParamsCopy);
+
+                //std::cout << "[Dlib] New good val: " << previousVal << std::endl;
+
+                if (val < bestVal) {
+                    bestVal = val;
+                    //std::cout << "[Dlib] Best iteration: " << i << std::endl;
+                    //std::cout << "[Dlib] Best value: " << val << std::endl;
+                }
+                success_iterations++;
+                failure_iterations=0;
+            }
+            else {
+                success_iterations=0;
+                failure_iterations++;
+            }
+
+            it.writeDescription(std::cout);
+            std::cout << std::endl;
+
+            ScalarField<Real> perturbation = direction * step_size;
+            params += perturbation;
+
+            // Apply bound constraints
+            for (size_t p = 0; p < im.numParameters(); ++p) {
+                if (bds.hasUpperBound.at(p)) params[p] = std::min(params[p], bds.upperBound.at(p));
+                if (bds.hasLowerBound.at(p)) params[p] = std::max(params[p], bds.lowerBound.at(p));
+            }
+
+            if (outPath != "") it.writeMeshAndFields(outPath + "_" + std::to_string(i));
+        }
+        catch (...) {
+            //std::cout << "[Dlib] Exploded!" << std::endl;
+            step_size = step_size / 2;
+            success_iterations = 0;
+            failure_iterations = 0;
+
+            // Recover!
+            ScalarField<Real> oldParams(oldParamsCopy);
+            ScalarField<Real> direction(directionCopy);
+            ScalarField<Real> newPerturbation = direction * step_size;
+            params = oldParams + newPerturbation;
+        }
+
+        if (success_iterations >= 1) {
+            step_size *= 2;
+            success_iterations = 0;
+            failure_iterations = 0;
+        }
+        else if (failure_iterations >= 1) {
+            //std::cout << "[Dlib] Failure" << std::endl;
+            step_size = step_size / 2;
+            success_iterations = 0;
+            failure_iterations = 0;
+
+            // Recover!
+            ScalarField<Real> oldParams(oldParamsCopy);
+            ScalarField<Real> direction(directionCopy);
+            ScalarField<Real> newPerturbation = direction * step_size;
+            params = oldParams + newPerturbation;
+        }
+
+        //std::cout << "[Dlib] Step size is now: " << step_size << std::endl;
+        //std::cout << "[Dlib] End of iteration val: " << previousVal << std::endl;
+    }
+}
+
 #else // !HAS_DLIB
 
 void optimize_dlib_bfgs(ScalarField<Real> &/* params */,
+        const PatternOptimization::BoundConstraints &/* bds */,
+        PatternOptimization::IterateManagerBase &/* im */,
+        const PatternOptimization::OptimizerConfig &/* oconfig */,
+        const std::string &/* outPath */)
+{
+    throw std::runtime_error("Built without DLib");
+}
+
+void optimize_dlib_custom_bfgs(ScalarField<Real> &/* params */,
         const PatternOptimization::BoundConstraints &/* bds */,
         PatternOptimization::IterateManagerBase &/* im */,
         const PatternOptimization::OptimizerConfig &/* oconfig */,
