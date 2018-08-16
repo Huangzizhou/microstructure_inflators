@@ -1,128 +1,121 @@
 //
 // Created by Davi Colli Tozoni on 4/17/18.
 //
-
+namespace {
 // Functions t, r, h, g, q, fl, flp, f are presented in script doc/KS_piecewise.mw and are explained in document
 // doc/blending.pdf
 // The general idea is that each coefficient of function f() chooses the curvature of each segment of the whole
 // "blending" region. Then, I manually integrated twice the curvatures and took care to guarantee continuity.
-template<typename Real>
-Real t(size_t N, const Real p, const std::vector<Real> &a) {
-    size_t PIECES = a.size();
+    template<typename Real>
+    Real t(size_t N, const Real p, const std::vector<Real> &a) {
+        size_t PIECES = a.size();
 
-    return (-2 / p * (PIECES - N) / PIECES);
+        return (-2 / p * (PIECES - N) / PIECES);
+    }
+
+    template<typename Real>
+    Real r(size_t N, Real x, const Real p, const std::vector<Real> &a) {
+        if (N == 0) {
+            return 0;
+        } else {
+            return a[N - 1] * x - a[N - 1] * t(N - 1, p, a) + r(N - 1, t(N - 1, p, a), p, a);
+        }
+    }
+
+    template<typename Real>
+    Real h(size_t N, Real x, const Real p, const std::vector<Real> &a) {
+        if (N == 0) {
+            return 0;
+        } else {
+            return r(N - 1, t(N - 1, p, a), p, a) * (x - t(N - 1, p, a)) +
+                   a[N - 1] * pow(t(N - 1, p, a), 0.2e1) / 0.2e1 + a[N - 1] * x * x / 0.2e1 -
+                   a[N - 1] * t(N - 1, p, a) * x + h(N - 1, t(N - 1, p, a), p, a);
+        }
+    }
+
+    template<typename Real>
+    Real g(size_t N, Real x, const Real p, const std::vector<Real> &a) {
+        size_t PIECES = a.size();
+
+        if (N == 0) {
+            return -1;
+        } else {
+            return h(N, x) / h(PIECES, 0, p, a) - 1;
+        }
+    }
+
+    template<typename Real>
+    Real q(size_t N, Real x, const Real p, const std::vector<Real> &a) {
+        size_t PIECES = a.size();
+
+        if (N == 0) {
+            return -x + t(0, p, a);
+        } else {
+            Real zero = 0.0 * p;
+            Real multiplier = 0.1e1 / h(PIECES, zero, p, a);
+            Real firstTerm = (pow(x, 0.3e1) - pow(t(N - 1, p, a), 0.3e1)) * a[N - 1] / 0.6e1;
+            Real secondTermMultiplier = (x * x - pow(t(N - 1, p, a), 0.2e1));
+            Real secondTermLhs = r(N - 1, t(N - 1, p, a), p, a) / 0.2e1;
+            Real secondTermRhs = a[N - 1] * t(N - 1, p, a) / 0.2e1;
+            Real secondTerm = secondTermMultiplier * (secondTermLhs - secondTermRhs);
+            Real thirdTerm = (h(N - 1, t(N - 1, p, a), p, a) - r(N - 1, t(N - 1, p, a), p, a) * t(N - 1, p, a) +
+                              a[N - 1] * pow(t(N - 1, p, a), 0.2e1) / 0.2e1);
+            Real rhs = -x + t(N - 1, p, a) + q(N - 1, t(N - 1, p, a), p, a);
+            return multiplier * (firstTerm + secondTerm + (x - t(N - 1, p, a)) * thirdTerm) + rhs;
+        }
+    }
+
+    template<typename Real>
+    Real fl(size_t N, Real x, const Real p, const std::vector<Real> &a) {
+        if (N == 0) {
+            return -x;
+        } else {
+            return q(N, x, p, a) - t(0, p, a) - q(0, t(0, p, a), p, a);
+        }
+    }
+
+    template<typename Real>
+    Real flp(Real x, const Real p, const std::vector<Real> &a) {
+        Real result = 0.0;
+        size_t PIECES = a.size();
+
+        if (x <= -2 / p) {
+            result = fl(0, x, p, a);
+        } else if (x <= -2 / p * (PIECES - 1) / PIECES) {
+            result = fl(1, x, p, a);
+        } else if (x <= -2 / p * (PIECES - 2) / PIECES) {
+            result = fl(2, x, p, a);
+        } else if (x <= -2 / p * (PIECES - 3) / PIECES) {
+            result = fl(3, x, p, a);
+        } else if (x <= -2 / p * (PIECES - 4) / PIECES) {
+            result = fl(4, x, p, a);
+        } else if (x <= -2 / p * (PIECES - 5) / PIECES) {
+            result = fl(5, x, p, a);
+        } else if (x <= -2 / p * (PIECES - 6) / PIECES) {
+            result = fl(6, x, p, a);
+        } else if (x <= -2 / p * (PIECES - 7) / PIECES) {
+            result = fl(7, x, p, a);
+        } else if (x <= -2 / p * (PIECES - 8) / PIECES) {
+            result = fl(8, x, p, a);
+        }
+
+        return result;
+    }
+
+    template<typename Real>
+    Real f(Real x, const Real p, const std::vector<Real> &a) {
+        Real result;
+        if (x <= 0) {
+            result = flp(x, p, a);
+        } else {
+            Real negativeX = -1.0 * x;
+            result = flp(negativeX, p, a);
+        }
+
+        return result;
+    }
+
 }
-
-template<typename Real>
-Real r(size_t N, Real x, const Real p, const std::vector<Real> &a) {
-    if (N == 0) {
-        return 0;
-    } else {
-        return a[N - 1] * x - a[N - 1] * t(N - 1, p, a) + r(N - 1, t(N - 1, p, a), p, a);
-    }
-}
-
-template<typename Real>
-Real h(size_t N, Real x, const Real p, const std::vector<Real> &a) {
-    if (N == 0) {
-        return 0;
-    } else {
-        return r(N - 1, t(N-1, p, a), p, a) * (x - t(N-1, p, a)) + a[N-1] * pow(t(N-1, p, a), 0.2e1) / 0.2e1 + a[N-1] * x * x / 0.2e1 -
-               a[N-1] * t(N-1, p, a) * x + h(N - 1, t(N-1, p, a), p, a);
-    }
-}
-
-template<typename Real>
-Real g(size_t N, Real x, const Real p, const std::vector<Real> &a) {
-    size_t PIECES = a.size();
-
-    if (N == 0) {
-        return -1;
-    } else {
-        return h(N, x) / h(PIECES, 0, p, a) - 1;
-    }
-}
-
-template<typename Real>
-Real q(size_t N, Real x, const Real p, const std::vector<Real> &a) {
-    size_t PIECES = a.size();
-
-    if (N == 0) {
-        return -x + t(0, p, a);
-    } else {
-        Real zero = 0.0 * p;
-        Real multiplier = 0.1e1 / h(PIECES, zero, p, a);
-        Real firstTerm = (pow(x, 0.3e1) - pow(t(N-1, p, a), 0.3e1)) * a[N-1] / 0.6e1;
-        Real secondTermMultiplier = (x * x - pow(t(N-1, p, a), 0.2e1));
-        Real secondTermLhs = r(N - 1, t(N-1, p, a), p, a) / 0.2e1;
-        Real secondTermRhs = a[N-1] * t(N-1, p, a) / 0.2e1;
-        Real secondTerm = secondTermMultiplier * (secondTermLhs - secondTermRhs);
-        Real thirdTerm = (h(N - 1, t(N-1, p, a), p, a) - r(N - 1, t(N-1, p, a), p, a) * t(N-1, p, a) + a[N-1] * pow(t(N-1, p, a), 0.2e1) / 0.2e1);
-        Real rhs = - x + t(N-1, p, a) + q(N - 1, t(N-1, p, a), p, a);
-        return multiplier * (firstTerm + secondTerm + (x - t(N-1, p, a)) * thirdTerm) + rhs;
-    }
-}
-
-template<typename Real>
-Real fl(size_t N, Real x, const Real p, const std::vector<Real> &a) {
-    if (N == 0) {
-        return -x;
-    } else {
-        return q(N, x, p, a) - t(0, p, a) - q(0, t(0, p, a), p, a);
-    }
-}
-
-template<typename Real>
-Real flp (Real x, const Real p, const std::vector<Real> &a)
-{
-    Real result = 0.0;
-    size_t PIECES = a.size();
-
-    if (x <= -2 / p) {
-        result = fl(0, x, p, a);
-    }
-    else if (x <= -2 / p * (PIECES - 1) / PIECES) {
-        result = fl(1, x, p, a);
-    }
-    else if (x <= -2 / p * (PIECES - 2) / PIECES) {
-        result = fl(2, x, p, a);
-    }
-    else if (x <= -2 / p * (PIECES - 3) / PIECES) {
-        result = fl(3, x, p, a);
-    }
-    else if (x <= -2 / p * (PIECES - 4) / PIECES) {
-        result = fl(4, x, p, a);
-    }
-    else if (x <= -2 / p * (PIECES - 5) / PIECES) {
-        result = fl(5, x, p, a);
-    }
-    else if (x <= -2 / p * (PIECES - 6) / PIECES) {
-        result = fl(6, x, p, a);
-    }
-    else if (x <= -2 / p * (PIECES - 7) / PIECES) {
-        result = fl(7, x, p, a);
-    }
-    else if (x <= -2 / p * (PIECES - 8) / PIECES) {
-        result = fl(8, x, p, a);
-    }
-
-    return result;
-}
-
-template<typename Real>
-Real f(Real x, const Real p, const std::vector<Real> &a) {
-    Real result;
-    if (x<=0) {
-        result = flp(x, p, a);
-    }
-    else {
-        Real negativeX = -1.0 * x;
-        result = flp(negativeX, p, a);
-    }
-
-    return result;
-}
-
 
 namespace SD {
 
