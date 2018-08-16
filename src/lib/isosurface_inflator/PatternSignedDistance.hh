@@ -553,7 +553,7 @@ public:
             std::cerr << "secondClosestJDist.smooth:"; std::cerr << secondClosestJDist.smooth << std::endl;
             std::cerr << "         overlapSmoothAmt:"; std::cerr <<          overlapSmoothAmt << std::endl;
 
-            const auto &scJoint = m_jointForVertex[sc_idx]; // scJoint could be NULL (in non-periodic cases)
+            const auto &scJoint = m_jointForVertex[sc_idx]; // scJoint could be nullptr (in non-periodic cases)
             auto getSmoothingAmt = [&](size_t vidx) -> Real2 {
                 const auto &joint = m_jointForVertex[vidx];
                 if (joint) return joint->smoothingAmt(p) * (VERTEX_SMOOTHNESS_MODULATION ? m_vertexSmoothness[vidx] : 1.0);
@@ -561,7 +561,7 @@ public:
             };
 
             std::cerr << "      closestJDist smoothing amt:"; std::cerr << getSmoothingAmt( c_idx) << std::endl;
-            if (scJoint != NULL) {
+            if (scJoint != nullptr) {
                 std::cerr << "secondClosestJDist smoothing amt:";
                 std::cerr << getSmoothingAmt(sc_idx) << std::endl;
             }
@@ -570,14 +570,14 @@ public:
                 std::cerr << "Invalid derivatives computed in combinedJointDistances evaluation" << std::endl;
             std::cerr << "dist:"                     ; reportDerivatives(std::cerr,                      dist); std::cerr << std::endl; std::cerr << std::endl;
             std::cerr << "closestJDist.smooth:"      ; reportDerivatives(std::cerr,       closestJDist.smooth); std::cerr << std::endl; std::cerr << std::endl;
-            if (scJoint != NULL) {
+            if (scJoint != nullptr) {
                 std::cerr << "secondClosestJDist.smooth:"; reportDerivatives(std::cerr, secondClosestJDist.smooth); std::cerr << std::endl; std::cerr << std::endl;
             }
             std::cerr << "overlapSmoothAmt:"         ; reportDerivatives(std::cerr,          overlapSmoothAmt); std::cerr << std::endl; std::cerr << std::endl;
 
             std::cerr << "Hard derivatives:" << std::endl;
             std::cerr << "closestJDist.hard:"        ; reportDerivatives(std::cerr,       closestJDist.hard); std::cerr << std::endl;
-            if (scJoint != NULL) {
+            if (scJoint != nullptr) {
                 std::cerr << "secondClosestJDist.hard:"; reportDerivatives(std::cerr, secondClosestJDist.hard); std::cerr << std::endl;
             }
             std::cerr << std::endl;

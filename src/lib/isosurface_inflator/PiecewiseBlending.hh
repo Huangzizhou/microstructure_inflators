@@ -1,7 +1,7 @@
 //
 // Created by Davi Colli Tozoni on 4/17/18.
 //
-namespace {
+namespace PiecewiseBlending {
 // Functions t, r, h, g, q, fl, flp, f are presented in script doc/KS_piecewise.mw and are explained in document
 // doc/blending.pdf
 // The general idea is that each coefficient of function f() chooses the curvature of each segment of the whole
@@ -142,13 +142,13 @@ namespace SD {
         switch (poly_coeffs.size()) {
             case 0:
                 local_coeffs.push_back(da0);
-                result = f(x, p, local_coeffs);
+                result = PiecewiseBlending::f(x, p, local_coeffs);
                 break;
             default:
                 if (poly_coeffs.size() > 8)
                     throw std::runtime_error("Non recognizable number of extra parameters: " + std::to_string(poly_coeffs.size()));
 
-                result = f(x, p, poly_coeffs);
+                result = PiecewiseBlending::f(x, p, poly_coeffs);
                 break;
         }
 
