@@ -3,7 +3,6 @@
 #if HAS_DLIB
 #include <dlib/optimization.h>
 #include <vector>
-#include "../SolutionManager.hh"
 
 using dlib_vector = dlib::matrix<double, 0, 1>;
 using namespace PatternOptimization;
@@ -55,8 +54,8 @@ class ReportingStopStrategy : public dlib::objective_delta_stop_strategy {
 public:
     ReportingStopStrategy(double min_delta, unsigned long max_iter,
                           IterateManagerBase &imanager, const std::string &outPath)
-        : Base(min_delta, max_iter), m_iter(0), m_solutionManager(imanager) {
-        m_solutionManager.m_outPath = outPath;
+        : Base(min_delta, max_iter), m_iter(0), m_im(imanager) {
+        m_im.setOutPath(outPath);
     }
 
     template <typename T>
@@ -68,7 +67,7 @@ public:
             params[i] = x(i);
         }
 
-        m_solutionManager.updateAndReport(params);
+        m_im.updateAndReport(params);
 
         ++m_iter;
         return Base::should_continue_search(x, funct_value, funct_derivative);
@@ -76,7 +75,7 @@ public:
 
 private:
     size_t m_iter;
-    SolutionManager m_solutionManager;
+    IterateManagerBase &m_im;
 };
 
 void optimize_dlib_bfgs(ScalarField<Real> &params,

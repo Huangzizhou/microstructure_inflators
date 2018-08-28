@@ -1,16 +1,13 @@
 #include "gradient_descent.hh"
 #include <MeshFEM/EdgeFields.hh>
 
-#include "../SolutionManager.hh"
-
 void optimize_gd(ScalarField<Real> &params,
         const PatternOptimization::BoundConstraints &bds,
         PatternOptimization::IterateManagerBase &im,
         const PatternOptimization::OptimizerConfig &oconfig,
         const std::string &outPath)
 {
-    SolutionManager solutionManager(im);
-    solutionManager.m_outPath = outPath;
+    im.setOutPath(outPath);
 
     for (size_t i = 0; i < oconfig.niters; ++i) {
         // To std::vector<double>
@@ -22,7 +19,7 @@ void optimize_gd(ScalarField<Real> &params,
         std::cout << std::endl;
 
         // Report
-        solutionManager.updateAndReport(paramsCopy);
+        im.updateAndReport(paramsCopy);
 
         params += it.steepestDescent() * oconfig.gd_step;
 
@@ -63,8 +60,7 @@ void optimize_gd_smartstep(ScalarField<Real> &params,
     double previousVal = std::numeric_limits<Real>::max();
     double minimumStep = 1e-10;
 
-    SolutionManager solutionManager(im);
-    solutionManager.m_outPath = outPath;
+    im.setOutPath(outPath);
 
     for (size_t i = 0; i < oconfig.niters; ++i) {
         //std::cout << "[GD] New gradient descent iteration" << std::endl;
@@ -99,7 +95,7 @@ void optimize_gd_smartstep(ScalarField<Real> &params,
             }
 
             // Report
-            solutionManager.updateAndReport(paramsCopy);
+            im.updateAndReport(paramsCopy);
 
             ScalarField<Real> perturbation = it.steepestDescent() * step_size;
             params += perturbation;

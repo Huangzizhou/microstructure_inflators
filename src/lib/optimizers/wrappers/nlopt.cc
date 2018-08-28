@@ -1,7 +1,5 @@
 #include "nlopt.hh"
 
-#include "../SolutionManager.hh"
-
 #if HAS_NLOPT
 
 #include <nlopt.hpp>
@@ -36,7 +34,7 @@ std::string nloptPrettyPrint(nlopt::result res) {
 }
 
 struct NLOptState {
-    NLOptState(IterateManagerBase &im, nlopt::opt &opt) : m_solutionManager(im), opt(opt) { }
+    NLOptState(IterateManagerBase &im, nlopt::opt &opt) : m_im(im), opt(opt) { }
 
     void manualTerminationCheck(const PatternOptimization::IterateBase &it, Real /* costVal */) const {
         if (tensor_fit_tolerance) {
@@ -56,14 +54,14 @@ struct NLOptState {
                 opt.force_stop();
         }
 
-        if (m_solutionManager.m_niters > m_solutionManager.m_bestIter + MAX_ITERATIONS_WITHOUT_IMPROVEMENT) {
+        if (m_im.numberIterations() > m_im.bestIteration() + MAX_ITERATIONS_WITHOUT_IMPROVEMENT) {
             std::cout << "Stopping nlopt cause solution did not improve after " << MAX_ITERATIONS_WITHOUT_IMPROVEMENT << std::endl;
             opt.force_stop();
         }
     }
 
     boost::optional<double> tensor_fit_tolerance;
-    SolutionManager m_solutionManager;
+    IterateManagerBase &m_im;
     nlopt::opt &opt;
 };
 
@@ -80,7 +78,7 @@ double costFunc(const std::vector<double> &x, std::vector<double> &grad, void *o
     assert(optState);
 
     try {
-        auto &it = optState->m_solutionManager.m_im.get(x.size(), &x[0]);
+        auto &it = optState->m_im.get(x.size(), &x[0]);
 
         Real val = it.evaluate();
 
@@ -92,7 +90,7 @@ double costFunc(const std::vector<double> &x, std::vector<double> &grad, void *o
                 grad[p] = gp[p];
         }
 
-        optState->m_solutionManager.updateAndReport(x);
+        optState->m_im.updateAndReport(x);
 
         if (it.shouldReport()) // only run termination check if this is a valid iterate (not an estimate)
             optState->manualTerminationCheck(it, val);
@@ -114,7 +112,7 @@ void constraintFunc(unsigned m, double *result, unsigned n, const double *x,
     auto ceval = reinterpret_cast<NLOptConstraintEvaluator *>(cevalVoid);
     assert(ceval);
 
-    auto &it = ceval->state.m_solutionManager.m_im.get(n, x);
+    auto &it = ceval->state.m_im.get(n, x);
     const EvaluatedConstraint &c = it.evaluatedConstraint(ceval->constraintIndex);
     assert(c.values.domainSize() == m);
 
@@ -147,7 +145,7 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
     opt.set_upper_bounds(bds.upperBound);
 
     NLOptState state(im, opt);
-    state.m_solutionManager.m_outPath = outPath;
+    state.m_im.setOutPath(outPath);
     state.tensor_fit_tolerance = oconfig.tensor_fit_tolerance;
 
     opt.set_min_objective(costFunc, (void *) &state);
@@ -221,7 +219,7 @@ void optimize_nlopt_lbfgs(ScalarField<Real> &params,
 
     // Setting custom state (where we can force terminate the optimization)
     NLOptState state(im, opt);
-    state.m_solutionManager.m_outPath = outPath;
+    state.m_im.setOutPath(outPath);
     state.tensor_fit_tolerance = oconfig.tensor_fit_tolerance;
 
     // Setting the energy
