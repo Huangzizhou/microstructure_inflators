@@ -109,9 +109,26 @@ struct IterateBase {
 
     virtual bool hasConstraint(const std::string &name) const = 0;
 
-    // Verifies if current solution is viable: this means deciding if it
+    // Verifies if current solution is feasible: this means deciding if it
     // respects or not the imposed constraints
-    virtual bool hasViableSolution(Real eq_tol = 1e-2, Real ineq_tol = 1e-14) const = 0;
+    virtual bool isFeasible(Real eq_tol = 1e-2, Real ineq_tol = 1e-14) const {
+
+        for (auto &c : m_evaluatedConstraints) {
+            SField result = c->values;
+
+            if (c->type == ConstraintType::EQUALITY) {
+                if (std::abs(result.maxMag()) > eq_tol)
+                    return false;
+            }
+            else {
+                if (result.min() < -ineq_tol)
+                    return false;
+            }
+
+        }
+
+        return true;
+    }
 
     bool isParametric() const { return m_parametricOptimization; }
 

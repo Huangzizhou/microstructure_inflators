@@ -344,40 +344,6 @@ namespace ShapeOptimization {
             }
         }
 
-        // Verifies if current solution is viable: this means deciding if it
-        // respects or not the imposed constraints
-        // Verifies if current solution is viable: this means deciding if it
-        // respects or not the imposed constraints
-        virtual bool hasViableSolution(Real eq_tol, Real ineq_tol) const override {
-            bool success = true;
-
-            // Analyze if the constraints are satisfied
-            for (auto &c : m_constraints) {
-                if (c.second->type == ConstraintType::EQUALITY) {
-                    SField result = c.second->evaluate();
-                    for (unsigned i=0; i<result.size(); i++) {
-                        Real value = result(i);
-                        if (std::abs(value) > eq_tol) {
-                            success = false;
-                        }
-                    }
-                }
-                else {
-                    SField result = c.second->evaluate();
-                    for (unsigned i=0; i<result.size(); i++) {
-                        Real value = result(i);
-                        if (value < -ineq_tol) {
-                            success = false;
-                        }
-                    }
-                }
-
-
-            }
-
-            return success;
-        }
-
         virtual void writeMeshAndFields(const std::string &path) const override {
             BENCHMARK_START_TIMER_SECTION("writeMeshAndFields");
             MSHFieldWriter writer(path, m_sim->mesh());

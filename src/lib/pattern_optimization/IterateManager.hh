@@ -71,10 +71,10 @@ struct IterateManager : public IterateManagerBase {
         return true;
     }
 
-    virtual bool hasViableSolution(const std::vector<Real> &params) override {
+    virtual bool isFeasible(const std::vector<Real> &params) override {
         auto &it = this->get(params.size(), params.data());
 
-        return it.hasViableSolution(EQ_TOL, INEQ_TOL);
+        return it.isFeasible(EQ_TOL, INEQ_TOL);
     }
 
     virtual bool isImprovement(Real val, bool respectConstraints) override {
@@ -94,7 +94,7 @@ struct IterateManager : public IterateManagerBase {
             std::cout << "Iteration: " << m_niters << std::endl;
             it.writeDescription(std::cout);
 
-            bool successful = isImprovement(val, it.hasViableSolution(EQ_TOL, INEQ_TOL));
+            bool successful = isImprovement(val, it.isFeasible(EQ_TOL, INEQ_TOL));
             if (successful) {
                 std::cout << "\\o/ GREAT! Found a good solution that is also the best so far..." << std::endl;
 
