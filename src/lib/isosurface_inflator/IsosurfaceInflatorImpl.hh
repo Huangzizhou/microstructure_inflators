@@ -32,7 +32,7 @@ public:
     virtual bool   isThicknessParam(size_t p) const = 0;
     virtual bool    isPositionParam(size_t p) const = 0;
     virtual bool    isBlendingParam(size_t p) const = 0;
-    virtual int     isBlendingPolyParam(size_t p) const = 0;
+    virtual int     whichBlendingPolyParam(size_t p) const = 0;
 
     virtual       MeshingOptions &meshingOptions()       = 0;
     virtual const MeshingOptions &meshingOptions() const = 0;
@@ -388,7 +388,10 @@ public:
     virtual bool  isThicknessParam(size_t p) const override { return wmesh.isThicknessParam(p); }
     virtual bool   isPositionParam(size_t p) const override { return wmesh.isPositionParam(p); }
     virtual bool   isBlendingParam(size_t p) const override { return wmesh.isBlendingParam(p); }
-    virtual int    isBlendingPolyParam(size_t p) const override { return wmesh.isBlendingPolyParam(p); }
+
+    // Answers which blending poly coefficient index p corresponds to. If index p does not correspond to blending poly
+    // param, then returns -1.
+    virtual int    whichBlendingPolyParam(size_t p) const override { return wmesh.whichBlendingPolyParam(p); }
 
     virtual       MeshingOptions &meshingOptions()       override { return mesher->meshingOptions; }
     virtual const MeshingOptions &meshingOptions() const override { return mesher->meshingOptions; }

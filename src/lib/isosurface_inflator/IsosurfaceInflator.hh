@@ -73,7 +73,10 @@ public:
     bool isThicknessParam(size_t p) const;
     bool isPositionParam(size_t p) const;
     bool isBlendingParam(size_t p) const;
-    int  isBlendingPolyParam(size_t p) const;
+
+    // Answers which blending poly coefficient index p corresponds to. If index p does not correspond to blending poly
+    // param, then returns -1.
+    int  whichBlendingPolyParam(size_t p) const;
 
     bool hasOrthotropicSymmetry() const;
 

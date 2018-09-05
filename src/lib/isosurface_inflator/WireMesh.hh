@@ -209,7 +209,9 @@ public:
         return (p >= numPositionParams() + numThicknessParams()) && (p < numPositionParams() + numThicknessParams() + numBlendingParameters());
     };
 
-    int  isBlendingPolyParam(size_t p) const {
+    // Answers which blending poly coefficient index p corresponds to. If index p does not correspond to blending poly
+    // param, then returns -1.
+    int  whichBlendingPolyParam(size_t p) const {
         validateParamIdx(p);
         if (p >= (numPositionParams() + numThicknessParams() + numBlendingParameters())) {
             return (p - (numPositionParams() + numThicknessParams() + numBlendingParameters())) / m_numIndepBaseVertices;

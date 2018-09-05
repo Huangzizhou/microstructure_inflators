@@ -48,7 +48,7 @@ vector<Real> IsosurfaceInflator::defaultParameters(Real t)  const { return m_imp
 bool         IsosurfaceInflator::isThicknessParam(size_t p) const { return m_imp->isThicknessParam(p); }
 bool         IsosurfaceInflator:: isPositionParam(size_t p) const { return m_imp->isPositionParam(p); }
 bool         IsosurfaceInflator:: isBlendingParam(size_t p) const { return m_imp->isBlendingParam(p); }
-int          IsosurfaceInflator:: isBlendingPolyParam(size_t p) const { return m_imp->isBlendingPolyParam(p); }
+int          IsosurfaceInflator:: whichBlendingPolyParam(size_t p) const { return m_imp->whichBlendingPolyParam(p); }
 
 bool IsosurfaceInflator::hasOrthotropicSymmetry() const { return m_imp->hasOrthotropicSymmetry(); }
 
