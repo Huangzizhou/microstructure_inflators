@@ -5,7 +5,7 @@
 #ifndef NONCONVEXBLENDING_H
 #define NONCONVEXBLENDING_H
 
-namespace SD {
+namespace SignedDistance {
     // This function corresponds to an approximation of the absolute function. The nonconvex name is refers to the polynomial
     // that gives rise to this final equation (check documentation in doc/blending.pdf). Basically, this approximation does
     // not guarantee same sign curvature on the whole blending region.
@@ -197,7 +197,7 @@ namespace SD {
 
             Real recursiveS = s / 10.0;
             Real recursiveMin = exp_smin_nonconvex_params<Real>(recursionValues, recursiveS, poly_coeffs);
-            result += SD::exp_smin_nonconvex_params<Real>(currentElement, recursiveMin, s, poly_coeffs);
+            result += exp_smin_nonconvex_params<Real>(currentElement, recursiveMin, s, poly_coeffs);
 
             if (i < (n - 1)) {
                 // put back original element

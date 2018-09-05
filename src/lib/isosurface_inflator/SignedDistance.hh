@@ -15,12 +15,12 @@
 #include "InflatorTypes.hh"
 #include "TriangleClosestPoint.hh"
 #include "AutomaticDifferentiation.hh"
-#include "PiecewiseBlending.hh"
-#include "PolynomialConvexBlending.hh"
-#include "NonConvexBlending.hh"
+#include "blending/PiecewiseBlending.hh"
+#include "blending/PolynomialConvexBlending.hh"
+#include "blending/NonConvexBlending.hh"
 #include <vector>
 
-namespace SD {
+namespace SignedDistance {
 
 template<typename Real>
 Real clamp(Real x, Real a, Real b) { return std::min<Real>(std::max<Real>(x, a), b); }

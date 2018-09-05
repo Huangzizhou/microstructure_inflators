@@ -27,11 +27,11 @@ set(SOURCES
         MidplaneMesher.cc
         MidplaneMesher.hh
         NodePositioners.hh
-        NonConvexBlending.hh
+        blending/NonConvexBlending.hh
         PaperVisualizationSDFunc.hh
         PatternSignedDistance.hh
-        PiecewiseBlending.hh
-        PolynomialConvexBlending.hh
+        blending/PiecewiseBlending.hh
+        blending/PolynomialConvexBlending.hh
         PostProcess.cc
         PostProcess.hh
         rasterize.cc

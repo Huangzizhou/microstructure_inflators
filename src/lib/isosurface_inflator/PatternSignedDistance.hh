@@ -32,6 +32,8 @@
 #define VERTEX_SMOOTHNESS_MODULATION 1
 #define DISCONTINUITY_AVOIDING_CREASE_AVOIDANCE 1
 
+namespace SD = SignedDistance;
+
 template<class WMesh>
 struct MapToBaseUnit {
     // Non-static so it can be a closure (see implementation of generic lambdas in C++14)

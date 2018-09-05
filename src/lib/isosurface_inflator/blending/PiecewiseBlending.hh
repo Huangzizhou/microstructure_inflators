@@ -117,7 +117,7 @@ namespace PiecewiseBlending {
 
 }
 
-namespace SD {
+namespace SignedDistance {
 
     // This function corresponds to an approximation of the absolute function. The name is refers to the fact that this is
     // a piecewise symmetric function. Each coefficient corresponds to the curvature expected in each segment of the blending
@@ -191,7 +191,7 @@ namespace SD {
 
         // Base case
         if (n == 2) {
-            result = SD::exp_smin_piecewise_params<Real>(values[0], values[1], s, poly_coeffs);
+            result = exp_smin_piecewise_params<Real>(values[0], values[1], s, poly_coeffs);
             return result;
         }
 

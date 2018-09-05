@@ -59,7 +59,7 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
                               ("polyBasedBlending",                          "Blending based on polynomial function")
                               ("nonconvexBasedBlending",                     "Blending based on polynomial nonconvex function")
                               ("piecewiseBasedBlending",                     "Blending done splitting the blending region into multiple pieces")
-                              ("defaultThickness",  po::value<double>(0.07), "Set the default value for thickness parameters to be used in inflation")
+                              ("defaultThickness", po::value<double>()->default_value(0.07), "Set the default value for thickness parameters to be used in inflation")
                               ;
 
     po::options_description cli_opts;

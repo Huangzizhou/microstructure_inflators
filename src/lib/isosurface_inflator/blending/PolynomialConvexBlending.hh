@@ -5,7 +5,7 @@
 #ifndef POLYNOMIALCONVEXBLENDING_H
 #define POLYNOMIALCONVEXBLENDING_H
 
-namespace SD {
+namespace SignedDistance {
 
     // This function corresponds to an approximation of the absolute function. The  name is refers to the fact that this is
     // a polynomial and symmetric function. The way this function was produced is explained in the documentation in doc/blending.pdf).
@@ -125,7 +125,7 @@ namespace SD {
 
         // Base case
         if (n == 2) {
-            result = SD::exp_smin_symmetric_params<Real>(values[0], values[1], s, poly_coeffs);
+            result = exp_smin_symmetric_params<Real>(values[0], values[1], s, poly_coeffs);
             return result;
         }
 
@@ -144,7 +144,7 @@ namespace SD {
 
             Real recursiveS = s/10.0;
             Real recursiveMin = exp_smin_symmetric_params<Real>(recursionValues, recursiveS, poly_coeffs);
-            result += SD::exp_smin_symmetric_params<Real>(currentElement, recursiveMin, s, poly_coeffs);
+            result += exp_smin_symmetric_params<Real>(currentElement, recursiveMin, s, poly_coeffs);
 
             if (i < (n-1)) {
                 // put back original element

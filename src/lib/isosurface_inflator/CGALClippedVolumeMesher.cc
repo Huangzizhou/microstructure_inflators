@@ -20,6 +20,7 @@
 
 // avoid verbose function and named parameters call
 using namespace CGAL::parameters;
+namespace SD = SignedDistance;
 
 // Kernel
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
