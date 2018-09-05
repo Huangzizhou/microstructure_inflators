@@ -148,43 +148,13 @@ public:
         std::vector<double> result(numBlendingPolyParams(), 0.0001);
 
         // Look in Maple scripts in shape_optimization/doc to check why the methods have this initialization
-        switch (m_blendingPolySize) {
-            case 8:
-                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
-                    result[i+7*m_numIndepBaseVertices] = 0.0;
-                }
-            case 7:
-                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
-                    result[i+6*m_numIndepBaseVertices] = 0.0;
-                }
-            case 6:
-                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
-                    result[i+5*m_numIndepBaseVertices] = 0.0;
-                }
-            case 5:
-                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
-                    result[i+4*m_numIndepBaseVertices] = 0.0;
-                }
-            case 4:
-                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
-                    result[i+3*m_numIndepBaseVertices] = 0.0;
-                }
-            case 3:
-                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
-                    result[i+2*m_numIndepBaseVertices] = 0.0;
-                }
-            case 2:
-                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
-                    result[i+m_numIndepBaseVertices] = 0.1e-3;
-                }
-            case 1:
-                for (size_t i = 0; i<m_numIndepBaseVertices; i++) {
-                    result[i] = 0.01;
-                }
-            case 0:
-                break;
-            default:
+        if (m_blendingPolySize > 0) {
+            if (m_blendingPolySize > 8)
                 throw std::runtime_error("More blending parameters than supported");
+
+            Real finalCoeffVal = (m_blendingPolySize == 1) ? 0.01 : (m_blendingPolySize == 2) ? 0.001 : 0;
+            for (size_t i = 0; i < m_numIndepBaseVertices; ++i)
+                result[i + (m_blendingPolySize - 1) * m_numIndepBaseVertices] = finalCoeffVal;
         }
 
         return result;

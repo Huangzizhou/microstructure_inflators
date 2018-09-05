@@ -45,7 +45,7 @@
 #include <pattern_optimization/objective_terms/ProximityRegularization.hh>
 #include <pattern_optimization/objective_terms/TargetVolume.hh>
 #include "StressObjectiveTerm.hh"
-#include "ParametersMask.h"
+#include "ParametersMask.hh"
 
 #include <pattern_optimization/constraints/Printability.hh>
 

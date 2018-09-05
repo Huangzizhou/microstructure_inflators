@@ -56,10 +56,10 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
                               ("numProcs",              po::value<size_t>(), "Number of threads to use for TBB parallelism (CGAL mesher, etc.)")
 #endif
                               ("blendingPolySize",      po::value<size_t>()->default_value(0), "Number of coefficients in the polynomial used in KS (smooth min)")
-                              ("polyBasedBlending",                          "blending based on polynomial function")
-                              ("nonconvexBasedBlending",                     "blending based on polynomial nonconvex function")
-                              ("piecewiseBasedBlending",                     "blending done splitting the blending region into multiple pieces")
-                              ("defaultThickness",      po::value<double>(), "blending done splitting the blending region into multiple pieces")
+                              ("polyBasedBlending",                          "Blending based on polynomial function")
+                              ("nonconvexBasedBlending",                     "Blending based on polynomial nonconvex function")
+                              ("piecewiseBasedBlending",                     "Blending done splitting the blending region into multiple pieces")
+                              ("defaultThickness",  po::value<double>(0.07), "Set the default value for thickness parameters to be used in inflation")
                               ;
 
     po::options_description cli_opts;
@@ -118,9 +118,7 @@ int main(int argc, char *argv[])
         inflator.meshingOptions().jointBlendingFunction = JointBlendFunction::POLY_PIECEWISE;
     }
 
-    double defaultThickness = 0.07;
-    if (args.count("defaultThickness") > 0)
-        defaultThickness = args["defaultThickness"].as<double>();
+    double defaultThickness = args["defaultThickness"].as<double>();
 
     vector<Real> params(inflator.defaultParameters(defaultThickness));
     if (args.count("params")) {

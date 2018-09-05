@@ -80,7 +80,7 @@ public:
         m_vertexSmoothness.clear();
         m_incidentEdges.clear();
 
-        if (blendFunction != JointBlendFunction::EXPONENTIAL && std::is_same<WMesh, class WireQuadMesh>::value) {
+        if (blendFunction != JointBlendFunction::EXPONENTIAL && std::is_same<WMesh, WireQuadMesh>::value) {
             std::cerr << "Selected type of blending function is not implemented for WireQuadMesh" << std::endl;
             throw std::runtime_error("Selected type of blending function is not implemented for WireQuadMesh");
         }

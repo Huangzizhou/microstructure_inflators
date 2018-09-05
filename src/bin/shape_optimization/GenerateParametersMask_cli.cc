@@ -13,7 +13,7 @@
 #include <MeshFEM/MeshIO.hh>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
-#include "ParametersMask.h"
+#include "ParametersMask.hh"
 
 using namespace std;
 

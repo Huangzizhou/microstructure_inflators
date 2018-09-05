@@ -30,7 +30,7 @@
 #include "ShapeOptimizationIterate.hh"
 
 #include "StressObjectiveTerm.hh"
-#include "ParametersMask.h"
+#include "ParametersMask.hh"
 #include <inflators/wrappers/ConstrainedIsoinflator.hh>
 #include <isosurface_inflator/ShapeVelocityInterpolator.hh>
 

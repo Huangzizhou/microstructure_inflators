@@ -4,6 +4,9 @@
 /*! @file
 //      Given a pattern, a set of parameters and a set of boundary conditions,
 //    decide which variables should not change during optimization.
+//      This is done by returning vector of booleans with 'false' for variables
+//    that can move and 'true' for variables that should be filtered out of the
+//    optimization.
 //
 */
 //  Author:  Davi Colli Tozoni (dctozoni) davi.tozoni@nyu.edu
@@ -11,8 +14,8 @@
 //  Created:  2/13/18
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef MICROSTRUCTURES_PARAMETERSMASK_H
-#define MICROSTRUCTURES_PARAMETERSMASK_H
+#ifndef PARAMETERSMASK_HH
+#define PARAMETERSMASK_HH
 
 #include <vector>
 #include <algorithm>
@@ -37,7 +40,9 @@ namespace po = boost::program_options;
 using Point = Point3<double>;
 
 namespace ParametersMask {
-     void jsonToRegions(std::string jsonPath, const BBox<Point> &bbox, vector<Region<Point> *> &inRegions, vector<Region<Point> *> &exceptRegions) {
+
+    // Function that loads json file, creating regions that should be included or excluded from optimization
+    void jsonToRegions(std::string jsonPath, const BBox<Point> &bbox, vector<Region<Point> *> &inRegions, vector<Region<Point> *> &exceptRegions) {
         // reading JSON file
         ifstream input(jsonPath);
         json j;
@@ -74,16 +79,16 @@ namespace ParametersMask {
                 min_corner_array << min_corner[0], min_corner[1], min_corner[2];
                 max_corner_array << max_corner[0], max_corner[1], max_corner[2];
 
-                // scale (w/2, h/2)
+                // scale
                 double w = M(0) - m(0);
                 double h = M(1) - m(1);
                 double d = M(2) - m(2);
-                min_corner_array(0) *= w;///2;
-                min_corner_array(1) *= h;///2;
-                min_corner_array(2) *= d;///2;
-                max_corner_array(0) *= w;///2;
-                max_corner_array(1) *= h;///2;
-                max_corner_array(2) *= d;///2;
+                min_corner_array(0) *= w;
+                min_corner_array(1) *= h;
+                min_corner_array(2) *= d;
+                max_corner_array(0) *= w;
+                max_corner_array(1) *= h;
+                max_corner_array(2) *= d;
 
                 // translate to min corner
                 min_corner_array += m.array();
@@ -108,10 +113,11 @@ namespace ParametersMask {
         }
     }
 
+    // Decide which points should be excluded from optimization
     vector<Point> excludedPoints(vector<Point> points, vector<Region<Point> *> &inRegions, vector<Region<Point> *> &exceptRegions) {
         set<int> in;
 
-        // marking which points are filtered and which are not
+        // saving points that are inside 'in' regions
         if (inRegions.size() > 0) {
             for (auto region : inRegions) {
                 for (size_t i = 0; i < points.size(); i++) {
@@ -122,11 +128,13 @@ namespace ParametersMask {
             }
         }
         else {
+            // In case there are no 'in' regions, consider whole region as in.
             for (size_t i = 0; i < points.size(); i++) {
                 in.insert(i);
             }
         }
 
+        // remove points from 'in' regions that are also inside except regions
         for (auto region : exceptRegions) {
             for (size_t i = 0; i < points.size(); i++) {
                 if (region->containsPoint(points[i])) {
@@ -135,6 +143,7 @@ namespace ParametersMask {
             }
         }
 
+        // create resulting vector which is complement of in set
         vector<Point> result;
         for (size_t i = 0; i < points.size(); i++) {
             if (!in.count(i))
@@ -144,6 +153,7 @@ namespace ParametersMask {
         return result;
     }
 
+    // Extract filtering regions from file
     void extractFilteringRegions(string bcondsPath, vector<Point> points, vector<Region<Point> *> &inRegions, vector<Region<Point> *> &exceptRegions) {
         if (!bcondsPath.empty()) {
             BBox<Point> bb(points);
@@ -152,6 +162,7 @@ namespace ParametersMask {
         }
     }
 
+    // Generate parameters mask when using truss like structures
     vector<bool> generateParametersMask(string patternPath, vector<double> params, string bcondsPath, size_t blendingPolySize = 0, string sym = "non_periodic") {
         WireMeshBase * wireMesh;
 
@@ -190,14 +201,17 @@ namespace ParametersMask {
         vector<Region<Point> *> exceptRegions;
         extractFilteringRegions(bcondsPath, points, inRegions, exceptRegions);
 
+        // find which points should be excluded
         vector<Point> fixedPoints = excludedPoints(points, inRegions, exceptRegions);
 
+        // transform points into parameters
         vector<int> fixedParameters;
         for (unsigned i = 0; i < fixedPoints.size(); i++) {
             vector<int> parameterIndices = wireMesh->pointToParametersIndices(fixedPoints[i], params);
             fixedParameters.insert(fixedParameters.end(), parameterIndices.begin(), parameterIndices.end());
         }
 
+        // create filtering vector
         vector<bool> solution(params.size(), false);
         for (unsigned i = 0; i < fixedParameters.size(); i++) {
             solution[fixedParameters[i]] = true;
@@ -208,6 +222,7 @@ namespace ParametersMask {
         return solution;
     }
 
+    // Generate parameters mask when using truss like structures (when parameters are passed as string)
     vector<bool> generateParametersMask(string patternPath, string paramsString, string bcondsPath, size_t blendingPolySize = 0, string sym = "non_periodic") {
 
         // Parse parameters
@@ -227,7 +242,8 @@ namespace ParametersMask {
         return generateParametersMask(patternPath, params, bcondsPath, blendingPolySize, sym);
     }
 
-    // Function for BoundaryPerturbationInflator
+    // Generate parameters mask when using boundary perturbation inflator (meaning that each coordinate of each boundary
+    // vertex could be a variable in the optimization)
     template<size_t N>
     vector<bool> generateParametersMask(string meshPath, string bcondsPath) {
         // Original mesh
@@ -248,14 +264,17 @@ namespace ParametersMask {
         vector<Region<Point> *> exceptRegions;
         extractFilteringRegions(bcondsPath, points, inRegions, exceptRegions);
 
+        // find which points should be excluded
         vector<Point> fixedPoints = excludedPoints(points, inRegions, exceptRegions);
 
+        // transform points into parameters
         vector<int> fixedParameters;
         for (unsigned i = 0; i < fixedPoints.size(); i++) {
             vector<int> parameterIndices = bpi.pointToParametersIndices(truncateFrom3D<VectorND<N>>(fixedPoints[i]));
             fixedParameters.insert(fixedParameters.end(), parameterIndices.begin(), parameterIndices.end());
         }
 
+        // create filtering vector
         vector<bool> solution(params.size(), false);
         for (unsigned i = 0; i < fixedParameters.size(); i++) {
             if(solution[fixedParameters[i]])
@@ -268,4 +287,4 @@ namespace ParametersMask {
     }
 }
 
-#endif //MICROSTRUCTURES_PARAMETERSMASK_H
+#endif //PARAMETERSMASK_HH
