@@ -88,6 +88,8 @@ IsosurfaceInflator::selfSupportingConstraints(const std::vector<Real> &params) c
 
 MeshingOptions &IsosurfaceInflator::meshingOptions() { return m_imp->meshingOptions(); }
 
+BBox<Vector3D> IsosurfaceInflator::meshingCell() { return m_imp->meshingCell(); }
+
 IsosurfaceInflator::~IsosurfaceInflator() {
     delete m_imp;
 }

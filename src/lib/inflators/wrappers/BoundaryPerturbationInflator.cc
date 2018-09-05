@@ -4,6 +4,8 @@
 #include <MeshFEM/MeshIO.hh>
 #include <MeshFEM/Future.hh>
 
+#include <limits>
+
 template<size_t N>
 BoundaryPerturbationInflator<N>::BoundaryPerturbationInflator(
         const std::string &meshPath, Real epsilon)
@@ -186,6 +188,22 @@ boundaryVFieldFromParams(const ScalarField<Real> &params) const
     }
 
     return result;
+}
+
+template<size_t N>
+BBox<Vector3D> BoundaryPerturbationInflator<N>::meshingCell() {
+    Vector3D cell_min;
+    Vector3D cell_max;
+    cell_min.fill(std::numeric_limits<Real>::min());
+    cell_max.fill(std::numeric_limits<Real>::max());
+
+    if (N == 2) {
+        cell_min[2] = 0.0;
+        cell_max[2] = 0.0;
+    }
+
+    BBox<Vector3D> cell(cell_min, cell_max);
+    return cell;
 }
 
 // Initialize the boundary perturbation inflator for a particular mesh.

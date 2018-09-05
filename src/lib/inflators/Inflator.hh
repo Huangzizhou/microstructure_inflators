@@ -130,7 +130,10 @@ public:
     }
 
     virtual void update() {
-        // Most inflators do not update!! However, some of them can use information of current solution to update their structures
+        // Most inflators do not update!! However, some of them, like Slimflator, can use information of current
+        // solution to update their structures. In case of Slimflator, the inflator needs a reference structure
+        // to work (cause it uses SLIM to move internal vertices, following boundary perturbation). The algorithm
+        // works better if the current reference shape is updated with the best solution found so far.
     }
 
     virtual ~InflatorBase() { }
@@ -205,18 +208,7 @@ public:
 
     // The meshing cell box.
     virtual BBox<Vector3D> meshingCell() {
-        Vector3D cell_min;
-        Vector3D cell_max;
-        cell_min.fill(-1.0);
-        cell_max.fill(1.0);
-
-        if (N == 2) {
-            cell_min[2] = 0.0;
-            cell_max[2] = 0.0;
-        }
-
-        BBox<Vector3D> cell(cell_min, cell_max);
-        return cell;
+        throw std::runtime_error("meshingCell() unimplemented by this inflator");
     }
 
     virtual ~Inflator() { }
