@@ -314,22 +314,24 @@ public:
             std::cerr << "vs derivatives:"; reportDerivatives(std::cerr, m_vertexSmoothness[vtx]); std::cerr << std::endl;
         }
 
-        // obtain blending polynomial coefficients
-        std::vector<Real2> smoothingPolyCoeffs = joint->template smoothingPolyCoeffs<Real2>();
-
         // If extra blending parameters are given, uses a different function based on polynomials
         JointDists<Real2> result;
         if (joint->m_blendFunction == JointBlendFunction::EXPONENTIAL) {
             result = JointDists<Real2>(SD::exp_smin_reparam_accurate<Real2>(jointEdgeDists, s), hardUnionedDist);
         }
-        else if (joint->m_blendFunction == JointBlendFunction::POLY_SYMMETRIC) {
-            result = JointDists<Real2>(SD::exp_smin_symmetric_params<Real2>(jointEdgeDists, s, smoothingPolyCoeffs), hardUnionedDist);
-        }
-        else if (joint->m_blendFunction == JointBlendFunction::POLY_NONCONVEX) {
-            result = JointDists<Real2>(SD::exp_smin_nonconvex_params<Real2>(jointEdgeDists, s, smoothingPolyCoeffs), hardUnionedDist);
-        }
         else {
-            result = JointDists<Real2>(SD::exp_smin_piecewise_params<Real2>(jointEdgeDists, s, smoothingPolyCoeffs), hardUnionedDist);
+            // obtain blending polynomial coefficients
+            std::vector<Real2> smoothingPolyCoeffs = joint->template smoothingPolyCoeffs<Real2>();
+
+            if (joint->m_blendFunction == JointBlendFunction::POLY_SYMMETRIC) {
+               result = JointDists<Real2>(SD::exp_smin_symmetric_params<Real2>(jointEdgeDists, s, smoothingPolyCoeffs), hardUnionedDist);
+
+            } else if (joint->m_blendFunction == JointBlendFunction::POLY_NONCONVEX) {
+                result = JointDists<Real2>(SD::exp_smin_nonconvex_params<Real2>(jointEdgeDists, s, smoothingPolyCoeffs), hardUnionedDist);
+
+            } else {
+                result = JointDists<Real2>(SD::exp_smin_piecewise_params<Real2>(jointEdgeDists, s, smoothingPolyCoeffs), hardUnionedDist);
+            }
         }
 
         if (hasInvalidDerivatives(result.smooth) || hasInvalidDerivatives(result.hard) || std::isnan(stripAutoDiff(result.smooth)) || std::isinf(stripAutoDiff(result.hard))) {
@@ -817,13 +819,6 @@ private:
             }
         }
 #endif
-
-        // TODO - SAVE FOR LATER: Use frame function in 2D combined with the current dist, to create elements inside a given frame domain
-        //Real2 frame = 2.0 * tanh(pow(p[0]/(1.072), 10.0)) +  2.0 * tanh(pow(p[1]/(1.072),10.0))  -  1.0;
-        //Real2 frame = 2.0 * tanh(pow(p[0]/(1.072), 1000.0)) +  2.0 * tanh(pow(p[1]/(1.072), 1000.0))  -  1.0;
-        //Real2 s = 1e-20 + dist - dist;
-
-        //dist = SD::exp_smax_reparam_accurate(dist, frame, s);
 
         if (std::isnan(stripAutoDiff(dist)) || std::isinf(stripAutoDiff(dist))) {
             std::cerr << "ERROR, invalid dist: " << dist << "at: " << stripAutoDiff(p).transpose() << std::endl;

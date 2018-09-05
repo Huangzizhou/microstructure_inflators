@@ -12,7 +12,7 @@ namespace SD {
     // Function was automatically extracted from Maple script doc/KS_nonconvex_8parameters.mw
     template<typename Real>
     Real
-    compute_nonconvex_fake_log_2cosh(Real x, Real p, Real a0, Real a2, Real a4, Real a6, Real a8, Real a10, Real a12,
+    compute_nonconvex_fake_log_2cosh(Real &x, Real &p, const Real &a0, const Real &a2, const Real &a4, const Real &a6, const Real &a8, const Real &a10, const Real &a12,
                                      Real a14) {
         return ((-0.40040e5 * a14 * pow(p, 0.18e2) * pow(x, 0.18e2) +
                  0.204204e6 * (a14 - a12 / 0.4e1) * pow(x, 0.16e2) * pow(p, 0.16e2) -
@@ -30,7 +30,7 @@ namespace SD {
 
     // same as function presented above, but receives vector of coefficients.
     template<typename Real>
-    Real compute_nonconvex_fake_log_2cosh(Real x, Real p, const std::vector<Real> poly_coeffs) {
+    Real compute_nonconvex_fake_log_2cosh(Real x, Real p, const std::vector<Real> &poly_coeffs) {
         Real result = 0.0;
 
         // Building default values. To create the data structure needed for automatic differentiation, the easiest way is

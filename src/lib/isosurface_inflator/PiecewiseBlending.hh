@@ -124,7 +124,7 @@ namespace SD {
     // region. A more detailed explanation is presented doc/blending.pdf).
     // Function code was based on code extracted from Maple script doc/KS_piecewise.mw
     template<typename Real>
-    Real compute_piecewise_fake_log_2cosh(Real x, Real p, const std::vector<Real> poly_coeffs) {
+    Real compute_piecewise_fake_log_2cosh(Real x, Real p, const std::vector<Real> &poly_coeffs) {
         Real result = 0.0;
 
         // Building default values

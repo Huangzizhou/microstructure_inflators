@@ -69,7 +69,7 @@ void MeshingOptions::load(const nlohmann::json &config) {
         } else if (simp == "resample") {
             curveSimplifier = RESAMPLE;
         } else if (simp == "none") {
-                curveSimplifier = NONE;
+            curveSimplifier = NONE;
         } else {
             throw std::runtime_error("Unknown curve simplifier '" + simp + "'; expected 'collapse' or 'resample'");
         }
