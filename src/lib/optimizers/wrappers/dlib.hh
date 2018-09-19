@@ -15,4 +15,11 @@ void optimize_dlib_bfgs(ScalarField<Real> &params,
         const PatternOptimization::OptimizerConfig &oconfig,
         const std::string &outPath);
 
+// bfgs with a custom line search
+void optimize_dlib_custom_bfgs(ScalarField<Real> &params,
+                        const PatternOptimization::BoundConstraints &bds,
+                        PatternOptimization::IterateManagerBase &im,
+                        const PatternOptimization::OptimizerConfig &oconfig,
+                        const std::string &outPath);
+
 #endif /* end of include guard: DLIB_HH */

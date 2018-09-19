@@ -163,6 +163,8 @@ public:
         return false;
     }
 
+    virtual BBox<Vector3D> meshingCell() override;
+
     virtual ~BoundaryPerturbationInflator() { }
 
 private:

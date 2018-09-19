@@ -89,6 +89,8 @@ public:
     Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic>
     selfSupportingConstraints(const std::vector<Real> &params) const;
 
+    BBox<Vector3D> meshingCell();
+
     ~IsosurfaceInflator();
 
 public:
