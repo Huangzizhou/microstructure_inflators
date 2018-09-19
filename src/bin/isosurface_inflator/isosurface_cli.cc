@@ -55,6 +55,11 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
 #if MICRO_WITH_TBB
                               ("numProcs",              po::value<size_t>(), "Number of threads to use for TBB parallelism (CGAL mesher, etc.)")
 #endif
+                              ("blendingPolySize",      po::value<size_t>()->default_value(0), "Number of coefficients in the polynomial used in KS (smooth min)")
+                              ("polyBasedBlending",                          "Blending based on polynomial function")
+                              ("nonconvexBasedBlending",                     "Blending based on polynomial nonconvex function")
+                              ("piecewiseBasedBlending",                     "Blending done splitting the blending region into multiple pieces")
+                              ("defaultThickness", po::value<double>()->default_value(0.07), "Set the default value for thickness parameters to be used in inflation")
                               ;
 
     po::options_description cli_opts;
@@ -99,9 +104,23 @@ int main(int argc, char *argv[])
 #endif
 
     IsosurfaceInflator inflator(args["mesher"].as<string>(), true, args["wire"].as<string>(),
-            args["inflation_graph_radius"].as<size_t>());
+            args["inflation_graph_radius"].as<size_t>(), args["blendingPolySize"].as<size_t>());
 
-    vector<Real> params(inflator.defaultParameters());
+    if (args.count("polyBasedBlending")) {
+        inflator.meshingOptions().jointBlendingFunction = JointBlendFunction::POLY_SYMMETRIC;
+    }
+
+    if (args.count("nonconvexBasedBlending")) {
+        inflator.meshingOptions().jointBlendingFunction = JointBlendFunction::POLY_NONCONVEX;
+    }
+
+    if (args.count("piecewiseBasedBlending")) {
+        inflator.meshingOptions().jointBlendingFunction = JointBlendFunction::POLY_PIECEWISE;
+    }
+
+    double defaultThickness = args["defaultThickness"].as<double>();
+
+    vector<Real> params(inflator.defaultParameters(defaultThickness));
     if (args.count("params")) {
         // Split up params.
         string paramString(args["params"].as<string>());
@@ -111,7 +130,6 @@ int main(int argc, char *argv[])
         params.clear();
         for (const auto &p : pStrings)
             params.push_back(std::stod(p));
-        std::cout << params.size() << std::endl;
     }
     else if (args.count("paramsFile")) {
         string line;

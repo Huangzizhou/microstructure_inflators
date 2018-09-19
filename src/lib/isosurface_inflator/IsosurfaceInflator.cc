@@ -48,6 +48,7 @@ vector<Real> IsosurfaceInflator::defaultParameters(Real t)  const { return m_imp
 bool         IsosurfaceInflator::isThicknessParam(size_t p) const { return m_imp->isThicknessParam(p); }
 bool         IsosurfaceInflator:: isPositionParam(size_t p) const { return m_imp->isPositionParam(p); }
 bool         IsosurfaceInflator:: isBlendingParam(size_t p) const { return m_imp->isBlendingParam(p); }
+int          IsosurfaceInflator:: whichBlendingPolyParam(size_t p) const { return m_imp->whichBlendingPolyParam(p); }
 
 bool IsosurfaceInflator::hasOrthotropicSymmetry() const { return m_imp->hasOrthotropicSymmetry(); }
 
@@ -97,7 +98,7 @@ IsosurfaceInflator::~IsosurfaceInflator() {
 ////////////////////////////////////////////////////////////////////////////////
 // Factory/instantiations
 ////////////////////////////////////////////////////////////////////////////////
-IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness, const string &wireMeshPath, size_t inflationNeighborhoodEdgeDist) {
+IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness, const string &wireMeshPath, size_t inflationNeighborhoodEdgeDist, size_t blendingPolySize) {
     if (!vertexThickness) throw runtime_error("Only per-vertex thickness is currently supported.");
     string name = type;
     transform(name.begin(), name.end(), name.begin(), ::tolower);
@@ -114,7 +115,9 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
     bool shouldDisablePostprocess = false;
     if (name.find("2d_") == 0) {
         mesher = Future::make_unique<MidplaneMesher>();
-        name = name.substr(3, string::npos);
+        if (name.find("non_periodic") == std::string::npos) {
+            name = name.substr(3, string::npos);
+        }
     }
     else if ((pos = name.find("_preview")) != string::npos) {
         mesher = Future::make_unique<IGLSurfaceMesherMC>();
@@ -131,13 +134,14 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
     if (!mesher) mesher = Future::make_unique<CGALClippedVolumeMesher>();
 
     map<string, function<void()>> makeImplForSymmetry = {
-        {"cubic",           [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>         >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
-        {"orthotropic",     [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>   >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
-        {"diagonal",        [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Diagonal<>      >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
-        {"non_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::NonPeriodic<>>>(wireMeshPath, std::move(mesher), 0); }},
-        {"triply_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
-        {"doubly_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::DoublyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }},
-        {"square",          [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Square<>        >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist); }}
+        {"cubic",           [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>         >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist, blendingPolySize); }},
+        {"orthotropic",     [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>   >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist, blendingPolySize); }},
+        {"diagonal",        [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Diagonal<>      >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist, blendingPolySize); }},
+        {"2d_non_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::NonPeriodic<DEFAULT_TOL, 2>>>(wireMeshPath, std::move(mesher), 0, blendingPolySize); }},
+        {"non_periodic",    [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::NonPeriodic<DEFAULT_TOL, 3>>>(wireMeshPath, std::move(mesher), 0, blendingPolySize); }},
+        {"triply_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::TriplyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist, blendingPolySize); }},
+        {"doubly_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::DoublyPeriodic<>>>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist, blendingPolySize); }},
+        {"square",          [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Square<>        >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist, blendingPolySize); }}
     };
 
     if (makeImplForSymmetry.count(name) == 0) throw std::runtime_error("Invalid inflator name: '" + type + "'");

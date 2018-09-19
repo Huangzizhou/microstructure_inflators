@@ -35,7 +35,7 @@ mesh(const SignedDistanceRegion<3> &sdf,
 
     // Evaluate signed distances at each grid point
     Eigen::VectorXd signedDistances(nsamples);
-#if USE_TBB
+#if MICRO_WITH_TBB
     tbb::parallel_for(tbb::blocked_range<size_t>(0, nsamples),
             [&](const tbb::blocked_range<size_t> &r) {
                 for (size_t i = r.begin(); i < r.end(); ++i)

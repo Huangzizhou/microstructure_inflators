@@ -22,7 +22,8 @@ struct VisSDFunc : public SignedDistanceRegion<3> {
         }
 
         m_psd.setParameters(params, Eigen::Matrix3d::Identity(), JointBlendMode::HULL);
-        m_wmesh.inflationGraph(params, points, edges, thicknesses, blendingParams);
+        std::vector<std::vector<Real>> blendingPolyParams;
+        m_wmesh.inflationGraph(params, points, edges, thicknesses, blendingParams, blendingPolyParams);
 
         for (size_t i = 0; i < points.size(); ++i)
             m_spheres.emplace_back(points[i], thicknesses[i]);

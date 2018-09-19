@@ -32,8 +32,8 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
     if ((std::abs(dim[0]) < 1e-6) || (std::abs(dim[1]) < 1e-6))
         throw std::runtime_error("Degenerate pattern");
     const bool is2D = (std::abs(dim[2]) <= 1e-6);
-    if (std::is_same<Symmetry::NonPeriodic<typename PatternSymmetry::Tolerance>, Sym>::value) {
-        std::cout << "[NonPeriodic symmetry] Skip scaling ..." << std::endl;
+    if (std::is_same<Symmetry::NonPeriodic<typename PatternSymmetry::Tolerance, 2>, Sym>::value ||
+        std::is_same<Symmetry::NonPeriodic<typename PatternSymmetry::Tolerance, 3>, Sym>::value) {
 
         for (const auto &v : inVertices) {
             Point p(Point::Zero());
@@ -99,6 +99,9 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
 
     // Enumerate variables
     m_baseVertexVarOffsets.resize(numBaseVertices());
+    for (size_t i = 0; i < numBaseVertices(); ++i)
+        m_baseVertexVarOffsets[i].blendingPoly.resize(m_blendingPolySize);
+
 
     // Create variables for each independent vertex.
     {
@@ -121,6 +124,14 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
         for (size_t i = 0; i < numBaseVertices(); ++i) {
             if (!isIndep(i)) continue;
             m_baseVertexVarOffsets[i].blending = varOffset++;
+        }
+
+        // Create blending poly vars
+        for (size_t d = 0; d < m_blendingPolySize; d++) {
+            for (size_t i = 0; i < numBaseVertices(); ++i) {
+                if (!isIndep(i)) continue;
+                m_baseVertexVarOffsets[i].blendingPoly[d] = varOffset++;
+            }
         }
     }
 
@@ -385,7 +396,8 @@ saveInflationGraph(const std::string &path, std::vector<double> params) const {
     std::vector<Edge> igraphEdges;
     std::vector<Point> igraphVertices;
     std::vector<double> thicknesses, blendingParams;
-    inflationGraph(params, igraphVertices, igraphEdges, thicknesses, blendingParams);
+    std::vector<std::vector<double>> blendingPolyCoeffs;
+    inflationGraph(params, igraphVertices, igraphEdges, thicknesses, blendingParams, blendingPolyCoeffs);
 
     _OutputGraph(path, igraphVertices, igraphEdges);
 }

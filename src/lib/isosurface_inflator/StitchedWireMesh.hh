@@ -183,7 +183,8 @@ public:
                         std::vector<Point>  &stitchedPoints,
                         std::vector<Edge>   &stitchedEdges,
                         std::vector<double> &stitchedThicknesses,
-                        std::vector<double> &stitchedBlendingParams) const {
+                        std::vector<double> &stitchedBlendingParams,
+                        std::vector<std::vector<double>> /*&stitchedBlendingPolyParams*/) const {
         if (N == 3) {
             return printableInflationGraph(allParams, stitchedPoints,
                 stitchedEdges, stitchedThicknesses, stitchedBlendingParams);

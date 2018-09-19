@@ -18,20 +18,37 @@
 #include <stdexcept>
 
 enum class JointBlendMode { FULL, HULL, HULL_HALF_EDGE };
+enum class JointBlendFunction { EXPONENTIAL, POLY_SYMMETRIC, POLY_NONCONVEX, POLY_PIECEWISE };
+namespace SD = SignedDistance;
+
 template<typename Real>
 class Joint {
 public:
     Joint(const std::vector<Point3<Real>> &centers,
           const std::vector<Real>         &radii,
-          Real blendingAmt, JointBlendMode mode)
-    { setParameters(centers, radii, blendingAmt, mode); }
+          Real blendingAmt, JointBlendMode mode,
+          JointBlendFunction blendFunction,
+          const std::vector<Real> &blendingPolyCoeffs)
+    { setParameters(centers, radii, blendingAmt, mode, blendFunction, blendingPolyCoeffs); }
+
+    Joint(const std::vector<Point3<Real>> &centers,
+          const std::vector<Real>         &radii,
+          Real blendingAmt, JointBlendMode mode,
+          JointBlendFunction blendFunction = JointBlendFunction::EXPONENTIAL)
+    {
+        std::vector<Real> emptyBlendingPolyCoeffs;
+        setParameters(centers, radii, blendingAmt, mode, blendFunction, emptyBlendingPolyCoeffs);
+    }
 
     // Assumes the first (center, radius) specifies the joint sphere
     void setParameters(std::vector<Point3<Real>> centers, // modified inside
                        std::vector<Real>         radii,   // modified inside
                        Real blendingAmt,
-                       JointBlendMode blendMode) {
+                       JointBlendMode blendMode,
+                       JointBlendFunction blendFunction,
+                       std::vector<Real> blendingPolyCoeffs) {
         m_mode = blendMode;
+        m_blendFunction = blendFunction;
         assert(centers.size() == radii.size());
         if (centers.size() < 3) {
             {
@@ -78,10 +95,13 @@ public:
                 m_blendingHull = nullptr;
             }
         }
+
+        m_blendingPolyCoeffs = blendingPolyCoeffs;
     }
 
     template<typename Real2, bool DebugOutput = false>
     Real2 smoothingAmt(const Point3<Real2> &p) const {
+        Real2 result = m_blendingAmt;
         if (m_mode == JointBlendMode::FULL) { return m_blendingAmt; }
         if (!m_blendingHull) { return m_blendingAmt; }
 
@@ -98,7 +118,8 @@ public:
             z *= 1.025;
             modulation = 1.0 - tanh(pow(z, 10.0));
 
-            if (DebugOutput) {
+            result = modulation*result;
+            if (DebugOutput || hasInvalidDerivatives(result)) {
                 std::cerr << "smoothingAmt derivatives:" << std::endl;
                 std::cerr << "     hullDist (" <<      hullDist << "):"; reportDerivatives(std::cerr,      hullDist); std::cerr << std::endl;
                 std::cerr << "            z (" <<             z << "):"; reportDerivatives(std::cerr,             z); std::cerr << std::endl;
@@ -118,19 +139,33 @@ public:
         // Try p = 10, z *= 1.03 ==> 1/10th smoothing at hull, falling quickly
         // to zero
 
-        return modulation * m_blendingAmt;
+        return result;
     }
 
     Real blendParam() const { return m_blendingAmt; }
+
+    template<typename Real2>
+    std::vector<Real2> smoothingPolyCoeffs() {
+        std::vector<Real2> result(m_blendingPolyCoeffs.size());
+
+        for (size_t i = 0; i < m_blendingPolyCoeffs.size(); i++) {
+            result[i] = m_blendingPolyCoeffs[i];
+        }
+
+        return result;
+    }
 
     Real         r1() const { return m_r1; }
     Point3<Real> c1() const { return m_c1; }
 
     SD::Primitives::SphereConvexHull<Real> blendingHull() const { assert(m_blendingHull); return *m_blendingHull; }
 
+    JointBlendFunction m_blendFunction;
+
 private:
     std::unique_ptr<SD::Primitives::SphereConvexHull<Real>> m_blendingHull;
     Real m_blendingAmt;
+    std::vector<Real> m_blendingPolyCoeffs;
     // Center and radius of the joint sphere.
     Point3<Real> m_c1;
     Real         m_r1;

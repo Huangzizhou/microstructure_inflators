@@ -5,6 +5,7 @@
 #include "Joint.hh"
 #include <stdexcept>
 
+namespace SD = SignedDistance;
 
 struct PaperVisualizationSDFunc : public SignedDistanceRegion<3> {
     using Real = double;

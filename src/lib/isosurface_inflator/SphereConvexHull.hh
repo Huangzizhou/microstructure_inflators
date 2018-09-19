@@ -45,7 +45,7 @@
 #include <set>
 #include <limits>
 
-namespace SD { namespace Primitives {
+namespace SignedDistance { namespace Primitives {
 
 template<typename Real>
 class SphereConvexHull {

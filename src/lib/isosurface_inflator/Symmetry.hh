@@ -38,7 +38,7 @@ namespace Symmetry {
 enum class NodeType : unsigned int { Vertex = 0, Edge = 1, Face = 2, Interior = 3 };
 
 // Forward declarations of Symmetry types.
-template<typename TOL = DEFAULT_TOL> struct NonPeriodic;
+template<typename TOL = DEFAULT_TOL, size_t N = 3> struct NonPeriodic;
 template<typename TOL = DEFAULT_TOL> struct TriplyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct DoublyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct Orthotropic;
@@ -52,7 +52,8 @@ template<typename TOL = DEFAULT_TOL> struct Null;
 // TriplyPeriodic and Orthotropic symmetries have a box base cell,
 // Cubic and Diagonal symmetries have a tet base cell.
 template<class Sym> struct SymmetryTraits { };
-template<typename TOL> struct SymmetryTraits<NonPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
+template<typename TOL> struct SymmetryTraits<NonPeriodic<TOL, 2>> { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
+template<typename TOL> struct SymmetryTraits<NonPeriodic<TOL, 3>> { template<typename Real> using NodePositioner = BoxNodePositioner<Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<TriplyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<DoublyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Orthotropic<TOL>>    { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
@@ -98,11 +99,11 @@ struct OptionalFMod2<T, true> {
 // Symmetry class definitions
 ////////////////////////////////////////////////////////////////////////////////
 // Base unit is a full period cell: [-1, 1]^3
-template<typename TOL>
-struct NonPeriodic : SymmetryCRTP<NonPeriodic<TOL>> {
+template<typename TOL, size_t N>
+struct NonPeriodic : SymmetryCRTP<NonPeriodic<TOL, N>> {
     typedef TOL Tolerance;
     // Disambiguate CRTP instances
-    typedef SymmetryCRTP<NonPeriodic<TOL>> CRTP;
+    typedef SymmetryCRTP<NonPeriodic<TOL, N>> CRTP;
     using CRTP::nodePositioner;
     using CRTP::nodeType;
 
@@ -113,8 +114,15 @@ struct NonPeriodic : SymmetryCRTP<NonPeriodic<TOL>> {
     template<typename Real>
     static BBox<Point3<Real>> representativeMeshCell() {
         float max = 1.0; //changes performance, since resolution seems to be kept the same
-        return BBox<Point3<Real>>(Point3<Real>(-max, -max, -max),
-                                  Point3<Real>(max, max, max));
+
+        if (N == 2) {
+            return BBox<Point3<Real>>(Point3<Real>(-max, -max, 0),
+                                      Point3<Real>(max, max, 0));
+        }
+        else {
+            return BBox<Point3<Real>>(Point3<Real>(-max, -max, -max),
+                                      Point3<Real>(max, max, max));
+        }
     }
 
     template<typename Real>
