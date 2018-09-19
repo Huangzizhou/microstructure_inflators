@@ -26,7 +26,6 @@
 #ifndef ITERATEFACTORY_HH
 #define ITERATEFACTORY_HH
 
-#include "PatternOptimizationIterate.hh"
 #include "ObjectiveTermNormalizations.hh"
 #include <MeshFEM/Future.hh>
 #include <inflators/Inflator.hh>
@@ -204,6 +203,11 @@ struct IterateFactory : public IFConfigs... {
 
     size_t numParameters() const { return m_inflator.numParameters(); }
     bool    isParametric() const { return m_inflator.isParametric(); }
+
+    // Use information of current solution to update inflators
+    void update() {
+        m_inflator.update();
+    }
 
 private:
     ObjectiveTermNormalizations m_normalizations;

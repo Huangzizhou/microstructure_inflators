@@ -129,6 +129,13 @@ public:
             throw std::runtime_error("This inflator doesn't support subdivision");
     }
 
+    virtual void update() {
+        // Most inflators do not update!! However, some of them, like Slimflator, can use information of current
+        // solution to update their structures. In case of Slimflator, the inflator needs a reference structure
+        // to work (cause it uses SLIM to move internal vertices, following boundary perturbation). The algorithm
+        // works better if the current reference shape is updated with the best solution found so far.
+    }
+
     virtual ~InflatorBase() { }
 
 protected:
@@ -197,6 +204,11 @@ public:
             }
         }
         return result;
+    }
+
+    // The meshing cell box.
+    virtual BBox<Vector3D> meshingCell() {
+        throw std::runtime_error("meshingCell() unimplemented by this inflator");
     }
 
     virtual ~Inflator() { }

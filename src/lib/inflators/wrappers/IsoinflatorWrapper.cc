@@ -166,6 +166,12 @@ IsoinflatorWrapper<N>::hasOrthotropicSymmetry() const {
     return m_inflator->hasOrthotropicSymmetry();
 }
 
+template<size_t N>
+BBox<Vector3D>
+IsoinflatorWrapper<N>::meshingCell() {
+    return m_inflator->meshingCell();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Configuration
 ////////////////////////////////////////////////////////////////////////////////

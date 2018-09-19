@@ -10,55 +10,31 @@
 
 #include "../Constraint.hh"
 
+#define EQ_TOL 1e-2
+#define INEQ_TOL 1e-14
+#define MAX_ITERATIONS_WITHOUT_IMPROVEMENT 100
+
 using namespace PatternOptimization;
 
 std::string nloptPrettyPrint(nlopt::result res) {
     switch (res) {
-    case NLOPT_FAILURE: return "NLOPT_FAILURE";
-    case NLOPT_INVALID_ARGS: return "NLOPT_INVALID_ARGS";
-    case NLOPT_OUT_OF_MEMORY: return "NLOPT_OUT_OF_MEMORY";
-    case NLOPT_ROUNDOFF_LIMITED: return "NLOPT_ROUNDOFF_LIMITED";
-    case NLOPT_FORCED_STOP: return "NLOPT_FORCED_STOP";
-    case NLOPT_SUCCESS: return "NLOPT_SUCCESS";
-    case NLOPT_STOPVAL_REACHED: return "NLOPT_STOPVAL_REACHED";
-    case NLOPT_FTOL_REACHED: return "NLOPT_FTOL_REACHED";
-    case NLOPT_XTOL_REACHED: return "NLOPT_XTOL_REACHED";
-    case NLOPT_MAXEVAL_REACHED: return "NLOPT_MAXEVAL_REACHED";
-    case NLOPT_MAXTIME_REACHED: return "NLOPT_MAXTIME_REACHED";
-    default: return "UNDEF";
+        case NLOPT_FAILURE: return "NLOPT_FAILURE";
+        case NLOPT_INVALID_ARGS: return "NLOPT_INVALID_ARGS";
+        case NLOPT_OUT_OF_MEMORY: return "NLOPT_OUT_OF_MEMORY";
+        case NLOPT_ROUNDOFF_LIMITED: return "NLOPT_ROUNDOFF_LIMITED";
+        case NLOPT_FORCED_STOP: return "NLOPT_FORCED_STOP";
+        case NLOPT_SUCCESS: return "NLOPT_SUCCESS";
+        case NLOPT_STOPVAL_REACHED: return "NLOPT_STOPVAL_REACHED";
+        case NLOPT_FTOL_REACHED: return "NLOPT_FTOL_REACHED";
+        case NLOPT_XTOL_REACHED: return "NLOPT_XTOL_REACHED";
+        case NLOPT_MAXEVAL_REACHED: return "NLOPT_MAXEVAL_REACHED";
+        case NLOPT_MAXTIME_REACHED: return "NLOPT_MAXTIME_REACHED";
+        default: return "UNDEF";
     }
 }
 
 struct NLOptState {
-    NLOptState(IterateManagerBase &im, nlopt::opt &opt) : im(im), best(std::numeric_limits<Real>::max()), opt(opt) { }
-
-    // TODO: When constraints are involved, the iterate can be an improvement if
-    // either infeasibility decreases or objective decreases.
-    // (Currently just always reports)
-    bool isImprovement(Real /* val */, const std::vector<Real> &params) {
-        bool differ = true;
-        if (prevParams.size() == params.size()) {
-            differ = false;
-            for (size_t i = 0; i < params.size(); ++i) {
-                if (std::abs(prevParams[i] - params[i]) > 1e-9) {
-                    differ = true;
-                    break;
-                }
-            }
-        }
-        prevParams = params;
-        if (!differ) return false;
-#if 0
-        if (val < best) {
-            best = val;
-            ++niters;
-            return true;
-        }
-        return false;
-#endif
-		++niters;
-        return true;
-    }
+    NLOptState(IterateManagerBase &im, nlopt::opt &opt) : m_im(im), opt(opt) { }
 
     void manualTerminationCheck(const PatternOptimization::IterateBase &it, Real /* costVal */) const {
         if (tensor_fit_tolerance) {
@@ -77,17 +53,15 @@ struct NLOptState {
             if (relFrobDistSq < *tensor_fit_tolerance)
                 opt.force_stop();
         }
+
+        if (m_im.numberIterations() > m_im.bestIteration() + MAX_ITERATIONS_WITHOUT_IMPROVEMENT) {
+            std::cout << "Stopping nlopt cause solution did not improve after " << MAX_ITERATIONS_WITHOUT_IMPROVEMENT << std::endl;
+            opt.force_stop();
+        }
     }
 
-    std::vector<Real> prevParams;
-
     boost::optional<double> tensor_fit_tolerance;
-
-    size_t niters = 0;
-    IterateManagerBase &im;
-    Real best;
-    std::string outPath;
-
+    IterateManagerBase &m_im;
     nlopt::opt &opt;
 };
 
@@ -103,28 +77,34 @@ double costFunc(const std::vector<double> &x, std::vector<double> &grad, void *o
     auto optState = reinterpret_cast<NLOptState *>(optStateVoid);
     assert(optState);
 
-    auto &it = optState->im.get(x.size(), &x[0]);
+    try {
+        auto &it = optState->m_im.get(x.size(), &x[0]);
 
-    if (!grad.empty()) {
-        assert(grad.size() == x.size());
-        ScalarField<Real> gp = it.gradp();
-        assert(gp.domainSize() == grad.size());
-        for (size_t p = 0; p < gp.domainSize(); ++p)
-            grad[p] = gp[p];
+        Real val = it.evaluate();
+
+        if (!grad.empty()) {
+            assert(grad.size() == x.size());
+            ScalarField<Real> gp = it.gradp();
+            assert(gp.domainSize() == grad.size());
+            for (size_t p = 0; p < gp.domainSize(); ++p)
+                grad[p] = gp[p];
+        }
+
+        optState->m_im.updateAndReport(x);
+
+        if (it.shouldReport()) // only run termination check if this is a valid iterate (not an estimate)
+            optState->manualTerminationCheck(it, val);
+
+        double result = it.evaluate();
+
+        return result;
     }
-
-    Real val = it.evaluate();
-    if (optState->isImprovement(val, x) && it.shouldReport()) {
-        it.writeDescription(std::cout);
-        std::cout << std::endl;
-        if (optState->outPath != "")
-            it.writeMeshAndFields(optState->outPath + "_" + std::to_string(optState->niters));
+    catch (...) {
+        std::cerr << "Iteration failed, setting value as maximum!" << std::endl;
+        Real errorVal = std::numeric_limits<Real>::max();
+        grad.resize(x.size());
+        return errorVal;
     }
-
-    if (it.shouldReport()) // only run termination check if this is a valid iterate (not an estimate)
-        optState->manualTerminationCheck(it, val);
-
-    return it.evaluate();
 }
 
 void constraintFunc(unsigned m, double *result, unsigned n, const double *x,
@@ -132,7 +112,7 @@ void constraintFunc(unsigned m, double *result, unsigned n, const double *x,
     auto ceval = reinterpret_cast<NLOptConstraintEvaluator *>(cevalVoid);
     assert(ceval);
 
-    auto &it = ceval->state.im.get(n, x);
+    auto &it = ceval->state.m_im.get(n, x);
     const EvaluatedConstraint &c = it.evaluatedConstraint(ceval->constraintIndex);
     assert(c.values.domainSize() == m);
 
@@ -165,7 +145,7 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
     opt.set_upper_bounds(bds.upperBound);
 
     NLOptState state(im, opt);
-    state.outPath = outPath;
+    state.m_im.setOutPath(outPath);
     state.tensor_fit_tolerance = oconfig.tensor_fit_tolerance;
 
     opt.set_min_objective(costFunc, (void *) &state);
@@ -180,7 +160,7 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
         const size_t m = c.dimension();
 
         // Use lower tolerance on equality constraints
-        Real tolVal = (c.type == ConstraintType::EQUALITY) ? 1e-2 : 1e-14;
+        Real tolVal = (c.type == ConstraintType::EQUALITY) ? EQ_TOL : INEQ_TOL;
 
         std::vector<Real> tol(m, tolVal);
         cevals.push_back(Future::make_unique<NLOptConstraintEvaluator>(state, i));
@@ -205,6 +185,71 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
         nlopt::result result = opt.optimize(x, minf);
         std::cout << "NLOpt terminated with result " << nloptPrettyPrint(result) << std::endl;
     }
+    catch (nlopt::forced_stop) {
+        std::cout << "NLOpt forced stop" << std::endl;
+    }
+    catch (std::exception &e) {
+        std::cout << "NLOpt threw exception: " << e.what() << std::endl;
+    }
+
+    // Convert the solution back.
+    for (size_t p = 0; p < nParams; ++p)
+        params[p] = x[p];
+}
+
+void optimize_nlopt_lbfgs(ScalarField<Real> &params,
+                          const PatternOptimization::BoundConstraints &bds,
+                          PatternOptimization::IterateManagerBase &im,
+                          const PatternOptimization::OptimizerConfig &oconfig,
+                          const std::string &outPath)
+{
+    nlopt::opt opt(nlopt::LD_LBFGS, params.domainSize());
+
+    // Bounding parameters
+    const size_t nParams = params.domainSize();
+    for (size_t p = 0; p < nParams; ++p) {
+        if (!(bds.hasLowerBound.at(p) && bds.hasUpperBound.at(p))) {
+            std::cerr << "Currently all parameters must be bounded." << std::endl;
+            throw std::runtime_error("Currently all parameters must be bounded.");
+        }
+    }
+
+    opt.set_lower_bounds(bds.lowerBound);
+    opt.set_upper_bounds(bds.upperBound);
+
+    // Setting custom state (where we can force terminate the optimization)
+    NLOptState state(im, opt);
+    state.m_im.setOutPath(outPath);
+    state.tensor_fit_tolerance = oconfig.tensor_fit_tolerance;
+
+    // Setting the energy
+    opt.set_min_objective(costFunc, (void *) &state);
+
+    // Must create iterate to query the constraints.
+    // In the case of lbfgs, we expect no constraints
+    std::vector<std::unique_ptr<NLOptConstraintEvaluator>> cevals;
+    auto &it = im.get(nParams, &params[0]);
+    if (it.numConstraints() > 0) {
+        std::cerr << "Constraints should not be used with lbfgs." << std::endl;
+        throw std::runtime_error("Constraints should not be used with lbfgs.");
+    }
+
+    opt.set_maxeval(oconfig.niters);
+    opt.set_xtol_rel(1e-16);
+
+    // nlopt's C++ interface works on std::vectors
+    std::vector<double> x(nParams);
+    for (size_t p = 0; p < nParams; ++p)
+        x[p] = params[p];
+
+    double minf = 0;
+    try {
+        nlopt::result result = opt.optimize(x, minf);
+        std::cout << "NLOpt terminated with result " << nloptPrettyPrint(result) << std::endl;
+    }
+    catch (nlopt::forced_stop) {
+        std::cout << "NLOpt forced stop" << std::endl;
+    }
     catch (std::exception &e) {
         std::cout << "NLOpt threw exception: " << e.what() << std::endl;
     }
@@ -217,6 +262,14 @@ void optimize_nlopt_slsqp(ScalarField<Real> &params,
 #else // !HAS_NLOPT
 
 void optimize_nlopt_slsqp(ScalarField<Real> &/* params */,
+        const PatternOptimization::BoundConstraints &/* bds */,
+        PatternOptimization::IterateManagerBase &/* im */,
+        const PatternOptimization::OptimizerConfig &/* oconfig */,
+        const std::string &/* outPath */) {
+    throw std::runtime_error("Built without NLopt");
+}
+
+void optimize_nlopt_lbfgs(ScalarField<Real> &/* params */,
         const PatternOptimization::BoundConstraints &/* bds */,
         PatternOptimization::IterateManagerBase &/* im */,
         const PatternOptimization::OptimizerConfig &/* oconfig */,
