@@ -118,5 +118,9 @@ endif()
 ################################################################################
 
 add_subdirectory(src/lib/)
-add_subdirectory(src/bin/)
-add_subdirectory(tests)
+
+# Compile bin and tests only if this is a top-level project
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+    add_subdirectory(src/bin/)
+    add_subdirectory(tests)
+endif()

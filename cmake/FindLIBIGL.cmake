@@ -38,6 +38,6 @@ find_package_handle_standard_args(LIBIGL
 mark_as_advanced(LIBIGL_INCLUDE_DIR)
 
 if(LIBIGL_FOUND)
-   list(APPEND CMAKE_MODULE_PATH "${LIBIGL_INCLUDE_DIR}/../shared/cmake")
+   list(APPEND CMAKE_MODULE_PATH "${LIBIGL_INCLUDE_DIR}/../cmake")
    include(libigl)
 endif()

@@ -1,17 +1,35 @@
 ################################################################################
 include(DownloadProject)
 
+# With CMake 3.8 and above, we can hide warnings about git being in a
+# detached head by passing an extra GIT_CONFIG option
+if(NOT (${CMAKE_VERSION} VERSION_LESS "3.8.0"))
+    set(MICRO_EXTRA_OPTIONS "GIT_CONFIG advice.detachedHead=false")
+else()
+    set(MICRO_EXTRA_OPTIONS "")
+endif()
+
 # Shortcut function
 function(micro_download_project name)
     download_project(
         PROJ         ${name}
         SOURCE_DIR   ${MICRO_EXTERNAL}/${name}
         DOWNLOAD_DIR ${MICRO_EXTERNAL}/.cache/${name}
+        QUIET
+        ${MICRO_EXTRA_OPTIONS}
         ${ARGN}
     )
 endfunction()
 
 ################################################################################
+
+## MeshFEM
+function(micro_download_meshfem)
+    micro_download_project(MeshFEM
+        GIT_REPOSITORY git@github.com:geometryprocessing/MeshFEM.git
+        GIT_TAG        de881fcaa3d8c3a4716095e034d1c7733251cb88
+    )
+endfunction()
 
 ## TBB
 function(micro_download_tbb)
@@ -56,8 +74,8 @@ endfunction()
 ## libigl
 function(micro_download_libigl)
     micro_download_project(libigl
-        GIT_REPOSITORY https://github.com/libigl/libigl.git
-        GIT_TAG        593ec26c4c45da18fab5d930536407450ffea632
+        GIT_REPOSITORY https://github.com/jdumas/libigl.git
+        GIT_TAG        eb3953d901ec4fb408aab8f0ebfcf1a35ce7eeaa
     )
 endfunction()
 

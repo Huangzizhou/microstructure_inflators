@@ -46,6 +46,7 @@ endif()
 
 # MeshFEM library
 if(NOT TARGET MeshFEM)
+    micro_download_meshfem()
     add_subdirectory(${MICRO_EXTERNAL}/MeshFEM MeshFEM)
 endif()
 

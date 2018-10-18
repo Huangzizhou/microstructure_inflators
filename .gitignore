@@ -13,6 +13,7 @@ data
 /3rdparty/CLI11
 /3rdparty/cotire
 /3rdparty/libigl
+/3rdparty/MeshFEM
 /3rdparty/nlopt
 /3rdparty/sanitizers-cmake
 /3rdparty/tbb
