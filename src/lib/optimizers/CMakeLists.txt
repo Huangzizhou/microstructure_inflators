@@ -23,16 +23,16 @@ set(SOURCES
 )
 
 micro_add_library(optimizers ${SOURCES})
-micro_copy_headers(optimizers ${SOURCES})
+micro_copy_headers(micro_optimizers ${SOURCES})
 
 ################################################################################
 # Dependencies
 ################################################################################
 
-target_link_libraries(optimizers
+target_link_libraries(micro_optimizers
     PUBLIC
         MeshFEM
-        inflators
+        micro::inflators
         micro::accelerate
         micro::dlib
         micro::ceres
@@ -43,5 +43,5 @@ target_link_libraries(optimizers
 )
 
 if(MICRO_WITH_SANITIZERS)
-    add_sanitizers(optimizers)
+    add_sanitizers(micro_optimizers)
 endif()

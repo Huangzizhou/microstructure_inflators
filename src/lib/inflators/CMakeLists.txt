@@ -23,17 +23,17 @@ set(SOURCES
 )
 
 micro_add_library(inflators ${SOURCES})
-micro_copy_headers(inflators ${SOURCES})
+micro_copy_headers(micro_inflators ${SOURCES})
 
 ################################################################################
 # Dependencies
 ################################################################################
 
-target_link_libraries(inflators
+target_link_libraries(micro_inflators
     PUBLIC
         MeshFEM
-        hex_inflator
-        isosurface_inflator
+        micro::hex_inflator
+        micro::isosurface_inflator
         micro::pymesh
         micro::vcglib
         micro::clipper
@@ -42,5 +42,5 @@ target_link_libraries(inflators
 )
 
 if(MICRO_WITH_SANITIZERS)
-    add_sanitizers(inflators)
+    add_sanitizers(micro_inflators)
 endif()

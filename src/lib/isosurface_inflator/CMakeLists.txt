@@ -62,7 +62,7 @@ set(SOURCES
 )
 
 micro_add_library(isosurface_inflator ${SOURCES})
-micro_copy_headers(isosurface_inflator ${SOURCES})
+micro_copy_headers(micro_isosurface_inflator ${SOURCES})
 
 micro_add_library(isosurface_inflator_cgal
         CGALClippedVolumeMesher.cc
@@ -73,7 +73,7 @@ micro_add_library(isosurface_inflator_cgal
 # Dependencies
 ################################################################################
 
-target_link_libraries(isosurface_inflator_cgal
+target_link_libraries(micro_isosurface_inflator_cgal
     PUBLIC
         MeshFEM
         micro::tbb
@@ -81,17 +81,17 @@ target_link_libraries(isosurface_inflator_cgal
         CGAL::CGAL
 )
 
-target_link_libraries(isosurface_inflator
+target_link_libraries(micro_isosurface_inflator
     PUBLIC
         MeshFEM
         micro::libigl
     PRIVATE
-        isosurface_inflator_cgal
+        micro::isosurface_inflator_cgal
         micro::vcglib
         warnings::all
 )
 
 if(MICRO_WITH_SANITIZERS)
-    add_sanitizers(isosurface_inflator_cgal)
-    add_sanitizers(isosurface_inflator)
+    add_sanitizers(micro_isosurface_inflator_cgal)
+    add_sanitizers(micro_isosurface_inflator)
 endif()

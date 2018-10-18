@@ -75,7 +75,7 @@ endfunction()
 function(micro_download_libigl)
     micro_download_project(libigl
         GIT_REPOSITORY https://github.com/jdumas/libigl.git
-        GIT_TAG        eb3953d901ec4fb408aab8f0ebfcf1a35ce7eeaa
+        GIT_TAG        07efa3438c78ed5ec3510214cedb689bc0efc555
     )
 endfunction()
 

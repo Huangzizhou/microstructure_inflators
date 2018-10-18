@@ -6,5 +6,5 @@ set(SOURCES
         hexlib.h
 )
 
-add_library(hex_inflator INTERFACE)
-micro_copy_headers(hex_inflator ${SOURCES})
+micro_add_library(hex_inflator INTERFACE)
+micro_copy_headers(micro_hex_inflator ${SOURCES})

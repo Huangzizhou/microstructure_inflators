@@ -6,14 +6,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CURRENT_DIR})
 ################################################################################
 
 micro_add_library(intersection_check intersection_check.cc)
-target_link_libraries(intersection_check isosurface_inflator MeshFEM CGAL::CGAL warnings::all)
+target_link_libraries(micro_intersection_check micro::isosurface_inflator MeshFEM CGAL::CGAL warnings::all)
 
 ################################################################################
 # Independent binaries
 ################################################################################
 
-micro_single_app(enumerate MeshFEM intersection_check)
-micro_single_app(enumerate_2D MeshFEM intersection_check)
+micro_single_app(enumerate MeshFEM micro::intersection_check)
+micro_single_app(enumerate_2D MeshFEM micro::intersection_check)
 micro_single_app(match MeshFEM)
 micro_single_app(sort MeshFEM)
-micro_single_app(pattern_info MeshFEM isosurface_inflator)
+micro_single_app(pattern_info MeshFEM micro::isosurface_inflator)

@@ -24,13 +24,14 @@ endfunction()
 
 function(micro_add_library name)
     if(MICRO_FAST_COMPILE)
-        add_library(${name} EXCLUDE_FROM_ALL ${ARGN})
+        add_library(micro_${name} EXCLUDE_FROM_ALL ${ARGN})
     else()
-        add_library(${name} ${ARGN})
+        add_library(micro_${name} ${ARGN})
     endif()
     if(MICRO_WITH_COTIRE)
-        cotire(${name})
+        cotire(micro_${name})
     endif()
+    add_library(micro::${name} ALIAS micro_${name})
 endfunction()
 
 ################################################################################

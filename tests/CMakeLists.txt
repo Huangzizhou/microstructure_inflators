@@ -14,8 +14,8 @@ micro_add_executable(unit_tests
 
 target_link_libraries(unit_tests PUBLIC
 	Catch2::Catch2
-	isosurface_inflator
-	pattern_optimization
+	micro::isosurface_inflator
+	micro::pattern_optimization
 	igl::core
 	warnings::all
 )

@@ -26,20 +26,20 @@ set(SOURCES
 )
 
 micro_add_library(pattern_optimization ${SOURCES})
-micro_copy_headers(pattern_optimization ${SOURCES})
+micro_copy_headers(micro_pattern_optimization ${SOURCES})
 
 ################################################################################
 # Dependencies
 ################################################################################
 
-target_link_libraries(pattern_optimization
+target_link_libraries(micro_pattern_optimization
 	PUBLIC
-		inflators
-		optimizers
+		micro::inflators
+		micro::optimizers
 	PRIVATE
         warnings::all
 )
 
 if(MICRO_WITH_SANITIZERS)
-	add_sanitizers(pattern_optimization)
+	add_sanitizers(micro_pattern_optimization)
 endif()
