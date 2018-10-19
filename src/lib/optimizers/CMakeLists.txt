@@ -23,7 +23,7 @@ set(SOURCES
 )
 
 micro_add_library(optimizers ${SOURCES})
-micro_copy_headers(micro_optimizers ${SOURCES})
+micro_copy_headers(optimizers ${SOURCES})
 
 ################################################################################
 # Dependencies

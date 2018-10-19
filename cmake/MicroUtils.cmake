@@ -51,14 +51,15 @@ endfunction()
 
 # Copy header files into the target folder of the build directory
 # Only works with relatives paths so far
-function(micro_copy_headers target)
+function(micro_copy_headers name)
+    set(target micro_${name})
     if(NOT TARGET ${target})
         message(WARNING "${target} is not a CMake target. micro_copy_headers() will not be run.")
         return()
     endif()
 
     # Get info on target
-    get_target_property(TARGET_NAME ${target} NAME)
+    set(TARGET_NAME "${name}")
     get_target_property(TARGET_TYPE ${target} TYPE)
     if(TARGET_TYPE STREQUAL INTERFACE_LIBRARY)
         set(TARGET_SCOPE INTERFACE)

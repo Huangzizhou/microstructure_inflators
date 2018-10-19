@@ -23,7 +23,7 @@ set(SOURCES
 )
 
 micro_add_library(inflators ${SOURCES})
-micro_copy_headers(micro_inflators ${SOURCES})
+micro_copy_headers(inflators ${SOURCES})
 
 ################################################################################
 # Dependencies

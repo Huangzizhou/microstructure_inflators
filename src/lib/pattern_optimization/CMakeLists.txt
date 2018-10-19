@@ -26,7 +26,7 @@ set(SOURCES
 )
 
 micro_add_library(pattern_optimization ${SOURCES})
-micro_copy_headers(micro_pattern_optimization ${SOURCES})
+micro_copy_headers(pattern_optimization ${SOURCES})
 
 ################################################################################
 # Dependencies
