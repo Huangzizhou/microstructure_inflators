@@ -156,8 +156,10 @@ endif()
 
 # libigl library
 if(NOT TARGET micro::libigl)
-    micro_download_libigl()
-    find_package(LIBIGL QUIET)
+    if(NOT TARGET igl::core)
+        micro_download_libigl()
+        find_package(LIBIGL QUIET)
+    endif()
     if(LIBIGL_FOUND)
         add_library(micro_libigl INTERFACE)
         target_link_libraries(micro_libigl INTERFACE igl::core)
