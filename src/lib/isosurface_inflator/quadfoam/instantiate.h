@@ -6,7 +6,7 @@
 #include <vector>
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace quadfoam {
+namespace micro_quadfoam {
 
 ///
 /// Instantiate a periodic 2D pattern (triangle-mesh) on a given quad mesh
@@ -61,6 +61,6 @@ bool instantiate_pattern(
 	Eigen::MatrixXi *boundary_edges = nullptr
 );
 
-} // namespace quadfoam
+} // namespace micro_quadfoam
 
 #endif

@@ -3,7 +3,7 @@
 #include <iostream>
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace quadfoam {
+namespace micro_quadfoam {
 
 // Let Q = [v0, v1, v2, v3] be a quad.
 // We compute the best Jacobian J such that J maps the reference square [-1,1]²
@@ -89,4 +89,4 @@ void jacobians(const Eigen::MatrixXd &V, const Eigen::MatrixXi &Q, Eigen::Matrix
 
 ////////////////////////////////////////////////////////////////////////////////
 
-} // namespace quadfoam
+} // namespace micro_quadfoam

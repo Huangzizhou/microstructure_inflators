@@ -5,7 +5,7 @@
 #include <iostream>
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace quadfoam {
+namespace micro_quadfoam {
 
 // Build the navigation data for a given mesh
 NavigationData::NavigationData(const Eigen::MatrixXi &F)
@@ -141,6 +141,6 @@ NavigationIndex switch_face(const NavigationData &data, NavigationIndex idx) {
 	}
 }
 
-} // namespace quadfoam
+} // namespace micro_quadfoam
 
 #endif

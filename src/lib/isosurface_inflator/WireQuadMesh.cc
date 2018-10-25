@@ -147,7 +147,7 @@ WireQuadMesh::WireQuadMesh(
     Eigen::MatrixXd reducedPositions;
     Eigen::MatrixXi reducedFaces;
     Eigen::VectorXi fullToReduced;
-    bool success = quadfoam::instantiate_pattern(m_V, m_F, allVertices, {},
+    bool success = micro_quadfoam::instantiate_pattern(m_V, m_F, allVertices, {},
         reducedPositions, reducedFaces, true, PatternSymmetry::tolerance, &fullToReduced);
     if (!success) {
         throw std::runtime_error("Could not stitch the wiremesh together!");
@@ -177,7 +177,7 @@ WireQuadMesh::WireQuadMesh(
 void WireQuadMesh::compute_jacobians() {
     using json = nlohmann::json;
     Eigen::MatrixXd Q, P;
-    quadfoam::jacobians(m_V, m_F, Q, P);
+    micro_quadfoam::jacobians(m_V, m_F, Q, P);
     assert(m_F.rows() == (int) m_allJacobians.size());
     for (int i = 0; i < m_F.rows(); ++i) {
         json obj = json::array({Q(i, 0), Q(i, 1), Q(i, 2), Q(i, 3)});
@@ -311,7 +311,7 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
     Eigen::MatrixXd reducedPositions;
     Eigen::MatrixXi reducedFaces;
     Eigen::VectorXi fullToReduced;
-    bool success = quadfoam::instantiate_pattern(m_V, m_F, allVertices, {},
+    bool success = micro_quadfoam::instantiate_pattern(m_V, m_F, allVertices, {},
         reducedPositions, reducedFaces, true, -1, &fullToReduced);
     if (!success) {
         throw std::runtime_error("Could not stitch the wiremesh together!");

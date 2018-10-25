@@ -4,7 +4,7 @@
 #include <Eigen/Dense>
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace quadfoam {
+namespace micro_quadfoam {
 
 //
 // @brief         { Return the closest 2D Jacobian associated to each input quads, potentially
@@ -23,4 +23,4 @@ namespace quadfoam {
 void jacobians(const Eigen::MatrixXd &V, const Eigen::MatrixXi &Q,
 	Eigen::MatrixXd &J, Eigen::MatrixXd &P);
 
-} // namespace quadfoam
+} // namespace micro_quadfoam

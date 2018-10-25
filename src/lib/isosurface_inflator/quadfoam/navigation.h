@@ -8,7 +8,7 @@
 #include <array>
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace quadfoam {
+namespace micro_quadfoam {
 
 struct NavigationIndex {
 	int vertex;
@@ -54,6 +54,6 @@ inline NavigationIndex next_around_face(const NavigationData &data, NavigationIn
 inline NavigationIndex next_around_edge(const NavigationData &data, NavigationIndex idx) { return switch_vertex(data, switch_face(data, idx)); } // TODO: Fixme
 inline NavigationIndex next_around_vertex(const NavigationData &data, NavigationIndex idx) { return switch_face(data, switch_edge(data, idx)); } // TODO: Fixme
 
-} // namespace quadfoam
+} // namespace micro_quadfoam
 
 #endif

@@ -11,7 +11,7 @@
 #include <vector>
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace quadfoam {
+namespace micro_quadfoam {
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -35,7 +35,8 @@ enum class PatternType {
 //
 // @return     { Type of periodicity of the pattern. }
 //
-PatternType compute_pattern_type(const Eigen::MatrixXd &V, std::array<Eigen::VectorXi, 4> &border_vertices)
+PatternType compute_pattern_type(const Eigen::MatrixXd &V,
+	std::array<Eigen::VectorXi, 4> &border_vertices)
 {
 	Eigen::Vector2d lower = V.colwise().minCoeff().head<2>();
 	Eigen::Vector2d upper = V.colwise().maxCoeff().head<2>();
@@ -415,6 +416,6 @@ bool instantiate_pattern_aux(
 
 ////////////////////////////////////////////////////////////////////////////////
 
-} // namespace quadfoam
+} // namespace micro_quadfoam
 
 #endif
