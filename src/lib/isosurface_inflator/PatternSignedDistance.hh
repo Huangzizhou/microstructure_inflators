@@ -115,7 +115,9 @@ public:
         for (size_t u = 0; u < points.size(); ++u) {
             if (m_incidentEdges[u].size() < 2) {
                 if (std::is_same<Symmetry::NonPeriodic<typename WMesh::PatternSymmetry::Tolerance, 2>, typename WMesh::PatternSymmetry>::value ||
-                    std::is_same<Symmetry::NonPeriodic<typename WMesh::PatternSymmetry::Tolerance, 3>, typename WMesh::PatternSymmetry>::value) {
+                    std::is_same<Symmetry::NonPeriodic<typename WMesh::PatternSymmetry::Tolerance, 3>, typename WMesh::PatternSymmetry>::value ||
+                    std::is_same<Symmetry::Null<typename WMesh::PatternSymmetry::Tolerance>, typename WMesh::PatternSymmetry>::value)
+                {
                     // no problem if we are working with non periodic structures
                 }
                 else if (WMesh::PatternSymmetry::inBaseUnit(stripAutoDiff(orig_points[u]))) {

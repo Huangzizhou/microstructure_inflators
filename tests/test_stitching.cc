@@ -150,8 +150,6 @@ TEST_CASE("inflate_and_stitch", "[isosurface_inflation]") {
             // DATA_DIR "tests/quad_rhombi_regular.obj", // TODO: DEBUG SEGFAULT HERE
         };
 
-        // test_inflation("2d_diagonal", pattern_2d);
-
         SECTION("2d_diagonal")        { test_quad_meshes<Symmetry::Diagonal<>>(meshes, pattern_2d); }
     }
 }
