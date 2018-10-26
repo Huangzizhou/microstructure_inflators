@@ -50,12 +50,12 @@
 //  In the ambiguous case, four points are created. Sampling the center
 //  determines which points must connect (u->v, p->q)
 //      .---*       .-p-*    .-p-*
-//      | 5 |  ==>  q * v    v O q 
+//      | 5 |  ==>  q * v    v O q
 //      *---'       *-u-'    *-u-'
 //                   (a)      (b)
 //  a) 1st falling to 1st rising, 2nd falling to 2nd rising
 //  b) 1st falling to 2nd rising, 2nd falling to 1st rising
-*/ 
+*/
 //  Author:  Julian Panetta (jpanetta), julian.panetta@gmail.com
 //  Company:  New York University
 //  Created:  07/03/2015 15:46:48
@@ -141,6 +141,19 @@ public:
         writer.addField("signed distance", sd);
     }
 
+    void outputContours(const std::string &path, std::vector<Vector2d> &points, std::vector<Edge> &edges)
+    {
+        std::vector<MeshIO::IOVertex>  vertices;
+        std::vector<MeshIO::IOElement> elems;
+        for (size_t i = 0; i < points.size(); ++i) {
+            vertices.emplace_back(canonicalEmbedding(points[i]));
+        }
+        for (size_t e = 0; e < edges.size(); ++e) {
+            elems.emplace_back(edges[e].first, edges[e].second);
+        }
+        save(path, vertices, elems);
+    }
+
     // Configure the number of coarsening levels used in adaptive sampling.
     // Initially the signed distance will be sampled at a grid 2^levels times
     // coarser than this grid. Then the grid is refined adaptively in regions
@@ -221,7 +234,7 @@ MarchingSquaresGrid::extractBoundaryPolygons(
         if (edgeVertices.size() == 4) {
             // Ambiguous case: sample center
             //      .---*       .-p-*    .-p-*
-            //      | 5 |  ==>  q * v    v O q 
+            //      | 5 |  ==>  q * v    v O q
             //      *---'       *-u-'    *-u-'
             //                   (a)      (b)
             //  Center inside  (a): connect falling to next rising.
@@ -338,6 +351,7 @@ m_getLerpPoint(size_t a, size_t b, Real sda, Real sdb,
             }
             newPt = candidatePoint;
         }
+
     }
     // else {
     //     std::cout << " exact gridpoint crossing at " << va.transpose() << std::endl;
@@ -403,15 +417,28 @@ bool MarchingSquaresGrid::m_closeBoundary(std::vector<Vector2d> &points,
         ++flux[e.second];
     }
 
+#if DEBUG_MARCHING_SQUARES
+    outputContours("mc_contours.obj", points, edges);
+#endif
+
     // Point sets for 1d ordering: bottom, right, top, left
     std::vector<std::vector<std::pair<size_t, Real>>> edgeVertices(4);
     for (size_t i = 0; i < points.size(); ++i) {
         const auto &p = points[i];
         if (flux[i] != 0) {
-            bool onBottom = (p[1] == m_bbox.minCorner[1]),
-                 onRight  = (p[0] == m_bbox.maxCorner[0]),
-                 onTop    = (p[1] == m_bbox.maxCorner[1]),
-                 onLeft   = (p[0] == m_bbox.minCorner[0]);
+            // Use a small tolerance to check that a point lies on the bounding box
+            // When the bbox coordinates are not a power of 2, the lerp interpolation
+            // can introduce roundoff errors even when interpolating between the
+            // same floating point. More specifically, due to roundoff errors,
+            // `alpha * x + (1 - alpha) * x` is not always equal to `x` (unless
+            // the code is compiled with -ffast-math). For coordinates between
+            // [-10^3, 10^3], a quick stochastic experiment shows that the error
+            // stays below 10^-12, which is what we use here.
+            const double tol = 1e-12;
+            bool onBottom = std::abs(p[1] - m_bbox.minCorner[1]) < tol;
+            bool onRight  = std::abs(p[0] - m_bbox.maxCorner[0]) < tol;
+            bool onTop    = std::abs(p[1] - m_bbox.maxCorner[1]) < tol;
+            bool onLeft   = std::abs(p[0] - m_bbox.minCorner[0]) < tol;
             assert((onBottom + onRight + onTop + onLeft == 1) &&
                    "Valence 1 vertices must lie on exactly one grid border");
 
@@ -657,7 +684,7 @@ MarchingSquaresGrid::MarchingSquaresResult::MarchingSquaresResult(
         assert(!isDegenerate[nextEdge[curr]]);
         curr = nextEdge[curr];
         int segmentBorderMarker = borderMarkers[curr];
-        
+
         std::vector<Edge> segmentEdges;
         while (!visited[curr]) {
             segmentEdges.push_back(edges[curr]);
