@@ -10,6 +10,13 @@ if(POLICY CMP0063)
     cmake_policy(SET CMP0063 NEW)
 endif()
 
+# Detects whether this is a top-level project
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(MICRO_TOPLEVEL_PROJECT ON)
+else()
+    set(MICRO_TOPLEVEL_PROJECT OFF)
+endif()
+
 ################################################################################
 
 set(MICRO_EXTERNAL ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/)
@@ -60,6 +67,7 @@ option(MICRO_COPY_HEADERS    "Copy headers into build directory; for debugging p
 option(MICRO_WITH_SANITIZERS "Enable sanitizers in compilation targets"                             OFF)
 option(MICRO_FAST_COMPILE    "Speed up compilation by excluding all targets from the default build" OFF)
 option(MICRO_WITH_COTIRE     "Use precompiled headers to speed up the build"                        OFF)
+option(MICRO_BUILD_BINARIES  "Build executable programs" ${MICRO_TOPLEVEL_PROJECT})
 
 # Options for libigl modules
 option(LIBIGL_USE_STATIC_LIBRARY          "Use libigl as static library" OFF)
@@ -117,10 +125,12 @@ endif()
 # Subfolders
 ################################################################################
 
-add_subdirectory(src/lib/)
+add_subdirectory(src/lib)
 
-# Compile bin and tests only if this is a top-level project
-if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
-    add_subdirectory(src/bin/)
+if(MICRO_BUILD_BINARIES)
+    add_subdirectory(src/bin)
+endif()
+
+if(MICRO_TOPLEVEL_PROJECT)
     add_subdirectory(tests)
 endif()

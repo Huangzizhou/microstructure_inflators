@@ -103,6 +103,7 @@ WireQuadMesh::WireQuadMesh(
         m_allParameters[i] = entry["params"].get<std::vector<double>>();
         m_allTopologies[i] = load_wire_mesh(entry["symmetry"], entry["pattern"]);
         assert(m_allTopologies[i]->thicknessType() == m_thicknessType);
+        assert(m_allTopologies[i]->numParams() == m_allParameters[i].size());
         if (entry.count("jacobian")) {
             m_allJacobians[i] = MeshingOptions::read_jacobian(entry["jacobian"]);
         } else {
