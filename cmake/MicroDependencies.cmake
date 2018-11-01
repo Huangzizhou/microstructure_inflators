@@ -25,6 +25,7 @@ if(NOT TARGET tbb::tbb)
     set(TBB_BUILD_TBBMALLOC ON CACHE BOOL " " FORCE)
     set(TBB_BUILD_TBBMALLOC_PROXY OFF CACHE BOOL " " FORCE)
     set(TBB_BUILD_TESTS OFF CACHE BOOL " " FORCE)
+    set(TBB_NO_DATE ON CACHE BOOL " " FORCE)
 
     micro_download_tbb()
     add_subdirectory(${MICRO_EXTERNAL}/tbb tbb)

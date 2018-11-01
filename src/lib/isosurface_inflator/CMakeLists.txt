@@ -85,6 +85,7 @@ target_link_libraries(micro_isosurface_inflator
     PUBLIC
         MeshFEM
         micro::libigl
+        micro::tbb
     PRIVATE
         micro::isosurface_inflator_cgal
         micro::vcglib
