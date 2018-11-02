@@ -23,6 +23,10 @@ TODOS:
 - [ ] Replace bfgs from Dlib by [CppNumericalSolvers](https://github.com/PatWie/CppNumericalSolvers)
 - [ ] Restore the gitbook doc and clean it up + use a single doc for both MeshFEM and this repo
 
+### Autocover results in 2D
+
+http://julianpanetta.com/2d_isosurface_hull_autocover_results/flipper.html
+
 ### Folders
 
 | Folder | Description |
