@@ -21,10 +21,8 @@ export CC=${GCC_ROOT}/bin/gcc
 export CXX=${GCC_ROOT}/bin/g++
 
 # Microstructure code
-module load tbb/intel/2017u3
 module load suitesparse/intel/4.5.4
 module load boost/intel/1.62.0
-module load cgal/intel/4.10b1
 module load glog/intel/0.3.4
 
 # Run job
@@ -51,4 +49,5 @@ mkdir ${BUILD}
 pushd ${BUILD}
 cmake -DCMAKE_BUILD_TYPE=${BUILD} ../..
 make -j8
+make test
 popd
