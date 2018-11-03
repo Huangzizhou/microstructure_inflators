@@ -32,6 +32,7 @@ micro_copy_headers(inflators ${SOURCES})
 target_link_libraries(micro_inflators
     PUBLIC
         MeshFEM
+        meshfem::boost
         micro::hex_inflator
         micro::isosurface_inflator
         micro::pymesh

@@ -30,14 +30,14 @@ cd "${SLURM_SUBMIT_DIR}"
 
 # Prepare external libraries (Ceres ...)
 pushd 3rdparty
-mkdir build
+mkdir -p build
 cd build
 cmake ..
 make -j8
 popd
 
 # Compile main program
-mkdir build
+mkdir -p build
 cd build
 echo ${BUILD}
 
@@ -45,7 +45,7 @@ if [ -z "${BUILD}" ]; then
 	BUILD=Release
 fi
 
-mkdir ${BUILD}
+mkdir -p ${BUILD}
 pushd ${BUILD}
 cmake -DCMAKE_BUILD_TYPE=${BUILD} ../..
 make -j8
