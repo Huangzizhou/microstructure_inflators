@@ -3,6 +3,8 @@
 ################################################################################
 
 set(SOURCES
+        AABBTree.cc
+        AABBTree.hh
         AutomaticDifferentiation.hh
         BilinearMap.cc
         BilinearMap.hh

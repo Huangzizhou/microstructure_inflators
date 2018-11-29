@@ -19,6 +19,7 @@
 #ifndef PATTERNSIGNEDDISTANCE_HH
 #define PATTERNSIGNEDDISTANCE_HH
 
+#include "AABBTree.hh"
 #include "WireMesh.hh"
 #include "WireQuadMesh.hh"
 #include "AutomaticDifferentiation.hh"
@@ -101,6 +102,23 @@ public:
             m_edgeGeometry.emplace_back(
                 points[e.first],      points[e.second],
                 thicknesses[e.first], thicknesses[e.second]);
+        }
+
+        // Build AABB tree acceleration structure
+        if (m_useAbbbTree) {
+            Eigen::MatrixXd V(2*m_edges.size(), 3);
+            Eigen::MatrixXi E(m_edges.size(), 2);
+            Eigen::VectorXd R(2*m_edges.size());
+            int i = 0;
+            for (const auto &e : m_edges) {
+                V.row(2*i) = stripAutoDiff(points[e.first]).transpose();
+                V.row(2*i+1) = stripAutoDiff(points[e.second]).transpose();
+                E.row(i) << 2*i, 2*i+1;
+                R(2*i) = stripAutoDiff(thicknesses[e.first]);
+                R(2*i+1) = stripAutoDiff(thicknesses[e.second]);
+                i++;
+            }
+            m_aabbTree = micro::AABBTree(V, E, R.array() * 2.0);
         }
 
         m_incidentEdges.resize(points.size());
@@ -393,8 +411,13 @@ public:
         const size_t MAX_CANDIDATES = 300; // conservative upper bound for array allocation.
         size_t numCandidates = 0;
         {
-            size_t requestedCandidates = std::min<size_t>(20, hard_distance.size() - 1);
-            std::vector<double> hd_copy(hard_distance);
+            std::vector<double> hd_copy;
+            for (auto dst : hard_distance) {
+                if (dst != safe_numeric_limits<double>::max()) {
+                    hd_copy.push_back(dst);
+                }
+            }
+            size_t requestedCandidates = std::min<size_t>(20, hd_copy.size() - 1);
             std::nth_element(hd_copy.begin(), hd_copy.begin() + requestedCandidates,
                              hd_copy.end());
             candidateDistThreshold = hd_copy[requestedCandidates];
@@ -661,6 +684,9 @@ public:
     // representative cell region (for debugging purposes)
     void setBoundingBox(const BBox<Point3D> &bb) { m_bbox = bb; }
 
+    // Whether to use an AABBTree acceleration structure or not
+    void setUseAabbTree(bool use) { m_useAbbbTree = use; }
+
     // Sphere bounding the representative mesh cell, needed for CGAL meshing.
     // Note: CGAL requires the bounding sphere center to lie inside the object.
     virtual void boundingSphere(Point3D &c, double &r) const override {
@@ -778,16 +804,55 @@ private:
     template<typename Real2, bool DebugDerivatives = false>
     Real2 m_signedDistanceImpl(Point3<Real2> p) const {
         p = m_jacobian * mapToBaseUnit(p);
+
+        if (m_edgeGeometry.size() == 0) return 1.0;
+
+        // TODO: Filter edges here and compute signedDistance only to edges which are close enough
+        std::vector<int> candidateEdges;
+        if (m_useAbbbTree) {
+            m_aabbTree.intersects(stripAutoDiff(p).transpose(), candidateEdges);
+        }
+
+        // Helper function: compute hard distance to edge and compute closest edge index
         std::vector<Real2> edgeDists;
         Real2 closestEdgeDist = 1e5;
-        if (m_edgeGeometry.size() == 0) return 1.0;
         size_t closestEdge = m_edgeGeometry.size();
-        edgeDists.reserve(m_edgeGeometry.size());
-        for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
-            edgeDists.push_back(m_edgeGeometry[i].signedDistance(p));
-            if (edgeDists.back() < closestEdgeDist) {
-                closestEdgeDist = edgeDists.back();
+        auto computeEdge = [&](size_t i) {
+            edgeDists[i] = m_edgeGeometry[i].signedDistance(p);
+            if (edgeDists[i] < closestEdgeDist) {
+                closestEdgeDist = edgeDists[i];
                 closestEdge = i;
+            }
+        };
+
+        // Compute list of edge distances
+        edgeDists.resize(m_edgeGeometry.size());
+        if (m_useAbbbTree) {
+            std::fill(edgeDists.begin(), edgeDists.end(), safe_numeric_limits<double>::max());
+            for (auto i : candidateEdges) {
+                computeEdge((size_t) i);
+            }
+            // If point is outside bbox, use the first edge that comes to mind
+            if (candidateEdges.empty()) { computeEdge(0); }
+            // Also add every edge adjacent to the candidateEdges
+            for (size_t vtx = 0; vtx < numVertices(); ++vtx) {
+                bool hasIncidentEdge = false;
+                for (size_t ei : m_incidentEdges[vtx]) {
+                    if (edgeDists[ei] != safe_numeric_limits<double>::max()) {
+                        hasIncidentEdge = true;
+                    }
+                }
+                if (hasIncidentEdge) {
+                    for (size_t ei : m_incidentEdges[vtx]) {
+                        if (edgeDists[ei] == safe_numeric_limits<double>::max()) {
+                            computeEdge(ei);
+                        }
+                    }
+                }
+            }
+        } else {
+            for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
+                computeEdge(i);
             }
         }
 
@@ -899,6 +964,10 @@ private:
     std::vector<std::vector<size_t>> m_incidentEdges;
 
     Eigen::Matrix<Real, 3, 3> m_jacobian;
+
+    // Acceleration structure
+    bool m_useAbbbTree = false;
+    micro::AABBTree m_aabbTree;
 
     // Joint vertex indices and their geometry
     // (Not every vertex is a joint; there are dangling edges extending outside
