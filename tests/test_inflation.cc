@@ -11,6 +11,8 @@
 #include <memory>
 ////////////////////////////////////////////////////////////////////////////////
 
+namespace {
+
 const nlohmann::json default_meshing_options = R"({
     "domainErrorBound"        : 1e-5,
     "facetAngle"              : 30.0,
@@ -31,7 +33,7 @@ const nlohmann::json default_meshing_options = R"({
     "featureAngleThreshold"   : 0.7853981633974483
 })"_json;
 
-////////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------
 
 void test_inflation(const std::string &mesher, const std::string &pattern) {
     size_t inflation_graph_radius = 2;
@@ -80,7 +82,7 @@ void test_inflation(const std::string &mesher, const std::string &pattern) {
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------
 
 template<int N, typename SymmetryType>
 void test_mesher(const std::string &topology, bool skewed = false) {
@@ -131,6 +133,8 @@ void test_mesher(const std::string &topology, bool skewed = false) {
         #endif
     }
 }
+
+} // anonymous namespace
 
 ////////////////////////////////////////////////////////////////////////////////
 

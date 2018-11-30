@@ -809,7 +809,7 @@ private:
 
         // TODO: Filter edges here and compute signedDistance only to edges which are close enough
         std::vector<int> candidateEdges;
-        if (m_useAbbbTree) {
+        if (m_useAbbbTree && !m_aabbTree.empty()) {
             m_aabbTree.intersects(stripAutoDiff(p).transpose(), candidateEdges);
         }
 
@@ -827,7 +827,7 @@ private:
 
         // Compute list of edge distances
         edgeDists.resize(m_edgeGeometry.size());
-        if (m_useAbbbTree) {
+        if (m_useAbbbTree && !m_aabbTree.empty()) {
             std::fill(edgeDists.begin(), edgeDists.end(), safe_numeric_limits<double>::max());
             for (auto i : candidateEdges) {
                 computeEdge((size_t) i);

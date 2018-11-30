@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.1)
 
 micro_add_executable(unit_tests
 	main.cc
+	test_aabb.cc
 	test_bilinear.cc
 	test_isosurfacejob.cc
 	test_inflation.cc
