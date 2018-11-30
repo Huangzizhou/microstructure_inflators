@@ -29,6 +29,8 @@
 #include "SignedDistanceRegion.hh"
 
 #include <MeshFEM/Future.hh>
+#include <unordered_map>
+#include <unordered_set>
 
 #define VERTEX_SMOOTHNESS_MODULATION 1
 #define DISCONTINUITY_AVOIDING_CREASE_AVOIDANCE 1
@@ -298,14 +300,17 @@ public:
     JointDists<Real2>
     distToVtxJoint(size_t vtx, const Point3<Real2> &p,
                    const std::vector<Real2> &edgeDists,
-                   std::vector<Real2> &jointEdgeDists) const {
-        const auto &joint = m_jointForVertex[vtx];
+                   std::vector<Real2> &jointEdgeDists,
+                   const std::vector<std::vector<size_t>> &reducedIncidentEdges,
+                   std::function<size_t(size_t)> localToGlobal) const
+    {
+        const auto &joint = m_jointForVertex[localToGlobal(vtx)];
 
         if (!joint) {
             // Joints are not created for valence 1 vertices.
-            assert(m_incidentEdges[vtx].size() == 1);
-            JointDists<Real2> result(edgeDists[m_incidentEdges[vtx][0]],
-                                     edgeDists[m_incidentEdges[vtx][0]]);
+            assert(reducedIncidentEdges[vtx].size() == 1);
+            JointDists<Real2> result(edgeDists[reducedIncidentEdges[vtx][0]],
+                                     edgeDists[reducedIncidentEdges[vtx][0]]);
 
             if (std::isnan(stripAutoDiff(result.smooth)) || std::isnan(stripAutoDiff(result.hard)) || std::isinf(stripAutoDiff(result.smooth)) || std::isinf(stripAutoDiff(result.hard))) {
                 std::cerr << "result.smooth: "        << result.smooth        << std::endl;
@@ -314,11 +319,11 @@ public:
 
             return result;
         }
-        jointEdgeDists.clear(), jointEdgeDists.reserve(m_incidentEdges[vtx].size());
+        jointEdgeDists.clear(), jointEdgeDists.reserve(reducedIncidentEdges[vtx].size());
         Real2 hardUnionedDist = safe_numeric_limits<Real2>::max();
 
         // Add all distances
-        for (size_t ei : m_incidentEdges[vtx]) {
+        for (size_t ei : reducedIncidentEdges[vtx]) {
             jointEdgeDists.push_back(edgeDists[ei]);
             hardUnionedDist = std::min<Real2>(hardUnionedDist, edgeDists[ei]);
         }
@@ -330,10 +335,10 @@ public:
         }
         Real2 s = joint->template smoothingAmt<Real2, DebugOutput>(p);
         if (VERTEX_SMOOTHNESS_MODULATION)
-            s *= m_vertexSmoothness[vtx];
+            s *= m_vertexSmoothness[localToGlobal(vtx)];
         if (DebugOutput) {
             std::cerr << "js derivatives:"; reportDerivatives(std::cerr,  joint->smoothingAmt(p)); std::cerr << std::endl;
-            std::cerr << "vs derivatives:"; reportDerivatives(std::cerr, m_vertexSmoothness[vtx]); std::cerr << std::endl;
+            std::cerr << "vs derivatives:"; reportDerivatives(std::cerr, m_vertexSmoothness[localToGlobal(vtx)]); std::cerr << std::endl;
         }
 
         // If extra blending parameters are given, uses a different function based on polynomials
@@ -357,7 +362,7 @@ public:
         }
 
         if (hasInvalidDerivatives(result.smooth) || hasInvalidDerivatives(result.hard) || std::isnan(stripAutoDiff(result.smooth)) || std::isinf(stripAutoDiff(result.hard))) {
-            std::cout << "vertex: " << vtx << std::endl;
+            std::cout << "vertex: " << localToGlobal(vtx) << std::endl;
 
             std::cerr << "  result.smooth: "; std::cerr << result.smooth << std::endl;
             std::cerr << "  result.hard: "; std::cerr << result.hard << std::endl;
@@ -375,7 +380,11 @@ public:
     template<typename Real2, bool InsideOutsideAccelerate = false, bool DebugDerivatives = false>
     Real2
     combinedJointDistances(const Point3<Real2> &p,
-                           const std::vector<Real2> &edgeDists, size_t /* closestEdge */) const {
+                           const std::vector<Real2> &edgeDists,
+                           size_t /* closestEdge */,
+                           const std::vector<std::vector<size_t>> &reducedIncidentEdges,
+                           std::function<size_t(size_t)> localToGlobal) const
+    {
         std::vector<Real2> jointEdgeDists;
         const double maxOverlapSmoothingAmt = 0.02;
 
@@ -399,9 +408,9 @@ public:
         // smoothed joints.
 
         // Compute hard-unioned distance to each joint and determine Nth closest
-        std::vector<double> hard_distance(numVertices(), safe_numeric_limits<double>::max());
-        for (size_t vtx = 0; vtx < numVertices(); ++vtx) {
-            for (size_t ei : m_incidentEdges[vtx]) {
+        std::vector<double> hard_distance(reducedIncidentEdges.size(), safe_numeric_limits<double>::max());
+        for (size_t vtx = 0; vtx < reducedIncidentEdges.size(); ++vtx) {
+            for (size_t ei : reducedIncidentEdges[vtx]) {
                 hard_distance[vtx] = std::min<double>(hard_distance[vtx],
                                                       stripAutoDiff(edgeDists[ei]));
             }
@@ -434,15 +443,15 @@ public:
                       "The inside-outside test is non-differentiable");
         if (InsideOutsideAccelerate) {
             double conservativeSMin = 0.0;
-            for (size_t vtx = 0; vtx < numVertices(); ++vtx) {
+            for (size_t vtx = 0; vtx < reducedIncidentEdges.size(); ++vtx) {
                 if (hard_distance[vtx] > candidateDistThreshold) continue; // prune far joints
                 double joint_smin = 0;
                 // m_vertexSmoothness[vtx] could scale down smoothing--but for
                 // robustness (to avoid small smoothing params) we
                 // conservatively assume m_vertexSmoothness == 1.
-                double s = stripAutoDiff(m_blendingParams[vtx]);
+                double s = stripAutoDiff(m_blendingParams[localToGlobal(vtx)]);
                 double k = 1.0 / s;
-                for (size_t ei : m_incidentEdges[vtx]) {
+                for (size_t ei : reducedIncidentEdges[vtx]) {
                     joint_smin += exp(-k * stripAutoDiff(edgeDists[ei]));
                 }
                 // joint_smin = -s * log(joint_smin);
@@ -473,9 +482,9 @@ public:
         closestJDist = secondClosestJDist = JointDists<Real2>::largest();
         size_t  c_idx = safe_numeric_limits<size_t>::max(),
                sc_idx = safe_numeric_limits<size_t>::max();
-        for (size_t vtx = 0, i = 0; vtx < numVertices(); ++vtx) {
+        for (size_t vtx = 0, i = 0; vtx < reducedIncidentEdges.size(); ++vtx) {
             if (hard_distance[vtx] > candidateDistThreshold) continue; // prune out the far joints
-            candidateJDists[i] = distToVtxJoint(vtx, p, edgeDists, jointEdgeDists);
+            candidateJDists[i] = distToVtxJoint(vtx, p, edgeDists, jointEdgeDists, reducedIncidentEdges, localToGlobal);
             const JointDists<Real2> &d = candidateJDists[i];
             if (d < secondClosestJDist) {
                 if (d < closestJDist) {
@@ -582,17 +591,17 @@ public:
             std::cerr << "secondClosestJDist.smooth:"; std::cerr << secondClosestJDist.smooth << std::endl;
             std::cerr << "         overlapSmoothAmt:"; std::cerr <<          overlapSmoothAmt << std::endl;
 
-            const auto &scJoint = m_jointForVertex[sc_idx]; // scJoint could be nullptr (in non-periodic cases)
+            const auto &scJoint = m_jointForVertex[localToGlobal(sc_idx)]; // scJoint could be nullptr (in non-periodic cases)
             auto getSmoothingAmt = [&](size_t vidx) -> Real2 {
                 const auto &joint = m_jointForVertex[vidx];
                 if (joint) return joint->smoothingAmt(p) * (VERTEX_SMOOTHNESS_MODULATION ? m_vertexSmoothness[vidx] : 1.0);
                 return 0.0;
             };
 
-            std::cerr << "      closestJDist smoothing amt:"; std::cerr << getSmoothingAmt( c_idx) << std::endl;
+            std::cerr << "      closestJDist smoothing amt:"; std::cerr << getSmoothingAmt(localToGlobal(c_idx)) << std::endl;
             if (scJoint != nullptr) {
                 std::cerr << "secondClosestJDist smoothing amt:";
-                std::cerr << getSmoothingAmt(sc_idx) << std::endl;
+                std::cerr << getSmoothingAmt(localToGlobal(sc_idx)) << std::endl;
             }
 
             if (hasInvalidDerivatives(dist))
@@ -611,15 +620,15 @@ public:
             }
             std::cerr << std::endl;
 
-            for (size_t ei : m_incidentEdges[c_idx]) {
-                size_t a = m_edges[ei].first, b = m_edges[ei].second;
+            for (size_t ei : reducedIncidentEdges[c_idx]) {
+                size_t a = m_edges[localToGlobal(ei)].first, b = m_edges[localToGlobal(ei)].second;
                 std::cerr << "Edge (" << a << ", " << b << ") dist " << edgeDists[ei] << " derivatives:";
                 reportDerivatives(std::cerr, edgeDists[ei]);
                 std::cerr << std::endl;
             }
             std::cerr << std::endl;
 
-            distToVtxJoint<Real2, true>(c_idx, p, edgeDists, jointEdgeDists);
+            distToVtxJoint<Real2, true>(c_idx, p, edgeDists, jointEdgeDists, reducedIncidentEdges, localToGlobal);
 
             if (hasInvalidDerivatives(dist))
                 throw std::runtime_error("Invalid derivatives computed in combinedJointDistances evaluation");
@@ -796,7 +805,98 @@ public:
 
     virtual ~PatternSignedDistance() override = default;
 
+    const std::vector<std::vector<size_t>> & incidentEdges() const {
+        return m_incidentEdges;
+    }
+
 private:
+
+    // Build a reduced adjacency graph around a given query point. We first compute the list of
+    // edges whose bbox contains the query points, then build the graph induced by all edges
+    // vertex-adjacent to this list. This function will always build a non-empty reduced graph, even
+    // if no edge bbox overlaps with the query point (in this case, the edge 0 is used).
+    //
+    // @param[in]  p                     Query point, after being mapped to the base unit and
+    //                                   transformed with the Jacobian.
+    // @param[out] reducedIncidentEdges  List of incident edges for the reduced graph
+    // @param[out] localToGlobal         Local to global mapping for vertex ids.
+    // @param[out] edgeList              List of edge global ids that are present in the reduced
+    //                                   graph.
+    template<typename Real2>
+    void buildReducedGraph(Point3<Real2> p,
+        std::vector<std::vector<size_t>> &reducedIncidentEdges,
+        std::vector<size_t> &localToGlobal,
+        std::vector<int> &edgeList) const
+    {
+        edgeList.clear();
+        m_aabbTree.intersects(stripAutoDiff(p).transpose(), edgeList);
+        if (edgeList.empty()) {
+            edgeList.push_back(0);
+        }
+
+        // Iterate through all overlapping edges, assign a unique id to each endpoint,
+        // and keep track of which edge id we have
+        std::unordered_map<int, int> globalToLocalVertex;
+        std::unordered_map<int, int> globalToLocalEdge;
+        globalToLocalVertex.max_load_factor(0.5);
+        globalToLocalVertex.reserve(edgeList.size());
+        globalToLocalEdge.max_load_factor(0.5);
+        globalToLocalEdge.reserve(edgeList.size());
+        reducedIncidentEdges.reserve(edgeList.size());
+
+        size_t countV = 0;
+        auto assignReducedVertexId = [&](size_t vtx) {
+            auto res = globalToLocalVertex.emplace(vtx, countV);
+            if (res.second) {
+                // Insertion took place, increment `countV`
+                ++countV;
+                localToGlobal.push_back(vtx);
+                reducedIncidentEdges.resize(countV);
+            }
+            // return res.first->second;
+        };
+
+        for (size_t le = 0; le < edgeList.size(); ++le) {
+            size_t ge = edgeList[le];
+            globalToLocalEdge.emplace(ge, le);
+            assignReducedVertexId(m_edges[ge].first);
+            assignReducedVertexId(m_edges[ge].second);
+        }
+
+        // Iterate over all incident vertices, and gather incident edges
+        // (including those not accounted for by the AABB tree).
+        // At the same time we also build the list of incident edges
+        size_t countE = edgeList.size();
+        size_t currentCountV = localToGlobal.size();
+        for (size_t i = 0; i < currentCountV; ++i) {
+            auto vtx = localToGlobal[i];
+            for (auto ge : m_incidentEdges[vtx]) {
+                auto res = globalToLocalEdge.emplace(ge, countE);
+                if (res.second) {
+                    edgeList.push_back(ge);
+                    ++countE;
+                }
+                size_t le = res.first->second;
+                // Assign reduced vertex ids to endpoints
+                for (auto vtx2 : {m_edges[ge].first, m_edges[ge].second}) {
+                    if (vtx2 != vtx) {
+                        assignReducedVertexId(vtx2);
+                    }
+                }
+                reducedIncidentEdges[i].push_back(le);
+            }
+        }
+        for (size_t i = currentCountV; i < localToGlobal.size(); ++i) {
+            auto vtx = localToGlobal[i];
+            for (auto ge : m_incidentEdges[vtx]) {
+                auto it = globalToLocalEdge.find(ge);
+                if (it != globalToLocalEdge.end()) {
+                    reducedIncidentEdges[i].push_back(it->second);
+                }
+            }
+        }
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     // Signed Distance Evaluation
     ////////////////////////////////////////////////////////////////////////////
@@ -807,57 +907,45 @@ private:
 
         if (m_edgeGeometry.size() == 0) return 1.0;
 
-        // TODO: Filter edges here and compute signedDistance only to edges which are close enough
-        std::vector<int> candidateEdges;
-        if (m_useAbbbTree && !m_aabbTree.empty()) {
-            m_aabbTree.intersects(stripAutoDiff(p).transpose(), candidateEdges);
-        }
+        std::vector<std::vector<size_t>> reducedGraph;
+        std::vector<size_t> localToGlobal;
+        std::vector<int> edgeList;
+        std::vector<Real2> edgeDists;
 
         // Helper function: compute hard distance to edge and compute closest edge index
-        std::vector<Real2> edgeDists;
         Real2 closestEdgeDist = 1e5;
         size_t closestEdge = m_edgeGeometry.size();
-        auto computeEdge = [&](size_t i) {
-            edgeDists[i] = m_edgeGeometry[i].signedDistance(p);
-            if (edgeDists[i] < closestEdgeDist) {
-                closestEdgeDist = edgeDists[i];
-                closestEdge = i;
+        auto processEdge = [&](size_t local_e, size_t global_e) {
+            edgeDists[local_e] = m_edgeGeometry[global_e].signedDistance(p);
+            if (edgeDists[local_e] < closestEdgeDist) {
+                closestEdgeDist = edgeDists[local_e];
+                closestEdge = local_e;
             }
         };
 
         // Compute list of edge distances
-        edgeDists.resize(m_edgeGeometry.size());
-        if (m_useAbbbTree && !m_aabbTree.empty()) {
-            std::fill(edgeDists.begin(), edgeDists.end(), safe_numeric_limits<double>::max());
-            for (auto i : candidateEdges) {
-                computeEdge((size_t) i);
+        Real2 dist;
+        if (m_useAbbbTree) {
+            buildReducedGraph(p, reducedGraph, localToGlobal, edgeList);
+            edgeDists.resize(edgeList.size());
+            for (size_t le = 0; le < edgeList.size(); ++le) {
+                size_t ge = edgeList[le];
+                processEdge(le, ge);
             }
-            // If point is outside bbox, use the first edge that comes to mind
-            if (candidateEdges.empty()) { computeEdge(0); }
-            // Also add every edge adjacent to the candidateEdges
-            for (size_t vtx = 0; vtx < numVertices(); ++vtx) {
-                bool hasIncidentEdge = false;
-                for (size_t ei : m_incidentEdges[vtx]) {
-                    if (edgeDists[ei] != safe_numeric_limits<double>::max()) {
-                        hasIncidentEdge = true;
-                    }
-                }
-                if (hasIncidentEdge) {
-                    for (size_t ei : m_incidentEdges[vtx]) {
-                        if (edgeDists[ei] == safe_numeric_limits<double>::max()) {
-                            computeEdge(ei);
-                        }
-                    }
-                }
-            }
+            assert(closestEdge < edgeList.size());
+            dist = combinedJointDistances<Real2, false, DebugDerivatives>(
+                p, edgeDists, closestEdge, reducedGraph, [&localToGlobal](size_t e) {
+                    return localToGlobal[e];
+                });
         } else {
-            for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
-                computeEdge(i);
+            edgeDists.resize(m_edgeGeometry.size());
+            for (size_t e = 0; e < m_edgeGeometry.size(); ++e) {
+                processEdge(e, e);
             }
+            assert(closestEdge < m_edgeGeometry.size());
+            dist = combinedJointDistances<Real2, false, DebugDerivatives>(
+                p, edgeDists, closestEdge, m_incidentEdges, [](size_t e) { return e; });
         }
-
-        assert(closestEdge < m_edgeGeometry.size());
-        Real2 dist = combinedJointDistances<Real2, false, DebugDerivatives>(p, edgeDists, closestEdge);
 
         // // Create smoothed union geometry around each vertex and then union
         // // together
@@ -922,19 +1010,49 @@ private:
     typename std::enable_if<!(IsAutoDiffType<Real>::value || IsAutoDiffType<Real2>::value), bool>::type
     m_isInsideImpl(Point3<Real2> p) const {
         p = m_jacobian * mapToBaseUnit(p);
+
+        if (m_edgeGeometry.size() == 0) return false;
+
+        std::vector<std::vector<size_t>> reducedGraph;
+        std::vector<size_t> localToGlobal;
+        std::vector<int> edgeList;
         std::vector<double> edgeDists;
-        edgeDists.reserve(m_edgeGeometry.size());
+
+        // Helper function: compute hard distance to edge and compute closest edge index
+        auto processEdge = [&](size_t local_e, size_t global_e) {
+            auto dist = stripAutoDiff(m_edgeGeometry[global_e].signedDistance(autodiffCast<Point3<Real>>(p)));
+            return edgeDists[local_e] = dist;
+        };
+
+        // Compute list of edge distances
         // Definitely inside if we're inside one of the edges: assumes blending
         // is additive.
         // Note: possibly could be sped up by implementing cheap isInside for
         // edge geometry.
-        for (size_t i = 0; i < m_edgeGeometry.size(); ++i) {
-            auto dist = stripAutoDiff(m_edgeGeometry[i].signedDistance(autodiffCast<Point3<Real>>(p)));
-            if (dist <= 0) return true; // blending is additive
-            edgeDists.push_back(dist);
+        Real dist;
+        if (m_useAbbbTree) {
+            buildReducedGraph(p, reducedGraph, localToGlobal, edgeList);
+            edgeDists.resize(edgeList.size());
+            for (size_t le = 0; le < edgeList.size(); ++le) {
+                size_t ge = edgeList[le];
+                auto d = processEdge(le, ge);
+                if (d <= 0) return true; // blending is additive
+            }
+            dist = combinedJointDistances<Real2, true>(
+                p, edgeDists, 0, reducedGraph, [&localToGlobal](size_t e) {
+                    return localToGlobal[e];
+                });
+        } else {
+            edgeDists.resize(m_edgeGeometry.size());
+            for (size_t e = 0; e < m_edgeGeometry.size(); ++e) {
+                auto d = processEdge(e, e);
+                if (d <= 0) return true; // blending is additive
+            }
+            dist = combinedJointDistances<Real, true>(
+                p, edgeDists, 0, m_incidentEdges, [](size_t e) { return e; });
         }
 
-        return combinedJointDistances<Real, true/* accelerated version*/>(p, edgeDists, 0 /* closestEdge */) <= 0;
+        return dist <= 0;
     }
 
     template<typename Real>

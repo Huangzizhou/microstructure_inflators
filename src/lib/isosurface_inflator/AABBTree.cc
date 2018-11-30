@@ -157,6 +157,7 @@ AABBTree::AABBTree(const Eigen::MatrixXd &V, const Eigen::MatrixXi &E, const Eig
 
 void AABBTree::intersects(const Eigen::RowVector3d &query, std::vector<int> &cylinders) const {
 	cylinders.clear();
+	if (empty()) { return; }
 	std::stack<int> q;
 	q.push(m_Root);
 	while (!q.empty()) {

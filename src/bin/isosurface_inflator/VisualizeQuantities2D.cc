@@ -51,7 +51,8 @@ struct VisSDFunc : public SignedDistanceRegion<3> {
         if (renderJoint >= 0) {
             auto edgeDistances = MeshFEM::apply(m_inflatedEdges, [&](const IEdge &e) { return e.signedDistance(p); });
             std::vector<double> jointEdgeDists;
-            return m_psd.distToVtxJoint(renderJoint, p, edgeDistances, jointEdgeDists).smooth;
+            return m_psd.distToVtxJoint(renderJoint, p, edgeDistances, jointEdgeDists,
+                m_psd.incidentEdges(), [](size_t e) { return e; }).smooth;
         }
 
         if (renderCustomEdge >= 0) {
