@@ -364,7 +364,7 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
     //     // stitchedBlendingParams[i] *= scaling;
     // }
 
-    _OutputGraph("test_inflation_graph.obj", stitchedPoints, stitchedEdges);
+    // _OutputGraph("test_inflation_graph.obj", stitchedPoints, stitchedEdges);
 }
 
 #endif
