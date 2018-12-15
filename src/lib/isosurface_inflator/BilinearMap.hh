@@ -39,8 +39,10 @@ public:
     }
 
     Eigen::Matrix3d jacobian(double u, double v) const {
-        Point3d dfdu = -a/2 + b/2 + (v/2 + 1/2)*(a - b + c - d)/2;
-        Point3d dfdv = -a/2 + d/2 + (u/2 + 1/2)*(a - b + c - d)/2;
+        //Point3d dfdu = -a/2 + b/2 + (v/2 + 1.0/2.0)*(a - b + c - d)/2;
+        //Point3d dfdv = -a/2 + d/2 + (u/2 + 1.0/2.0)*(a - b + c - d)/2;
+        Point3d dfdu  = a*(v - 1)/4 - b*(v - 1)/4 + c*(v + 1)/4 - d*(v + 1)/4;
+        Point3d dfdv = a*(u - 1)/4 - b*(u + 1)/4 + c*(u + 1)/4 - d*(u - 1)/4;
         Eigen::Matrix3d jac;
         jac <<
             dfdu[0], dfdv[0], 0,

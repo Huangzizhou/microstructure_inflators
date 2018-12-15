@@ -291,7 +291,12 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
         // that goes from the pattern's target parallelogram to the actual physical
         // quadrilateral of the cell (which may not be a parallelogram).
 
-        double pre_scaling = 1.0 / std::sqrt(m_allJacobians[i].determinant());
+        double jac_det = m_allJacobians[i].determinant();
+        if (jac_det <= 0) {
+            std::cerr << "Warning: Jacobian of the mapped parallelogram has negative volume for quad " << i << std::endl;
+        }
+        assert(jac_det > 0);
+        double pre_scaling = 1.0 / std::sqrt(std::abs(jac_det));
         auto map = getBilinearMap(i);
 
         allVertices.push_back(to_eigen_matrix(points));
@@ -301,7 +306,15 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
         assert(numVertices == (int) thicknesses.size());
         assert(numVertices == (int) blendingParams.size());
         for (int lv = 0; lv < numVertices; ++lv) {
-            double scaling = pre_scaling * std::sqrt(map.jacobian(points[lv][0], points[lv][1]).determinant());
+            double jdet = map.jacobian(points[lv][0], points[lv][1]).determinant();
+            if (jdet < 0) {
+                std::cerr << "Warning: Mapping local vertex [" << lv << "] for quad [" << i
+                    << "] onto the reference square [-1,1]^2 has negative volume: ("
+                    << points[lv][0] << "," << points[lv][1] << ")" << std::endl;
+            }
+            assert(jdet > 0);
+            double scaling = pre_scaling * std::sqrt(std::abs(jdet));
+            assert(!std::isnan(scaling));
             allThicknesses.push_back(scaling * thicknesses[lv]);
             allBlendingParams.push_back(scaling * blendingParams[lv]);
         }
@@ -338,10 +351,12 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
         double t = 0, b = 0.0;
         for (size_t v : sv) {
             // pt += allVerts.at(v);
-            t  += allThicknesses.at(v);
-            b  += allBlendingParams.at(v);
+            t += allThicknesses.at(v);
+            b += allBlendingParams.at(v);
         }
 
+        assert(!std::isnan(t));
+        assert(sv.size() > 0);
         // stitchedPoints.push_back(pt / sv.size());
         stitchedThicknesses.push_back(t / sv.size());
         stitchedBlendingParams.push_back(b / sv.size());
