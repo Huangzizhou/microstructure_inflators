@@ -120,7 +120,7 @@ public:
                 R(2*i+1) = stripAutoDiff(thicknesses[e.second]);
                 i++;
             }
-            m_aabbTree = micro::AABBTree(V, E, R.array() * 2.0);
+            m_aabbTree = micro::AABBTree(V, E, R.array() * 5.0);
         }
 
         m_incidentEdges.resize(points.size());

@@ -377,11 +377,11 @@ int main(int argc, char *argv[]) {
 		return app.exit(e);
 	}
 
-	if (app.count("out") + app.count("homogenize") == 0) {
+	if (app.count("--out") + app.count("--homogenize") == 0) {
 		return app.exit(CLI::ValidationError("No operation requested"));
 	}
 
-	if (app.count("jacobian") + app.count("parametrizedTransform") != 1) {
+	if (app.count("--jacobian") + app.count("--parametrizedTransform") != 1) {
 		return app.exit(CLI::ValidationError("Must specify either deformation jacobian or parametrizedTransform"));
 	}
 
