@@ -45,7 +45,7 @@ if(NOT TARGET tbb::tbb)
     add_library(tbb_tbb INTERFACE)
     target_include_directories(tbb_tbb SYSTEM INTERFACE ${MICRO_EXTERNAL}/tbb/include)
     target_link_libraries(tbb_tbb INTERFACE tbb_static tbbmalloc_static)
-     add_library(tbb::tbb ALIAS tbb_tbb)
+    add_library(tbb::tbb ALIAS tbb_tbb)
 endif()
 
 if(NOT TARGET micro::tbb)
