@@ -34,9 +34,16 @@ endfunction()
 ## TBB
 function(micro_download_tbb)
     micro_download_project(tbb
-        GIT_REPOSITORY https://github.com/01org/tbb.git
-        GIT_TAG        2019_U1
-        # GIT_TAG        08b4341a1893a72656467e96137f1f99d0112547
+        GIT_REPOSITORY https://github.com/wjakob/tbb.git
+        GIT_TAG        b066defc0229a1e92d7a200eb3fe0f7e35945d95
+    )
+endfunction()
+
+## Ceres
+function(micro_download_ceres)
+    micro_download_project(ceres
+        GIT_REPOSITORY https://github.com/ceres-solver/ceres-solver.git
+        GIT_TAG        1.14.0
     )
 endfunction()
 
@@ -68,7 +75,7 @@ endfunction()
 function(micro_download_nlopt)
     micro_download_project(nlopt
         GIT_REPOSITORY https://github.com/stevengj/nlopt.git
-        GIT_TAG        8da50d516fe0a0da42c06b66329b02cf6e44236e
+        GIT_TAG        37b74a8c2037eea5dc72fea7eeb9b850fa978913
     )
 endfunction()
 

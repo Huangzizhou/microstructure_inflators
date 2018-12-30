@@ -7,7 +7,7 @@ Dependencies included directly or as submodules:
 
 - MeshFEM
 - [NLopt](https://github.com/stevengj/nlopt), optional
-- [Ceres](https://github.com/ceres-solver/ceres-solver) + [glog](https://github.com/google/glog), optional (as an external CMake project, via `./configure.sh`)
+- [Ceres](https://github.com/ceres-solver/ceres-solver)
 - CGAL, required
 
 Dependencies *not* included:
@@ -15,7 +15,6 @@ Dependencies *not* included:
 - Boost, required
 - Dlib, optional
 - Knitro, optional
-- Libigl, optional
 - VCGLib, optional
 
 TODOS:

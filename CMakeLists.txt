@@ -68,6 +68,7 @@ option(MICRO_WITH_SANITIZERS "Enable sanitizers in compilation targets"         
 option(MICRO_FAST_COMPILE    "Speed up compilation by excluding all targets from the default build" OFF)
 option(MICRO_WITH_COTIRE     "Use precompiled headers to speed up the build"                        OFF)
 option(MICRO_WITH_TBB        "Compile with TBB"                                                     ON)
+option(MICRO_WITH_CERES      "Compile with Ceres"                                                   ON)
 option(MICRO_BUILD_BINARIES  "Build executable programs" ${MICRO_TOPLEVEL_PROJECT})
 
 # Options for libigl modules

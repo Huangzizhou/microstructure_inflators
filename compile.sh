@@ -7,9 +7,9 @@
 #
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=20
 #SBATCH --time=2:00:00
-#SBATCH --mem=16GB
+#SBATCH --mem=32GB
 
 # Load modules
 module purge
@@ -28,26 +28,21 @@ module load glog/intel/0.3.4
 # Run job
 cd "${SLURM_SUBMIT_DIR}"
 
-# Prepare external libraries (Ceres ...)
-pushd 3rdparty
-mkdir -p build
-cd build
-cmake ..
-make -j8
-popd
-
 # Compile main program
-mkdir -p build
-cd build
-echo ${BUILD}
+SOURCE_DIR=${SLURM_SUBMIT_DIR}
+BUILD_DIR=/scratch/${USER}/build/microstructures
 
+mkdir -p ${BUILD_DIR}
+cd ${BUILD_DIR}
+
+echo ${BUILD}
 if [ -z "${BUILD}" ]; then
 	BUILD=Release
 fi
 
 mkdir -p ${BUILD}
 pushd ${BUILD}
-cmake -DCMAKE_BUILD_TYPE=${BUILD} ../..
-make -j8
+cmake -DCMAKE_BUILD_TYPE=${BUILD} ${SOURCE_DIR}
+make -j20
 make test
 popd
