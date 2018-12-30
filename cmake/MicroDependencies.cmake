@@ -17,6 +17,14 @@ include(MicroDownloadExternal)
 # Required libraries
 ################################################################################
 
+# Eigen
+if(NOT TARGET Eigen3::Eigen)
+    add_library(micro_eigen INTERFACE)
+    micro_download_eigen()
+    target_include_directories(micro_eigen SYSTEM INTERFACE ${MICRO_EXTERNAL}/eigen)
+    add_library(Eigen3::Eigen ALIAS micro_eigen)
+endif()
+
 # TBB library; must be brought in before MeshFEM to override! We need tbbmalloc,
 # which MeshFEM chooses not to build.
 # There are also some segfaults on shutdown with TBB 2017 (the version in wjakob's
@@ -54,6 +62,7 @@ if(MICRO_WITH_CERES AND MICRO_WITH_TBB AND NOT TARGET ceres::ceres)
     micro_download_ceres()
     option(MINIGLOG "" ON)
     set(TBB_ROOT_DIR "${MICRO_EXTERNAL}/tbb")
+    get_target_property(EIGEN_INCLUDE_DIR_HINTS Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
     add_subdirectory(${MICRO_EXTERNAL}/ceres)
     add_library(ceres::ceres ALIAS ceres)
 endif()
@@ -126,7 +135,9 @@ endif()
 if(NOT TARGET micro::ceres)
     # Target ceres::ceres should have been defined above if the option MICRO_WITH_CERES was given
     if(TARGET ceres::ceres)
-        add_library(micro::ceres ALIAS ceres::ceres)
+        add_library(micro_ceres INTERFACE)
+        add_library(micro::ceres ALIAS micro_ceres)
+        target_link_libraries(micro_ceres INTERFACE ceres::ceres)
     else()
         message(STATUS "Google's ceres-solver not found; levenberg-marquardt disabled")
         add_library(micro::ceres INTERFACE IMPORTED)

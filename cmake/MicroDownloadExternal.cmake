@@ -31,6 +31,14 @@ function(micro_download_meshfem)
     )
 endfunction()
 
+## Eigen
+function(micro_download_eigen)
+    micro_download_project(eigen
+        URL     http://bitbucket.org/eigen/eigen/get/3.3.7.tar.gz
+        URL_MD5 f2a417d083fe8ca4b8ed2bc613d20f07
+    )
+endfunction()
+
 ## TBB
 function(micro_download_tbb)
     micro_download_project(tbb
