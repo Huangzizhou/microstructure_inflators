@@ -36,6 +36,5 @@ target_compile_definitions(unit_tests PUBLIC -DDATA_DIR=\"${DATA_DIR}\")
 target_compile_definitions(unit_tests PUBLIC -DDUMP_OUTPUT)
 
 # Register tests
-include(CTest)
 include(Catch)
 catch_discover_tests(unit_tests)

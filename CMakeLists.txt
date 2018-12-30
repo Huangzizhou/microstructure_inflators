@@ -134,6 +134,7 @@ if(MICRO_BUILD_BINARIES)
 endif()
 
 if(MICRO_TOPLEVEL_PROJECT)
+    include(CTest)
     enable_testing()
     add_subdirectory(tests)
 endif()
