@@ -6,18 +6,7 @@ cmake-build-*/
 data
 
 # Dependencies
-/3rdparty/.cache
-/3rdparty/Catch2
-/3rdparty/ceres
-/3rdparty/cgal
-/3rdparty/CLI11
-/3rdparty/cotire
-/3rdparty/libigl
-/3rdparty/MeshFEM
-/3rdparty/nlopt
-/3rdparty/sanitizers-cmake
-/3rdparty/tbb
-
+/3rdparty
 
 # LaTeX
 *.bbl

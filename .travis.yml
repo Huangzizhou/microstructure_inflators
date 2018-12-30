@@ -64,15 +64,9 @@ install:
 - ccache -V && ccache --show-stats && ccache --zero-stats
 
 script:
-# - cd 3rdparty
-# - mkdir build
-# - cd build
-# - cmake -DCMAKE_BUILD_TYPE=$CONFIG ..
-# - make -j2
-# - cd ../..
 - mkdir build
 - cd build
-- cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON ..
+- cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON -DMESHFEM_BUILD_BINARIES=ON ..
 - make -j2
 - if [[ "$CONFIG" == "Release" ]]; then make test; fi
 - ccache --show-stats

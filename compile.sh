@@ -42,7 +42,7 @@ fi
 
 mkdir -p ${BUILD}
 pushd ${BUILD}
-cmake -DCMAKE_BUILD_TYPE=${BUILD} ${SOURCE_DIR}
+cmake -DCMAKE_BUILD_TYPE=${BUILD} -DMESHFEM_BUILD_BINARIES=ON ${SOURCE_DIR}
 make -j20
 make test
 popd

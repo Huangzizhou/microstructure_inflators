@@ -27,7 +27,7 @@ endfunction()
 function(micro_download_meshfem)
     micro_download_project(MeshFEM
         GIT_REPOSITORY git@github.com:geometryprocessing/MeshFEM.git
-        GIT_TAG        a6673722148332c8a9b1799432f81c02624cc367
+        GIT_TAG        a3508ef4c19c0a9278e8c742923eba8ff1272a60
     )
 endfunction()
 
@@ -51,7 +51,7 @@ endfunction()
 function(micro_download_ceres)
     micro_download_project(ceres
         GIT_REPOSITORY https://github.com/ceres-solver/ceres-solver.git
-        GIT_TAG        1.14.0
+        GIT_TAG        e51e9b46f6ca88ab8b2266d0e362771db6d98067
     )
 endfunction()
 
