@@ -50,8 +50,8 @@ endfunction()
 ## Ceres
 function(micro_download_ceres)
     micro_download_project(ceres
-        GIT_REPOSITORY https://github.com/ceres-solver/ceres-solver.git
-        GIT_TAG        e51e9b46f6ca88ab8b2266d0e362771db6d98067
+        GIT_REPOSITORY https://github.com/jdumas/ceres-solver.git
+        GIT_TAG        2ba66a2c22959d9c455a8f2074dc7a605c4a92e8
     )
 endfunction()
 

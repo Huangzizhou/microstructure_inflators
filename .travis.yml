@@ -67,6 +67,8 @@ script:
 - mkdir build
 - cd build
 - cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON -DMESHFEM_BUILD_BINARIES=ON ..
-- make -j2
+- while sleep 5m; do echo "=====[ $SECONDS seconds, buildroot still building... ]====="; done &
+- make -j2 VERBOSE=1
+- kill %1
 - if [[ "$CONFIG" == "Release" ]]; then make test; fi
 - ccache --show-stats
