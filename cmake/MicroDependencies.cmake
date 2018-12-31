@@ -75,6 +75,7 @@ if(MICRO_WITH_CERES AND MICRO_WITH_TBB AND NOT TARGET ceres::ceres)
     endif()
     add_subdirectory(${MICRO_EXTERNAL}/ceres)
     add_library(ceres::ceres ALIAS ceres)
+    target_compile_options(ceres INTERFACE -Wno-error=missing-braces)
 endif()
 
 # MeshFEM library
