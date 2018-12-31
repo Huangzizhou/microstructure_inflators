@@ -34,11 +34,11 @@ target_link_libraries(micro_optimizers
         MeshFEM
         micro::inflators
         micro::accelerate
+    PRIVATE
         micro::dlib
         micro::ceres
         micro::nlopt
         micro::knitro
-    PRIVATE
         warnings::all
 )
 

@@ -66,9 +66,7 @@ install:
 script:
 - mkdir build
 - cd build
-- cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON ..
-- while sleep 5m; do echo "=====[ $SECONDS seconds, buildroot still building... ]====="; done &
-- make -j2 VERBOSE=1
-- kill %1
+- cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON -DMICRO_WITH_CERES=OFF ..
+- make -j2
 - if [[ "$CONFIG" == "Release" ]]; then make test; fi
 - ccache --show-stats
