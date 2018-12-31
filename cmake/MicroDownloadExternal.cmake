@@ -40,10 +40,17 @@ function(micro_download_eigen)
 endfunction()
 
 ## TBB
+# function(micro_download_tbb)
+#     micro_download_project(tbb
+#         GIT_REPOSITORY https://github.com/wjakob/tbb.git
+#         GIT_TAG        b066defc0229a1e92d7a200eb3fe0f7e35945d95
+#     )
+# endfunction()
 function(micro_download_tbb)
     micro_download_project(tbb
-        GIT_REPOSITORY https://github.com/wjakob/tbb.git
-        GIT_TAG        b066defc0229a1e92d7a200eb3fe0f7e35945d95
+        GIT_REPOSITORY https://github.com/01org/tbb.git
+        GIT_TAG        2019_U1
+        # GIT_TAG        08b4341a1893a72656467e96137f1f99d0112547
     )
 endfunction()
 

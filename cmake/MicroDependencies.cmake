@@ -29,23 +29,34 @@ endif()
 # which MeshFEM chooses not to build.
 # There are also some segfaults on shutdown with TBB 2017 (the version in wjakob's
 # repository), so we need to use a more recent version of TBB.
+# if(NOT TARGET tbb::tbb)
+#     set(TBB_BUILD_STATIC ON CACHE BOOL " " FORCE)
+#     set(TBB_BUILD_SHARED OFF CACHE BOOL " " FORCE)
+#     set(TBB_BUILD_TBBMALLOC ON CACHE BOOL " " FORCE)
+#     set(TBB_BUILD_TBBMALLOC_PROXY OFF CACHE BOOL " " FORCE)
+#     set(TBB_BUILD_TESTS OFF CACHE BOOL " " FORCE)
+#     set(TBB_NO_DATE ON CACHE BOOL " " FORCE)
+
+#     micro_download_tbb()
+#     add_subdirectory(${MICRO_EXTERNAL}/tbb tbb)
+#     set_property(TARGET tbb_static tbb_def_files PROPERTY FOLDER "dependencies")
+#     set_target_properties(tbb_static PROPERTIES COMPILE_FLAGS "-Wno-implicit-fallthrough -Wno-missing-field-initializers -Wno-unused-parameter -Wno-keyword-macro")
+
+#     add_library(tbb_tbb INTERFACE)
+#     target_include_directories(tbb_tbb SYSTEM INTERFACE ${MICRO_EXTERNAL}/tbb/include)
+#     target_link_libraries(tbb_tbb INTERFACE tbb_static tbbmalloc_static)
+#     add_library(tbb::tbb ALIAS tbb_tbb)
+# endif()
+
 if(NOT TARGET tbb::tbb)
-    set(TBB_BUILD_STATIC ON CACHE BOOL " " FORCE)
-    set(TBB_BUILD_SHARED OFF CACHE BOOL " " FORCE)
-    set(TBB_BUILD_TBBMALLOC ON CACHE BOOL " " FORCE)
-    set(TBB_BUILD_TBBMALLOC_PROXY OFF CACHE BOOL " " FORCE)
-    set(TBB_BUILD_TESTS OFF CACHE BOOL " " FORCE)
-    set(TBB_NO_DATE ON CACHE BOOL " " FORCE)
-
     micro_download_tbb()
-    add_subdirectory(${MICRO_EXTERNAL}/tbb tbb)
-    set_property(TARGET tbb_static tbb_def_files PROPERTY FOLDER "dependencies")
-    set_target_properties(tbb_static PROPERTIES COMPILE_FLAGS "-Wno-implicit-fallthrough -Wno-missing-field-initializers -Wno-unused-parameter -Wno-keyword-macro")
-
+    list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/tbb/cmake)
+    include(TBBBuild)
+    tbb_build(TBB_ROOT ${MICRO_EXTERNAL}/tbb CONFIG_DIR TBB_DIR)
+    find_package(TBB REQUIRED tbb tbbmalloc)
     add_library(tbb_tbb INTERFACE)
-    target_include_directories(tbb_tbb SYSTEM INTERFACE ${MICRO_EXTERNAL}/tbb/include)
-    target_link_libraries(tbb_tbb INTERFACE tbb_static tbbmalloc_static)
     add_library(tbb::tbb ALIAS tbb_tbb)
+    target_link_libraries(tbb_tbb INTERFACE TBB::tbb TBB::tbbmalloc)
 endif()
 
 if(NOT TARGET micro::tbb)
