@@ -29,25 +29,9 @@ endif()
 # which MeshFEM chooses not to build.
 # There are also some segfaults on shutdown with TBB 2017 (the version in wjakob's
 # repository), so we need to use a more recent version of TBB.
-# if(NOT TARGET tbb::tbb)
-#     set(TBB_BUILD_STATIC ON CACHE BOOL " " FORCE)
-#     set(TBB_BUILD_SHARED OFF CACHE BOOL " " FORCE)
-#     set(TBB_BUILD_TBBMALLOC ON CACHE BOOL " " FORCE)
-#     set(TBB_BUILD_TBBMALLOC_PROXY OFF CACHE BOOL " " FORCE)
-#     set(TBB_BUILD_TESTS OFF CACHE BOOL " " FORCE)
-#     set(TBB_NO_DATE ON CACHE BOOL " " FORCE)
-
-#     micro_download_tbb()
-#     add_subdirectory(${MICRO_EXTERNAL}/tbb tbb)
-#     set_property(TARGET tbb_static tbb_def_files PROPERTY FOLDER "dependencies")
-#     set_target_properties(tbb_static PROPERTIES COMPILE_FLAGS "-Wno-implicit-fallthrough -Wno-missing-field-initializers -Wno-unused-parameter -Wno-keyword-macro")
-
-#     add_library(tbb_tbb INTERFACE)
-#     target_include_directories(tbb_tbb SYSTEM INTERFACE ${MICRO_EXTERNAL}/tbb/include)
-#     target_link_libraries(tbb_tbb INTERFACE tbb_static tbbmalloc_static)
-#     add_library(tbb::tbb ALIAS tbb_tbb)
-# endif()
-
+# While wjakob has been updated to TBB 2019 recently, it seems to hang Travis
+# at the linking stage for some reason, so we'll just use the upstream version
+# for now.
 if(NOT TARGET tbb::tbb)
     micro_download_tbb()
     list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/tbb/cmake)
@@ -68,30 +52,10 @@ if(NOT TARGET micro::tbb)
     add_library(micro::tbb ALIAS micro_tbb)
 endif()
 
-# Ceres library (optional, but need to be included before MeshFEM)
-if(MICRO_WITH_CERES AND MICRO_WITH_TBB AND NOT TARGET ceres::ceres)
-    micro_download_ceres()
-    option(MINIGLOG "" ON)
-    set(BUILD_TESTING OFF CACHE BOOL " " FORCE)
-    set(BUILD_DOCUMENTATION OFF CACHE BOOL " " FORCE)
-    set(BUILD_EXAMPLES OFF CACHE BOOL " " FORCE)
-    set(BUILD_BENCHMARKS OFF CACHE BOOL " " FORCE)
-    set(TBB_ROOT_DIR "${MICRO_EXTERNAL}/tbb")
-    get_target_property(EIGEN_INCLUDE_DIR_HINTS Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
-    set(EIGEN_PREFER_EXPORTED_EIGEN_CMAKE_CONFIGURATION FALSE)
-    if("$ENV{CLUSTER}" STREQUAL "PRINCE")
-        # Hints for SuiteSparse on Prince cluster
-        set(SUITESPARSE_INCLUDE_DIR_HINTS "$ENV{SUITESPARSE_INC}")
-        set(SUITESPARSE_LIBRARY_DIR_HINTS "$ENV{SUITESPARSE_LIB}")
-    endif()
-    add_subdirectory(${MICRO_EXTERNAL}/ceres)
-    add_library(ceres::ceres ALIAS ceres)
-    target_compile_options(ceres INTERFACE -Wno-error=missing-braces)
-endif()
-
 # MeshFEM library
 if(NOT TARGET MeshFEM)
     micro_download_meshfem()
+    option(MESHFEM_WITH_CERES "Compile MeshFEM with Ceres" ${MICRO_WITH_CERES})
     add_subdirectory(${MICRO_EXTERNAL}/MeshFEM MeshFEM)
 endif()
 
@@ -156,13 +120,15 @@ endif()
 # Ceres library
 if(NOT TARGET micro::ceres)
     # Target ceres::ceres should have been defined above if the option MICRO_WITH_CERES was given
-    if(TARGET ceres::ceres)
+    if(MICRO_WITH_CERES AND TARGET ceres::ceres)
         add_library(micro_ceres INTERFACE)
         add_library(micro::ceres ALIAS micro_ceres)
         target_compile_definitions(micro_ceres INTERFACE -DHAS_CERES)
         target_link_libraries(micro_ceres INTERFACE ceres::ceres)
     else()
-        message(STATUS "Google's ceres-solver not found; levenberg-marquardt disabled")
+        if(MICRO_WITH_CERES)
+            message(STATUS "Google's ceres-solver not found; levenberg-marquardt disabled")
+        endif()
         add_library(micro::ceres INTERFACE IMPORTED)
     endif()
 endif()

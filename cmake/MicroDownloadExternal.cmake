@@ -27,7 +27,7 @@ endfunction()
 function(micro_download_meshfem)
     micro_download_project(MeshFEM
         GIT_REPOSITORY git@github.com:geometryprocessing/MeshFEM.git
-        GIT_TAG        3c5b38857af9dde527bf4f4169245d7c1dd6bd36
+        GIT_TAG        023f85012949c28fd5f3a27c58471f261d50cf95
     )
 endfunction()
 
@@ -40,25 +40,10 @@ function(micro_download_eigen)
 endfunction()
 
 ## TBB
-# function(micro_download_tbb)
-#     micro_download_project(tbb
-#         GIT_REPOSITORY https://github.com/wjakob/tbb.git
-#         GIT_TAG        b066defc0229a1e92d7a200eb3fe0f7e35945d95
-#     )
-# endfunction()
 function(micro_download_tbb)
     micro_download_project(tbb
         GIT_REPOSITORY https://github.com/01org/tbb.git
         GIT_TAG        2019_U1
-        # GIT_TAG        08b4341a1893a72656467e96137f1f99d0112547
-    )
-endfunction()
-
-## Ceres
-function(micro_download_ceres)
-    micro_download_project(ceres
-        GIT_REPOSITORY https://github.com/jdumas/ceres-solver.git
-        GIT_TAG        2ba66a2c22959d9c455a8f2074dc7a605c4a92e8
     )
 endfunction()
 
