@@ -42,9 +42,13 @@ endfunction()
 ## TBB
 function(micro_download_tbb)
     micro_download_project(tbb
-        GIT_REPOSITORY https://github.com/01org/tbb.git
-        GIT_TAG        2019_U1
+        GIT_REPOSITORY https://github.com/wjakob/tbb.git
+        GIT_TAG        b066defc0229a1e92d7a200eb3fe0f7e35945d95
     )
+    # micro_download_project(tbb
+    #     GIT_REPOSITORY https://github.com/01org/tbb.git
+    #     GIT_TAG        2019_U1
+    # )
 endfunction()
 
 ## CGAL
@@ -91,7 +95,7 @@ endfunction()
 function(micro_download_sanitizers)
     micro_download_project(sanitizers-cmake
         GIT_REPOSITORY https://github.com/arsenm/sanitizers-cmake.git
-        GIT_TAG        6947cff3a9c9305eb9c16135dd81da3feb4bf87f
+        GIT_TAG        99e159ec9bc8dd362b08d18436bd40ff0648417b
     )
 endfunction()
 
