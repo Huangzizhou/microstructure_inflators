@@ -66,7 +66,7 @@ install:
 script:
 - mkdir build
 - cd build
-- cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON ..
+- cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON -DMICRO_BUILD_ON_TRAVIS=ON ..
 - make -j2
 - if [[ "$CONFIG" == "Release" ]]; then make test; fi
 - ccache --show-stats

@@ -70,6 +70,7 @@ option(MICRO_WITH_COTIRE     "Use precompiled headers to speed up the build"    
 option(MICRO_WITH_TBB        "Compile with TBB"                                                     ON)
 option(MICRO_WITH_CERES      "Compile with Ceres"                                                   ON)
 option(MICRO_BUILD_BINARIES  "Build executable programs" ${MICRO_TOPLEVEL_PROJECT})
+option(MICRO_BUILD_ON_TRAVIS "Are we building on Travis" OFF)
 
 # Options for libigl modules
 option(LIBIGL_USE_STATIC_LIBRARY          "Use libigl as static library" OFF)

@@ -29,6 +29,21 @@ endif()
 # which MeshFEM chooses not to build.
 # There are also some segfaults on shutdown with TBB 2017 (the version in wjakob's
 # repository), so we need to use a more recent version of TBB.
+
+# While wjakob has been updated to TBB 2019 recently, it seems to hang Travis
+# at the linking stage for some reason, so we'll just use the upstream version
+# for now.
+if(MICRO_BUILD_ON_TRAVIS AND NOT TARGET tbb::tbb)
+    micro_download_tbb()
+    list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/tbb/cmake)
+    include(TBBBuild)
+    tbb_build(TBB_ROOT ${MICRO_EXTERNAL}/tbb CONFIG_DIR TBB_DIR)
+    find_package(TBB REQUIRED tbb tbbmalloc)
+    add_library(tbb_tbb INTERFACE)
+    add_library(tbb::tbb ALIAS tbb_tbb)
+    target_link_libraries(tbb_tbb INTERFACE TBB::tbb TBB::tbbmalloc)
+endif()
+
 if(NOT TARGET tbb::tbb)
     set(TBB_BUILD_STATIC ON CACHE BOOL " " FORCE)
     set(TBB_BUILD_SHARED OFF CACHE BOOL " " FORCE)
@@ -47,20 +62,6 @@ if(NOT TARGET tbb::tbb)
     target_link_libraries(tbb_tbb INTERFACE tbb_static tbbmalloc_static)
     add_library(tbb::tbb ALIAS tbb_tbb)
 endif()
-
-# While wjakob has been updated to TBB 2019 recently, it seems to hang Travis
-# at the linking stage for some reason, so we'll just use the upstream version
-# for now.
-# if(NOT TARGET tbb::tbb)
-#     micro_download_tbb()
-#     list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/tbb/cmake)
-#     include(TBBBuild)
-#     tbb_build(TBB_ROOT ${MICRO_EXTERNAL}/tbb CONFIG_DIR TBB_DIR)
-#     find_package(TBB REQUIRED tbb tbbmalloc)
-#     add_library(tbb_tbb INTERFACE)
-#     add_library(tbb::tbb ALIAS tbb_tbb)
-#     target_link_libraries(tbb_tbb INTERFACE TBB::tbb TBB::tbbmalloc)
-# endif()
 
 if(NOT TARGET micro::tbb)
     add_library(micro_tbb INTERFACE)
