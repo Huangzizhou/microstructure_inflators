@@ -25,12 +25,12 @@ matrix:
   - os: linux
     compiler: gcc-7
     env:
-    - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Debug && -DMICRO_BUILD_ON_TRAVIS=ON"
+    - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Debug && EXTRA_FLAGS=-DMICRO_BUILD_ON_TRAVIS=ON"
 
   - os: linux
     compiler: gcc-7
     env:
-    - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Release && -DMICRO_BUILD_ON_TRAVIS=ON"
+    - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Release && EXTRA_FLAGS=-DMICRO_BUILD_ON_TRAVIS=ON"
 
   - os: osx
     osx_image: xcode10.1
@@ -53,7 +53,7 @@ install:
 script:
 - mkdir build
 - cd build
-- cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON ..
+- cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON ${EXTRA_FLAGS} ..
 - make -j2
 - if [[ "$CONFIG" == "Release" ]]; then make test; fi
 - ccache --show-stats
