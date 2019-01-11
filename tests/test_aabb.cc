@@ -116,7 +116,7 @@ void test_aabb_meshing(const std::string &topology, bool skewed = false) {
     REQUIRE(V1.rows() == V2.rows());
     REQUIRE(F1.rows() == F2.rows());
     std::cout << (V1 - V2).norm() << std::endl;
-    REQUIRE((V1 - V2).norm() <= 1e-9);
+    REQUIRE((V1 - V2).norm() <= 1e-10);
     REQUIRE((F1 - F2).norm() == 0);
 }
 

@@ -2,47 +2,35 @@ sudo: required
 dist: trusty
 language: cpp
 cache: ccache
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - g++-7
+    - gcc-7
+    - libboost-filesystem-dev
+    - libboost-program-options-dev
+    - libboost-system-dev
+    - libboost-thread-dev
+    - libglu1-mesa-dev
+    - libmpfr-dev
+    - libsuitesparse-dev
+    - xorg-dev
+  homebrew:
+    packages:
+    - ccache
 matrix:
   include:
   - os: linux
     compiler: gcc-7
-    addons:
-      apt:
-        sources:
-        - ubuntu-toolchain-r-test
-        packages:
-        - gcc-7
-        - g++-7
-        - libmpfr-dev
-        - libboost-filesystem-dev
-        - libboost-program-options-dev
-        - libboost-system-dev
-        - libboost-thread-dev
-        - libsuitesparse-dev
-        - xorg-dev
-        - libglu1-mesa-dev
     env:
-    - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Debug"
+    - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Debug && -DMICRO_BUILD_ON_TRAVIS=ON"
 
   - os: linux
     compiler: gcc-7
-    addons:
-      apt:
-        sources:
-        - ubuntu-toolchain-r-test
-        packages:
-        - gcc-7
-        - g++-7
-        - libmpfr-dev
-        - libboost-filesystem-dev
-        - libboost-program-options-dev
-        - libboost-system-dev
-        - libboost-thread-dev
-        - libsuitesparse-dev
-        - xorg-dev
-        - libglu1-mesa-dev
     env:
-    - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Release"
+    - MATRIX_EVAL="export CC=gcc-7 && CXX=g++-7 && CONFIG=Release && -DMICRO_BUILD_ON_TRAVIS=ON"
 
   - os: osx
     osx_image: xcode10.1
@@ -57,7 +45,6 @@ matrix:
     - MATRIX_EVAL="export CONFIG=Release"
 
 install:
-- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install suite-sparse ccache; fi
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then export PATH="/usr/local/opt/ccache/libexec:$PATH"; fi
 - eval "${MATRIX_EVAL}"
 - ccache --max-size=5.0G
@@ -66,7 +53,7 @@ install:
 script:
 - mkdir build
 - cd build
-- cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON -DMICRO_BUILD_ON_TRAVIS=ON ..
+- cmake -DCMAKE_BUILD_TYPE=$CONFIG -DMICRO_COPY_HEADERS=ON ..
 - make -j2
 - if [[ "$CONFIG" == "Release" ]]; then make test; fi
 - ccache --show-stats
