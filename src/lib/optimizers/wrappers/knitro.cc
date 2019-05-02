@@ -35,7 +35,7 @@ struct MicrostructureDesignProblem : public knitro::KTRProblem {
     double evaluateFC(const vector<double> &x,
                             vector<double>& cval,
                             vector<double>& objGrad,
-                            vector<double>& jac) override {
+                            vector<double>& jac) {
         assert(x.size() == m_nParams);
         assert(cval.size() == m_nConstraints);
         assert(objGrad.size() == m_nParams);
@@ -78,7 +78,7 @@ struct MicrostructureDesignProblem : public knitro::KTRProblem {
     }
 
     // Gradient is evaluated in evaluateFC
-    int evaluateGA(const vector<double> &x, vector<double> &objGrad, vector<double>&jac) override {
+    int evaluateGA(const vector<double> &x, vector<double> &objGrad, vector<double>&jac) {
         // According to Knitro's documentation, it suffices to simply implement
         // evaluateFC, but this isn't working for some reason...
         vector<double> cval(m_nConstraints);

@@ -1,39 +1,53 @@
 # - Find Knitro
-#  Searches for includes/libraries using environment variable $KNITRO_PATH or $KNITRO_DIR
-#  KNITRO_INCLUDE_DIRS - where to find knitro.h and (separately) the c++ interface
-#  KNITRO_LIBRARIES    - List of libraries needed to use knitro.
-#  KNITRO_FOUND        - True if knitro found.
+#
+#  Searches for includes/libraries using environment variable $KNITRO_PATH, $KNITRO_DIR, $KNITRO_HOME or #KNITRO_ROOT
+#
+#  KNITRO_FOUND        - True if Knitro found.
+#  knitro::knitro      - Imported target for Knitro.
+#
 
+if(KNITRO_INCLUDE_DIRS)
+    # Already in cache, be silent
+    set(knitro_FIND_QUIETLY TRUE)
+endif(KNITRO_INCLUDE_DIRS)
 
-IF (KNITRO_INCLUDE_DIRS)
-  # Already in cache, be silent
-  SET (knitro_FIND_QUIETLY TRUE)
-ENDIF (KNITRO_INCLUDE_DIRS)
-
-FIND_PATH(KNITRO_INCLUDE_DIR knitro.h
+find_path(KNITRO_INCLUDE_DIR knitro.h
 	HINTS
-        $ENV{KNITRO_PATH}/include
-        $ENV{KNITRO_DIR}/include
+        ENV KNITRO_PATH
+        ENV KNITRO_DIR
+        ENV KNITRO_HOME
+        ENV KNITRO_ROOT
+        ENV KNITRO_INC
+        "/home/jdumas/.knitro"
+    PATH_SUFFIXES
+        include
 )
 
-FIND_LIBRARY (KNITRO_LIBRARY NAMES knitro
+find_library(KNITRO_LIBRARY NAMES knitro
 	HINTS
-        $ENV{KNITRO_PATH}/lib
-        $ENV{KNITRO_DIR}/lib
+        ENV KNITRO_PATH
+        ENV KNITRO_DIR
+        ENV KNITRO_HOME
+        ENV KNITRO_ROOT
+        ENV KNITRO_LIB
+        "/home/jdumas/.knitro"
+    PATH_SUFFIXES
+        lib
 )
 
 # handle the QUIETLY and REQUIRED arguments and set KNITRO_FOUND to TRUE if
 # all listed variables are TRUE
-INCLUDE (FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS (KNITRO DEFAULT_MSG
-  KNITRO_LIBRARY
-  KNITRO_INCLUDE_DIR)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(KNITRO DEFAULT_MSG KNITRO_LIBRARY KNITRO_INCLUDE_DIR)
 
-IF(KNITRO_FOUND)
-    SET (KNITRO_LIBRARIES ${KNITRO_LIBRARY})
-    SET (KNITRO_INCLUDE_DIRS "${KNITRO_INCLUDE_DIR}" "${KNITRO_INCLUDE_DIR}/../examples/C++/include")
-ELSE (KNITRO_FOUND)
-    SET (KNITRO_LIBRARIES)
-ENDIF (KNITRO_FOUND)
+if(KNITRO_FOUND)
+    add_library(knitro::knitro UNKNOWN IMPORTED)
+    message("include dirs: ${KNITRO_INCLUDE_DIR}")
+    set_target_properties(knitro::knitro PROPERTIES
+        IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+        IMPORTED_LOCATION "${KNITRO_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${KNITRO_INCLUDE_DIR};${KNITRO_INCLUDE_DIR}/../examples/C++/include"
+    )
+endif()
 
-MARK_AS_ADVANCED (KNITRO_LIBRARY KNITRO_INCLUDE_DIR)
+mark_as_advanced(KNITRO_LIBRARY KNITRO_INCLUDE_DIR)
