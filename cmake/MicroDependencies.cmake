@@ -53,7 +53,7 @@ if(NOT TARGET tbb::tbb)
     set(TBB_NO_DATE ON CACHE BOOL " " FORCE)
 
     micro_download_tbb()
-    add_subdirectory(${MICRO_EXTERNAL}/tbb tbb)
+    add_subdirectory(${MICRO_EXTERNAL}/tbb tbb EXCLUDE_FROM_ALL)
     set_property(TARGET tbb_static tbb_def_files PROPERTY FOLDER "dependencies")
     set_target_properties(tbb_static PROPERTIES COMPILE_FLAGS "-Wno-implicit-fallthrough -Wno-missing-field-initializers -Wno-unused-parameter -Wno-keyword-macro")
 
@@ -61,6 +61,8 @@ if(NOT TARGET tbb::tbb)
     target_include_directories(tbb_tbb SYSTEM INTERFACE ${MICRO_EXTERNAL}/tbb/include)
     target_link_libraries(tbb_tbb INTERFACE tbb_static tbbmalloc_static)
     add_library(tbb::tbb ALIAS tbb_tbb)
+
+    micro_target_hide_warnings(tbb_tbb tbb_static tbbmalloc_static)
 endif()
 
 if(NOT TARGET micro::tbb)
