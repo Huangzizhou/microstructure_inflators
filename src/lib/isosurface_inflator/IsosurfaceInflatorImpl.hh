@@ -259,7 +259,8 @@ public:
     }
 
     virtual bool hasOrthotropicSymmetry() const override {
-        return !(std::is_same<PatternSymmetry, Symmetry::TriplyPeriodic<typename PatternSymmetry::Tolerance>>::value
+        return !(std::is_same<PatternSymmetry, Symmetry::Diagonal<typename PatternSymmetry::Tolerance>>::value
+              || std::is_same<PatternSymmetry, Symmetry::TriplyPeriodic<typename PatternSymmetry::Tolerance>>::value
               || std::is_same<PatternSymmetry, Symmetry::DoublyPeriodic<typename PatternSymmetry::Tolerance>>::value);
     }
 
