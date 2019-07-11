@@ -6,6 +6,7 @@
 #include <igl/doublearea.h>
 #include "quadfoam/instantiate.h"
 #include "quadfoam/jacobians.h"
+#include <cmath>
 ////////////////////////////////////////////////////////////////////////////////
 
 namespace {
@@ -307,7 +308,7 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
         assert(numVertices == (int) blendingParams.size());
         for (int lv = 0; lv < numVertices; ++lv) {
             double jdet = map.jacobian(points[lv][0], points[lv][1]).determinant();
-            if (jdet < 0) {
+            if (jdet <= 0 || std::isnan(jdet)) {
                 std::cerr << "Warning: Mapping local vertex [" << lv << "] for quad [" << i
                     << "] onto the reference square [-1,1]^2 has negative volume: ("
                     << points[lv][0] << "," << points[lv][1] << ")" << std::endl;
