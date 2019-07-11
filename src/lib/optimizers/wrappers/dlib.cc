@@ -226,10 +226,16 @@ void optimize_dlib_custom_bfgs(ScalarField<Real> &params,
             ScalarField<Real> direction(directionCopy);
             ScalarField<Real> newPerturbation = direction * step_size;
             params = oldParams + newPerturbation;
+
+            // Apply bound constraints
+            for (size_t p = 0; p < im.numParameters(); ++p) {
+                if (bds.hasUpperBound.at(p)) params[p] = std::min(params[p], bds.upperBound.at(p));
+                if (bds.hasLowerBound.at(p)) params[p] = std::max(params[p], bds.lowerBound.at(p));
+            }
         }
 
         if (success_iterations >= 1) {
-            step_size *= 2;
+            step_size *= 2.0;
             success_iterations = 0;
             failure_iterations = 0;
         }
@@ -244,6 +250,12 @@ void optimize_dlib_custom_bfgs(ScalarField<Real> &params,
             ScalarField<Real> direction(directionCopy);
             ScalarField<Real> newPerturbation = direction * step_size;
             params = oldParams + newPerturbation;
+
+            // Apply bound constraints
+            for (size_t p = 0; p < im.numParameters(); ++p) {
+                if (bds.hasUpperBound.at(p)) params[p] = std::min(params[p], bds.upperBound.at(p));
+                if (bds.hasLowerBound.at(p)) params[p] = std::max(params[p], bds.lowerBound.at(p));
+            }
         }
 
         //std::cout << "[Dlib] Step size is now: " << step_size << std::endl;

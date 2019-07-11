@@ -117,6 +117,12 @@ void optimize_gd_smartstep(ScalarField<Real> &params,
             ScalarField<Real> steepestDescent(steepestDescentCopy);
             ScalarField<Real> newPerturbation = steepestDescent * step_size;
             params = oldParams + newPerturbation;
+
+            // Apply bound constraints
+            for (size_t p = 0; p < im.numParameters(); ++p) {
+                if (bds.hasUpperBound.at(p)) params[p] = std::min(params[p], bds.upperBound.at(p));
+                if (bds.hasLowerBound.at(p)) params[p] = std::max(params[p], bds.lowerBound.at(p));
+            }
         }
 
         if (success_iterations >= 10) {
@@ -135,6 +141,12 @@ void optimize_gd_smartstep(ScalarField<Real> &params,
             ScalarField<Real> steepestDescent(steepestDescentCopy);
             ScalarField<Real> newPerturbation = steepestDescent * step_size;
             params = oldParams + newPerturbation;
+
+            // Apply bound constraints
+            for (size_t p = 0; p < im.numParameters(); ++p) {
+                if (bds.hasUpperBound.at(p)) params[p] = std::min(params[p], bds.upperBound.at(p));
+                if (bds.hasLowerBound.at(p)) params[p] = std::max(params[p], bds.lowerBound.at(p));
+            }
         }
 
         //std::cout << "[GD] Step size is now: " << step_size << std::endl;

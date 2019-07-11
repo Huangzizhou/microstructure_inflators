@@ -9,7 +9,7 @@
 namespace PatternOptimization {
     namespace ObjectiveTerms {
 
-// weight * 1/2 * (V_cur - V_target)^2   //TODO: Is it necessary to account for the weight in the overrided functions?
+        // weight * 1/2 * (V_cur - V_target)^2
         template<class _Sim>
         struct TargetVolumeTerm : public NLLSObjectiveTerm<_Sim::N> {
             using SField = ScalarField<Real>;
@@ -67,7 +67,7 @@ namespace PatternOptimization {
             Real m_vol;
         };
 
-// Configuration to be applyed by iterate factory
+        // Configuration to be applyed by iterate factory
         template<class _Sim>
         struct IFConfigTargetVolume : public IFConfig {
             template<class _Iterate>

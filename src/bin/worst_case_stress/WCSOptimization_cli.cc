@@ -64,6 +64,7 @@
 #include <pattern_optimization/objective_terms/IsotropicFit.hh>
 #include <pattern_optimization/objective_terms/IsotropicFitRel.hh>
 #include <pattern_optimization/objective_terms/ProximityRegularization.hh>
+#include <pattern_optimization/objective_terms/TargetVolume.hh>
 
 #include <pattern_optimization/constraints/TensorFit.hh>
 #include <pattern_optimization/constraints/Printability.hh>
@@ -89,7 +90,7 @@ OptimizerMap optimizers = {
     {"levenberg_marquardt",  optimize_ceres_lm},
     {"dogleg",               optimize_ceres_dogleg},
     {"bfgs",                 optimize_dlib_bfgs},
-    {"lbfgs",                optimize_dlib_bfgs},
+    {"custom_bfgs",          optimize_dlib_custom_bfgs},
     {"slsqp",                optimize_nlopt_slsqp},
     {"active_set",           optimize_knitro_active_set},
     {"gradient_descent",     optimize_gd}
@@ -153,6 +154,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("proximityRegularizationZeroTarget",                             "Use 0 vector as target parameter of proximity regularization cost function term.")
         ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ("JIsoFixedTarget",                                               "Make JIso just fit to the closest isotropic tensor to the *original* tensor.")
+        ("targetVolWeight", po::value<double>()->default_value(0.0),      "Weight for the target volume term of the objective")
+        ("targetVol", po::value<double>()->default_value(0.0),            "Define target volume")
         ;
 
     po::options_description constraintOptions;
@@ -349,11 +352,12 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     // TODO: Laplacian regularization term (probably only needed for boundary
     // perturbation version.
 
-    using WCSTermConfig       = PO::ObjectiveTerms::IFConfigWorstCaseStress<Simulator>;
-    using TensorFitTermConfig = PO::ObjectiveTerms::IFConfigTensorFit<Simulator>;
-    using IsotropyFitConfig   = PO::ObjectiveTerms::IFConfigIsotropyFit<Simulator>;
-    using IsoFitRelConfig     = PO::ObjectiveTerms::IFConfigIsotropyFitRel<Simulator>;
-    using PRegTermConfig      = PO::ObjectiveTerms::IFConfigProximityRegularization;
+    using WCSTermConfig          = PO::ObjectiveTerms::IFConfigWorstCaseStress<Simulator>;
+    using TensorFitTermConfig    = PO::ObjectiveTerms::IFConfigTensorFit<Simulator>;
+    using IsotropyFitConfig      = PO::ObjectiveTerms::IFConfigIsotropyFit<Simulator>;
+    using IsoFitRelConfig        = PO::ObjectiveTerms::IFConfigIsotropyFitRel<Simulator>;
+    using PRegTermConfig         = PO::ObjectiveTerms::IFConfigProximityRegularization;
+    using TargetVolumeTermConfig = PO::ObjectiveTerms::IFConfigTargetVolume<Simulator>;
     using TFConstraintConfig  = PO::   Constraints::IFConfigTensorFit<Simulator>;
     using  PConstraintConfig  = PO::   Constraints::IFConfigPrintability<Simulator>;
 
@@ -363,19 +367,21 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
          IsotropyFitConfig,
          IsoFitRelConfig,
          PRegTermConfig,
-          TFConstraintConfig,
-           PConstraintConfig>(inflator, bdcs);
+         TFConstraintConfig,
+         TargetVolumeTermConfig,
+         PConstraintConfig>(inflator, bdcs);
 
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
     ////////////////////////////////////////////////////////////////////////////
-    ifactory->WCSTermConfig      ::enabled = args["WCSWeight"].as<double>() != 0;
-    ifactory->TensorFitTermConfig::enabled = args.count("JSWeight");
-    ifactory->IsotropyFitConfig  ::enabled = args.count("JIsoWeight");
-    ifactory->IsoFitRelConfig    ::enabled = args.count("JIsoRelWeight");
-    ifactory->PRegTermConfig     ::enabled = args.count("proximityRegularizationWeight");
-    ifactory->TFConstraintConfig ::enabled = false;
-    ifactory-> PConstraintConfig ::enabled = false;
+    ifactory->WCSTermConfig           ::enabled = args["WCSWeight"].as<double>() != 0;
+    ifactory->TensorFitTermConfig     ::enabled = args.count("JSWeight");
+    ifactory->IsotropyFitConfig       ::enabled = args.count("JIsoWeight");
+    ifactory->IsoFitRelConfig         ::enabled = args.count("JIsoRelWeight");
+    ifactory->PRegTermConfig          ::enabled = args.count("proximityRegularizationWeight");
+    ifactory->TFConstraintConfig      ::enabled = false;
+    ifactory->PConstraintConfig       ::enabled = false;
+    ifactory->TargetVolumeTermConfig  ::enabled = args["targetVolWeight"].as<double>() > 0.0;
 
     // Configure WCS Objective
     // By default, an "Lp norm" objective is really the p^th power of the Lp norm.
@@ -444,6 +450,19 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
         if (args.count("proximityRegularizationZeroTarget")) {
             vector<Real> zeroTargetParams(job->numParams(), 0.0);
             ifactory->PRegTermConfig::IFConfigProximityRegularization::targetParams = zeroTargetParams;
+        }
+    }
+
+    if (args["targetVolWeight"].as<double>() > 0.0) {
+        if (args.count("targetVol") > 0.0) {
+            ifactory->TargetVolumeTermConfig::enabled = true;
+            ifactory->TargetVolumeTermConfig::weight = args["targetVolWeight"].as<double>();
+            ifactory->TargetVolumeTermConfig::targetVolume = args["targetVol"].as<double>();
+        }
+        else if (job->targetVolume) {
+            ifactory->TargetVolumeTermConfig::enabled = true;
+            ifactory->TargetVolumeTermConfig::weight = args["targetVolWeight"].as<double>();
+            ifactory->TargetVolumeTermConfig::targetVolume = *(job->targetVolume);
         }
     }
 
