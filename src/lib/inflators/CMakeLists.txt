@@ -20,6 +20,8 @@ set(SOURCES
         wrappers/JamesInflatorWrapper.hh
         wrappers/LuigiInflatorWrapper.cc
         wrappers/LuigiInflatorWrapper.hh
+        wrappers/VoxelsInflator.cc
+        wrappers/VoxelsInflator.hh
 )
 
 micro_add_library(inflators ${SOURCES})
@@ -35,6 +37,7 @@ target_link_libraries(micro_inflators
         meshfem::boost
         micro::hex_inflator
         micro::isosurface_inflator
+        micro::voxel_inflator
         micro::pymesh
         micro::vcglib
         micro::clipper

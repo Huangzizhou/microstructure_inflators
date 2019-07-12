@@ -40,7 +40,7 @@ private:
 };
 
 void computeCurvatureAdaptiveMinLen(const std::list<std::list<Point2D>> &polygons,
-                                    const MidplaneSlice &slice,
+                                    const SignedDistanceRegion<2> &slice,
                                     const double minLen, const double maxLen,
                                     std::vector<std::vector<double>> &variableMinLens);
 
@@ -53,25 +53,17 @@ void computeCurvatureAdaptiveMinLen(const std::list<std::list<Point2D>> &polygon
 //       SDF, but this prevents Triangle from running certain operations.)
 //  Potential future improvement: mesh full cell by reflecting and remeshing the
 //  interior.
-void MidplaneMesher::
-mesh(const SignedDistanceRegion<3>  &sdf,
-     std::vector<MeshIO::IOVertex>  &vertices,
-     std::vector<MeshIO::IOElement> &triangles) const
+void
+MidplaneMesher::meshSlice(const SignedDistanceRegion<2>  &slice,
+                               std::vector<MeshIO::IOVertex>  &vertices,
+                               std::vector<MeshIO::IOElement> &triangles) const
 {
-    auto bb = sdf.boundingBox();
+    auto bb = slice.boundingBox();
     size_t gridSizeX = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[0]),
            gridSizeY = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[1]);
     double gridCellWidth = bb.dimensions()[0] / gridSizeX;
     MarchingSquaresGrid msquares(gridSizeX, gridSizeY,
                                  meshingOptions.marchingSquaresCoarsening);
-
-    MidplaneSlice slice(sdf);
-
-#if SDF_DEBUG_OUT
-    {
-        msquares.outputSignedDistanceField("sdf.msh", slice);
-    }
-#endif
 
     // Get ccw-ordered segments of boundary/interior edges
     auto result = msquares.extractBoundaryPolygons(slice, 0.0);
@@ -258,8 +250,25 @@ mesh(const SignedDistanceRegion<3>  &sdf,
 #endif
 }
 
+// Mesh function. Starts by slicing sdf to obtain 2D signed function and then uses meshSlice
+void MidplaneMesher::
+mesh(const SignedDistanceRegion<3>  &sdf,
+     std::vector<MeshIO::IOVertex>  &vertices,
+     std::vector<MeshIO::IOElement> &triangles) const
+{
+    MidplaneSlice slice(sdf);
+
+#if SDF_DEBUG_OUT
+    {
+        msquares.outputSignedDistanceField("sdf.msh", slice);
+    }
+#endif
+
+    meshSlice(slice, vertices, triangles);
+}
+
 void computeCurvatureAdaptiveMinLen(const std::list<std::list<Point2D>> &polygons,
-                                    const MidplaneSlice &slice,
+                                    const SignedDistanceRegion<2> &slice,
                                     const double minLen, const double maxLen,
                                     std::vector<std::vector<double>> &variableMinLens)
 {
