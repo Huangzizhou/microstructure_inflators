@@ -48,7 +48,7 @@ private:
 
     // Additional Real type to support automatic differentiation wrt. p only
     template<typename Real2>
-    Real2 m_signedDistanceImpl(Point2<Real2> p) const;
+    Real2 m_signedDistanceImpl(const Point2<Real2> p) const;
 
     // Bounding box for the meshing cell.
     BBox<Point2D> m_bbox;

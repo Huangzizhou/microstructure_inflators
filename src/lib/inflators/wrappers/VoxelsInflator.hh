@@ -26,6 +26,8 @@ public:
     VoxelsInflator(const std::vector<std::vector<Real>> &densityMatrix);
     ~VoxelsInflator() { }
 
+    virtual MeshingOptions &meshingOptions() override { return m_meshingOptions; }
+
 private:
 
     ////////////////////////////////////////////////////////////////////////////
@@ -45,7 +47,7 @@ private:
     ////////////////////////////////////////////////////////////////////////////
     virtual bool isParametric() const override { return true; }
     virtual size_t numParameters() const override;
-
+    virtual bool isPrintable(const std::vector<Real> &params) override { return false; }
     virtual ParameterType parameterType(size_t p) const override { return ParameterType::Custom1; }
 
 
@@ -53,10 +55,15 @@ private:
     // Configuration
     ////////////////////////////////////////////////////////////////////////////
     virtual void loadMeshingOptions(const std::string &moptsPath) override;
-
     virtual void setMaxElementVolume(Real maxElementVol) override;
-
     virtual Real getMaxElementVolume() const override;
+
+
+     ////////////////////////////////////////////////////////////////////////////
+    // HexaPillarsInflator-specific
+    ////////////////////////////////////////////////////////////////////////////
+    std::vector<std::vector<Real>> vecToMat(const std::vector<Real> &vec, size_t nRows, size_t nCols);
+    std::vector<Real> matToVec(const std::vector<std::vector<Real>> &mat);
 
 
     ////////////////////////////////////////////////////////////////////////////

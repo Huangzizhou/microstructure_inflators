@@ -2,10 +2,6 @@
 
 using namespace std;
 
-// Auxiliary functions
-std::vector<std::vector<Real>> vecToMat(const std::vector<Real> &vec, size_t nRows, size_t nCols);
-std::vector<Real> matToVec(const std::vector<std::vector<Real>> &mat);
-
 VoxelsInflator::VoxelsInflator(const std::vector<std::vector<Real>> &densityMatrix) : m_densityMatrix(densityMatrix) {
     m_nRows = densityMatrix.size();
     m_nCols = densityMatrix[0].size();
@@ -15,6 +11,12 @@ VoxelsInflator::VoxelsInflator(const std::vector<std::vector<Real>> &densityMatr
 // VoxelsInflator methods
 void
 VoxelsInflator::m_inflate(const std::vector<Real> &params) {
+    // Makes sure we use the last meshing options set
+    m_mesher.meshingOptions = m_meshingOptions;
+
+    // Makes sure we use periodic mesher
+    m_mesher.meshInterfaceConsistently = true;
+
     std::vector<std::vector<Real>> densityMatrix = vecToMat(params, m_nRows, m_nCols);
 
     VoxelSDF<Real> sdf = VoxelSDF<Real>(densityMatrix);
@@ -54,7 +56,8 @@ VoxelsInflator::getMaxElementVolume() const {
 
 
 // Implementation of auxiliary functions
-std::vector<std::vector<Real>> vecToMat(std::vector<Real> &vec, size_t nRows, size_t nCols) {
+std::vector<std::vector<Real>>
+VoxelsInflator::vecToMat(const std::vector<Real> &vec, size_t nRows, size_t nCols) {
     std::vector<std::vector<Real>> result(nRows);
 
     for (size_t i = 0 ; i < nRows; i++) {
@@ -67,7 +70,8 @@ std::vector<std::vector<Real>> vecToMat(std::vector<Real> &vec, size_t nRows, si
     return result;
 }
 
-std::vector<Real> matToVec(std::vector<std::vector<Real>> &mat) {
+std::vector<Real>
+VoxelsInflator::matToVec(const std::vector<std::vector<Real>> &mat) {
     std::vector<Real> result;
 
     for (size_t i = 0; i < mat.size(); i++) {
