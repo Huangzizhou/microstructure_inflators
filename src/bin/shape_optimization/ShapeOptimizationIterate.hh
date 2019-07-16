@@ -61,21 +61,27 @@ namespace ShapeOptimization {
 
         using IterateBase::m_params;
 
+        static constexpr bool SIMPLIFIED_OUTPUT = true;
+
         Iterate(Inflator<_N> &inflator, size_t nParams, const double *params)
                 : IterateBase(inflator.isParametric()), m_inflator(inflator)
         {
             m_params.resize(nParams);
-            std::cout << "filtered params: ";
+            if (!SIMPLIFIED_OUTPUT)
+                std::cout << "filtered params: ";
             for (size_t i = 0; i < nParams; ++i) {
                 m_params[i] = params[i];
 
-                // Only prints first 40 parameters...
-                if (i < 40)
-                    std::cout << "\t" << m_params[i];
-                else if (i == 40)
-                    std::cout << "..." << std::endl;
+                if (!SIMPLIFIED_OUTPUT) {
+                    // Only prints first 40 parameters...
+                    if (i < 40)
+                        std::cout << "\t" << m_params[i];
+                    else if (i == 40)
+                        std::cout << "..." << std::endl;
+                }
             }
-            std::cout << std::endl;
+            if (!SIMPLIFIED_OUTPUT)
+                std::cout << std::endl;
 
             // Printability check and constraints
             m_printable = inflator.isPrintable(m_params);
@@ -95,11 +101,13 @@ namespace ShapeOptimization {
                 // Hack to correct timer behavior--should probably use RAII
                 BENCHMARK_STOP_TIMER_SECTION("Inflate");
 
-                if (isParametric()) {
-                    std::cout << "p:";
-                    for (size_t i = 0; i < m_params.size(); ++i)
-                        std::cout << "\t" << m_params[i];
-                    std::cout << std::endl;
+                if (!SIMPLIFIED_OUTPUT) {
+                    if (isParametric()) {
+                        std::cout << "p:";
+                        for (size_t i = 0; i < m_params.size(); ++i)
+                            std::cout << "\t" << m_params[i];
+                        std::cout << std::endl;
+                    }
                 }
 
                 throw;
@@ -119,19 +127,20 @@ namespace ShapeOptimization {
             m_inflator = inflator;
         }
 
-        void setBoundaryConditions(std::string boundaryConditionsPath) {
+         void setBoundaryConditions(std::string boundaryConditionsPath) {
             m_boundaryConditionsPath = boundaryConditionsPath;
         }
 
-        void solveIterationProblem() {
-            BENCHMARK_START_TIMER_SECTION("Solve Laplace");
+        virtual std::unique_ptr<_Sim> constructSimulator() {
+            return Future::make_unique<_Sim>(m_inflator.elements(), m_inflator.vertices());
+        }
 
-            // std::cout << "Start building simulator" << std::endl;
+        void solveIterationProblem() {
+            BENCHMARK_START_TIMER_SECTION("Solve iteration problems");
+
             BENCHMARK_START_TIMER("Build simulator");
-            m_sim = Future::make_unique<_Sim>(m_inflator.elements(), m_inflator.vertices());
+            m_sim = constructSimulator();
             BENCHMARK_STOP_TIMER("Build simulator");
-            // std::cout << "Done" << std::endl;
-            // std::cout << "Solving PDE" << std::endl;
 
             // Obtain meshing cell and verify which parts of the mesh are "internal"
             BBox<Vector3D> cell3D = m_inflator.meshingCell();
@@ -163,7 +172,7 @@ namespace ShapeOptimization {
                 throw e;
             }
 
-            BENCHMARK_STOP_TIMER_SECTION("Solve Laplace");
+            BENCHMARK_STOP_TIMER_SECTION("Solve iteration problems");
         }
 
         ////////////////////////////////////////////////////////////////////////////////
@@ -353,11 +362,14 @@ namespace ShapeOptimization {
         }
 
         virtual void writeDescription(std::ostream &os) const override {
-            if (isParametric()) {
-                os << "p:";
-                for (size_t i = 0; i < m_params.size(); ++i)
-                    os << "\t" << m_params[i];
-                os << std::endl;
+
+            if (!SIMPLIFIED_OUTPUT) {
+                if (isParametric()) {
+                    os << "p:";
+                    for (size_t i = 0; i < m_params.size(); ++i)
+                        os << "\t" << m_params[i];
+                    os << std::endl;
+                }
             }
             // M_norm(steepestDescent), since steepest descent is the Riesz representative of
             // the differential, and we want it's norm. This ends up being
@@ -367,19 +379,22 @@ namespace ShapeOptimization {
                 term.second->writeDescription(os, term.first);
             for (auto &c : m_constraints)
                 c.second->writeDescription(os, c.first);
-            // Evaluated objective terms/constraints know the gradient information
-            for (auto &eterm : this->m_evaluatedObjectiveTerms)
-                eterm->writeGradientDescription(os, isParametric());
-            for (auto &ec : this->m_evaluatedConstraints)
-                ec->writeGradientDescription(os, isParametric());
-
+            if (!SIMPLIFIED_OUTPUT) {
+                // Evaluated objective terms/constraints know the gradient information
+                for (auto &eterm : this->m_evaluatedObjectiveTerms)
+                    eterm->writeGradientDescription(os, isParametric());
+                for (auto &ec : this->m_evaluatedConstraints)
+                    ec->writeGradientDescription(os, isParametric());
+            }
             if (this->numObjectiveTerms() > 1) {
                 os << "JFull:\t" << this->evaluate() << std::endl;
                 SField gp = IterateBase::gradp();
-                if (isParametric()) {
-                    os << "grad_p JFull:\t";
-                    gp.print(os, "", "", "", "\t");
-                    os << std::endl;
+                if (!SIMPLIFIED_OUTPUT) {
+                    if (isParametric()) {
+                        os << "grad_p JFull:\t";
+                        gp.print(os, "", "", "", "\t");
+                        os << std::endl;
+                    }
                 }
                 os << "||grad_p JFull||:\t" << gp.norm() << std::endl;
             }
@@ -438,7 +453,6 @@ namespace ShapeOptimization {
         }
         std::string boundaryConditionsPath;
     };
-
 
 }
 

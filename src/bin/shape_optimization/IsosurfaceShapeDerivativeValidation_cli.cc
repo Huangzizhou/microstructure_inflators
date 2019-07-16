@@ -28,10 +28,11 @@
 #include <pattern_optimization/IterateManager.hh>
 
 #include "ShapeOptimizationIterate.hh"
-
 #include "StressObjectiveTerm.hh"
 #include "ParametersMask.hh"
-#include <inflators/wrappers/ConstrainedIsoinflator.hh>
+
+#include <inflators/wrappers/ConstrainedInflator.hh>
+#include <inflators/wrappers/IsoinflatorWrapper.hh>
 #include <isosurface_inflator/ShapeVelocityInterpolator.hh>
 
 namespace po = boost::program_options;
@@ -40,7 +41,7 @@ using namespace std;
 template<size_t _N> using HMG = LinearElasticity::HomogenousMaterialGetter<Materials::Constant>::template Getter<_N>;
 template<size_t _N> using ETensor = ElasticityTensor<Real, _N>;
 
-void usage(int exitVal, const po::options_description &visible_opts) {
+[[ noreturn ]] void usage(int exitVal, const po::options_description &visible_opts) {
     cout << "Usage: IsosurfaceShapeDerivativeValidation_cli [options]" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
@@ -69,7 +70,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     objectiveOptions.add_options()
             ("pnorm,P",      po::value<double>()->default_value(1.0),         "pnorm used in the Lp stress measure")
             ("usePthRoot,R",                                                  "Use the true Lp norm for global worst case stress measure (applying pth root)")
-            ("stressWeight",    po::value<double>()->default_value(1.0),         "Weight for the Microscopic stress term of the objective")
+            ("stressWeight", po::value<double>()->default_value(1.0),         "Weight for the Microscopic stress term of the objective")
             ;
 
     po::options_description elasticityOptions;
@@ -230,7 +231,7 @@ void execute(po::variables_map &args)
     po::notify(args);
     std::unique_ptr<InflatorBase> inflatorBase = make_inflator("ConstrainedIsoinflator2D", filterInflatorOptions(args), parameterConstraints);
     InflatorBase* temp = inflatorBase.get();
-    ConstrainedIsoinflator<_N>* inflator = (ConstrainedIsoinflator<_N> *) temp;
+    ConstrainedInflator<_N>* inflator = (ConstrainedInflator<_N> *) temp;
 
     // copy of wire mesh, only to obtain information about which point is modified by which parameter
     WireMesh<Symmetry::NonPeriodic<DEFAULT_TOL>> wireMesh(args["pattern"].as<string>());

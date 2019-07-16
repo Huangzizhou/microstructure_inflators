@@ -30,9 +30,11 @@
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 
+#include <inflators/wrappers/ConstrainedInflator.hh>
 #include <inflators/wrappers/BoundaryPerturbationInflator.hh>
 #include <isosurface_inflator/ShapeVelocityInterpolator.hh>
 #include "MicroscopicStress.hh"
+#include "ParametersMask.hh"
 
 namespace po = boost::program_options;
 using namespace std;
@@ -40,7 +42,7 @@ using namespace std;
 template<size_t _N> using HMG = LinearElasticity::HomogenousMaterialGetter<Materials::Constant>::template Getter<_N>;
 template<size_t _N> using ETensor = ElasticityTensor<Real, _N>;
 
-void usage(int exitVal, const po::options_description &visible_opts) {
+[[ noreturn ]] void usage(int exitVal, const po::options_description &visible_opts) {
     cout << "Usage: ShapeDerivativeValidation_cli [options] mesh.msh" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
@@ -154,28 +156,29 @@ void execute(const po::variables_map &args,
     vector<CondPtr<_N> > zeroPerturbationConds = readBoundaryConditions<_N>(zeroPerturbationPath, tmp.mesh().boundingBox(), no_rigid_motion);
 
     // Original mesh and simulator
-    BoundaryPerturbationInflator<_N> bpi(vertices, elements, zeroPerturbationConds);
+    std::vector<bool> paramsMask = ParametersMask::generateParametersMask<_N>(vertices, elements, zeroPerturbationPath);
+    std::unique_ptr<BoundaryPerturbationInflator<_N>> originalBpi = Future::make_unique<BoundaryPerturbationInflator<_N>>(vertices, elements, false);
+    ConstrainedInflator<_N> bpi(std::move(originalBpi), paramsMask);
     vector<Real> perturbParams(bpi.numParameters(), 0.0);
     bpi.inflate(perturbParams);
     Simulator sim(bpi.elements(), bpi.vertices());
 
+    BoundaryPerturbationInflator<_N> * baseInflator = dynamic_cast<BoundaryPerturbationInflator<_N> *>(bpi.m_infl.get());
+
     vector<CondPtr<_N> > bconds = readBoundaryConditions<_N>(bcondsPath, sim.mesh().boundingBox(), no_rigid_motion);
 
     // Perturb mesh
-    {
-        auto &mesh = sim.mesh();
-        auto normals = bpi.boundaryVertexNormals();
-        VField perturbation(sim.mesh().numBoundaryVertices());
-        Real A = args["perturbationAmplitude"].as<Real>();
-        Real f = args["perturbationFrequency"].as<Real>();
-        for (auto bv : mesh.boundaryVertices()) {
-            auto pt = bv.node().volumeNode()->p;
-            Real a = A * cos(M_PI * f * pt[0]) * cos(M_PI * f * pt[1]);
-            perturbation(bv.index()) = a * normals(bv.index());
-        }
-        bpi.paramsFromBoundaryVField(perturbation).getFlattened(perturbParams);
-
+    auto &currentMesh = sim.mesh();
+    auto normals = baseInflator->boundaryVertexNormals();
+    VField perturbation(sim.mesh().numBoundaryVertices());
+    Real A = args["perturbationAmplitude"].as<Real>();
+    Real f = args["perturbationFrequency"].as<Real>();
+    for (auto bv : currentMesh.boundaryVertices()) {
+        auto pt = bv.node().volumeNode()->p;
+        Real a = A * cos(M_PI * f * pt[0]) * cos(M_PI * f * pt[1]);
+        perturbation(bv.index()) = a * normals(bv.index());
     }
+    bpi.paramsFromBoundaryVField(perturbation).getFlattened(perturbParams);
 
     // Perturbed meshes and simulators
     bpi.inflate(perturbParams);
@@ -233,6 +236,22 @@ void execute(const po::variables_map &args,
     forwardDiffStrain  -= origStrain;
     centeredDiffStrain -= neg_perturbed_sim.averageStrainField(neg_perturbed_u);
     centeredDiffStrain *= 0.5;
+
+    auto origNeumannLoad = sim.neumannLoad();
+    auto deltaNeumannLoad = sim.deltaNeumannLoad(delta_p);
+    auto perturbedNeumannLoad = perturbed_sim.neumannLoad();
+    auto negPerturbedNeumannLoad = neg_perturbed_sim.neumannLoad();
+    auto centeredDiffLoad = perturbedNeumannLoad - negPerturbedNeumannLoad;
+    centeredDiffLoad *= 0.5;
+
+    writer.addField("delta neumann load", deltaNeumannLoad);
+    writer.addField("centered difference delta neumann load", centeredDiffLoad);
+
+    auto origArea = sim.neumannBoundaryArea();
+    auto perturbedArea = perturbed_sim.neumannBoundaryArea();
+    auto negPerturbedArea = neg_perturbed_sim.neumannBoundaryArea();
+    std::cout << "area: " << origArea << std::endl;
+    std::cout << "centered difference delta area: " << 0.5*(perturbedArea - negPerturbedArea) << std::endl;
 
     writer.addField("strain u", origStrain);
     writer.addField("delta strain u", sim.deltaAverageStrainField(u, delta_u, delta_p));

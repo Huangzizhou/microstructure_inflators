@@ -93,7 +93,8 @@ OptimizerMap optimizers = {
     {"custom_bfgs",          optimize_dlib_custom_bfgs},
     {"slsqp",                optimize_nlopt_slsqp},
     {"active_set",           optimize_knitro_active_set},
-    {"gradient_descent",     optimize_gd}
+    {"gradient_descent",     optimize_gd},
+    {"custom_gradient_descent", optimize_gd_smartstep}
 };
 
 po::variables_map parseCmdLine(int argc, const char *argv[])

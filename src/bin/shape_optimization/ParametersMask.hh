@@ -40,9 +40,9 @@ namespace po = boost::program_options;
 using Point = Point3<double>;
 
 namespace ParametersMask {
-
     // Function that loads json file, creating regions that should be included or excluded from optimization
-    void jsonToRegions(std::string jsonPath, const BBox<Point> &bbox, vector<Region<Point> *> &inRegions, vector<Region<Point> *> &exceptRegions) {
+     void jsonToRegions(std::string jsonPath, const BBox<Point> &bbox, vector<Region<Point> *> &inRegions, vector<Region<Point> *> &exceptRegions, vector<Region<Point> *> &glueRegions) {
+
         // reading JSON file
         ifstream input(jsonPath);
         json j;
@@ -51,6 +51,8 @@ namespace ParametersMask {
         json regions = j["regions"];
         // iterate the array
         for (json::iterator it = regions.begin(); it != regions.end(); ++it) {
+            Region<Point> * newRegion;
+
             Point minCorner;
             Point maxCorner;
 
@@ -58,13 +60,24 @@ namespace ParametersMask {
 
             json box = current_region["box"];
             json box_percentage = current_region["box%"];
+            json path = current_region["path"];
 
             if (box.size() > 0) {
                 vector<float> min_corner = box["minCorner"];
                 vector<float> max_corner = box["maxCorner"];
 
-                minCorner << min_corner[0], min_corner[1], min_corner[2];
-                maxCorner << max_corner[0], max_corner[1], max_corner[2];
+                minCorner << 0.0, 0.0, 0.0;
+                maxCorner << 0.0, 0.0, 0.0;
+
+                for (size_t i=0; i<min_corner.size(); i++) {
+                    minCorner[i] = min_corner[i];
+                }
+
+                for (size_t i=0; i<max_corner.size(); i++) {
+                    maxCorner[i] = max_corner[i];
+                }
+
+                newRegion = new BBox<Point>(minCorner, maxCorner);
             }
             if (box_percentage.size() > 0) {
                 // Find the bounding box
@@ -75,9 +88,17 @@ namespace ParametersMask {
                 vector<float> max_corner = box_percentage["maxCorner"];
 
                 Eigen::Array3d min_corner_array;
+                min_corner_array << 0.0, 0.0, 0.0;
                 Eigen::Array3d max_corner_array;
-                min_corner_array << min_corner[0], min_corner[1], min_corner[2];
-                max_corner_array << max_corner[0], max_corner[1], max_corner[2];
+                max_corner_array << 0.0, 0.0, 0.0;
+
+                for (size_t i=0; i<min_corner.size(); i++) {
+                    min_corner_array[i] = min_corner[i];
+                }
+
+                for (size_t i=0; i<max_corner.size(); i++) {
+                    max_corner_array[i] = max_corner[i];
+                }
 
                 // scale
                 double w = M(0) - m(0);
@@ -96,19 +117,37 @@ namespace ParametersMask {
 
                 minCorner = min_corner_array.matrix();
                 maxCorner = max_corner_array.matrix();
+
+                newRegion = new BBox<Point>(minCorner, maxCorner);
+            }
+            if (path.size() > 0) {
+                // Always 2D
+                std::vector<Point> points;
+                for (std::vector<double> point : path) {
+                    Point eigenPoint;
+                    for (size_t i=0; i<point.size(); i++) {
+                        eigenPoint[i] = point[i];
+                    }
+                    eigenPoint[2] = 0.0;
+                    points.push_back(eigenPoint);
+                }
+
+                newRegion = new PathRegion<Point>(points);
             }
 
             string typeString = current_region["type"];
-            if (typeString.compare("dirichlet") == 0 || typeString.compare("force") == 0 || typeString.compare("zero") == 0) {
-                Region<Point> * newRegion = new BBox<Point>(minCorner, maxCorner);
+            if (typeString.compare("dirichlet") == 0 || typeString.compare("force") == 0 || typeString.compare("zero") == 0 || typeString.compare("contact") == 0) {
                 exceptRegions.push_back(newRegion);
             }
             else if (typeString.compare("optimization") == 0) {
-                Region<Point> * newRegion = new BBox<Point>(minCorner, maxCorner);
                 inRegions.push_back(newRegion);
             }
+            else if (typeString.compare("glue") == 0 || typeString.compare("fracture") == 0 ) {
+                glueRegions.push_back(newRegion);
+            }
             else {
-                throw std::runtime_error("Region of type " + typeString + "not expected.");
+                std::cerr << "Region of type " + typeString + " not expected." << std::endl;
+                throw std::runtime_error("Region of type " + typeString + " not expected.");
             }
         }
     }
@@ -154,11 +193,11 @@ namespace ParametersMask {
     }
 
     // Extract filtering regions from file
-    void extractFilteringRegions(string bcondsPath, vector<Point> points, vector<Region<Point> *> &inRegions, vector<Region<Point> *> &exceptRegions) {
+    void extractFilteringRegions(string bcondsPath, vector<Point> points, vector<Region<Point> *> &inRegions, vector<Region<Point> *> &exceptRegions, vector<Region<Point> *> &glueRegions) {
         if (!bcondsPath.empty()) {
             BBox<Point> bb(points);
 
-            jsonToRegions(bcondsPath, bb, inRegions, exceptRegions);
+            jsonToRegions(bcondsPath, bb, inRegions, exceptRegions, glueRegions);
         }
     }
 
@@ -199,7 +238,8 @@ namespace ParametersMask {
 
         vector<Region<Point> *> inRegions;
         vector<Region<Point> *> exceptRegions;
-        extractFilteringRegions(bcondsPath, points, inRegions, exceptRegions);
+        vector<Region<Point> *> glueRegions;
+        extractFilteringRegions(bcondsPath, points, inRegions, exceptRegions, glueRegions);
 
         // find which points should be excluded
         vector<Point> fixedPoints = excludedPoints(points, inRegions, exceptRegions);
@@ -245,12 +285,7 @@ namespace ParametersMask {
     // Generate parameters mask when using boundary perturbation inflator (meaning that each coordinate of each boundary
     // vertex could be a variable in the optimization)
     template<size_t N>
-    vector<bool> generateParametersMask(string meshPath, string bcondsPath) {
-        // Original mesh
-        vector<MeshIO::IOVertex>  inVertices;
-        vector<MeshIO::IOElement> inElements;
-        load(meshPath, inVertices, inElements, MeshIO::FMT_GUESS, MeshIO::MESH_GUESS);
-
+    vector<bool> generateParametersMask(const vector<MeshIO::IOVertex> &inVertices, const vector<MeshIO::IOElement> &inElements, string bcondsPath) {
         // Create inflator and initial params
         BoundaryPerturbationInflator<N> bpi(inVertices, inElements, false);
         vector<Real> params(bpi.numParameters(), 0.0);
@@ -262,7 +297,8 @@ namespace ParametersMask {
 
         vector<Region<Point> *> inRegions;
         vector<Region<Point> *> exceptRegions;
-        extractFilteringRegions(bcondsPath, points, inRegions, exceptRegions);
+        vector<Region<Point> *> glueRegions;
+        extractFilteringRegions(bcondsPath, points, inRegions, exceptRegions, glueRegions);
 
         // find which points should be excluded
         vector<Point> fixedPoints = excludedPoints(points, inRegions, exceptRegions);
@@ -274,16 +310,83 @@ namespace ParametersMask {
             fixedParameters.insert(fixedParameters.end(), parameterIndices.begin(), parameterIndices.end());
         }
 
-        // create filtering vector
         vector<bool> solution(params.size(), false);
         for (unsigned i = 0; i < fixedParameters.size(); i++) {
-            if(solution[fixedParameters[i]])
+            if(solution[fixedParameters[i]]) {
                 std::cout << "Warning: parameter masked more than once!" << std::endl;
+                //int param = fixedParameters[i];
+                //std::cout << "Param: " << param << std::endl;
+                //std::cout << "Point: " << bpi.parameterIndexToPoint(param) << std::endl;
+            }
+
             solution[fixedParameters[i]] = true;
         }
 
         return solution;
+    }
 
+    // Generate parameters mask when using boundary perturbation inflator (meaning that each coordinate of each boundary
+    // vertex could be a variable in the optimization)
+    template<size_t N>
+    vector<bool> generateParametersMask(string meshPath, string bcondsPath) {
+        // Original mesh
+        vector<MeshIO::IOVertex>  inVertices;
+        vector<MeshIO::IOElement> inElements;
+        load(meshPath, inVertices, inElements, MeshIO::FMT_GUESS, MeshIO::MESH_GUESS);
+
+        return generateParametersMask<N>(inVertices, inElements, bcondsPath);
+    }
+
+
+    // Generate map of parameters that are dependent on others. In the optimization, the corresponding vertices
+    // will always move together. Mostly used for contact optimization
+    template<size_t N>
+    vector<int> generateGluedParametersMap(const vector<MeshIO::IOVertex> &inVertices, const vector<MeshIO::IOElement> &inElements, string bcondsPath) {
+        // Create inflator and initial params
+        BoundaryPerturbationInflator<N> bpi(inVertices, inElements, false);
+        vector<Real> params(bpi.numParameters(), 0.0);
+        vector<int> parameterToGluedParameter(bpi.numParameters(), -1);
+
+        vector<Point> points;
+        for (unsigned i=0; i<inVertices.size(); i++) {
+            points.push_back(inVertices[i].point);
+        }
+
+        vector<Region<Point> *> inRegions;
+        vector<Region<Point> *> exceptRegions;
+        vector<Region<Point> *> glueRegions;
+        extractFilteringRegions(bcondsPath, points, inRegions, exceptRegions, glueRegions);
+
+        if (glueRegions.size() > 0) {
+            // Construct glued params vector
+            vector<Point> gluedPoints = excludedPoints(points, inRegions, glueRegions);
+            parameterToGluedParameter.assign(params.size(), -1);
+            for (unsigned i = 0; i < gluedPoints.size(); i++) {
+                vector<int> parameterIndices = bpi.pointToParametersIndices(truncateFrom3D<VectorND<N>>(gluedPoints[i]));
+
+                if (parameterIndices.size() == 2 * N) {
+                    for (size_t d = 0; d < N; d++) {
+                        parameterToGluedParameter[parameterIndices[d]] = parameterIndices[N + d];
+                        parameterToGluedParameter[parameterIndices[N + d]] = parameterIndices[d];
+                    }
+
+                }
+            }
+        }
+
+        return parameterToGluedParameter;
+    }
+
+    // Generate map of parameters that are dependent on others. In the optimization, the corresponding vertices
+    // will always move together. Mostly used for contact optimization
+    template<size_t N>
+    vector<int> generateGluedParametersMap(string meshPath, string bcondsPath) {
+        // Original mesh
+        vector<MeshIO::IOVertex>  inVertices;
+        vector<MeshIO::IOElement> inElements;
+        load(meshPath, inVertices, inElements, MeshIO::FMT_GUESS, MeshIO::MESH_GUESS);
+
+        return generateGluedParametersMap<N>(inVertices, inElements, bcondsPath);
     }
 }
 

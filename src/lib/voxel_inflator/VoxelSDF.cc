@@ -14,7 +14,7 @@ VoxelSDF<Real>::VoxelSDF(const std::vector<std::vector<Real>> &densityMatrix) : 
 
 
 // Remember: matrix is defined row by row. So, row index corresponds to y and column index to x
-template<typename Real>
+/*template<typename Real>
 template<typename Real2>
 Real2 VoxelSDF<Real>::m_signedDistanceImpl(const Point2<Real2> p) const {
     size_t cells_per_axis = m_densityMatrix.size();
@@ -39,7 +39,7 @@ Real2 VoxelSDF<Real>::m_signedDistanceImpl(const Point2<Real2> p) const {
     Real2 distance = -1.0 * ((density * 2.0) - 1.0);
 
     return distance;
-}
+}*/
 
 ////////////////////////////////////////////////////////////////////////////////
 // Explicit Instantiations: double (need some more implementation for auto diff)

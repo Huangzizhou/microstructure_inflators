@@ -46,9 +46,33 @@ public:
 
 private:
 
+    // Remember: matrix is defined row by row. So, row index corresponds to y and column index to x
     // Additional Real type to support automatic differentiation wrt. p only
     template<typename Real2>
-    Real2 m_signedDistanceImpl(const Point2<Real2> p) const;
+    Real2 m_signedDistanceImpl(const Point2<Real2> p) const {
+        size_t cells_per_axis = m_densityMatrix.size();
+
+        // Base cell is from -1 to 1.
+        Real2 x = p[0]; // on x axis
+        Real2 y = p[1]; // on y axis
+
+        size_t i = floor(cells_per_axis * (y + 1.0) / 2.0);
+        size_t j = floor(cells_per_axis * (x + 1.0) / 2.0);
+
+        if (y == 1.0)
+            i = m_densityMatrix.size() - 1;
+
+        if (x == 1.0)
+            j = m_densityMatrix[0].size() - 1;
+
+        m_densityMatrix[i][j];
+        Real2 density = m_densityMatrix[i][j];
+
+        // Mapping density from 0..1 to 1..-1
+        Real2 distance = -1.0 * ((density * 2.0) - 1.0);
+
+        return distance;
+    }
 
     // Bounding box for the meshing cell.
     BBox<Point2D> m_bbox;

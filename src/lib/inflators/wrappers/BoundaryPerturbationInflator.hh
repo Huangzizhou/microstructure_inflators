@@ -87,12 +87,8 @@ public:
 
     BoundaryPerturbationInflator(const std::vector<MeshIO::IOVertex>  &inVertices,
                                  const std::vector<MeshIO::IOElement> &inElements,
+                                 bool periodic = true,
                                  Real epsilon = 1e-5);
-
-    // Non periodic case
-    BoundaryPerturbationInflator(const std::vector<MeshIO::IOVertex>  &inVertices,
-                                 const std::vector<MeshIO::IOElement> &inElements,
-                                 std::vector<CondPtr<N> > &bconds);
 
     ////////////////////////////////////////////////////////////////////////////
     // Inflation
@@ -104,6 +100,29 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     // Shape velocity
     ////////////////////////////////////////////////////////////////////////////
+    virtual std::vector<VectorField<Real, N>> volumeShapeVelocities() const override {
+        std::vector<VectorField<Real, N>> result(numParameters());
+
+        for (unsigned param = 0; param < numParameters(); param++) {
+            VectorField<Real, N> velocityForP(m_mesh->numVertices());
+            velocityForP.clear();
+            for (auto vv : m_mesh->vertices()) {
+                for (size_t d = 0; d < N; ++d) {
+                    auto var = m_varForCoordinate[d].at(vv.index());
+                    size_t p = m_paramForVariable[d].at(var);
+                    if (p == param)
+                        velocityForP(vv.index())[d] = 1.0;
+                    else
+                        velocityForP(vv.index())[d] = 0.0;
+                }
+            }
+
+            result[param] = velocityForP;
+        }
+
+        return result;
+    }
+
     // Read off the parameter values from a particular per-boundary-vertex
     // vector field, verifying its consistency with the periodic constraints
     // If guaranteeing consistent boundary vertex enumerations across multiple
@@ -114,7 +133,7 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     // Queries
     ////////////////////////////////////////////////////////////////////////////
-    virtual bool isParametric() const override { return false; }
+    virtual bool isParametric() const override { return true; } // vertices coordinates can be considered parameters
     virtual size_t numParameters() const override { return m_numParams; }
     virtual std::vector<Real> defaultParameters() const override { return std::vector<Real>(m_numParams); }
     virtual ParameterType parameterType(size_t /* p */) const override {
@@ -124,6 +143,7 @@ public:
         // TODO
         return true;
     }
+    virtual void setReflectiveInflator(bool /*use*/)  override { } // needed when inflator does not implement symmetry
 
     ////////////////////////////////////////////////////////////////////////////
     // Boundary perturbation-specific
@@ -163,7 +183,43 @@ public:
         return false;
     }
 
-    virtual BBox<Vector3D> meshingCell() override;
+    // Obtain parameter indices related to vertices around a given input point.
+    std::vector<int> pointToParametersIndices(const VectorND<N> inputPoint, double tolerance = 1e-8) {
+        std::vector<int> result;
+
+        for (size_t vi = 0; vi < m_mesh->numVertices(); ++vi) {
+            VectorND<N> currentPoint = m_mesh->vertex(vi).node()->p;
+
+            if ((currentPoint - inputPoint).squaredNorm() < tolerance) {
+
+                for (size_t d = 0; d < N; d++) {
+                    size_t var = m_varForCoordinate[d].at(vi);
+                    size_t p = m_paramForVariable[d].at(var);
+
+                    if (p != NONE)
+                        result.push_back(p);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    // Obtain point related to parameter index
+    VectorND<N> parameterIndexToPoint(size_t param) {
+        VectorND<N> empty;
+
+        for (auto vv : m_mesh->vertices()) {
+            for (size_t d = 0; d < N; ++d) {
+                auto var = m_varForCoordinate[d].at(vv.index());
+                size_t p = m_paramForVariable[d].at(var);
+                if (p == param)
+                    return vv.node()->p;
+            }
+        }
+
+        return empty;
+    }
 
     virtual ~BoundaryPerturbationInflator() { }
 
@@ -173,7 +229,7 @@ private:
     std::array<std::vector<size_t>, N> m_paramForVariable;
     std::vector<bool> m_isPeriodicBE;
     std::array<std::vector<bool>, N> m_bcVertexVariable; // say if variable is from boundary condition node
-    std::array<std::vector<Real>, N> m_bcVertexValue; // saves variable constant value when
+    std::array<std::vector<Real>, N> m_bcVertexValue; // saves variable constant value when inside a boundary condition region
 
     size_t m_numParams;
     std::array<size_t, N> m_numVars;
@@ -194,9 +250,8 @@ private:
                    const std::vector<MeshIO::IOElement> &inElements, Real epsilon);
 
     // Non periodic case
-    void m_setMesh(const std::vector<MeshIO::IOVertex>  &inVertices,
-                   const std::vector<MeshIO::IOElement> &inElements,
-                   std::vector<CondPtr<N> > bconds);
+    void m_setNonPeriodicMesh(const std::vector<MeshIO::IOVertex>  &inVertices,
+                   const std::vector<MeshIO::IOElement> &inElements);
 };
 
 #endif /* end of include guard: BOUNDARYPERTURBATIONINFLATOR_HH */

@@ -4,8 +4,6 @@
 #include <MeshFEM/MeshIO.hh>
 #include <MeshFEM/Future.hh>
 
-#include <limits>
-
 template<size_t N>
 BoundaryPerturbationInflator<N>::BoundaryPerturbationInflator(
         const std::string &meshPath, Real epsilon)
@@ -27,21 +25,17 @@ BoundaryPerturbationInflator<N>::BoundaryPerturbationInflator(
 template<size_t N>
 BoundaryPerturbationInflator<N>::BoundaryPerturbationInflator(
         const std::vector<MeshIO::IOVertex>  &inVertices,
-        const std::vector<MeshIO::IOElement> &inElements, Real epsilon)
-{
-    m_setMesh(inVertices, inElements, epsilon);
-}
-
-// Inflator used when in the case of non periodic structures
-template<size_t N>
-BoundaryPerturbationInflator<N>::BoundaryPerturbationInflator(
-        const std::vector<MeshIO::IOVertex>  &inVertices,
         const std::vector<MeshIO::IOElement> &inElements,
-        std::vector<CondPtr<N> > &bconds)
+        bool periodic, Real epsilon)
 {
-    m_isPeriodicMesh = false;
-    m_bconds = bconds;
-    m_setMesh(inVertices, inElements, bconds);
+    if (periodic) {
+        m_setMesh(inVertices, inElements, epsilon);
+    }
+    else {
+        m_isPeriodicMesh = false;
+
+        m_setNonPeriodicMesh(inVertices, inElements);
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -84,13 +78,18 @@ void BoundaryPerturbationInflator<N>::m_inflate(const std::vector<Real> &params)
         SPSDSystem<Real> L;
         UniformLaplacian::assemble(*m_mesh, L, m_varForCoordinate[d]);
 
-        fixedVars.clear(); fixedVarValues.clear();
-        // Add the special var Dirichlet constraints
-        for (size_t i = 0; i < 2 * N; ++i) {
-            fixedVars.push_back(i);
-            fixedVarValues.push_back(i < N ? bbox.minCorner[i]
-                                           : bbox.maxCorner[i - N]);
+        fixedVars.clear();
+        fixedVarValues.clear();
+
+        if (m_isPeriodicMesh) {
+            // Add the special var Dirichlet constraints
+            for (size_t i = 0; i < 2 * N; ++i) {
+                fixedVars.push_back(i);
+                fixedVarValues.push_back(i < N ? bbox.minCorner[i]
+                                               : bbox.maxCorner[i - N]);
+            }
         }
+
         // Add the parameter Dirichlet constraints
         for (size_t vari = 0; vari < m_numVars[d]; ++vari) {
             size_t p = m_paramForVariable[d][vari];
@@ -188,22 +187,6 @@ boundaryVFieldFromParams(const ScalarField<Real> &params) const
     }
 
     return result;
-}
-
-template<size_t N>
-BBox<Vector3D> BoundaryPerturbationInflator<N>::meshingCell() {
-    Vector3D cell_min;
-    Vector3D cell_max;
-    cell_min.fill(std::numeric_limits<Real>::min());
-    cell_max.fill(std::numeric_limits<Real>::max());
-
-    if (N == 2) {
-        cell_min[2] = 0.0;
-        cell_max[2] = 0.0;
-    }
-
-    BBox<Vector3D> cell(cell_min, cell_max);
-    return cell;
 }
 
 // Initialize the boundary perturbation inflator for a particular mesh.
@@ -317,10 +300,9 @@ void BoundaryPerturbationInflator<N>::m_setMesh(
 // Initialize the boundary perturbation inflator for a particular mesh
 // in the non periodic case (with boundary conditions)
 template<size_t N>
-void BoundaryPerturbationInflator<N>::m_setMesh(
+void BoundaryPerturbationInflator<N>::m_setNonPeriodicMesh(
         const std::vector<MeshIO::IOVertex>  &inVertices,
-        const std::vector<MeshIO::IOElement> &inElements,
-        std::vector<CondPtr<N> > bconds)
+        const std::vector<MeshIO::IOElement> &inElements)
 {
     m_mesh = Future::make_unique<Mesh>(inElements, inVertices);
     m_isPeriodicBE.assign(m_mesh->numBoundaryElements(), false);
@@ -328,7 +310,7 @@ void BoundaryPerturbationInflator<N>::m_setMesh(
     ////////////////////////////////////////////////////////////////////////
     // Determine variables
     ////////////////////////////////////////////////////////////////////////
-    m_numVars.fill(2 * N); // variables 0..2N-1 always store the periodic (min/max in x, y, z)
+    m_numVars.fill(0);
     // face coordinates
     m_varForCoordinate.fill(std::vector<size_t>(m_mesh->numVertices(),
                                                 size_t(NONE)));
@@ -392,26 +374,13 @@ void BoundaryPerturbationInflator<N>::m_setMesh(
         if (!isTrueBdryVertex.at(bv.index())) continue;
 
         size_t vvi = bv.volumeVertex().index();
-
-        if (isInsideBoundaryCondition(vvi, bconds)) {
-
-            for (size_t d = 0; d < N; ++d) {
-                size_t var = m_varForCoordinate[d].at(vvi);
-                m_bcVertexVariable[d][var] = true;
-                m_bcVertexValue[d][var] = bv.volumeVertex().node()->p(d);
-            }
-
-            continue;
-        }
-
         size_t numAssigned = 0;
         for (size_t d = 0; d < N; ++d) {
             size_t var = m_varForCoordinate[d].at(vvi);
-            if (var >= 2 * N) {
-                if (m_paramForVariable[d].at(var) == NONE)
-                    m_paramForVariable[d].at(var) = createParam();
-                ++numAssigned;
-            }
+            if (m_paramForVariable[d].at(var) == NONE)
+                m_paramForVariable[d].at(var) = createParam();
+            ++numAssigned;
+
         }
         // True boundary vertices should have at least one associated
         // variable (assuming tiled pattern is manifold)
