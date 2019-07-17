@@ -22,6 +22,7 @@ set(SOURCES
         wrappers/LuigiInflatorWrapper.hh
         wrappers/VoxelsInflator.cc
         wrappers/VoxelsInflator.hh
+        wrappers/ConstrainedInflator.hh
 )
 
 micro_add_library(inflators ${SOURCES})
