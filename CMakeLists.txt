@@ -69,7 +69,7 @@ option(MICRO_FAST_COMPILE    "Speed up compilation by excluding all targets from
 option(MICRO_WITH_COTIRE     "Use precompiled headers to speed up the build"                        OFF)
 option(MICRO_WITH_TBB        "Compile with TBB"                                                     ON)
 option(MICRO_WITH_CERES      "Compile with Ceres"                                                   ON)
-option(MICRO_BUILD_TOOLS     "Build tools, e.g. voxel2mesh"                                         ON)
+option(MICRO_BUILD_TOOLS     "Build tools, e.g. voxel2mesh"                                         OFF)
 option(MICRO_BUILD_BINARIES  "Build executable programs" ${MICRO_TOPLEVEL_PROJECT})
 option(MICRO_BUILD_ON_TRAVIS "Are we building on Travis" OFF)
 
