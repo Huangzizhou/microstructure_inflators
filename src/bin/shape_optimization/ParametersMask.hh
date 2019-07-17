@@ -41,7 +41,7 @@ using Point = Point3<double>;
 
 namespace ParametersMask {
     // Function that loads json file, creating regions that should be included or excluded from optimization
-     void jsonToRegions(std::string jsonPath, const BBox<Point> &bbox, vector<Region<Point> *> &inRegions, vector<Region<Point> *> &exceptRegions, vector<Region<Point> *> &glueRegions) {
+     void jsonToRegions(std::string jsonPath, const BBox<Point> &bbox, vector<std::unique_ptr<Region<Point>>> &inRegions, vector<std::unique_ptr<Region<Point>>> &exceptRegions, vector<std::unique_ptr<Region<Point>>> &glueRegions) {
 
         // reading JSON file
         ifstream input(jsonPath);
@@ -51,7 +51,7 @@ namespace ParametersMask {
         json regions = j["regions"];
         // iterate the array
         for (json::iterator it = regions.begin(); it != regions.end(); ++it) {
-            Region<Point> * newRegion;
+            std::unique_ptr<Region<Point>> newRegion;
 
             Point minCorner;
             Point maxCorner;
@@ -77,7 +77,7 @@ namespace ParametersMask {
                     maxCorner[i] = max_corner[i];
                 }
 
-                newRegion = new BBox<Point>(minCorner, maxCorner);
+                Future::make_unique<BBox<Point>>(minCorner, maxCorner);
             }
             if (box_percentage.size() > 0) {
                 // Find the bounding box
@@ -92,11 +92,11 @@ namespace ParametersMask {
                 Eigen::Array3d max_corner_array;
                 max_corner_array << 0.0, 0.0, 0.0;
 
-                for (size_t i=0; i<min_corner.size(); i++) {
+                for (size_t i = 0; i < min_corner.size(); i++) {
                     min_corner_array[i] = min_corner[i];
                 }
 
-                for (size_t i=0; i<max_corner.size(); i++) {
+                for (size_t i = 0; i < max_corner.size(); i++) {
                     max_corner_array[i] = max_corner[i];
                 }
 
@@ -118,7 +118,7 @@ namespace ParametersMask {
                 minCorner = min_corner_array.matrix();
                 maxCorner = max_corner_array.matrix();
 
-                newRegion = new BBox<Point>(minCorner, maxCorner);
+                newRegion = Future::make_unique<BBox<Point>>(minCorner, maxCorner);
             }
             if (path.size() > 0) {
                 // Always 2D
@@ -132,18 +132,18 @@ namespace ParametersMask {
                     points.push_back(eigenPoint);
                 }
 
-                newRegion = new PathRegion<Point>(points);
+                newRegion = Future::make_unique<PathRegion<Point>>(points);
             }
 
             string typeString = current_region["type"];
             if (typeString.compare("dirichlet") == 0 || typeString.compare("force") == 0 || typeString.compare("zero") == 0 || typeString.compare("contact") == 0) {
-                exceptRegions.push_back(newRegion);
+                exceptRegions.emplace_back(std::move(newRegion));
             }
             else if (typeString.compare("optimization") == 0) {
-                inRegions.push_back(newRegion);
+                inRegions.emplace_back(std::move(newRegion));
             }
             else if (typeString.compare("glue") == 0 || typeString.compare("fracture") == 0 ) {
-                glueRegions.push_back(newRegion);
+                glueRegions.emplace_back(std::move(newRegion));
             }
             else {
                 std::cerr << "Region of type " + typeString + " not expected." << std::endl;
@@ -153,12 +153,12 @@ namespace ParametersMask {
     }
 
     // Decide which points should be excluded from optimization
-    vector<Point> excludedPoints(vector<Point> points, vector<Region<Point> *> &inRegions, vector<Region<Point> *> &exceptRegions) {
+    vector<Point> excludedPoints(vector<Point> points, vector<std::unique_ptr<Region<Point>>> &inRegions, vector<std::unique_ptr<Region<Point>>> &exceptRegions) {
         set<int> in;
 
         // saving points that are inside 'in' regions
         if (inRegions.size() > 0) {
-            for (auto region : inRegions) {
+            for (auto& region : inRegions) {
                 for (size_t i = 0; i < points.size(); i++) {
                     if (region->containsPoint(points[i])) {
                         in.insert(i);
@@ -174,7 +174,7 @@ namespace ParametersMask {
         }
 
         // remove points from 'in' regions that are also inside except regions
-        for (auto region : exceptRegions) {
+        for (auto& region : exceptRegions) {
             for (size_t i = 0; i < points.size(); i++) {
                 if (region->containsPoint(points[i])) {
                     in.erase(i);
@@ -193,7 +193,7 @@ namespace ParametersMask {
     }
 
     // Extract filtering regions from file
-    void extractFilteringRegions(string bcondsPath, vector<Point> points, vector<Region<Point> *> &inRegions, vector<Region<Point> *> &exceptRegions, vector<Region<Point> *> &glueRegions) {
+    void extractFilteringRegions(string bcondsPath, vector<Point> points, vector<std::unique_ptr<Region<Point>>> &inRegions, vector<std::unique_ptr<Region<Point>>> &exceptRegions, vector<std::unique_ptr<Region<Point>>> &glueRegions) {
         if (!bcondsPath.empty()) {
             BBox<Point> bb(points);
 
@@ -236,9 +236,9 @@ namespace ParametersMask {
 
         wireMesh->inflationGraph(params, points, edges, thicknesses, blendingParams, blendingPolyParams);
 
-        vector<Region<Point> *> inRegions;
-        vector<Region<Point> *> exceptRegions;
-        vector<Region<Point> *> glueRegions;
+        vector<std::unique_ptr<Region<Point>>> inRegions;
+        vector<std::unique_ptr<Region<Point>>> exceptRegions;
+        vector<std::unique_ptr<Region<Point>>> glueRegions;
         extractFilteringRegions(bcondsPath, points, inRegions, exceptRegions, glueRegions);
 
         // find which points should be excluded
@@ -295,9 +295,9 @@ namespace ParametersMask {
             points.push_back(inVertices[i].point);
         }
 
-        vector<Region<Point> *> inRegions;
-        vector<Region<Point> *> exceptRegions;
-        vector<Region<Point> *> glueRegions;
+        vector<std::unique_ptr<Region<Point>>> inRegions;
+        vector<std::unique_ptr<Region<Point>>> exceptRegions;
+        vector<std::unique_ptr<Region<Point>>> glueRegions;
         extractFilteringRegions(bcondsPath, points, inRegions, exceptRegions, glueRegions);
 
         // find which points should be excluded
@@ -352,9 +352,9 @@ namespace ParametersMask {
             points.push_back(inVertices[i].point);
         }
 
-        vector<Region<Point> *> inRegions;
-        vector<Region<Point> *> exceptRegions;
-        vector<Region<Point> *> glueRegions;
+        vector<std::unique_ptr<Region<Point>>> inRegions;
+        vector<std::unique_ptr<Region<Point>>> exceptRegions;
+        vector<std::unique_ptr<Region<Point>>> glueRegions;
         extractFilteringRegions(bcondsPath, points, inRegions, exceptRegions, glueRegions);
 
         if (glueRegions.size() > 0) {

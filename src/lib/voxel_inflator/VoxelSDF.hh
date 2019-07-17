@@ -8,8 +8,8 @@
 #ifndef VOXELSIGNEDDISTANCE_HH
 #define VOXELSIGNEDDISTANCE_HH
 
-#include "../isosurface_inflator/SignedDistanceRegion.hh"
-#include "../isosurface_inflator/SignedDistance.hh"
+#include <isosurface_inflator/SignedDistanceRegion.hh>
+#include <isosurface_inflator/SignedDistance.hh>
 
 #include <MeshFEM/Future.hh>
 #include <unordered_map>
