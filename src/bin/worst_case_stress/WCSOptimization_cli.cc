@@ -65,6 +65,7 @@
 #include <pattern_optimization/objective_terms/IsotropicFitRel.hh>
 #include <pattern_optimization/objective_terms/ProximityRegularization.hh>
 #include <pattern_optimization/objective_terms/TargetVolume.hh>
+#include <pattern_optimization/objective_terms/SmoothingRegularization.hh>
 
 #include <pattern_optimization/constraints/TensorFit.hh>
 #include <pattern_optimization/constraints/Printability.hh>
@@ -76,7 +77,7 @@ namespace PO = PatternOptimization;
 using json = nlohmann::json;
 using namespace std;
 
-void usage(int exitVal, const po::options_description &visible_opts) {
+[[ noreturn ]] void usage(int exitVal, const po::options_description &visible_opts) {
     cout << "Usage: WCSOptimization_cli [options] job.opt" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
@@ -153,6 +154,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("proximityRegularizationWeight", po::value<double>(),            "Use a quadratic proximity regularization term with the specified weight.")
         ("proximityRegularizationTarget", po::value<string>(),            "The target parameter values for the proximity regularization term (defaults to initial parameters.)")
         ("proximityRegularizationZeroTarget",                             "Use 0 vector as target parameter of proximity regularization cost function term.")
+        ("smoothingRegularizationWeight", po::value<double>(),            "Use a smoothing regularization term for the boundary of the mesh with the specified weight (when using the BoundaryPerturbation inflator).")
         ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ("JIsoFixedTarget",                                               "Make JIso just fit to the closest isotropic tensor to the *original* tensor.")
         ("targetVolWeight", po::value<double>()->default_value(0.0),      "Weight for the target volume term of the objective")
@@ -358,6 +360,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     using IsotropyFitConfig      = PO::ObjectiveTerms::IFConfigIsotropyFit<Simulator>;
     using IsoFitRelConfig        = PO::ObjectiveTerms::IFConfigIsotropyFitRel<Simulator>;
     using PRegTermConfig         = PO::ObjectiveTerms::IFConfigProximityRegularization;
+    using SRegTermConfig         = PO::ObjectiveTerms::IFConfigSmoothingRegularization<Simulator>;
     using TargetVolumeTermConfig = PO::ObjectiveTerms::IFConfigTargetVolume<Simulator>;
     using TFConstraintConfig  = PO::   Constraints::IFConfigTensorFit<Simulator>;
     using  PConstraintConfig  = PO::   Constraints::IFConfigPrintability<Simulator>;
@@ -368,6 +371,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
          IsotropyFitConfig,
          IsoFitRelConfig,
          PRegTermConfig,
+         SRegTermConfig,
          TFConstraintConfig,
          TargetVolumeTermConfig,
          PConstraintConfig>(inflator, bdcs);
@@ -380,6 +384,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     ifactory->IsotropyFitConfig       ::enabled = args.count("JIsoWeight");
     ifactory->IsoFitRelConfig         ::enabled = args.count("JIsoRelWeight");
     ifactory->PRegTermConfig          ::enabled = args.count("proximityRegularizationWeight");
+    ifactory->SRegTermConfig          ::enabled = args.count("smoothingRegularizationWeight");
     ifactory->TFConstraintConfig      ::enabled = false;
     ifactory->PConstraintConfig       ::enabled = false;
     ifactory->TargetVolumeTermConfig  ::enabled = args["targetVolWeight"].as<double>() > 0.0;
@@ -452,6 +457,11 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
             vector<Real> zeroTargetParams(job->numParams(), 0.0);
             ifactory->PRegTermConfig::IFConfigProximityRegularization::targetParams = zeroTargetParams;
         }
+    }
+
+    if (args.count("smoothingRegularizationWeight")) {
+        ifactory->SRegTermConfig::enabled = true;
+        ifactory->SRegTermConfig::weight = args["smoothingRegularizationWeight"].as<double>();
     }
 
     if (args["targetVolWeight"].as<double>() > 0.0) {

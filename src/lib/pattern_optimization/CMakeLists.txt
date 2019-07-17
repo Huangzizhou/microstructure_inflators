@@ -21,6 +21,7 @@ set(SOURCES
 		objective_terms/ProximityRegularization.hh
 		objective_terms/TargetVolume.hh
 		objective_terms/TensorFit.hh
+		objective_terms/SmoothingRegularization.hh
 		constraints/Printability.hh
 		constraints/TensorFit.hh
 )
