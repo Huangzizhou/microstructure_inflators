@@ -65,7 +65,7 @@
 #include <pattern_optimization/objective_terms/IsotropicFitRel.hh>
 #include <pattern_optimization/objective_terms/ProximityRegularization.hh>
 #include <pattern_optimization/objective_terms/TargetVolume.hh>
-#include <pattern_optimization/objective_terms/SmoothingRegularization.hh>
+#include <pattern_optimization/objective_terms/PeriodicSmoothingRegularization.hh>
 
 #include <pattern_optimization/constraints/TensorFit.hh>
 #include <pattern_optimization/constraints/Printability.hh>
@@ -360,7 +360,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     using IsotropyFitConfig      = PO::ObjectiveTerms::IFConfigIsotropyFit<Simulator>;
     using IsoFitRelConfig        = PO::ObjectiveTerms::IFConfigIsotropyFitRel<Simulator>;
     using PRegTermConfig         = PO::ObjectiveTerms::IFConfigProximityRegularization;
-    using SRegTermConfig         = PO::ObjectiveTerms::IFConfigSmoothingRegularization<Simulator>;
+    using SRegTermConfig         = PO::ObjectiveTerms::IFConfigPeriodicSmoothingRegularization<Simulator>;
     using TargetVolumeTermConfig = PO::ObjectiveTerms::IFConfigTargetVolume<Simulator>;
     using TFConstraintConfig  = PO::   Constraints::IFConfigTensorFit<Simulator>;
     using  PConstraintConfig  = PO::   Constraints::IFConfigPrintability<Simulator>;
