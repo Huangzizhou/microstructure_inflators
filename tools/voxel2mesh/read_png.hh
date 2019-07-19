@@ -8,7 +8,7 @@
 
 #include <png.h>
 
-png_bytep * read_png_file(std::string file_name, size_t &width, size_t &height)
+png_bytep * read_png_file(std::string file_name, size_t &width, size_t &height, png_byte &bit_depth)
 {
     char header[8];    // 8 is the maximum size that can be checked
 
@@ -39,7 +39,7 @@ png_bytep * read_png_file(std::string file_name, size_t &width, size_t &height)
     width = png_get_image_width(png_ptr, info_ptr);
     height = png_get_image_height(png_ptr, info_ptr);
     png_byte color_type = png_get_color_type(png_ptr, info_ptr);
-    png_byte bit_depth = png_get_bit_depth(png_ptr, info_ptr);
+    bit_depth = png_get_bit_depth(png_ptr, info_ptr);
 
     png_read_update_info(png_ptr, info_ptr);
 
@@ -55,13 +55,13 @@ png_bytep * read_png_file(std::string file_name, size_t &width, size_t &height)
 
     fclose(fp);
 
-    //std::cout << "PNG code: " << (int) png_get_color_type(png_ptr, info_ptr) << std::endl;
-    //std::cout << "Bit depth: " << (int) bit_depth << std::endl;
+    std::cout << "PNG code: " << (int) png_get_color_type(png_ptr, info_ptr) << std::endl;
+    std::cout << "Bit depth: " << (int) bit_depth << std::endl;
 
     if (png_get_color_type(png_ptr, info_ptr) != PNG_COLOR_TYPE_GRAY)
         throw std::runtime_error("color_type of input file must be PNG_COLOR_TYPE_GRAY");
 
-    if (bit_depth != 1)
+    if (bit_depth != 1 && bit_depth != 8)
         throw std::runtime_error("bit depth should be 1");
 
     return row_pointers;

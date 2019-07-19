@@ -38,32 +38,51 @@ int main(int argc, char ** argv) {
 
     // read input png file, transforming it into a png_bytep pointer
     size_t width, height;
-    png_bytep * png_matrix = read_png_file(args.inputPath, width, height);
+    unsigned char bit_depth;
+    png_bytep * png_matrix = read_png_file(args.inputPath, width, height, bit_depth);
 
     // Construct density matrix
     std::vector<std::vector<double>> density_matrix(height);
-    for (size_t y = 0; y < height; y++) {
-        png_byte *row = png_matrix[y];
-        density_matrix[y] = std::vector<double>(width);
-        //std::cout << "width: " << width << std::endl;
 
-        for (size_t x = 0; x <= width/8; x++) {
-            if (x*8 == width) {
-                break;
-            }
+    if (bit_depth == 1) {
+        for (size_t y = 0; y < height; y++) {
+            png_byte *row = png_matrix[y];
+            density_matrix[y] = std::vector<double>(width);
+            //std::cout << "width: " << width << std::endl;
 
-            unsigned char byte = row[x];
-            std::bitset<8> in_bits = std::bitset<8>(byte);
-            //std::cout << in_bits;
+            for (size_t x = 0; x <= width/8; x++) {
+                if (x*8 == width) {
+                    break;
+                }
 
-            for (size_t i=0; i<8; i++) {
-                if ((x*8 + 7 - i) < width) {
-                    density_matrix[y][x * 8 + 7 - i] = 1.0 - in_bits[i];
+                unsigned char byte = row[x];
+                std::bitset<8> in_bits = std::bitset<8>(byte);
+                //std::cout << in_bits;
+
+                for (size_t i=0; i<8; i++) {
+                    if ((x*8 + 7 - i) < width) {
+                        density_matrix[y][x * 8 + 7 - i] = 1.0 - in_bits[i];
+                    }
                 }
             }
+            //std::cout << std::endl;
         }
-        //std::cout << std::endl;
     }
+    else {
+        for (size_t y = 0; y < height; y++) {
+            png_byte *row = png_matrix[y];
+            density_matrix[y] = std::vector<double>(width);
+            //std::cout << "width: " << width << std::endl;
+
+            for (size_t x = 0; x < width; x++) {
+                unsigned char byte = row[x];
+                density_matrix[y][x] = 1.0 - byte / 255.0;
+                std::cout << density_matrix[y][x];
+            }
+            std::cout << std::endl;
+        }
+    }
+
 
     // Print densities
     /*for (size_t i = 0; i < density_matrix.size(); i++) {
