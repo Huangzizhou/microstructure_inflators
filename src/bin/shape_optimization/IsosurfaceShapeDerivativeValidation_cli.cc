@@ -27,9 +27,9 @@
 #include <pattern_optimization/IterateFactory.hh>
 #include <pattern_optimization/IterateManager.hh>
 
-#include "ShapeOptimizationIterate.hh"
-#include "StressObjectiveTerm.hh"
-#include "ParametersMask.hh"
+#include <shape_optimization/ShapeOptimizationIterate.hh>
+#include <shape_optimization/StressObjectiveTerm.hh>
+#include <shape_optimization/ParametersMask.hh>
 
 #include <inflators/wrappers/ConstrainedInflator.hh>
 #include <inflators/wrappers/IsoinflatorWrapper.hh>

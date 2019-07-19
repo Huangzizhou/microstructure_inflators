@@ -40,12 +40,12 @@
 #include <optimizers/wrappers/gradient_descent.hh>
 #include <optimizers/wrappers/nlopt.hh>
 
-#include "ShapeOptimizationIterate.hh"
+#include <shape_optimization/ShapeOptimizationIterate.hh>
 
 #include <pattern_optimization/objective_terms/ProximityRegularization.hh>
 #include <pattern_optimization/objective_terms/TargetVolume.hh>
-#include "StressObjectiveTerm.hh"
-#include "ParametersMask.hh"
+#include <shape_optimization/StressObjectiveTerm.hh>
+#include <shape_optimization/ParametersMask.hh>
 
 #include <pattern_optimization/constraints/Printability.hh>
 

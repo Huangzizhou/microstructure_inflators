@@ -33,8 +33,8 @@
 #include <inflators/wrappers/ConstrainedInflator.hh>
 #include <inflators/wrappers/BoundaryPerturbationInflator.hh>
 #include <isosurface_inflator/ShapeVelocityInterpolator.hh>
-#include "MicroscopicStress.hh"
-#include "ParametersMask.hh"
+#include <shape_optimization/MicroscopicStress.hh>
+#include <shape_optimization/ParametersMask.hh>
 
 namespace po = boost::program_options;
 using namespace std;
