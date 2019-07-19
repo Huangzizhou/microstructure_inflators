@@ -27,7 +27,7 @@ endfunction()
 function(micro_download_meshfem)
     micro_download_project(MeshFEM
         GIT_REPOSITORY git@github.com:geometryprocessing/MeshFEM.git
-        GIT_TAG        ed237473e57c4138eaf185ac3715282a9dc59191
+        GIT_TAG        e5c67598305f674e97d47163306b923a1f9f5891
     )
 endfunction()
 
