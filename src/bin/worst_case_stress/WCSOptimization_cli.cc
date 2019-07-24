@@ -146,6 +146,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("pnorm,P",      po::value<double>()->default_value(1.0),         "pnorm used in the Lp global worst case stress measure")
         ("usePthRoot,R",                                                  "Use the true Lp norm for global worst case stress measure (applying pth root)")
         ("WCSWeight",    po::value<double>()->default_value(1.0),         "Weight for the WCS term of the objective")
+        ("WCSTarget",    po::value<double>()->default_value(0.0),         "Target for max stress allowed for the structure")
         ("WCSMeasure,w", po::value<string>()->default_value("frobenius"), "Which worst-case stress measure to analyze ('frobenius', 'vonMises')")
         ("FixedMacroStress", po::value<string>(),                         "Use a fixed macroscopic stress tensor instead of the worst-case")
         ("JSWeight",     po::value<double>(),                             "Use the NLLS tensor fitting term with specified weight.")
@@ -393,7 +394,10 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     // By default, an "Lp norm" objective is really the p^th power of the Lp norm.
     // To use the true "Lp norm", globalObjectiveRoot must be set to
     // 2.0 * globalObjectivePNorm (since pointwise WCS is already squared (e.g. Frobenius) norm)
+    // Set target as squared value (since pointwise WCS is already squared (e.g. Frobenius) norm)
     ifactory->WCSTermConfig::weight = args["WCSWeight"].as<double>();
+    double target = args["WCSTarget"].as<double>();
+    ifactory->WCSTermConfig::target = target * target;
     Real pnorm = args["pnorm"].as<double>();
     ifactory->WCSTermConfig::globalObjectivePNorm = pnorm;
     ifactory->WCSTermConfig::globalObjectiveRoot  = args.count("usePthRoot") ? 2.0 * pnorm : 1.0;

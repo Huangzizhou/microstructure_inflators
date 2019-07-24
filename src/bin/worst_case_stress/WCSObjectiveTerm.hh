@@ -21,13 +21,14 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
     using SMatrix = typename _Sim::SMatrix;
     template<class _Iterate>
     WorstCaseStress(const _Iterate &it,
-                    Real globalObjectivePNorm, Real globalObjectiveRoot,
+                    Real globalObjectivePNorm, Real globalObjectiveRoot, Real stressTarget,
                     const std::string &measure,
                     const SMatrix *macroLoad)
         : m_baseCellOps(it.baseCellOps())
     {
         // Configure objective
         m_wcs_objective.integrand.p        = globalObjectivePNorm;
+        m_wcs_objective.integrand.target   = stressTarget;
         m_wcs_objective.p                  = globalObjectiveRoot;
         m_wcs_objective.numReflectedCopies = m_baseCellOps.numReflectedCells();
 
@@ -84,7 +85,20 @@ struct WorstCaseStress : ObjectiveTerm<_Sim::N> {
     virtual void writeFields(MSHFieldWriter &writer) const override {
         ScalarField<Real> j = m_wcs_objective.integrandValues();
 
-        writer.addField("Pointwise WCS", m_wcs_objective.wcStress.sqrtStressMeasure());
+        // plot max stress field
+        ScalarField<Real> sqrtStressField = m_wcs_objective.wcStress.sqrtStressMeasure();
+        writer.addField("Pointwise WCS", sqrtStressField);
+
+        // plot difference between max stress and target at each element
+        ScalarField<Real> diff(sqrtStressField.domainSize());
+        for (size_t i = 0; i < diff.domainSize(); ++i) {
+            if (sqrtStressField[i] > sqrt(m_wcs_objective.integrand.target))
+                diff[i] = sqrtStressField[i] - sqrt(m_wcs_objective.integrand.target);
+            else
+                diff[i] = 0.0;
+        }
+        writer.addField("WCS above target", diff);
+
         // writer.addField("j", j);
 
         ScalarField<Real> eigPrincipal(m_wcs_objective.wcStress.eigPrincipal),
@@ -143,12 +157,17 @@ struct IFConfigWorstCaseStress : public IFConfig {
         static_assert(_Iterate::_N == N, "Mismatch in problem dimensions.");
         BENCHMARK_START_TIMER_SECTION("WCS Term");
         auto wcs = Future::make_unique<WorstCaseStress<_Sim, _WCSObjectiveType>>(
-                *it, globalObjectivePNorm, globalObjectiveRoot, measure, macroLoad.get());
+                *it, globalObjectivePNorm, globalObjectiveRoot, target, measure, macroLoad.get());
         wcs->setWeight(weight);
 
         // WCS normalization is the initial worst case stress
-        if (!normalizations.isSet("WCS"))
-            normalizations.set("WCS", 1.0 / wcs->evaluate());
+        if (!normalizations.isSet("WCS")) {
+            if (target > 0.0)
+                // Protection in cases where a target is used, since wcs could be then equal to 0.0
+                normalizations.set("WCS", 1.0);
+            else
+                normalizations.set("WCS", 1.0 / wcs->evaluate());
+        }
 
         wcs->setNormalization(normalizations["WCS"]);
         it->addObjectiveTerm("WCS", std::move(wcs));
@@ -158,6 +177,7 @@ struct IFConfigWorstCaseStress : public IFConfig {
     Real weight = 1.0;
     Real globalObjectivePNorm = 1.0;
     Real globalObjectiveRoot = 1.0;
+    Real target = 0.0;
     std::string measure = std::string("frobenius");
     std::unique_ptr<typename _Sim::SMatrix> macroLoad;
 };

@@ -645,16 +645,32 @@ struct WCStressIntegrandTotal {
 
 // int_omega worst_case_stress^p dV
 // i.e. j(s, x) = s^p -> j' = p s^(p - 1).
+// if there is a target stress:
+//   j(s) = (s-target)^p, if s >= target
+//   j(s) = 0 , otherwise
+//   If p >= 2, guaranteed to be smooth
 struct WCStressIntegrandLp {
     template<size_t N, class Mesh>
     void init(const Mesh &/* m */, const WorstCaseStress<N> &/* wcs */) { }
 
     WCStressIntegrandLp() { }
 
-    Real j(Real wcStress, size_t /* x_i */) const { return pow(wcStress, p); }
+    Real j(Real wcStress, size_t /* x_i */) const {
+        if (wcStress >= target)
+            return pow(wcStress - target, p);
+        else
+            return 0;
+    }
     // Derivative of global objective integrand wrt worst case stress.
-    Real j_prime(Real wcStress, size_t /* x_i */) const { return p * pow(wcStress, p - 1); }
+    Real j_prime(Real wcStress, size_t /* x_i */) const {
+        if (wcStress >= target)
+            return p * pow(wcStress - target, p - 1);
+        else
+            return 0;
+    }
+
     Real p = 1.0;
+    Real target = 0.0;
 };
 
 // Global max worst-case objective:
@@ -740,7 +756,14 @@ using Base = SubObjective;
     Real p = 1.0;
 private:
     Real m_gradientScale() const {
-        return (1.0 / p) * pow(Base::evaluate(), 1.0 / p - 1.0);
+        Real value = Base::evaluate();
+
+        // Protect for the case where value is 0.0, which would make computation undefined.
+        // When value is 0.0, derivative will also be 0.
+        if (value > 0.0)
+            return (1.0 / p) * pow(value, 1.0 / p - 1.0);
+        else
+            return 0.0;
     }
 };
 
