@@ -120,7 +120,7 @@ mesh(std::list<std::list<Point2D>> &polygons,
                                  exceptRegions,
                                  cellBdryEdgeLen,
                                  std::vector<double>(),
-                                 0.0, true);
+                                 0.0, !this->meshInterfaceConsistently);
                 ++i;
             }
         }

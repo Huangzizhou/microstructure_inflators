@@ -55,6 +55,8 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
             ("polygonInput",                               "defines that the input file is a set of polygons instead of a mesh")
             ("remeshingRegion,r", po::value<string>(),     "file describing (non)remeshing regions")
             ("gridSize,g", po::value<size_t>(),            "grid size to be used in resampling")
+            ("noneCurveCleanup,n",                         "do not clean up boundary of polygon")
+            ("collapseCleanup,n",                          "perform collapse clean up")
             ;
 
     po::options_description cli_opts;
@@ -185,6 +187,13 @@ int main(int argc, char *argv[])
 
     if (args.count("periodic") > 0) {
         polygonMesher.meshInterfaceConsistently = true;
+    }
+
+    if (args.count("noneCurveCleanup") > 0) {
+        polygonMesher.meshingOptions.curveSimplifier = MeshingOptions::NONE;
+    }
+    else if (args.count("collapseCleanup") > 0) {
+        polygonMesher.meshingOptions.curveSimplifier = MeshingOptions::COLLAPSE;
     }
 
     polygonMesher.mesh(polygons, vertices, elements, remeshingRegions, exceptRegions);

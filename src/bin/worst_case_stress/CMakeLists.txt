@@ -10,3 +10,4 @@ micro_single_app(MacroMicroStress_cli micro::pattern_optimization MeshFEM micro:
 micro_single_app(WCS_cli micro::pattern_optimization MeshFEM micro::tbb meshfem::boost)
 micro_single_app(WCSOptimization_cli micro::pattern_optimization micro::optimizers micro::inflators json::json micro::tbb meshfem::boost)
 # micro_single_app(WCSRemeshingOptimization_cli micro::pattern_optimization)
+micro_single_app(GenBoundaryPerturbationInflatorJob micro::pattern_optimization micro::inflators json::json meshfem::boost)

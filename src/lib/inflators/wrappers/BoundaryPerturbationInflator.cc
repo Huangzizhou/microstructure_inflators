@@ -20,6 +20,8 @@ BoundaryPerturbationInflator<N>::BoundaryPerturbationInflator(
     if (dim != N) throw std::runtime_error("Mesh/inflator dimension match.");
 
     m_setMesh(inVertices, inElements, epsilon);
+
+    m_bbox = m_mesh->boundingBox();
 }
 
 template<size_t N>
@@ -36,6 +38,8 @@ BoundaryPerturbationInflator<N>::BoundaryPerturbationInflator(
 
         m_setNonPeriodicMesh(inVertices, inElements);
     }
+
+    m_bbox = m_mesh->boundingBox();
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -55,7 +59,7 @@ void BoundaryPerturbationInflator<N>::m_inflate(const std::vector<Real> &params)
     //fixedVars.reserve(2 * N + m_numParams);
     //fixedVarValues.reserve(2 * N + m_numParams);
 
-    const auto bbox = m_mesh->boundingBox();
+    const auto bbox = m_bbox;
 
     m_vertices.clear(), m_vertices.resize(m_mesh->numVertices());
     m_elements.clear(), m_elements.assign(m_mesh->numElements(), MeshIO::IOElement(N + 1));
@@ -95,7 +99,8 @@ void BoundaryPerturbationInflator<N>::m_inflate(const std::vector<Real> &params)
             size_t p = m_paramForVariable[d][vari];
             if (p != NONE) {
                 fixedVars.push_back(vari);
-                fixedVarValues.push_back(params.at(p) + m_origParams[p]);
+                Real new_value = params.at(p) + m_origParams[p];
+                fixedVarValues.push_back(new_value);
             }
             else if (!m_isPeriodicMesh && m_bcVertexVariable[d][vari]) {
                 if (find(fixedVars.begin(), fixedVars.end(), vari) == fixedVars.end()) {

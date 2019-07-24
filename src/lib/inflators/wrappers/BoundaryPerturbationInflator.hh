@@ -97,6 +97,44 @@ private:
     virtual void m_inflate(const std::vector<Real> &params) override;
 public:
 
+    // Extract custom bounds given a maxim offset and the tolerance.
+    // This is important for periodic cases where you don't want vertices to move outise of
+    // your original base cell.
+    std::vector<std::vector<Real>> customBounds(Real maxOffset = 0.1, Real tol = 1e-3) const {
+        std::vector<std::vector<Real>> result(numParameters());
+        Real upperBound, lowerBound;
+
+        // initialize
+        for (unsigned param = 0; param < numParameters(); param++) {
+            result[param] = {-maxOffset, maxOffset};
+        }
+
+        for (size_t d = 0; d < N; ++d) {
+            for (size_t vari = 0; vari < m_numVars[d]; ++vari) {
+                size_t p = m_paramForVariable[d][vari];
+                if (p != NONE) {
+                    if ((m_origParams[p] + maxOffset) > (m_bbox.maxCorner[d] - tol)) {
+                        upperBound = m_bbox.maxCorner[d] - tol - m_origParams[p];
+                    }
+                    else {
+                        upperBound = maxOffset;
+                    }
+
+                    if ((m_origParams[p] - maxOffset) < (m_bbox.minCorner[d] + tol)) {
+                        lowerBound = m_bbox.minCorner[d] + tol - m_origParams[p];
+                    }
+                    else {
+                        lowerBound = - maxOffset;
+                    }
+
+                    result[p] = {lowerBound, upperBound};
+                }
+            }
+        }
+
+        return result;
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     // Shape velocity
     ////////////////////////////////////////////////////////////////////////////
@@ -244,6 +282,7 @@ private:
     bool m_isPeriodicMesh = true;
 
     std::unique_ptr<Mesh> m_mesh;
+    BBox<VectorND<N>> m_bbox;
     std::vector<CondPtr<N> > m_bconds;
 
     void m_setMesh(const std::vector<MeshIO::IOVertex>  &inVertices,
