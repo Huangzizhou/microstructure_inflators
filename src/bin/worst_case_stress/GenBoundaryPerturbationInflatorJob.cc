@@ -42,6 +42,8 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     visible_opts.add_options()("help",                                        "Produce this help message")
         ("maxOffset,o",      po::value<double>(),                             "maximum offset")
         ("elasticityTensor,e",  po::value<string>()->default_value("1,0"),    "target tensor specifier (Young,Poisson)")
+        ("targetVolume,v",  po::value<double>()->default_value(0.0),          "target volume")
+        ("targetInitialVolume",                                               "set target volume as initial one")
         ;
 
     po::options_description cli_opts;
@@ -114,6 +116,13 @@ int main(int argc, const char *argv[])
             job->varLowerBounds.emplace(p, boundsPerParam[p][0]);
             job->varUpperBounds.emplace(p, boundsPerParam[p][1]);
         }
+    }
+
+    if (args.count("targetInitialVolume")) {
+        job->targetVolume = inflator->volume();
+    }
+    else {
+        job->targetVolume = args["targetVolume"].as<double>();
     }
 
     // Fake value for other bounds

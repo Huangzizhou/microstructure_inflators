@@ -159,7 +159,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("LaplacianRegWeight,r", po::value<double>()->default_value(0.0), "Weight for the boundary Laplacian regularization term")
         ("JIsoFixedTarget",                                               "Make JIso just fit to the closest isotropic tensor to the *original* tensor.")
         ("targetVolWeight", po::value<double>()->default_value(0.0),      "Weight for the target volume term of the objective")
-        ("targetVol", po::value<double>()->default_value(0.0),            "Define target volume")
+        ("targetVol", po::value<double>(),                                "Define target volume")
         ;
 
     po::options_description constraintOptions;
