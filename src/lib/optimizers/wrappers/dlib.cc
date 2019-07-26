@@ -163,6 +163,8 @@ void optimize_dlib_custom_bfgs(ScalarField<Real> &params,
     double previousVal = std::numeric_limits<Real>::max();
     double minimumStep = 1e-15;
 
+    im.setOutPath(outPath);
+
     dlib::bfgs_search_strategy strategy = dlib::bfgs_search_strategy();
 
     for (size_t i = 0; i < oconfig.niters; ++i) {
@@ -172,6 +174,9 @@ void optimize_dlib_custom_bfgs(ScalarField<Real> &params,
             return;
 
         try {
+            std::vector<Real> paramsCopy;
+            params.getFlattened(paramsCopy);
+
             auto &it = im.get(params.size(), params.data());
 
             ScalarField<Real> direction = computeBfgsDirection(params, -it.steepestDescent(), strategy);
@@ -201,8 +206,8 @@ void optimize_dlib_custom_bfgs(ScalarField<Real> &params,
                 failure_iterations++;
             }
 
-            it.writeDescription(std::cout);
-            std::cout << std::endl;
+            // Report
+            im.updateAndReport(paramsCopy);
 
             ScalarField<Real> perturbation = direction * step_size;
             params += perturbation;
@@ -212,8 +217,6 @@ void optimize_dlib_custom_bfgs(ScalarField<Real> &params,
                 if (bds.hasUpperBound.at(p)) params[p] = std::min(params[p], bds.upperBound.at(p));
                 if (bds.hasLowerBound.at(p)) params[p] = std::max(params[p], bds.lowerBound.at(p));
             }
-
-            if (outPath != "") it.writeMeshAndFields(outPath + "_" + std::to_string(i));
         }
         catch (...) {
             //std::cout << "[Dlib] Exploded!" << std::endl;
