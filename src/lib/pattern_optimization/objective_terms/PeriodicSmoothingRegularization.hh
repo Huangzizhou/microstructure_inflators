@@ -1,7 +1,3 @@
-//
-// Created by Davi Colli Tozoni on 5/9/18.
-//
-
 #ifndef PERIODICSMOOTHINGREGULARIZATION_H
 #define PERIODICSMOOTHINGREGULARIZATION_H
 
@@ -24,8 +20,24 @@ namespace PatternOptimization {
 
             static Eigen::SparseMatrix<Real> computeLaplacianMatrix(_Sim &simulator) {
                 std::vector<std::set<size_t>> adj(simulator.mesh().numVertices());
+
                 std::unique_ptr<PeriodicCondition<N>> pc = Future::make_unique<PeriodicCondition<N>>(simulator.mesh());
                 std::vector<std::vector<size_t>> correspondingVertices(simulator.mesh().numVertices());
+
+                for (auto v : simulator.mesh().boundaryVertices()) {
+                    size_t vNodeIndex = v.node().volumeNode().index();
+                    std::vector<size_t> vNodeIndices = pc->identifiedNodes(vNodeIndex);
+                    std::vector<size_t> vIndices;
+
+                    for (size_t i = 0; i < vNodeIndices.size(); i++) {
+                        size_t vIndex = simulator.mesh().node(vNodeIndices[i]).vertex().index();
+                        vIndices.push_back(vIndex);
+                    }
+
+                    // Sort corresponding vertices. This way, always first in the list has lowest index
+                    std::sort(vIndices.begin(), vIndices.end());
+                    correspondingVertices[v.node().volumeNode().vertex().index()] = vIndices;
+                }
 
                 for (auto be : simulator.mesh().boundaryElements()) {
                     if (be->isInternal) {
@@ -53,14 +65,24 @@ namespace PatternOptimization {
                 for (auto ve : simulator.mesh().boundaryVertices()) {
                     size_t veIndex = ve.node().volumeNode().vertex().index();
 
-                    if (adj[veIndex].size() < 2) {
+                    if (adj[veIndex].size() == 0) {
                         continue;
                     }
 
-                    triplets.push_back(Eigen::Triplet<Real>(veIndex, veIndex, -1.0));
+                    size_t number_neighbors = 0;
+                    for (auto idx : correspondingVertices[veIndex]) {
+                        for (auto neighbor : adj[idx]) {
+                            number_neighbors++;
+                        }
+                    }
 
-                    for (auto neighbor : adj[veIndex]) {
-                        triplets.push_back(Eigen::Triplet<Real>(veIndex, neighbor, 1.0 / adj[veIndex].size()));
+                    // For each corresponding vertex, add a row.
+                    for (auto idx : correspondingVertices[veIndex]) {
+                        triplets.push_back(Eigen::Triplet<Real>(veIndex, idx, -1.0 * adj[idx].size() / number_neighbors));
+
+                        for (auto neighbor : adj[idx]) {
+                            triplets.push_back(Eigen::Triplet<Real>(veIndex, neighbor, 1.0 / number_neighbors));
+                        }
                     }
                 }
 
