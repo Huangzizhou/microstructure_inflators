@@ -1,0 +1,7 @@
+#! /usr/local/bin/octave -qf
+
+arg_list = argv();
+input = arg_list{1};
+output = arg_list{2};
+
+off2png(input, output);
