@@ -6,7 +6,7 @@ from scipy import optimize
 
 class RBFInterpolation:
 
-    def __init__(self, x1 = [], x2 = [], p = [], d1 = 5, d2 = 5, epsilon = 0.5):
+    def __init__(self, x1 = [], x2 = [], p = [], d1 = 5, d2 = 5, epsilon = 0.5, coeffs = []):
         self.d1 = d1
         self.d2 = d2
 
@@ -19,6 +19,10 @@ class RBFInterpolation:
 
         self.dt1 = (self.max1 - self.min1) / (self.d1 - 1)
         self.dt2 = (self.max2 - self.min2) / (self.d2 - 1)
+
+        if len(coeffs) > 0:
+            self.coeffs = coeffs
+            return
 
         # create rhs vector
         B = np.array(p)

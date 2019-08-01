@@ -7,10 +7,35 @@ from PIL import Image
 
 import rbf_interpolation
 
+
+def save(rbf, output_path):
+    out = open(output_path, 'w')
+
+    # Method
+    out.write("rbf\n")
+
+    # Properties of basis functions
+    out.write("{}\n".format(rbf.epsilon))
+
+    # Coefficients
+    coeffs = rbf.coeffs
+    out.write("{}\t{}\n".format(rbf.d1, rbf.d2))
+
+    coeffs_list = list(coeffs)
+    coeffs_string = ""
+    for i in range(0, len(coeffs_list)):
+        coeffs_string += '{:.16f}'.format(coeffs_list[i]) + "\t"
+
+    out.write(coeffs_string)
+
+    out.close()
+
+
 parser = argparse.ArgumentParser(description='Transform png into level set representation')
 
 parser.add_argument('png',    help='png file representing shape')
-parser.add_argument('output', help='file with coefficients for level set representation')
+parser.add_argument('--output', help='file with coefficients for level set representation')
+parser.add_argument('--output-png', help='image representing level set representation')
 parser.add_argument('--show', action='store_true', help='show image')
 parser.add_argument('--output-error', action='store_true', help='output percentage of different pixels')
 parser.add_argument('--basisPerDim', type=int, default=5, help='number of points per dimension used')
@@ -86,14 +111,20 @@ if args.show:
     output_img.show()
 
 # Save new image
-output_img.save(args.output)
+if args.output_png:
+    output_img.save(args.output)
 
 # Compute error
-error_array = (data_values - output_flatten) / 2
-wrong_pixels = np.sum(np.abs(error_array))
-error = wrong_pixels / len(data_values)
-print("Error percentage: " + str(error))
-print("Wrong pixels: " + str(wrong_pixels))
+if args.output_error:
+    error_array = (data_values - output_flatten) / 2
+    wrong_pixels = np.sum(np.abs(error_array))
+    error = wrong_pixels / len(data_values)
+    print("Error percentage: " + str(error))
+    print("Wrong pixels: " + str(wrong_pixels))
+
+# Output coefficients
+if args.output:
+    save(rbf, args.output)
 
 
 
