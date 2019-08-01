@@ -6,12 +6,12 @@
 */
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef VOXELSINFLATOR_HH
-#define VOXELSINFLATOR_HH
+#ifndef RBFINFLATOR_HH
+#define RBFINFLATOR_HH
 
 #include "../Inflator.hh"
 #include "IsoinflatorWrapper.hh"
-#include <voxel_inflator/VoxelSDF.hh>
+#include <level_set/RBF.hh>
 #include <isosurface_inflator/MeshingOptions.hh>
 #include <isosurface_inflator/MidplaneMesher.hh>
 
@@ -21,10 +21,10 @@
 #include <string>
 #include <limits>
 
-class VoxelsInflator : public Inflator<2> {
+class RBFInflator : public Inflator<2> {
 public:
-    VoxelsInflator(const std::vector<std::vector<Real>> &densityMatrix);
-    ~VoxelsInflator() { }
+    RBFInflator(Real epsilon, size_t dim1, size_t dim2);
+    ~RBFInflator() { }
 
     virtual MeshingOptions &meshingOptions() override { return m_meshingOptions; }
 
@@ -60,7 +60,7 @@ private:
 
 
     ////////////////////////////////////////////////////////////////////////////
-    // VoxelInflator-specific
+    // RBFInflator-specific
     ////////////////////////////////////////////////////////////////////////////
     std::vector<std::vector<Real>> vecToMat(const std::vector<Real> &vec, size_t nRows, size_t nCols);
     std::vector<Real> matToVec(const std::vector<std::vector<Real>> &mat);
@@ -69,9 +69,10 @@ private:
     ////////////////////////////////////////////////////////////////////////////
     // Data members
     ////////////////////////////////////////////////////////////////////////////
-    std::vector<std::vector<Real>> m_densityMatrix;
+    std::vector<std::vector<Real>> m_coeffMatrix;
     MeshingOptions m_meshingOptions;
-    size_t m_nCols, m_nRows;
+    size_t m_dim1, m_dim2;
+    Real m_epsilon;
     MidplaneMesher m_mesher;
 };
-#endif /* end of include guard: VOXELSINFLATOR_HH */
+#endif /* end of include guard: RBFINFLATOR_HH */

@@ -22,6 +22,8 @@ set(SOURCES
         wrappers/LuigiInflatorWrapper.hh
         wrappers/VoxelsInflator.cc
         wrappers/VoxelsInflator.hh
+        wrappers/RBFInflator.cc
+        wrappers/RBFInflator.hh
         wrappers/ConstrainedInflator.hh
 )
 
