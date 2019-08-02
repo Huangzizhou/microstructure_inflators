@@ -80,16 +80,17 @@ coeffs2 = np.array(rbf2.coeffs)
 # Now, for each intermediate frame, produces linear interpolation
 t_values = np.linspace(0, 1, args.frames_number)
 for t in t_values:
+    print("Producing frame at t " + str(t))
 
     # for each coefficient, run linear interpolation
     intermediate_coeffs = t * coeffs1 + (1.0 - t) * coeffs2
-    print(intermediate_coeffs)
+    #print(intermediate_coeffs)
 
     rbf = rbf_interpolation.RBFInterpolation(d1=n, d2=n, epsilon=n / 2, coeffs=list(intermediate_coeffs))
 
     results = rbf(np.array(x1), np.array(x2))
     output = []
-    print(results)
+    #print(results)
     for i in range(len(x1)):
         if results[i] < 0.0:
             output.append(-1.0)
