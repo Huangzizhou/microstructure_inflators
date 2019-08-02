@@ -1,4 +1,5 @@
 #include <CLI/CLI.hpp>
+#define STB_IMAGE_IMPLEMENTATION
 #include "read_png.hh"
 #include <bitset>
 #include <inflators/wrappers/VoxelsInflator.hh>
@@ -37,40 +38,16 @@ int main(int argc, char ** argv) {
     }
 
     // read input png file, transforming it into a png_bytep pointer
-    size_t width, height;
-    unsigned char bit_depth;
-    png_bytep * png_matrix = read_png_file(args.inputPath, width, height, bit_depth);
+    int width, height;
+    int channels;
+    unsigned char * png_matrix = read_png_file(args.inputPath, width, height, channels);
 
     // Construct density matrix
     std::vector<std::vector<double>> density_matrix(height);
 
-    if (bit_depth == 1) {
+    if (channels == 1) {
         for (size_t y = 0; y < height; y++) {
-            png_byte *row = png_matrix[y];
-            density_matrix[y] = std::vector<double>(width);
-            //std::cout << "width: " << width << std::endl;
-
-            for (size_t x = 0; x <= width/8; x++) {
-                if (x*8 == width) {
-                    break;
-                }
-
-                unsigned char byte = row[x];
-                std::bitset<8> in_bits = std::bitset<8>(byte);
-                //std::cout << in_bits;
-
-                for (size_t i=0; i<8; i++) {
-                    if ((x*8 + 7 - i) < width) {
-                        density_matrix[y][x * 8 + 7 - i] = 1.0 - in_bits[i];
-                    }
-                }
-            }
-            //std::cout << std::endl;
-        }
-    }
-    else {
-        for (size_t y = 0; y < height; y++) {
-            png_byte *row = png_matrix[y];
+            unsigned char *row = &png_matrix[y * width];
             density_matrix[y] = std::vector<double>(width);
             //std::cout << "width: " << width << std::endl;
 
@@ -82,7 +59,6 @@ int main(int argc, char ** argv) {
             std::cout << std::endl;
         }
     }
-
 
     // Print densities
     /*for (size_t i = 0; i < density_matrix.size(); i++) {

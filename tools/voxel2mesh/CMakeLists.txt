@@ -5,4 +5,4 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 ################################################################################
 
-micro_single_app(voxel2mesh MeshFEM micro::voxel_inflator micro::inflators png CLI11::CLI11)
+micro_single_app(voxel2mesh MeshFEM micro::voxel_inflator micro::inflators CLI11::CLI11)

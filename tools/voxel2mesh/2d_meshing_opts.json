@@ -7,12 +7,12 @@
     "edgeSize"                    : 0.025,
     "cellRadiusEdgeRatio"         : 2.0,
     "marchingSquaresGridSize"     : 256,
-    "marchingCubesGridSize"       : 128,
+    "marchingCubesGridSize"       : 256,
 
-    "maxArea"                     : 5e-4,
+    "maxArea"                     : 2e-3,
     "featureAngleThreshold"       : 0.7853981633974483,
     "forceMSGridSize"             : true,
-    "marchingSquaresCoarsening"   : 2,
+    "marchingSquaresCoarsening"   : 1,
 
     "jointBlendingMode"           : "hull"
 }
