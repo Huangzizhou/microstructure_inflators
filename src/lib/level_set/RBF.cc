@@ -1,3 +1,5 @@
+#define STB_IMAGE_IMPLEMENTATION
+
 #include "RBF.hh"
 #include <unsupported/Eigen/AutoDiff>
 

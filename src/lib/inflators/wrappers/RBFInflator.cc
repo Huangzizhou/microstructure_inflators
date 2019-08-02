@@ -6,6 +6,23 @@ RBFInflator::RBFInflator(Real epsilon, size_t dim1, size_t dim2) {
     m_dim1 = dim1;
     m_dim2 = dim2;
     m_epsilon = epsilon;
+
+    // dim1 relates to x, so number of columns
+    // dim2 relates to y, so number of rows
+    m_coeffMatrix.resize(dim2);
+    for (size_t i = 0; i < dim2; i++) {
+        m_coeffMatrix[i].resize(dim1);
+    }
+}
+
+RBFInflator::RBFInflator(std::string png_path, Real epsilon, size_t dim1, size_t dim2) {
+    m_dim1 = dim1;
+    m_dim2 = dim2;
+    m_epsilon = epsilon;
+
+    RBF<Real> levelSet = RBF<Real>(png_path, epsilon, dim1, dim2);
+
+    m_coeffMatrix = levelSet.coefficients();
 }
 
 // VoxelsInflator methods
@@ -56,7 +73,7 @@ RBFInflator::getMaxElementVolume() const {
 
 // Implementation of auxiliary functions
 std::vector<std::vector<Real>>
-RBFInflator::vecToMat(const std::vector<Real> &vec, size_t nRows, size_t nCols) {
+RBFInflator::vecToMat(const std::vector<Real> &vec, size_t nRows, size_t nCols) const {
     std::vector<std::vector<Real>> result(nRows);
 
     for (size_t i = 0 ; i < nRows; i++) {
@@ -70,7 +87,7 @@ RBFInflator::vecToMat(const std::vector<Real> &vec, size_t nRows, size_t nCols) 
 }
 
 std::vector<Real>
-RBFInflator::matToVec(const std::vector<std::vector<Real>> &mat) {
+RBFInflator::matToVec(const std::vector<std::vector<Real>> &mat) const {
     std::vector<Real> result;
 
     for (size_t i = 0; i < mat.size(); i++) {

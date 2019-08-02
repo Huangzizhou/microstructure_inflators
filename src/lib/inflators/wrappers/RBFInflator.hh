@@ -24,6 +24,9 @@
 class RBFInflator : public Inflator<2> {
 public:
     RBFInflator(Real epsilon, size_t dim1, size_t dim2);
+
+    RBFInflator(std::string png_path, Real epsilon, size_t dim1, size_t dim2);
+
     ~RBFInflator() { }
 
     virtual MeshingOptions &meshingOptions() override { return m_meshingOptions; }
@@ -35,6 +38,7 @@ private:
     ////////////////////////////////////////////////////////////////////////////
     virtual void m_inflate(const std::vector<Real> &params) override;
 
+public:
 
     ////////////////////////////////////////////////////////////////////////////
     // Shape velocity computation
@@ -49,6 +53,7 @@ private:
     virtual size_t numParameters() const override;
     virtual bool isPrintable(const std::vector<Real> &params) override { return false; }
     virtual ParameterType parameterType(size_t p) const override { return ParameterType::Custom1; }
+    virtual std::vector<Real> defaultParameters() const override { return matToVec(m_coeffMatrix); }
 
 
     ////////////////////////////////////////////////////////////////////////////
@@ -62,8 +67,8 @@ private:
     ////////////////////////////////////////////////////////////////////////////
     // RBFInflator-specific
     ////////////////////////////////////////////////////////////////////////////
-    std::vector<std::vector<Real>> vecToMat(const std::vector<Real> &vec, size_t nRows, size_t nCols);
-    std::vector<Real> matToVec(const std::vector<std::vector<Real>> &mat);
+    std::vector<std::vector<Real>> vecToMat(const std::vector<Real> &vec, size_t nRows, size_t nCols) const;
+    std::vector<Real> matToVec(const std::vector<std::vector<Real>> &mat) const;
 
 
     ////////////////////////////////////////////////////////////////////////////

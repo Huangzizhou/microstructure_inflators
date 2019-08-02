@@ -10,6 +10,7 @@ struct Args {
     std::string inputPath;
     std::string outputPath;
     std::string moptsPath;
+    bool png = false;
 };
 
 void parseRBFFile(string path, double &epsilon, size_t &d1, size_t &d2, std::vector<double> &coeffs) {
@@ -70,6 +71,7 @@ int main(int argc, char ** argv) {
     app.add_option("inputPath",  args.inputPath,  "input  path")->required()->check(CLI::ExistingFile);
     app.add_option("outputPath", args.outputPath, "output path")->required();
     app.add_option("--mopts",    args.moptsPath,  "mesh options");
+    app.add_flag(  "--png",      args.png,        "png input");
 
     try {
         app.parse(argc, argv);
@@ -77,16 +79,32 @@ int main(int argc, char ** argv) {
         return app.exit(e);
     }
 
-    // read input coefficient file
-    double epsilon;
-    size_t d1, d2;
-    vector<double> coeffs;
-    parseRBFFile(args.inputPath, epsilon, d1, d2, coeffs);
+    if (args.png) {
+        // read input coefficient file
+        double epsilon = 30.0 / 2;
+        size_t d1 = 30, d2 = 30;
 
-    RBFInflator inflator(epsilon, d1, d2);
-    if (!args.moptsPath.empty())  inflator.meshingOptions().load(args.moptsPath);
+        RBFInflator inflator(args.inputPath, epsilon, d1, d2);
+        if (!args.moptsPath.empty())  inflator.meshingOptions().load(args.moptsPath);
 
-    inflator.inflate(coeffs);
+        vector<double> coeffs = inflator.defaultParameters();
+        inflator.inflate(coeffs);
 
-    MeshIO::save(args.outputPath, inflator.vertices(), inflator.elements());
+        MeshIO::save(args.outputPath, inflator.vertices(), inflator.elements());
+    }
+    else {
+        // read input coefficient file
+        double epsilon;
+        size_t d1, d2;
+        vector<double> coeffs;
+        parseRBFFile(args.inputPath, epsilon, d1, d2, coeffs);
+
+        RBFInflator inflator(epsilon, d1, d2);
+        if (!args.moptsPath.empty())  inflator.meshingOptions().load(args.moptsPath);
+
+        inflator.inflate(coeffs);
+
+        MeshIO::save(args.outputPath, inflator.vertices(), inflator.elements());
+    }
+
 }
