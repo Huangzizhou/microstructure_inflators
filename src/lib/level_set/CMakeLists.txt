@@ -18,6 +18,7 @@ target_link_libraries(micro_level_set
     PUBLIC
         MeshFEM
         meshfem::boost
+        micro::isosurface_inflator
     PRIVATE
         warnings::all
 )

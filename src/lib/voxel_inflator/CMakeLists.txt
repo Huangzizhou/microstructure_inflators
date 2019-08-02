@@ -18,7 +18,6 @@ target_link_libraries(micro_voxel_inflator
     PUBLIC
         MeshFEM
         meshfem::boost
-        micro::hex_inflator
         micro::isosurface_inflator
     PRIVATE
         warnings::all
