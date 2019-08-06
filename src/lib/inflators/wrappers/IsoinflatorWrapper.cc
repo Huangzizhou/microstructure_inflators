@@ -98,6 +98,12 @@ IsoinflatorWrapper<N>::volumeShapeVelocities() const
                       << "; throwing error" << std::endl;
             throw std::runtime_error("Extremely large z component in 2D normal.");
         }
+
+        //MSHFieldWriter writer("debug_velocities.msh", vertices(), elements());
+        //size_t i = 0;
+        //for (const auto &vv : result) {
+        //    writer.addField("vv " + std::to_string(i++), vv, DomainType::PER_NODE);
+        //}
     }
     catch (...) {
         std::cerr.precision(19);

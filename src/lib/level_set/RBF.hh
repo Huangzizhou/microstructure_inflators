@@ -31,7 +31,7 @@ public:
     using Vector2D = Eigen::Matrix<Real, 2, 1>;
     RBF(const std::vector<std::vector<Real>> &coeffMatrix, Real epsilon);
 
-    RBF(std::string png_path, Real epsilon, size_t dim1, size_t dim2);
+    RBF(std::string png_path, Real epsilon, size_t dim);
 
     // Always support double type for compatibility with SignedDistanceRegion
     virtual double signedDistance(const Point2D &p) const override {
@@ -82,10 +82,10 @@ public:
         Vector2D result;
         result.setZero();
 
-        for (size_t i = 0; i < m_d1; i++) {
-            for (size_t j = 0; j < m_d2; j++) {
-                Real xi = m_min1 + i * m_dt1;
-                Real xj = m_min2 + j * m_dt1;
+        for (size_t i = 0; i < m_dim; i++) {
+            for (size_t j = 0; j < m_dim; j++) {
+                Real xi = m_min + i * m_dt;
+                Real xj = m_min + j * m_dt;
 
                 Real r = sqrt((x(0) - xi) * (x(0) - xi) + (x(1) - xj) * (x(1) - xj));
                 Vector2D diff;
@@ -127,8 +127,8 @@ public:
 private:
 
     Real basis(size_t i, size_t j, Vector2D x) const {
-        Real xi = m_min1 + i * m_dt1;
-        Real xj = m_min2 + j * m_dt1;
+        Real xi = m_min + i * m_dt;
+        Real xj = m_min + j * m_dt;
 
         Real r = sqrt((x(0) - xi) * (x(0) - xi) + (x(1) - xj) * (x(1) - xj));
 
@@ -140,11 +140,11 @@ private:
     Real2 m_signedDistanceImpl(const Point2<Real2> p, std::vector<std::vector<Real>> coeffMatrix) const {
         Real2 result = 0.0;
 
-        for (size_t i=0; i<m_d1; i++) {
-            for (size_t j=0; j<m_d2; j++) {
+        for (size_t i=0; i<m_dim; i++) {
+            for (size_t j=0; j<m_dim; j++) {
                 // Find rbf point correspond to i and j
-                Real xi = m_min1 + i * m_dt1;
-                Real xj = m_min2 + j * m_dt2;
+                Real xi = m_min + i * m_dt;
+                Real xj = m_min + j * m_dt;
 
                 Real2 r = sqrt((p[0] - xi) * (p[0] - xi) + (p[1] - xj) * (p[1] - xj));
 
@@ -156,24 +156,24 @@ private:
     }
 
     template<typename Real2>
-    std::vector<Real> fit(std::vector<Real> x1, std::vector<Real> x2, std::vector<Real> values, size_t d1 = 5, size_t d2 = 5, Real epsilon = 0.5) {
+    std::vector<Real> fit(std::vector<Real> x1, std::vector<Real> x2, std::vector<Real> values, size_t d = 5, Real epsilon = 0.5) {
         // create rhs vector
         Eigen::Matrix<Real, Eigen::Dynamic, 1> B = Eigen::Map<Eigen::Matrix<Real, Eigen::Dynamic, 1>>(values.data(), values.size());
 
         // create matrix
-        Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> A(x1.size(), d1 * d2);
+        Eigen::Matrix<Real, Eigen::Dynamic, Eigen::Dynamic> A(x1.size(), d * d);
         size_t data_size = x1.size();
 
         for (size_t ip = 0; ip < data_size; ip++) {
-            for (size_t i = 0; i < d1; i++) {
-                for (size_t j = 0; j < d2; j++) {
+            for (size_t i = 0; i < d; i++) {
+                for (size_t j = 0; j < d; j++) {
                     // Find rbf point correspond to i and j
-                    Real xi = m_min1 + i * m_dt1;
-                    Real xj = m_min2 + j * m_dt1;
+                    Real xi = m_min + i * m_dt;
+                    Real xj = m_min + j * m_dt;
 
                     Real2 r = sqrt((x1[ip] - xi) * (x1[ip] - xi) + (x2[ip] - xj) * (x2[ip] - xj));
 
-                    A(ip, m_d2 * i + j) = exp(- (m_epsilon * r) * (m_epsilon * r));
+                    A(ip, d * i + j) = exp(- (m_epsilon * r) * (m_epsilon * r));
                 }
             }
         }
@@ -193,11 +193,11 @@ private:
 
     // density matrix
     std::vector<std::vector<Real>> m_coeffMatrix;
-    size_t m_d1, m_d2;
+    size_t m_dim;
     Real m_epsilon;
-    Real m_dt1, m_dt2;
-    Real m_min1, m_min2;
-    Real m_max1, m_max2;
+    Real m_dt;
+    Real m_min;
+    Real m_max;
 };
 
 #endif /* end of include guard: VOXELSIGNEDDISTANCE_HH */

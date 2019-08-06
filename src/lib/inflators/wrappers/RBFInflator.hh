@@ -27,9 +27,9 @@ class RBFInflator : public Inflator<2> {
 public:
     using Mesh = FEMMesh<2, 1, VectorND<2>>;
 
-    RBFInflator(Real epsilon, size_t dim1, size_t dim2);
+    RBFInflator(Real epsilon, size_t dim);
 
-    RBFInflator(std::string png_path, Real epsilon, size_t dim1, size_t dim2);
+    RBFInflator(std::string png_path, Real epsilon, size_t dim);
 
     ~RBFInflator() { }
 
@@ -80,7 +80,7 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     std::vector<std::vector<Real>> m_coeffMatrix;
     MeshingOptions m_meshingOptions;
-    size_t m_dim1, m_dim2;
+    size_t m_dim;
     Real m_epsilon;
     MidplaneMesher m_mesher;
     std::unique_ptr<Mesh> m_mesh;

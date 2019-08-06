@@ -8,6 +8,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include <MeshFEM/MeshIO.hh>
 #include <MeshFEM/LinearElasticity.hh>
+#include <MeshFEM/StringUtils.hh>
 
 #include <inflators/wrappers/RBFInflator.hh>
 #include <isosurface_inflator/ShapeVelocityInterpolator.hh>
@@ -23,6 +24,8 @@ template<size_t _N> using ETensor = ElasticityTensor<Real, _N>;
 struct Args {
     std::string pngPath;
     std::string outputTable;
+    size_t rbfDim;
+    std::string perturbations;
 };
 
 vector<Real> perturbOriginalParams(vector<Real> originalParams, int p, double perturbation = 1e-3) {
@@ -31,6 +34,15 @@ vector<Real> perturbOriginalParams(vector<Real> originalParams, int p, double pe
     result[p] += perturbation;
 
     return result;
+}
+
+// Parse parameters
+vector<Real> parseParams(string pstring) {
+    MeshFEM::trim(pstring);
+    vector<string> tokens = MeshFEM::split(pstring, " ");
+    vector<Real> pvals;
+    for (string &s : tokens) pvals.push_back(std::stod(s));
+    return  pvals;
 }
 
 template<size_t _N, size_t _FEMDegree>
@@ -43,9 +55,9 @@ void execute(Args args)
 
 
     // Create inflator
-    size_t d = 5;
+    size_t d = args.rbfDim;
     Real epsilon = d/2;
-    RBFInflator inflator(args.pngPath, epsilon, d, d);
+    RBFInflator inflator(args.pngPath, epsilon, d);
 
     // Create simulator
     std::vector<Real> params = inflator.defaultParameters();
@@ -71,7 +83,7 @@ void execute(Args args)
     comp_writer.addField("diff_vol", dJ_field, DomainType::PER_NODE);
 
     // Reads perturbations
-    vector<Real> perturbations = {1e-6};
+    vector<Real> perturbations = parseParams(args.perturbations);
 
     ofstream * ofs;
     if (!args.outputTable.empty()) {
@@ -148,12 +160,16 @@ void execute(Args args)
 
 int main(int argc, const char *argv[]) {
     Args args;
+    args.rbfDim = 5;
+    args.perturbations = "1e-3";
 
     // Parse arguments
     CLI::App app{"RBFShapeDerivativeValidation"};
 
-    app.add_option("pngPath",  args.pngPath,  "png path")->required()->check(CLI::ExistingFile);
-    app.add_option("--outputTable", args.outputTable, "output table");
+    app.add_option("pngPath",          args.pngPath,       "png path")->required()->check(CLI::ExistingFile);
+    app.add_option("--outputTable",    args.outputTable,   "output table");
+    app.add_option("--rbf-dim",        args.rbfDim,        "dimension per axis of the rbf function");
+    app.add_option("--perturbations",  args.perturbations, "perturbations used to test against finite difference approximation");
 
     try {
         app.parse(argc, argv);

@@ -2,16 +2,15 @@
 
 using namespace std;
 
-RBFInflator::RBFInflator(Real epsilon, size_t dim1, size_t dim2) {
-    m_dim1 = dim1;
-    m_dim2 = dim2;
+RBFInflator::RBFInflator(Real epsilon, size_t dim) {
+    m_dim = dim;
     m_epsilon = epsilon;
 
     // dim1 relates to x, so number of columns
     // dim2 relates to y, so number of rows
-    m_coeffMatrix.resize(dim2);
-    for (size_t i = 0; i < dim2; i++) {
-        m_coeffMatrix[i].resize(dim1);
+    m_coeffMatrix.resize(dim);
+    for (size_t i = 0; i < dim; i++) {
+        m_coeffMatrix[i].resize(dim);
     }
 
     Point2D min = Point2D(-1.0, -1.0);
@@ -20,12 +19,11 @@ RBFInflator::RBFInflator(Real epsilon, size_t dim1, size_t dim2) {
     m_bbox = BBox<Point2D>(min, max);
 }
 
-RBFInflator::RBFInflator(std::string png_path, Real epsilon, size_t dim1, size_t dim2) {
-    m_dim1 = dim1;
-    m_dim2 = dim2;
+RBFInflator::RBFInflator(std::string png_path, Real epsilon, size_t dim) {
+    m_dim = dim;
     m_epsilon = epsilon;
 
-    RBF<Real> levelSet = RBF<Real>(png_path, epsilon, dim1, dim2);
+    RBF<Real> levelSet = RBF<Real>(png_path, epsilon, dim);
 
     m_coeffMatrix = levelSet.coefficients();
 
@@ -44,7 +42,7 @@ RBFInflator::m_inflate(const std::vector<Real> &params) {
     // Makes sure we use periodic mesher
     m_mesher.meshInterfaceConsistently = true;
 
-    std::vector<std::vector<Real>> coeffMatrix = vecToMat(params, m_dim1, m_dim2);
+    std::vector<std::vector<Real>> coeffMatrix = vecToMat(params, m_dim, m_dim);
 
     RBF<Real> levelSet = RBF<Real>(coeffMatrix, m_epsilon);
 
@@ -54,7 +52,7 @@ RBFInflator::m_inflate(const std::vector<Real> &params) {
 std::vector<VectorField<Real, 2>>
 RBFInflator::volumeShapeVelocities() const {
     std::vector<VectorField<Real, N>> result(numParameters());
-    Mesh mesh = FEMMesh<2, 1, VectorND<2>>(m_elements, m_vertices);
+    SimplicialMesh<N> mesh = SimplicialMesh<N>(m_elements, m_vertices.size());
 
     RBF<Real> levelSet = RBF<Real>(m_coeffMatrix, m_epsilon);
 
@@ -63,12 +61,12 @@ RBFInflator::volumeShapeVelocities() const {
         velocityForP.clear();
 
         // Param to dimension indices
-        size_t i = param / m_dim1;
-        size_t j = param -  m_dim1 * i;
+        size_t i = param / m_dim;
+        size_t j = param -  m_dim * i;
 
         for (auto bv : mesh.boundaryVertices()) {
-            auto vv = bv.node().volumeNode().vertex();
-            Vector2D p = vv.node()->p;
+            auto vv = bv.volumeVertex();
+            Vector2D p = m_vertices[vv.index()];
             Vector2D gradient = levelSet.gradient(p);
             Real gradientNorm = gradient.norm();
             Real partial = levelSet.partialDerivative(i, j, p);
@@ -99,25 +97,35 @@ RBFInflator::volumeShapeVelocities() const {
     // the meshing box).
     // This this is not the case if any non-cell-face triangle is incident
     vector<bool> internalCellFaceVertex(mesh.numBoundaryVertices(), true);
-    for (auto be : mesh.boundaryElements()) {
+    for (auto bs : mesh.boundarySimplices()) {
         bool isCellFace = false;
         for (size_t d = 0; d < 2; ++d) {
             bool onMin = true, onMax = true;
-            for (auto bv : be.vertices()) {
+            for (auto bv : bs.vertices()) {
                 onMin &= onMinFace[d].at(bv.volumeVertex().index());
                 onMax &= onMaxFace[d].at(bv.volumeVertex().index());
             }
-            isCellFace |= (onMin | onMax);
+
+            if (onMin || onMax) {
+                for (auto bv : bs.vertices()) {
+                    auto vv = bv.volumeVertex();
+                    for (unsigned param = 0; param < numParameters(); param++) {
+                        result[param](vv.index())[d] = 0.0;
+                    }
+                }
+                isCellFace = true;
+            }
         }
+
         if (isCellFace) continue;
 
-        for (auto bv : be.vertices())
+        for (auto bv : bs.vertices())
             internalCellFaceVertex.at(bv.index()) = false;
     }
 
     for (auto bv : mesh.boundaryVertices()) {
         if (internalCellFaceVertex.at(bv.index())) {
-            auto vv = bv.node().volumeNode().vertex();
+            auto vv = bv.volumeVertex();
             for (unsigned param = 0; param < numParameters(); param++) {
                 for (size_t d = 0; d < 2; d++) {
                     result[param](vv.index())[d] = 0.0;

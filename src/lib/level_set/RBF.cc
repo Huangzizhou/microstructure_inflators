@@ -13,39 +13,31 @@ RBF<Real>::RBF(const std::vector<std::vector<Real>> &coeffMatrix, Real epsilon) 
 
     m_bbox = BBox<Point2D>(min, max);
 
-    m_d1 = m_coeffMatrix.size();
-    m_d2 = m_coeffMatrix[0].size();
+    m_dim = m_coeffMatrix.size();
 
-    m_min1 = -1.0;
-    m_max1 =  1.0;
-    m_min2 = -1.0;
-    m_max2 =  1.0;
+    m_min = -1.0;
+    m_max =  1.0;
 
     m_epsilon = epsilon;
 
-    m_dt1 = (m_max1 - m_min1) / (m_d1 - 1);
-    m_dt2 = (m_max2 - m_min2) / (m_d2 - 1);
+    m_dt = (m_max - m_min) / (m_dim - 1);
 }
 
 template<typename Real>
-RBF<Real>::RBF(std::string png_path, Real epsilon, size_t dim1, size_t dim2) {
+RBF<Real>::RBF(std::string png_path, Real epsilon, size_t dim) {
     Point2D min = Point2D(-1.0, -1.0);
     Point2D max = Point2D( 1.0,  1.0);
 
     m_bbox = BBox<Point2D>(min, max);
 
-    m_d1 = dim1;
-    m_d2 = dim2;
+    m_dim = dim;
 
-    m_min1 = -1.0;
-    m_max1 =  1.0;
-    m_min2 = -1.0;
-    m_max2 =  1.0;
+    m_min = -1.0;
+    m_max =  1.0;
 
     m_epsilon = epsilon;
 
-    m_dt1 = (m_max1 - m_min1) / (m_d1 - 1);
-    m_dt2 = (m_max2 - m_min2) / (m_d2 - 1);
+    m_dt = (m_max - m_min) / (m_dim - 1);
 
     int width, height;
     int channels;
@@ -88,13 +80,13 @@ RBF<Real>::RBF(std::string png_path, Real epsilon, size_t dim1, size_t dim2) {
     }
 
     //std::cout << "Running fitting..." << std::endl;
-    std::vector<Real> coefficients = fit<Real>(x1, x2, data_values, dim1, dim2, epsilon);
+    std::vector<Real> coefficients = fit<Real>(x1, x2, data_values, dim, epsilon);
     //std::cout << "Ending fitting..." << std::endl;
 
-    m_coeffMatrix.resize(dim2);
-    for (size_t i = 0 ; i < dim2; i++) {
-        typename std::vector<Real>::const_iterator first = coefficients.begin() + i * dim1;
-        typename std::vector<Real>::const_iterator last = coefficients.begin() + (i+1) * dim1;
+    m_coeffMatrix.resize(dim);
+    for (size_t i = 0 ; i < dim; i++) {
+        typename std::vector<Real>::const_iterator first = coefficients.begin() + i * dim;
+        typename std::vector<Real>::const_iterator last = coefficients.begin() + (i+1) * dim;
         std::vector<Real> newVec(first, last);
         m_coeffMatrix[i] = newVec;
     }
