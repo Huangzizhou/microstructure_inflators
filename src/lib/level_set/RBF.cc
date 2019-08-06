@@ -55,10 +55,10 @@ RBF<Real>::RBF(std::string png_path, Real epsilon, size_t dim1, size_t dim2) {
     std::vector<Real> data_values(height * width);
 
     if (channels == 1) {
-        for (size_t y = 0; y < height; y++) {
+        for (size_t y = 0; y < (size_t) height; y++) {
             unsigned char *row = &png_matrix[y * width];
 
-            for (size_t x = 0; x < width; x++) {
+            for (size_t x = 0; x < (size_t) width; x++) {
                 unsigned char byte = row[x];
                 data_values[y*width + x] = byte / 255.0 * 2.0 - 1.0;
                 //std::cout << (data_values[y*width + x] + 1) / 2;

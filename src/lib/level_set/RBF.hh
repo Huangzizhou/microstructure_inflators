@@ -8,6 +8,8 @@
 #ifndef RBF_HH
 #define RBF_HH
 
+#define  DEBUG_OUT 1
+
 #include <isosurface_inflator/SignedDistanceRegion.hh>
 #include <isosurface_inflator/SignedDistance.hh>
 
@@ -26,18 +28,19 @@ class RBF : public SignedDistanceRegion<2> {
 public:
 
     using Real = _Real;
+    using Vector2D = Eigen::Matrix<Real, 2, 1>;
     RBF(const std::vector<std::vector<Real>> &coeffMatrix, Real epsilon);
 
     RBF(std::string png_path, Real epsilon, size_t dim1, size_t dim2);
 
     // Always support double type for compatibility with SignedDistanceRegion
     virtual double signedDistance(const Point2D &p) const override {
-        return stripAutoDiff(m_signedDistanceImpl(autodiffCast<Point2<Real>>(p)));
+        return stripAutoDiff(m_signedDistanceImpl(autodiffCast<Point2<Real>>(p), m_coeffMatrix));
     }
 
     // Also support automatic differentiation types
     template<typename Real2, bool DebugDerivatives = false>
-    Real2 signedDistance(const Point2<Real2> &p) const { return m_signedDistanceImpl(p); }
+    Real2 signedDistance(const Point2<Real2> &p) const { return m_signedDistanceImpl(p, m_coeffMatrix); }
 
     size_t numParams() const { return m_coeffMatrix.size() * m_coeffMatrix[0].size(); }
 
@@ -50,23 +53,102 @@ public:
         return m_coeffMatrix;
     }
 
+    Real partialDerivative(size_t i, size_t j, Vector2D x) const {
+        Real result = basis(i, j, x);
+
+#if DEBUG_OUT
+        Real currentSD = signedDistance(x);
+
+        // perturb i j coefficient
+        Real pert = 1e-6;
+        std::vector<std::vector<Real>> perturbedCoeffMatrix = m_coeffMatrix;
+        perturbedCoeffMatrix[i][j] += pert;
+        Real perturbedSD = m_signedDistanceImpl(x, perturbedCoeffMatrix);
+        Real finiteDiff = (perturbedSD - currentSD) / pert;
+
+        if (abs(finiteDiff - result) > 1e-6) {
+            std::cout << "[Warning!] x: " << x << std::endl;
+            std::cout << "Partial derivative / finite diff: " << result << " / " << finiteDiff << std::endl;
+            std::cout << "Error: " << abs(finiteDiff - result) << std::endl;
+        }
+
+        //std::cout << "Partial derivative / finite diff: " << result << " / " << finiteDiff << std::endl;
+#endif
+
+        return basis(i, j, x);
+    }
+
+    Vector2D gradient(Vector2D x) const {
+        Vector2D result;
+        result.setZero();
+
+        for (size_t i = 0; i < m_d1; i++) {
+            for (size_t j = 0; j < m_d2; j++) {
+                Real xi = m_min1 + i * m_dt1;
+                Real xj = m_min2 + j * m_dt1;
+
+                Real r = sqrt((x(0) - xi) * (x(0) - xi) + (x(1) - xj) * (x(1) - xj));
+                Vector2D diff;
+                Real diff_x = x(0) - xi;
+                Real diff_y = x(1) - xj;
+                diff << diff_x, diff_y;
+
+                Real w_ij = m_coeffMatrix[i][j];
+
+                result += -2.0 * w_ij * m_epsilon * m_epsilon * exp(- (m_epsilon * r) * (m_epsilon * r)) * diff;
+            }
+        }
+
+#if DEBUG_OUT
+        Real currentSD = signedDistance(x);
+        Real pert = 1e-6;
+
+        // perturb x first coordinate
+        Vector2D xPert0, xPert1;
+        xPert0 << x(0) + pert, x(1);
+        xPert1 << x(0), x(1) + pert;
+
+        Real perturbedSD0 = signedDistance(xPert0);
+        Real perturbedSD1 = signedDistance(xPert1);
+        Vector2D finiteDiff;
+        finiteDiff << (perturbedSD0 - currentSD) / pert, (perturbedSD1 - currentSD) / pert;
+
+        if ((finiteDiff - result).norm() > 1e-5) {
+            std::cout << "[Warning!] x: " << x << std::endl;
+            std::cout << "[Warning!] Gradient / finite diff: " << result << " / " << finiteDiff << std::endl;
+            std::cout << "Error: " << (finiteDiff - result).norm() << std::endl;
+        }
+#endif
+
+        return result;
+    }
+
 
 private:
 
+    Real basis(size_t i, size_t j, Vector2D x) const {
+        Real xi = m_min1 + i * m_dt1;
+        Real xj = m_min2 + j * m_dt1;
+
+        Real r = sqrt((x(0) - xi) * (x(0) - xi) + (x(1) - xj) * (x(1) - xj));
+
+        return exp(- (m_epsilon * r) * (m_epsilon * r));
+    }
+
     // Additional Real type to support automatic differentiation wrt. p only
     template<typename Real2>
-    Real2 m_signedDistanceImpl(const Point2<Real2> p) const {
+    Real2 m_signedDistanceImpl(const Point2<Real2> p, std::vector<std::vector<Real>> coeffMatrix) const {
         Real2 result = 0.0;
 
         for (size_t i=0; i<m_d1; i++) {
             for (size_t j=0; j<m_d2; j++) {
                 // Find rbf point correspond to i and j
                 Real xi = m_min1 + i * m_dt1;
-                Real xj = m_min2 + j * m_dt1;
+                Real xj = m_min2 + j * m_dt2;
 
                 Real2 r = sqrt((p[0] - xi) * (p[0] - xi) + (p[1] - xj) * (p[1] - xj));
 
-                result += m_coeffMatrix[i][j] * exp(- (m_epsilon * r) * (m_epsilon * r));
+                result += coeffMatrix[i][j] * exp(- (m_epsilon * r) * (m_epsilon * r));
             }
         }
 

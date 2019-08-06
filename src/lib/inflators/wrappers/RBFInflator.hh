@@ -14,6 +14,8 @@
 #include <level_set/RBF.hh>
 #include <isosurface_inflator/MeshingOptions.hh>
 #include <isosurface_inflator/MidplaneMesher.hh>
+#include <MeshFEM/FEMMesh.hh>
+#include <MeshFEM/PeriodicBoundaryMatcher.hh>
 
 #include <memory>
 #include <utility>
@@ -23,6 +25,8 @@
 
 class RBFInflator : public Inflator<2> {
 public:
+    using Mesh = FEMMesh<2, 1, VectorND<2>>;
+
     RBFInflator(Real epsilon, size_t dim1, size_t dim2);
 
     RBFInflator(std::string png_path, Real epsilon, size_t dim1, size_t dim2);
@@ -79,5 +83,7 @@ public:
     size_t m_dim1, m_dim2;
     Real m_epsilon;
     MidplaneMesher m_mesher;
+    std::unique_ptr<Mesh> m_mesh;
+    BBox<Point2D> m_bbox;
 };
 #endif /* end of include guard: RBFINFLATOR_HH */
