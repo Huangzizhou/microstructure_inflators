@@ -115,7 +115,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("vertexThickness,V",                                              "Use vertex thickness instead of edge thickness (3D only)")
         ("cell_size,c",  po::value<double>(),                              "Inflation cell size (3D only)")
         ("params",       po::value<string>(),                              "Initial params (overrides those specified in job file).")
-        ("metaParams",  po::value<string>(),                               "Meta params (for Hexa Pillars, is used as: +/- num_pillars)")
+        ("metaParams",   po::value<string>(),                              "Meta params (for Hexa Pillars, is used as: +/- <number of pillars>. For RBF, use <epsilon> <dimension>)")
         ("deformedCell", po::value<string>(),                              "Specify the Jacobian of a deformation linearly warping the pattern after meshing (scanline order; in 3D: xx xy xz yx yy yz zx zy zz)")
         ;
 

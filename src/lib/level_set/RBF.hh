@@ -8,7 +8,7 @@
 #ifndef RBF_HH
 #define RBF_HH
 
-#define  DEBUG_OUT 1
+#define  DEBUG_OUT 0
 
 #include <isosurface_inflator/SignedDistanceRegion.hh>
 #include <isosurface_inflator/SignedDistance.hh>

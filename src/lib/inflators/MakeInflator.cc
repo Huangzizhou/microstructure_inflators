@@ -8,6 +8,7 @@
 #include "wrappers/JamesInflatorWrapper.hh"
 #include "wrappers/LuigiInflatorWrapper.hh"
 #include "wrappers/HexaPillarsInflator.hh"
+#include "wrappers/RBFInflator.hh"
 
 #include <MeshFEM/Future.hh>
 #include <MeshFEM/Utilities/ci_string.hh>
@@ -115,6 +116,17 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
                      boost::token_compress_on);
 
         infl = Future::make_unique<HexaPillarsInflator>(params, stoi(meta_params_tokens[1]), meta_params_tokens[0][0]);
+    }
+    else if (ci_string("RBF") == name.c_str()) {
+        string pattern_path = extract_required<string>(opts, "pattern");
+        string meta_params_string = extract_required<string>(opts, "metaParams");
+
+        boost::trim(meta_params_string);
+        vector<string> meta_params_tokens;
+        boost::split(meta_params_tokens, meta_params_string, boost::is_any_of("\t "),
+                     boost::token_compress_on);
+
+        infl = Future::make_unique<RBFInflator>(pattern_path, stod(meta_params_tokens[0]), stoi(meta_params_tokens[1]));
     }
     else throw runtime_error("Invalid inflator: " + name);
 

@@ -66,6 +66,7 @@ public:
     virtual void loadMeshingOptions(const std::string &moptsPath) override;
     virtual void setMaxElementVolume(Real maxElementVol) override;
     virtual Real getMaxElementVolume() const override;
+    virtual void setReflectiveInflator(bool /*use*/)  override { }
 
 
     ////////////////////////////////////////////////////////////////////////////
