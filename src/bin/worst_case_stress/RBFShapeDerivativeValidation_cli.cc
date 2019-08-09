@@ -10,7 +10,9 @@
 #include <MeshFEM/LinearElasticity.hh>
 #include <MeshFEM/StringUtils.hh>
 
+#include <inflators/Inflator.hh>
 #include <inflators/wrappers/RBFInflator.hh>
+#include <inflators/wrappers/RBFOrthoInflator.hh>
 #include <isosurface_inflator/ShapeVelocityInterpolator.hh>
 #include <pattern_optimization/SDConversions.hh>
 
@@ -24,8 +26,11 @@ template<size_t _N> using ETensor = ElasticityTensor<Real, _N>;
 struct Args {
     std::string pngPath;
     std::string outputTable;
+    std::string mopts;
     size_t rbfDim;
+    int gridSize;
     std::string perturbations;
+    bool ortho = false;
 };
 
 vector<Real> perturbOriginalParams(vector<Real> originalParams, int p, double perturbation = 1e-3) {
@@ -53,16 +58,33 @@ void execute(Args args)
     using ETensor   = typename Simulator::ETensor;
     using VField    = typename Simulator::VField;
 
-
     // Create inflator
-    size_t d = args.rbfDim;
-    Real epsilon = d/2;
-    RBFInflator inflator(args.pngPath, epsilon, d);
+    std::unique_ptr<Inflator<2>> inflator;
+
+    if (args.ortho) {
+        size_t d = args.rbfDim;
+        Real epsilon = (d + d - 1.0) / 2.0;
+        inflator = Future::make_unique<RBFOrthoInflator>(args.pngPath, epsilon, d);
+    }
+    else {
+        size_t d = args.rbfDim;
+        Real epsilon = d/2;
+        inflator = Future::make_unique<RBFInflator>(args.pngPath, epsilon, d);
+    }
+
+    if (!args.mopts.empty()) {
+        inflator->loadMeshingOptions(args.mopts);
+    }
+
+    if (args.gridSize > 0) {
+        inflator->meshingOptions().marchingCubesGridSize = args.gridSize;
+        inflator->meshingOptions().marchingSquaresGridSize = args.gridSize;
+    }
 
     // Create simulator
-    std::vector<Real> params = inflator.defaultParameters();
-    inflator.inflate(params);
-    Simulator sim(inflator.elements(), inflator.vertices());
+    std::vector<Real> params = inflator->defaultParameters();
+    inflator->inflate(params);
+    Simulator sim(inflator->elements(), inflator->vertices());
 
 
     // Compute volume and shape derivative form
@@ -73,7 +95,7 @@ void execute(Args args)
     auto &mat = HMG<_N>::material;
 
     // Compute volume velocities
-    vector<VectorField<Real, _N>> vvels = inflator.volumeShapeVelocities();
+    vector<VectorField<Real, _N>> vvels = inflator->volumeShapeVelocities();
 
     // gets material and original objective function
     const ETensor CBase = mat.getTensor();
@@ -128,19 +150,19 @@ void execute(Args args)
             try {
                 // Compute perturbed parameters and corresponding simulator
                 vector<Real> perturbedParams = perturbOriginalParams(params, p, perturbation);
-                inflator.inflate(perturbedParams);
-                Simulator perturbed_sim(inflator.elements(), inflator.vertices());
+                inflator->inflate(perturbedParams);
+                Simulator perturbed_sim(inflator->elements(), inflator->vertices());
                 Real perturbedVolume = perturbed_sim.mesh().volume();
 
                 // Compute negative perturbed parameters and corresponding simulator
                 vector<Real> negPerturbedParams = perturbOriginalParams(params, p, -perturbation);
-                inflator.inflate(negPerturbedParams);
-                Simulator neg_perturbed_sim(inflator.elements(), inflator.vertices());
+                inflator->inflate(negPerturbedParams);
+                Simulator neg_perturbed_sim(inflator->elements(), inflator->vertices());
                 Real negPerturbedVolume = neg_perturbed_sim.mesh().volume();
 
                 Real finitDiff = (perturbedVolume - originalVolume) / (perturbedParams[p] - params[p]);
                 Real centeredDiff = (perturbedVolume - negPerturbedVolume) / (perturbedParams[p] - negPerturbedParams[p]);
-                cout << "Forward  difference Stress:\t" << finitDiff << endl;
+                //cout << "Forward  difference Stress:\t" << finitDiff << endl;
                 cout << "Centered  difference Stress:\t" << centeredDiff << endl;
 
                 if (!args.outputTable.empty())
@@ -162,14 +184,18 @@ int main(int argc, const char *argv[]) {
     Args args;
     args.rbfDim = 5;
     args.perturbations = "1e-3";
+    args.gridSize = 0;
 
     // Parse arguments
     CLI::App app{"RBFShapeDerivativeValidation"};
 
     app.add_option("pngPath",          args.pngPath,       "png path")->required()->check(CLI::ExistingFile);
+    app.add_option("--meshingOptions", args.mopts,         "meshing options");
     app.add_option("--outputTable",    args.outputTable,   "output table");
-    app.add_option("--rbf-dim",        args.rbfDim,        "dimension per axis of the rbf function");
+    app.add_option("--rbfDim",         args.rbfDim,        "dimension per axis of the rbf function");
     app.add_option("--perturbations",  args.perturbations, "perturbations used to test against finite difference approximation");
+    app.add_option("--gridSize",       args.gridSize,      "modify grid size defining quality of mesh");
+    app.add_flag(  "--ortho",          args.ortho,         "orthotropic symmetry (uses less parameters)");
 
     try {
         app.parse(argc, argv);

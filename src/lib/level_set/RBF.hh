@@ -60,7 +60,7 @@ public:
         Real currentSD = signedDistance(x);
 
         // perturb i j coefficient
-        Real pert = 1e-6;
+        Real pert = 1e-7;
         std::vector<std::vector<Real>> perturbedCoeffMatrix = m_coeffMatrix;
         perturbedCoeffMatrix[i][j] += pert;
         Real perturbedSD = m_signedDistanceImpl(x, perturbedCoeffMatrix);
@@ -75,7 +75,7 @@ public:
         //std::cout << "Partial derivative / finite diff: " << result << " / " << finiteDiff << std::endl;
 #endif
 
-        return basis(i, j, x);
+        return result;
     }
 
     Vector2D gradient(Vector2D x) const {
@@ -83,8 +83,8 @@ public:
         result.setZero();
 
         for (size_t i = 0; i < m_dim; i++) {
+            Real xi = m_min + i * m_dt;
             for (size_t j = 0; j < m_dim; j++) {
-                Real xi = m_min + i * m_dt;
                 Real xj = m_min + j * m_dt;
 
                 Real r = sqrt((x(0) - xi) * (x(0) - xi) + (x(1) - xj) * (x(1) - xj));
@@ -101,7 +101,7 @@ public:
 
 #if DEBUG_OUT
         Real currentSD = signedDistance(x);
-        Real pert = 1e-6;
+        Real pert = 1e-7;
 
         // perturb x first coordinate
         Vector2D xPert0, xPert1;
@@ -113,7 +113,7 @@ public:
         Vector2D finiteDiff;
         finiteDiff << (perturbedSD0 - currentSD) / pert, (perturbedSD1 - currentSD) / pert;
 
-        if ((finiteDiff - result).norm() > 1e-5) {
+        if ((finiteDiff - result).norm() > 1e-6) {
             std::cout << "[Warning!] x: " << x << std::endl;
             std::cout << "[Warning!] Gradient / finite diff: " << result << " / " << finiteDiff << std::endl;
             std::cout << "Error: " << (finiteDiff - result).norm() << std::endl;

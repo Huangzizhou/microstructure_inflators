@@ -56,6 +56,21 @@ RBFInflator::volumeShapeVelocities() const {
 
     RBF<Real> levelSet = RBF<Real>(m_coeffMatrix, m_epsilon);
 
+    std::vector<Vector2D> gradients(mesh.numBoundaryVertices());
+    std::vector<Real> gradientNorms(mesh.numBoundaryVertices());
+    std::vector<Vector2D> normals(mesh.numBoundaryVertices());
+    for (auto bv : mesh.boundaryVertices()) {
+        auto vv = bv.volumeVertex();
+        Vector2D p = m_vertices[vv.index()];
+        Vector2D gradient = levelSet.gradient(p);
+        Real gradientNorm = gradient.norm();
+        Vector2D normal = gradient / gradientNorm;
+
+        gradients[bv.index()] = gradient;
+        gradientNorms[bv.index()] = gradientNorm;
+        normals[bv.index()] = normal;
+    }
+
     for (unsigned param = 0; param < numParameters(); param++) {
         VectorField<Real, N> velocityForP(mesh.numVertices());
         velocityForP.clear();
@@ -67,11 +82,12 @@ RBFInflator::volumeShapeVelocities() const {
         for (auto bv : mesh.boundaryVertices()) {
             auto vv = bv.volumeVertex();
             Vector2D p = m_vertices[vv.index()];
-            Vector2D gradient = levelSet.gradient(p);
-            Real gradientNorm = gradient.norm();
-            Real partial = levelSet.partialDerivative(i, j, p);
-            Vector2D normal = gradient / gradientNorm;
+            Vector2D gradient = gradients[bv.index()];
+            Real gradientNorm = gradientNorms[bv.index()];
+            Vector2D normal = normals[bv.index()];
             //std::cout << "Normal: " << normal << std::endl;
+
+            Real partial = levelSet.partialDerivative(i, j, p);
 
             velocityForP(vv.index()) = - 1.0 / gradientNorm * partial * normal;
         }

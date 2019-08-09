@@ -1,11 +1,12 @@
 ////////////////////////////////////////////////////////////////////////////////
-// RBFInflator.hh
+// RBFOrthoInflator.hh
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef RBFINFLATOR_HH
-#define RBFINFLATOR_HH
+#ifndef RBFORTHOINFLATOR_HH
+#define RBFORTHOINFLATOR_HH
 
 #include "../Inflator.hh"
+#include "RBFInflator.hh"
 #include "IsoinflatorWrapper.hh"
 #include <level_set/RBF.hh>
 #include <isosurface_inflator/MeshingOptions.hh>
@@ -19,17 +20,17 @@
 #include <string>
 #include <limits>
 
-class RBFInflator : public Inflator<2> {
+class RBFOrthoInflator : public Inflator<2> {
 public:
     using Mesh = FEMMesh<2, 1, VectorND<2>>;
 
-    RBFInflator(Real epsilon, size_t dim);
+    RBFOrthoInflator(Real epsilon, size_t dim);
 
-    RBFInflator(std::string png_path, Real epsilon, size_t dim);
+    RBFOrthoInflator(std::string png_path, Real epsilon, size_t dim);
 
-    ~RBFInflator() { }
+    ~RBFOrthoInflator() { }
 
-    virtual MeshingOptions &meshingOptions() override { return m_meshingOptions; }
+    virtual MeshingOptions &meshingOptions() override { return m_rbfInflator.meshingOptions(); }
 
 private:
 
@@ -53,7 +54,16 @@ public:
     virtual size_t numParameters() const override;
     virtual bool isPrintable(const std::vector<Real> &params) override { return false; }
     virtual ParameterType parameterType(size_t p) const override { return ParameterType::Custom1; }
-    virtual std::vector<Real> defaultParameters() const override { return matToVec(m_coeffMatrix); }
+    virtual std::vector<Real> defaultParameters() const override {
+        std::vector<Real> result;
+        std::vector<Real> originalParams = m_rbfInflator.defaultParameters();
+
+        for (unsigned i=0; i < numParameters(); i++) {
+            result.push_back(originalParams[reducedParamToAll(i)[0]]);
+        }
+
+        return result;
+    }
 
 
     ////////////////////////////////////////////////////////////////////////////
@@ -70,17 +80,14 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     std::vector<std::vector<Real>> vecToMat(const std::vector<Real> &vec, size_t nRows, size_t nCols) const;
     std::vector<Real> matToVec(const std::vector<std::vector<Real>> &mat) const;
+    std::vector<size_t> reducedParamToAll(size_t param) const;
+    size_t originalToReducedParam(size_t originalParam) const;
 
 
     ////////////////////////////////////////////////////////////////////////////
     // Data members
     ////////////////////////////////////////////////////////////////////////////
-    std::vector<std::vector<Real>> m_coeffMatrix;
-    MeshingOptions m_meshingOptions;
     size_t m_dim;
-    Real m_epsilon;
-    MidplaneMesher m_mesher;
-    std::unique_ptr<Mesh> m_mesh;
-    BBox<Point2D> m_bbox;
+    RBFInflator m_rbfInflator;
 };
-#endif /* end of include guard: RBFINFLATOR_HH */
+#endif /* end of include guard: RBFORTHOINFLATOR_HH */

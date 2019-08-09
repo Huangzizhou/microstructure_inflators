@@ -3,6 +3,7 @@
 
 #include <CLI/CLI.hpp>
 #include <inflators/wrappers/RBFInflator.hh>
+#include <inflators/wrappers/RBFOrthoInflator.hh>
 
 using namespace std;
 
@@ -10,7 +11,9 @@ struct Args {
     std::string inputPath;
     std::string outputPath;
     std::string moptsPath;
+    size_t dim;
     bool png = false;
+    bool ortho = false;
 };
 
 void parseRBFFile(string path, double &epsilon, size_t &d1, size_t &d2, std::vector<double> &coeffs) {
@@ -64,14 +67,17 @@ void parseRBFFile(string path, double &epsilon, size_t &d1, size_t &d2, std::vec
 
 int main(int argc, char ** argv) {
     Args args;
+    args.dim = 10;
 
     // Parse arguments
     CLI::App app{"rbf2mesh"};
 
     app.add_option("inputPath",  args.inputPath,  "input  path")->required()->check(CLI::ExistingFile);
     app.add_option("outputPath", args.outputPath, "output path")->required();
+    app.add_option("--dim",      args.dim,        "dim of rbf representation");
     app.add_option("--mopts",    args.moptsPath,  "mesh options");
     app.add_flag(  "--png",      args.png,        "png input");
+    app.add_flag(  "--ortho",    args.ortho,      "orthotropic symmetry (uses less parameters)");
 
     try {
         app.parse(argc, argv);
@@ -80,17 +86,31 @@ int main(int argc, char ** argv) {
     }
 
     if (args.png) {
-        // read input coefficient file
-        double epsilon = 30.0 / 2;
-        size_t d1 = 30, d2 = 30;
+        if (args.ortho) {
+            size_t d = args.dim;
+            double epsilon = (d + d - 1.0) / 2.0;
 
-        RBFInflator inflator(args.inputPath, epsilon, d1, d2);
-        if (!args.moptsPath.empty())  inflator.meshingOptions().load(args.moptsPath);
+            RBFOrthoInflator inflator(args.inputPath, epsilon, d);
+            if (!args.moptsPath.empty())  inflator.meshingOptions().load(args.moptsPath);
 
-        vector<double> coeffs = inflator.defaultParameters();
-        inflator.inflate(coeffs);
+            vector<double> coeffs = inflator.defaultParameters();
+            inflator.inflate(coeffs);
 
-        MeshIO::save(args.outputPath, inflator.vertices(), inflator.elements());
+            MeshIO::save(args.outputPath, inflator.vertices(), inflator.elements());
+        }
+        else {
+            size_t d = args.dim;
+            double epsilon = d / 2.0;
+
+            RBFInflator inflator(args.inputPath, epsilon, d);
+            if (!args.moptsPath.empty())  inflator.meshingOptions().load(args.moptsPath);
+
+            vector<double> coeffs = inflator.defaultParameters();
+            inflator.inflate(coeffs);
+
+            MeshIO::save(args.outputPath, inflator.vertices(), inflator.elements());
+        }
+
     }
     else {
         // read input coefficient file
@@ -99,7 +119,7 @@ int main(int argc, char ** argv) {
         vector<double> coeffs;
         parseRBFFile(args.inputPath, epsilon, d1, d2, coeffs);
 
-        RBFInflator inflator(epsilon, d1, d2);
+        RBFInflator inflator(epsilon, d1);
         if (!args.moptsPath.empty())  inflator.meshingOptions().load(args.moptsPath);
 
         inflator.inflate(coeffs);
