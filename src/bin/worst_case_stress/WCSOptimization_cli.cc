@@ -451,7 +451,14 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     if (args.count("proximityRegularizationWeight")) {
         ifactory->PRegTermConfig::enabled = true;
         ifactory->PRegTermConfig::weight = args["proximityRegularizationWeight"].as<double>();
-        ifactory->PRegTermConfig::targetParams = job->validatedInitialParams(inflator);
+
+        // if parameter of provided, then use them. Otherwise, assume we should set initial parameters as target
+        if (job->targetParams.size())
+            ifactory->PRegTermConfig::targetParams = job->targetParams;
+        else
+            ifactory->PRegTermConfig::targetParams = job->validatedInitialParams(inflator);
+
+
         if (args.count("proximityRegularizationTarget")) {
             ifactory->PRegTermConfig::targetParams = parseParams(args["proximityRegularizationTarget"].as<string>());
             if (ifactory->PRegTermConfig::targetParams.size() != params.domainSize())
