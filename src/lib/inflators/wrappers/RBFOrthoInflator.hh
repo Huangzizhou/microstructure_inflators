@@ -82,6 +82,7 @@ public:
     std::vector<Real> matToVec(const std::vector<std::vector<Real>> &mat) const;
     std::vector<size_t> reducedParamToAll(size_t param) const;
     size_t originalToReducedParam(size_t originalParam) const;
+    void savePng(const std::vector<Real> &reducedParams, std::string png_path) const;
 
 
     ////////////////////////////////////////////////////////////////////////////

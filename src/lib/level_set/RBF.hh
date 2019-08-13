@@ -19,6 +19,7 @@
 #include <math.h>
 
 #include "../../3rdparty/libigl/external/stb/stb_image.h"
+#include "../../3rdparty/libigl/external/stb/stb_image_write.h"
 
 namespace SD = SignedDistance;
 
@@ -123,6 +124,7 @@ public:
         return result;
     }
 
+    void savePng(std::string png_path, size_t width = 201, size_t height = 201) const;
 
 private:
 

@@ -199,3 +199,12 @@ RBFInflator::matToVec(const std::vector<std::vector<Real>> &mat) const {
 
     return result;
 }
+
+void
+RBFInflator::savePng(const std::vector<Real> &params, std::string png_path) const {
+    std::vector<std::vector<Real>> coeffMatrix = vecToMat(params, m_dim, m_dim);
+
+    RBF<Real> levelSet = RBF<Real>(coeffMatrix, m_epsilon);
+
+    levelSet.savePng(png_path);
+}

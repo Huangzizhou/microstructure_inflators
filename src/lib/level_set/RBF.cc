@@ -1,4 +1,5 @@
 #define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include "RBF.hh"
 #include <unsupported/Eigen/AutoDiff>
@@ -90,6 +91,48 @@ RBF<Real>::RBF(std::string png_path, Real epsilon, size_t dim) {
         std::vector<Real> newVec(first, last);
         m_coeffMatrix[i] = newVec;
     }
+}
+
+
+template<typename Real>
+void
+RBF<Real>::savePng(std::string png_path, size_t width, size_t height) const {
+    const int comp = 1;                                           // 1 single channel
+    const int stride_in_bytes = width * comp;                     // Length of one row in bytes
+    std::vector<unsigned char> data(width * height * comp, 0);    // The image itself;
+
+    size_t num_rows = height;
+    size_t num_cols = width;
+
+    // Construct grid with positions between -1 to 1 on both directions
+    // Given pixel size, first data point should be at -1 + pixel_size/2. Last should be at 1 - pixel_size/2. All the other N - 2
+    // in between
+    Real pixel_size1 = (1.0 - (-1.0)) / num_cols;
+    Real pixel_size2 = (1.0 - (-1.0)) / num_rows;
+
+    for (unsigned i = 0; i < num_rows; i++)
+    {
+        Real x2_pos = (1.0 - pixel_size2 / 2.0) - i * pixel_size2;
+
+        for (unsigned j = 0; j < num_cols; ++j)
+        {
+            Real x1_pos = (-1.0 + pixel_size1 / 2.0) + j * pixel_size1;
+            Point2<Real> p;
+            p << x1_pos, x2_pos;
+
+            Real sdfValue = signedDistance<Real>(p);
+            double density = sdfValue < 0.0 ? 0.0 : 1.0;
+            data[i * width + j] = density * 255.0;
+
+            std::cout << (int) density;
+        }
+
+        std::cout << std::endl;
+    }
+
+    stbi_write_png(png_path.c_str(), width, height, comp, data.data(), stride_in_bytes);
+
+    return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

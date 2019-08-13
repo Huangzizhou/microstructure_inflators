@@ -70,6 +70,7 @@ public:
     ////////////////////////////////////////////////////////////////////////////
     std::vector<std::vector<Real>> vecToMat(const std::vector<Real> &vec, size_t nRows, size_t nCols) const;
     std::vector<Real> matToVec(const std::vector<std::vector<Real>> &mat) const;
+    void savePng(const std::vector<Real> &params, std::string png_path) const;
 
 
     ////////////////////////////////////////////////////////////////////////////

@@ -148,3 +148,19 @@ RBFOrthoInflator::originalToReducedParam(size_t originalParam) const {
 
     return result;
 }
+
+void
+RBFOrthoInflator::savePng(const std::vector<Real> &reducedParams, std::string png_path) const {
+    size_t totalDim = m_dim + m_dim - 1;
+
+    std::vector<Real> params(totalDim * totalDim);
+    for (size_t rp = 0; rp < reducedParams.size(); rp++) {
+        vector<size_t> gluedParamIndices = reducedParamToAll(rp);
+
+        for (unsigned j = 0; j < gluedParamIndices.size(); j++) {
+            params[gluedParamIndices[j]] = reducedParams[rp];
+        }
+    }
+
+    m_rbfInflator.savePng(params, png_path);
+}
