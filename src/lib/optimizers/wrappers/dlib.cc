@@ -162,6 +162,8 @@ void optimize_dlib_custom_bfgs(ScalarField<Real> &params,
     double bestVal = std::numeric_limits<Real>::max();
     double previousVal = std::numeric_limits<Real>::max();
     double minimumStep = 1e-15;
+    size_t maxTries = 100;
+    size_t tries = 0;
 
     im.setOutPath(outPath);
 
@@ -170,8 +172,15 @@ void optimize_dlib_custom_bfgs(ScalarField<Real> &params,
     for (size_t i = 0; i < oconfig.niters; ++i) {
         //std::cout << "[Dlib] New bfgs iteration" << std::endl;
 
-        if (step_size < minimumStep)
-            return;
+        if (step_size < minimumStep) {
+            if (tries < maxTries) {
+                step_size = oconfig.gd_step;
+                tries++;
+            }
+            else {
+                return;
+            }
+        }
 
         try {
             std::vector<Real> paramsCopy;
@@ -263,6 +272,7 @@ void optimize_dlib_custom_bfgs(ScalarField<Real> &params,
 
         //std::cout << "[Dlib] Step size is now: " << step_size << std::endl;
         //std::cout << "[Dlib] End of iteration val: " << previousVal << std::endl;
+
     }
 }
 

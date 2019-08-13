@@ -59,13 +59,22 @@ void optimize_gd_smartstep(ScalarField<Real> &params,
     double bestVal = std::numeric_limits<Real>::max();
     double previousVal = std::numeric_limits<Real>::max();
     double minimumStep = 1e-10;
+    size_t maxTries = 100;
+    size_t tries = 0;
 
     im.setOutPath(outPath);
 
     for (size_t i = 0; i < oconfig.niters; ++i) {
         //std::cout << "[GD] New gradient descent iteration" << std::endl;
-        if (step_size < minimumStep)
-            return;
+        if (step_size < minimumStep) {
+            if (tries < maxTries) {
+                step_size = oconfig.gd_step;
+                tries++;
+            }
+            else {
+                return;
+            }
+        }
 
         try {
             // To std::vector<double>
