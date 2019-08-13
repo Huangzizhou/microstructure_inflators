@@ -7,11 +7,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <MeshFEM/Future.hh>
+#include <MeshFEM/StringUtils.hh>
 #include <inflators/wrappers/RBFInflator.hh>
+#include <inflators/wrappers/RBFOrthoInflator.hh>
 #include <pattern_optimization/PatternOptimizationJob.hh>
-
-#include <boost/program_options.hpp>
-#include <boost/algorithm/string.hpp>
 
 #include <iostream>
 #include <cstdlib>
@@ -20,61 +19,47 @@
 #include <stdexcept>
 #include <cmath>
 
-namespace po = boost::program_options;
+#include <CLI/CLI.hpp>
+
 using namespace std;
 
-[[ noreturn ]] void usage(int exitVal, const po::options_description &visible_opts) {
-    cout << "Usage: GenRBFInflatorJob [options] dim" << endl;
-    cout << visible_opts << endl;
-    exit(exitVal);
-}
+struct Args {
+    size_t dim;
+    double maxCoeff;
+    double targetVolume;
+    std::string elasticityTensor;
+    std::string targetPng;
+    std::string initialPng;
+    bool ortho = false;
+};
 
-po::variables_map parseCmdLine(int argc, const char *argv[])
+int parseCmdLine(int argc, const char *argv[], Args &args)
 {
-    po::options_description hidden_opts("Hidden Arguments");
-    hidden_opts.add_options()
-        ("dim", po::value<int>(), "dim")
-        ;
-    po::positional_options_description p;
-    p.add("dim", 1);
+    // Parse arguments
+    CLI::App app{"GenRBFInflatorJob"};
 
-    po::options_description visible_opts;
-    visible_opts.add_options()("help",                                        "Produce this help message")
-        ("maxCoeff,m",          po::value<double>()->default_value(10.0),     "maximum absolute value of a coefficient")
-        ("elasticityTensor,e",  po::value<string>()->default_value("1,0"),    "target tensor specifier (Young,Poisson)")
-        ("targetVolume,v",      po::value<double>()->default_value(0.0),      "target volume")
-        ;
+    app.add_option("dim",                args.dim,               "dimension");
+    app.add_option("--maxCoeff",         args.maxCoeff,          "maximum absolute value of a coefficient");
+    app.add_option("--targetVolume",     args.targetVolume,      "target volume");
+    app.add_option("--elasticityTensor", args.elasticityTensor,  "target tensor specifier (Young,Poisson)");
+    app.add_option("--targetPng",        args.targetPng,         "target shape");
+    app.add_option("--initialPng",       args.initialPng,        "initial shape");
+    app.add_flag(  "--ortho",            args.ortho,             "orthotropic symmetry (uses less parameters). Set initial/target parameters accordingly");
 
-    po::options_description cli_opts;
-    cli_opts.add(visible_opts).add(hidden_opts);
-
-    po::variables_map vm;
     try {
-        po::store(po::command_line_parser(argc, argv).
-                  options(cli_opts).positional(p).run(), vm);
-        po::notify(vm);
-    }
-    catch (exception &e) {
-        cout << "Error: " << e.what() << endl << endl;
-        usage(1, visible_opts);
+        app.parse(argc, argv);
+    } catch (const CLI::ParseError &e) {
+        return app.exit(e);
     }
 
-    bool fail = false;
-
-    if (vm.count("dim") == 0) {
-        cout << "Error: must specify dim of rbf" << endl;
-        fail = true;
-    }
-
-    if (fail || vm.count("help"))
-        usage(fail, visible_opts);
-
-    return vm;
+    return 0;
 }
 
 vector<Real> parseVecArg(const string &arg, size_t N) {
     vector<string> components;
-    boost::split(components, arg, boost::is_any_of(","));
+
+    components = MeshFEM::split(arg, ",");
+    //boost::split(components, arg, boost::is_any_of(","));
     if (components.size() != N) throw runtime_error("Invalid number of components in argument " + arg);
 
     vector<Real> result;
@@ -85,24 +70,27 @@ vector<Real> parseVecArg(const string &arg, size_t N) {
 
 int main(int argc, const char *argv[])
 {
-    auto args = parseCmdLine(argc, argv);
+    Args args;
+    args.elasticityTensor = "1,0";
+    args.maxCoeff = 10.0;
+    int exitCode = parseCmdLine(argc, argv, args);
+    if (exitCode) {
+        return exitCode;
+    }
 
-    vector<Real> targetModuli = parseVecArg(args["elasticityTensor"].as<string>(), 2);
+    vector<Real> targetModuli = parseVecArg(args.elasticityTensor, 2);
 
     unique_ptr<PatternOptimization::JobBase> job;
     auto job2D = Future::make_unique<PatternOptimization::Job<2>>();
     job2D->targetMaterial.setIsotropic(targetModuli[0], targetModuli[1]);
     job = move(job2D);
 
-    //unique_ptr<InflatorBase> infl;
-    //unique_ptr<RBFInflator<2>> inflator = Future::make_unique<RBFInflator<2>>(vertices, elements, 1e-10);
-
     job->numberCustomTypes = 1;
 
-    int dim = args["dim"].as<int>();
+    size_t dim = args.dim;
 
-    if (args.count("maxCoeff")) {
-        double maxCoeff = args["maxCoeff"].as<double>();
+    if (args.maxCoeff > 0.0) {
+        double maxCoeff = args.maxCoeff;
 
         for (size_t p = 0; p < dim*dim; ++p) {
             job->varLowerBounds.emplace(p, -maxCoeff);
@@ -112,10 +100,40 @@ int main(int argc, const char *argv[])
         job->custom1Bounds = {-maxCoeff, maxCoeff};
     }
 
-    //job->initialParams = std::vector<Real>(dim*dim, 0.0);
+    // Create inflator
+    if (!args.targetPng.empty()) {
+        std::unique_ptr<Inflator<2>> inflator;
+        if (args.ortho) {
+            size_t d = args.dim;
+            Real epsilon = (d + d - 1.0) / 2.0;
+            inflator = Future::make_unique<RBFOrthoInflator>(args.targetPng, epsilon, d);
+        } else {
+            size_t d = args.dim;
+            Real epsilon = d / 2;
+            inflator = Future::make_unique<RBFInflator>(args.targetPng, epsilon, d);
+        }
 
-    if (args.count("targetVolume")) {
-        job->targetVolume = args["targetVolume"].as<double>();
+        job->targetParams = inflator->defaultParameters();
+    }
+
+    if (!args.initialPng.empty()) {
+        std::unique_ptr<Inflator<2>> inflator;
+        if (args.ortho) {
+            size_t d = args.dim;
+            Real epsilon = (d + d - 1.0) / 2.0;
+            inflator = Future::make_unique<RBFOrthoInflator>(args.initialPng, epsilon, d);
+        } else {
+            size_t d = args.dim;
+            Real epsilon = d / 2;
+            inflator = Future::make_unique<RBFInflator>(args.initialPng, epsilon, d);
+        }
+
+        job->initialParams = inflator->defaultParameters();
+    }
+
+
+    if (args.targetVolume) {
+        job->targetVolume = args.targetVolume;
     }
 
     // Fake value for other bounds

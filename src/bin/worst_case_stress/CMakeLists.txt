@@ -11,5 +11,5 @@ micro_single_app(WCS_cli micro::pattern_optimization MeshFEM micro::tbb meshfem:
 micro_single_app(WCSOptimization_cli micro::pattern_optimization micro::optimizers micro::inflators json::json micro::tbb meshfem::boost)
 # micro_single_app(WCSRemeshingOptimization_cli micro::pattern_optimization)
 micro_single_app(GenBoundaryPerturbationInflatorJob micro::pattern_optimization micro::inflators json::json meshfem::boost)
-micro_single_app(GenRBFInflatorJob micro::pattern_optimization micro::inflators json::json meshfem::boost)
+micro_single_app(GenRBFInflatorJob micro::pattern_optimization micro::inflators json::json CLI11::CLI11)
 micro_single_app(RBFShapeDerivativeValidation_cli MeshFEM micro::pattern_optimization micro::inflators micro::tbb CLI11::CLI11)
