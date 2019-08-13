@@ -253,6 +253,9 @@ nlohmann::json Job<_N>::getJson() const {
     if (initialParams.size()) {
         job["initial_params"] = initialParams;
     }
+    if (targetParams.size()) {
+        job["target_params"] = targetParams;
+    }
     if (paramsMask.size()) {
         job["paramsMask"] = paramsMask;
     }
@@ -416,6 +419,10 @@ std::unique_ptr<JobBase> jobFromJson(const nlohmann::json &entry) {
 
     if (entry.count("initial_params")) {
         job->initialParams = entry["initial_params"].get<std::vector<Real>>();
+    }
+
+    if (entry.count("target_params")) {
+        job->targetParams = entry["target_params"].get<std::vector<Real>>();
     }
 
     job->radiusBounds = entry["radiusBounds"].get<std::vector<Real>>();;

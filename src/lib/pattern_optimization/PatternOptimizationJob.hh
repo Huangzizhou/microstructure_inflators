@@ -81,6 +81,7 @@ public:
     std::vector<std::string> parameterConstraints;
     std::map<size_t, Real> varLowerBounds, varUpperBounds;
     nonstd::optional<Real> targetVolume;
+    std::vector<Real> targetParams;
     size_t numberCustomTypes = 0;
 };
 
