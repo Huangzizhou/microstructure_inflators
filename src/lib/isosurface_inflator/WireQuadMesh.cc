@@ -4,9 +4,11 @@
 #include "WireQuadMesh.hh"
 #include "MeshingOptions.hh"
 #include <igl/doublearea.h>
+#include <igl/write_triangle_mesh.h>
 #include "quadfoam/instantiate.h"
 #include "quadfoam/jacobians.h"
 #include <cmath>
+#include <map>
 ////////////////////////////////////////////////////////////////////////////////
 
 namespace {
@@ -16,26 +18,31 @@ std::string lowercase(std::string data) {
     return data;
 }
 
-#define TRY_SYMMETRY(s, x, p)                                  \
-    if (lowercase(x) == lowercase(#s))                         \
-    {                                                          \
-        return std::make_shared<WireMesh<Symmetry::s<>>>((p)); \
+#define TRY_SYMMETRY(s, x, v, e)                                    \
+    if (lowercase(x) == lowercase(#s))                              \
+    {                                                               \
+        return std::make_shared<WireMesh<Symmetry::s<>>>((v), (e)); \
     }
 
-#define TRY_KEY_VAL(s, a, x, p)                                \
-    if (lowercase(x) == lowercase(#a))                         \
-    {                                                          \
-        return std::make_shared<WireMesh<Symmetry::s<>>>((p)); \
+#define TRY_KEY_VAL(s, a, x, v, e)                                  \
+    if (lowercase(x) == lowercase(#a))                              \
+    {                                                               \
+        return std::make_shared<WireMesh<Symmetry::s<>>>((v), (e)); \
     }
 
-std::shared_ptr<WireMeshBase> load_wire_mesh(const std::string &sym, const std::string &path) {
-    TRY_SYMMETRY(Square, sym, path);
-    TRY_SYMMETRY(Cubic, sym, path);
-    TRY_SYMMETRY(Orthotropic, sym, path);
-    TRY_SYMMETRY(Diagonal, sym, path);
-    TRY_KEY_VAL(DoublyPeriodic, Doubly_Periodic, sym, path);
-    TRY_KEY_VAL(TriplyPeriodic, Triply_Periodic, sym, path);
-    return nullptr;
+std::shared_ptr<WireMeshBase> load_wire_mesh(
+    const std::string &sym,
+    const std::vector<MeshIO::IOVertex > &vtx,
+    const std::vector<MeshIO::IOElement> &elm)
+{
+    TRY_SYMMETRY(Square, sym, vtx, elm);
+    TRY_SYMMETRY(Cubic, sym, vtx, elm);
+    TRY_SYMMETRY(Orthotropic, sym, vtx, elm);
+    TRY_SYMMETRY(Diagonal, sym, vtx, elm);
+    TRY_KEY_VAL(DoublyPeriodic, Doubly_Periodic, sym, vtx, elm);
+    TRY_KEY_VAL(TriplyPeriodic, Triply_Periodic, sym, vtx, elm);
+    TRY_KEY_VAL(NonPeriodic, Non_Periodic, sym, vtx, elm);
+    throw std::runtime_error("Could not find a matching symmetry type to load for: " + sym);
 }
 
 // -----------------------------------------------------------------------------
@@ -99,10 +106,20 @@ WireQuadMesh::WireQuadMesh(
     m_allParameters.clear(); m_allParameters.resize(numQuads);
     m_allJacobians.clear(); m_allJacobians.resize(numQuads);
     bool need_compute_jacobians = false;
+    typedef std::pair<std::vector<MeshIO::IOVertex>, std::vector<MeshIO::IOElement>> Mesh;
+    std::map<std::string, Mesh> cache;
     for (size_t i = 0; i < numQuads; ++i) {
         auto entry = params[i];
+        std::string wirePath = entry["pattern"];
+        if (!cache.count(wirePath)) {
+            std::vector<MeshIO::IOVertex> inVertices;
+            std::vector<MeshIO::IOElement> inElements;
+            MeshIO::load(wirePath, inVertices, inElements);
+            cache[wirePath] = std::make_pair(inVertices, inElements);
+        }
+        const auto &mesh = cache[wirePath];
         m_allParameters[i] = entry["params"].get<std::vector<double>>();
-        m_allTopologies[i] = load_wire_mesh(entry["symmetry"], entry["pattern"]);
+        m_allTopologies[i] = load_wire_mesh(entry["symmetry"], mesh.first, mesh.second);
         assert(m_allTopologies[i]->thicknessType() == m_thicknessType);
         assert(m_allTopologies[i]->numParams() == m_allParameters[i].size());
         if (entry.count("jacobian")) {

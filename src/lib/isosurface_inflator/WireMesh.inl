@@ -1,5 +1,7 @@
+#include "DynamicKdTree.hh"
 #include <MeshFEM/Utilities/apply.hh>
 #include <MeshFEM/CollisionGrid.hh>
+#include <nanoflann.hpp>
 #include <algorithm>
 #include <iterator>
 #include <type_traits>
@@ -72,8 +74,9 @@ set(const std::vector<MeshIO::IOVertex > &inVertices,
 
     // Create positioners for each base vertex
     m_baseVertexPositioners.reserve(m_baseVertices.size());
-    for (const auto &p : m_baseVertices)
+    for (const auto &p : m_baseVertices) {
         m_baseVertexPositioners.push_back(PatternSymmetry::nodePositioner(p));
+    }
 
     // Determine the "independent" and "dependent" base vertices
     // First, assume there are no dependent vertices
@@ -258,14 +261,15 @@ replicatedGraph(const std::vector<Isometry> &isometries,
                 std::vector<TransformedEdge  > &outEdges) const
 {
     std::vector<TransformedVertex> rVertices;
-    std::set<TransformedEdge>      rEdges;
+    std::set<TransformedEdge> rEdges;
 
     const double tol = m_tolerance();
 
     // Choose a cell size on the order of epsilon, but prevent cell sizes so
     // small as to cause index overflows for objects of size up to 100x100
     // centered at the origin: max int ~10^9 ==> cellSize > 10^-7
-    CollisionGrid<double, Point> cgrid(std::max(tol, 1e-7));
+    // CollisionGrid<double, Point> cgrid(std::max(tol, 1e-7));
+    ::micro::DynamicKdTree3d cTree;
 
     for (size_t ei = 0; ei < m_baseEdges.size(); ++ei) {
         const auto &e = m_baseEdges[ei];
@@ -284,12 +288,12 @@ replicatedGraph(const std::vector<Isometry> &isometries,
             // Create a new replicated vertex at "p" unless p coincides
             // with an existing one. Return resulting unique vertex's index
             auto createUniqueVtx = [&](const size_t origVertex, const Point &p, const Eigen::Matrix3Xd &posMap) {
-                auto result = cgrid.getClosestPoint(p, tol);
+                auto result = cTree.getClosestPoint(p, tol);
                 if (result.first < 0) {
                     // Create new replicated vertex at "p" if none exists
                     size_t newVtxIdx = rVertices.size();
                     rVertices.emplace_back(p, origVertex, isometry, posMap);
-                    cgrid.addPoint(p, newVtxIdx);
+                    cTree.addPoint(p, newVtxIdx);
                     return newVtxIdx;
                 }
 

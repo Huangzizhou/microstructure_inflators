@@ -13,6 +13,8 @@ set(SOURCES
         BoxIntersectionMesher.hh
         CGALClippedVolumeMesher.hh
         ConvexHullTriangulation.hh
+        DynamicKdTree.cc
+        DynamicKdTree.hh
         FuzzySign.hh
         IGLSurfaceMesherMC.cc
         IGLSurfaceMesherMC.hh
@@ -88,6 +90,7 @@ target_link_libraries(micro_isosurface_inflator
         MeshFEM
         micro::libigl
         micro::tbb
+        nanoflann::nanoflann
     PRIVATE
         micro::isosurface_inflator_cgal
         micro::vcglib

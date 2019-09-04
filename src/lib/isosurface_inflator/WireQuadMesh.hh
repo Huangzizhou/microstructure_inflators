@@ -37,7 +37,10 @@ public:
     };
 
 public:
-    WireQuadMesh(const std::vector<MeshIO::IOVertex> &V, const std::vector<MeshIO::IOElement> &F, const nlohmann::json &params);
+    WireQuadMesh(
+        const std::vector<MeshIO::IOVertex> &V,
+        const std::vector<MeshIO::IOElement> &F,
+        const nlohmann::json &params);
 
     ThicknessType thicknessType() const { return m_thicknessType; }
 

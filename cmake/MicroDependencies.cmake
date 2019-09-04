@@ -96,6 +96,14 @@ if(NOT TARGET CGAL::CGAL)
     find_package(CGAL CONFIG REQUIRED COMPONENTS PATHS ${CGAL_DIR} NO_DEFAULT_PATH)
 endif()
 
+# Nanoflann
+if(NOT TARGET nanoflann::nanoflann)
+    micro_download_nanoflann()
+    add_library(nanoflann INTERFACE)
+    add_library(nanoflann::nanoflann ALIAS nanoflann)
+    target_include_directories(nanoflann INTERFACE ${MICRO_EXTERNAL}/nanoflann/include)
+endif()
+
 # Accelerate framework
 if(NOT TARGET micro::accelerate)
     if(APPLE)

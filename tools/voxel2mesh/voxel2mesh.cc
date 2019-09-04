@@ -54,9 +54,9 @@ int main(int argc, char ** argv) {
             for (size_t x = 0; x < width; x++) {
                 unsigned char byte = row[x];
                 density_matrix[y][x] = 1.0 - byte / 255.0;
-                std::cout << density_matrix[y][x];
+                // std::cout << density_matrix[y][x];
             }
-            std::cout << std::endl;
+            // std::cout << std::endl;
         }
     }
 

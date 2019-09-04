@@ -49,8 +49,10 @@ struct TransformedEdge {
         : e(u, v), origEdge(oe) { }
     UnorderedPair e;
     size_t origEdge;
-    // Allow std::map
+    // Allow std::map and std::sort
     bool operator<(const TransformedEdge &b) const { return e < b.e; }
+    // Allow std::unique
+    bool operator==(const TransformedEdge &b) const { return e == b.e; }
 };
 
 enum class ThicknessType { Vertex, Edge };

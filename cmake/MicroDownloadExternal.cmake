@@ -94,6 +94,14 @@ function(micro_download_libigl)
     )
 endfunction()
 
+## nanoflann
+function(micro_download_nanoflann)
+    micro_download_project(nanoflann
+        GIT_REPOSITORY https://github.com/jlblancoc/nanoflann
+        GIT_TAG v1.3.0
+    )
+endfunction()
+
 ## Sanitizers
 function(micro_download_sanitizers)
     micro_download_project(sanitizers-cmake
