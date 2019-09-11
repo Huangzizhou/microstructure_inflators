@@ -77,8 +77,8 @@ struct IterateFactory : public IFConfigs... {
     using Iterate = _Iterate;
     using _Inflator = Inflator<N>;
 
-    IterateFactory(_Inflator &inflator, const BoundConstraints &paramBnds)
-        : m_inflator(inflator), m_paramBnds(paramBnds) { }
+    IterateFactory(_Inflator &inflator, const BoundConstraints &paramBnds, bool outputGradientInformation)
+        : m_inflator(inflator), m_paramBnds(paramBnds), m_outputGradientInformation(outputGradientInformation) { }
 
     // Use previous iterate if evaluating the same point. Otherwise, attempt to
     // inflate the new parameters. Try three times to inflate, and if
@@ -114,7 +114,7 @@ struct IterateFactory : public IFConfigs... {
             success = true;
             try {
                 if (i == 0)
-                    newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params);
+                    newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params, m_outputGradientInformation);
                 else {
                     // With the new isosurface inflator, failures are uncommon
                     // but do happen sometimes with bad parameters.
@@ -137,10 +137,12 @@ struct IterateFactory : public IFConfigs... {
                         }
                         std::uniform_real_distribution<> dis(perturbedLB, perturbedUB);
                         perturbedParams[p] = dis(gen);
-                        std::cerr << '\t' << perturbedParams[p];
+                        if (p <= 30)
+                            std::cerr << '\t' << perturbedParams[p];
+
                     }
                     std::cerr << std::endl;
-                    newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, &perturbedParams[0]);
+                    newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, &perturbedParams[0], m_outputGradientInformation);
                     newIterate->overwriteParams(nParams, params);
                     relMagnitude *= 5;
                 }
@@ -219,12 +221,14 @@ private:
     // We need to know the parameter bounds to generate a reasonable
     // perturbation when attempting to recover from an inflation failure.
     const BoundConstraints &m_paramBnds;
+
+    bool m_outputGradientInformation = true;
 };
 
 // Inflator template parameter is last so that it can be inferred...
 template<class _Iterate, class... IFConfigs>
-std::unique_ptr<IterateFactory<_Iterate, IFConfigs...>> make_iterate_factory(Inflator<_Iterate::_N> &inflator, const BoundConstraints &paramBnds) {
-    return Future::make_unique<IterateFactory<_Iterate, IFConfigs...>>(inflator, paramBnds);
+std::unique_ptr<IterateFactory<_Iterate, IFConfigs...>> make_iterate_factory(Inflator<_Iterate::_N> &inflator, const BoundConstraints &paramBnds, bool outputGradientInformation) {
+    return Future::make_unique<IterateFactory<_Iterate, IFConfigs...>>(inflator, paramBnds, outputGradientInformation);
 }
 
 }

@@ -190,6 +190,7 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
         ("dumpShapeDerivatives", po::value<string>(), "Dump shape derivative fields for JVol, JS, and WCS")
         ("numProcs",             po::value<size_t>(), "Number of threads to use for TBB parallelism (CGAL mesher, etc.)")
         ("dumpJson",             po::value<string>(), "Dump some information into the specified json file")
+        ("hideGradientInformation",                          "Hide gradient informtion (useful when there are too many parameters)")
         ;
 
     po::options_description visibleOptions;
@@ -366,6 +367,8 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
     using TFConstraintConfig  = PO::   Constraints::IFConfigTensorFit<Simulator>;
     using  PConstraintConfig  = PO::   Constraints::IFConfigPrintability<Simulator>;
 
+    bool outputGradientInformation = !args.count("hideGradientInformation");
+
     auto ifactory = PO::make_iterate_factory<PO::Iterate<Simulator>,
          WCSTermConfig,
          TensorFitTermConfig,
@@ -375,7 +378,7 @@ void execute(const po::variables_map &args, PO::Job<_N> *job)
          SRegTermConfig,
          TFConstraintConfig,
          TargetVolumeTermConfig,
-         PConstraintConfig>(inflator, bdcs);
+         PConstraintConfig>(inflator, bdcs, outputGradientInformation);
 
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms

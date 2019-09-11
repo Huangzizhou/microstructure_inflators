@@ -53,9 +53,11 @@ struct Iterate : public IterateBase {
     using IterateBase::m_params;
 
     // Ortho base cell only? TODO: determine from inflator
-    Iterate(Inflator<_N> &inflator, size_t nParams, const double *params)
+    Iterate(Inflator<_N> &inflator, size_t nParams, const double *params, bool outputGradientInformation = true)
         : IterateBase(inflator.isParametric())
     {
+        m_outputGradientInformation = outputGradientInformation;
+
         m_params.resize(nParams);
         for (size_t i = 0; i < nParams; ++i)
             m_params[i] = params[i];
@@ -328,8 +330,14 @@ struct Iterate : public IterateBase {
     virtual void writeDescription(std::ostream &os) const override {
         if (isParametric()) {
             os << "p:";
-            for (size_t i = 0; i < m_params.size(); ++i)
+            for (size_t i = 0; i < m_params.size(); ++i) {
                 os << "\t" << m_params[i];
+                if (i > 30) {
+                    os << "...";
+                    break;
+                }
+            }
+
             os << std::endl;
         }
 
@@ -347,16 +355,19 @@ struct Iterate : public IterateBase {
             term.second->writeDescription(os, term.first);
         for (auto &c : m_constraints)
             c.second->writeDescription(os, c.first);
-        // Evaluated objective terms/constraints know the gradient information
-        for (auto &eterm : this->m_evaluatedObjectiveTerms)
-            eterm->writeGradientDescription(os, isParametric());
-        for (auto &ec : this->m_evaluatedConstraints)
-            ec->writeGradientDescription(os, isParametric());
+
+        if (m_outputGradientInformation) {
+            // Evaluated objective terms/constraints know the gradient information
+            for (auto &eterm : this->m_evaluatedObjectiveTerms)
+                eterm->writeGradientDescription(os, isParametric());
+            for (auto &ec : this->m_evaluatedConstraints)
+                ec->writeGradientDescription(os, isParametric());
+        }
 
         if (this->numObjectiveTerms() > 1) {
             os << "JFull:\t" << this->evaluate() << std::endl;
             SField gp = IterateBase::gradp();
-            if (isParametric()) {
+            if (isParametric() && m_outputGradientInformation) {
                 os << "grad_p JFull:\t";
                 gp.print(os, "", "", "", "\t");
                 os << std::endl;
@@ -404,6 +415,8 @@ protected:
     ObjectiveTermMap m_objectiveTerms;
     ConstraintMap    m_constraints;
     bool m_dontReport = false; // If this is an approximated iterate, don't have optimizer report its value.
+
+    bool m_outputGradientInformation = true; // Set this to False to make the output more readable. Usually when optimization has large number of parameters
 };
 
 }

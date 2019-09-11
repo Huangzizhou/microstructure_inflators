@@ -63,7 +63,7 @@ namespace ShapeOptimization {
 
         static constexpr bool SIMPLIFIED_OUTPUT = true;
 
-        Iterate(Inflator<_N> &inflator, size_t nParams, const double *params)
+        Iterate(Inflator<_N> &inflator, size_t nParams, const double *params, bool /*outputGradientInformation*/)
                 : IterateBase(inflator.isParametric()), m_inflator(inflator)
         {
             m_params.resize(nParams);

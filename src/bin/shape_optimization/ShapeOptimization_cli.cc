@@ -363,7 +363,7 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
             StressTermConfig,
             PRegTermConfig,
             VolumeTermConfig,
-    PConstraintConfig>(inflator, *bdcs);
+    PConstraintConfig>(inflator, *bdcs, true);
 
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms

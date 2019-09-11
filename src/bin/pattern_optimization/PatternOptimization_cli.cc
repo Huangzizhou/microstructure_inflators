@@ -214,7 +214,7 @@ void execute(const po::variables_map &args, const Job<_N> *job)
     auto ifactory = make_iterate_factory<Iterate,
                                          TensorFitTermConfig,
                                          ObjectiveTerms::IFConfigProximityRegularization,
-                                         TFConstraintConfig>(inflator, bdcs);
+                                         TFConstraintConfig>(inflator, bdcs, true);
 
     bool ignoreShear = args.count("ignoreShear");
     ifactory->TensorFitTermConfig::ignoreShear = ignoreShear;
