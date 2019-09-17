@@ -161,7 +161,7 @@ struct IterateFactory : public IFConfigs... {
                 std::cerr << "Attempting full-blend inflation" << std::endl;
                 m_inflator.meshingOptions().jointBlendingMode = JointBlendMode::FULL;
                 try {
-                    newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params);
+                    newIterate = Future::make_unique<_Iterate>(m_inflator, nParams, params, m_outputGradientInformation);
                     // This estimate shouldn't be reported.
                     newIterate->setDontReport();
                     success = true;
