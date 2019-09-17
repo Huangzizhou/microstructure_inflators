@@ -5,6 +5,8 @@
 set(SOURCES
         RBF.cc
         RBF.hh
+        VoxelSDF.cc
+        VoxelSDF.hh
 )
 
 micro_add_library(level_set ${SOURCES})

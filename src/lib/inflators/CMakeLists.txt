@@ -42,7 +42,6 @@ target_link_libraries(micro_inflators
         meshfem::boost
         micro::hex_inflator
         micro::isosurface_inflator
-        micro::voxel_inflator
         micro::level_set
         micro::pymesh
         micro::vcglib

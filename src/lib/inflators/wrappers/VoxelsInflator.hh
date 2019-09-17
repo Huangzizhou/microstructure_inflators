@@ -11,7 +11,7 @@
 
 #include "../Inflator.hh"
 #include "IsoinflatorWrapper.hh"
-#include <voxel_inflator/VoxelSDF.hh>
+#include <level_set/VoxelSDF.hh>
 #include <isosurface_inflator/MeshingOptions.hh>
 #include <isosurface_inflator/MidplaneMesher.hh>
 
