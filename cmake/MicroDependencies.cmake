@@ -33,7 +33,7 @@ endif()
 # While wjakob has been updated to TBB 2019 recently, it seems to hang Travis
 # at the linking stage for some reason, so we'll just use the upstream version
 # for now.
-if(MICRO_BUILD_ON_TRAVIS AND NOT TARGET tbb::tbb)
+if(MICRO_WITH_UBUNTU AND NOT TARGET tbb::tbb)
     micro_download_tbb()
     list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/tbb/cmake)
     include(TBBBuild)

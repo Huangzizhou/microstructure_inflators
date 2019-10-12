@@ -41,7 +41,7 @@ endfunction()
 
 ## TBB
 function(micro_download_tbb)
-    if(MICRO_BUILD_ON_TRAVIS)
+    if(MICRO_WITH_UBUNTU)
         micro_download_project(tbb
             GIT_REPOSITORY https://github.com/01org/tbb.git
             GIT_TAG        2019_U1
