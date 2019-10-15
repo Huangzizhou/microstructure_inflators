@@ -201,9 +201,6 @@ void WireQuadMesh::compute_jacobians() {
     for (int i = 0; i < m_F.rows(); ++i) {
         json obj = json::array({Q(i, 0), Q(i, 1), Q(i, 2), Q(i, 3)});
         m_allJacobians[i] = MeshingOptions::read_jacobian(obj);
-
-        // Scale computed Jacobian in order to preserve area/volume
-        m_allJacobians[i].topLeftCorner<2, 2>() *= 1.0 / std::sqrt(m_allJacobians[i].topLeftCorner<2, 2>().determinant());
     }
 }
 

@@ -64,11 +64,13 @@ include(MicroUtils)
 
 # Find out if we are on Ubuntu
 set(OS_IS_UBUNTU OFF)
-if(UNIX)
-    file(READ "/etc/issue" ETC_ISSUE)
-    string(REGEX MATCH "Debian|Ubuntu" DIST ${ETC_ISSUE})
-    if(DIST STREQUAL "Ubuntu")
-        set(OS_IS_UBUNTU ON)
+if(UNIX AND NOT APLE)
+    if(EXISTS "/etc/issue")
+        file(READ "/etc/issue" ETC_ISSUE)
+        string(REGEX MATCH "Debian|Ubuntu" DIST ${ETC_ISSUE})
+        if(DIST STREQUAL "Ubuntu")
+            set(OS_IS_UBUNTU ON)
+        endif()
     endif()
 endif()
 

@@ -58,6 +58,9 @@ public:
     }
 
     void setMapFunctor(MapFunctor f) {
+        if (!m_jacobian.isApprox(Eigen::Matrix<Real, 3, 3>::Identity())) {
+            std::cerr << "WARNING: Setting custom base unit mapping function on a cell with a non-identity Jacobian." << std::endl;
+        }
         m_mapFunctor = std::move(f);
     }
 
