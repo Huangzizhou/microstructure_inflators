@@ -62,6 +62,8 @@ public:
 
     BilinearMap getBilinearMap(int i) const;
 
+    double getScalingFactor(int i) const;
+
     // Build the inflation graph for the whole quad mesh, stitching together adjacent nodes
     // (averaging stitched points' locations, thicknesses, and blending params).
     //

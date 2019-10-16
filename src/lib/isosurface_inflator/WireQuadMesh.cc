@@ -214,6 +214,19 @@ BilinearMap WireQuadMesh::getBilinearMap(int i) const {
     return BilinearMap(pts);
 }
 
+// Compute a global scaling factor between the reference domain [-1, 1]^2 to the
+// actual quad on the background mesh.
+double WireQuadMesh::getScalingFactor(int i) const {
+    Point2d pts[4];
+    double len = 0;
+    for (int lv = 0; lv < 4; ++lv) {
+        int v0 = m_F(i, lv);
+        int v1 = m_F(i, (lv + 1)%4);
+        len += (m_V.row(v0) - m_V.row(v1)).stableNorm();
+    }
+    return len / 8.0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // Set currently active quad
@@ -311,7 +324,7 @@ void WireQuadMesh::inflationGraph(const std::vector<double> &allParams,
             std::cerr << "Warning: Jacobian of the mapped parallelogram has negative volume for quad " << i << std::endl;
         }
         assert(jac_det > 0);
-        double pre_scaling = 1.0 / std::sqrt(std::abs(jac_det));
+        double pre_scaling = getScalingFactor(i) / std::sqrt(std::abs(jac_det));
         auto map = getBilinearMap(i);
 
         allVertices.push_back(to_eigen_matrix(points));
