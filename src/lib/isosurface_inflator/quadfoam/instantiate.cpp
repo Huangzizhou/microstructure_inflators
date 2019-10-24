@@ -8,6 +8,7 @@
 #include <igl/is_boundary_edge.h>
 #include <igl/edges.h>
 #include <iostream>
+#include <numeric>
 #include <vector>
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -260,14 +261,23 @@ bool instantiate_pattern_aux(
 		if (PF) { f0 += (int) PF(q)->rows(); }
 	}
 
-	// Remapped vertex id (after duplicate removal)
-	Eigen::VectorXi remap(V.rows());
-	remap.setConstant(-1);
+	// Remapped vertex id, with union-find (after duplicate removal)
+	std::vector<int> parent(V.rows());
+	std::iota(parent.begin(), parent.end(), 0);
+	std::function<int(int)> find = [&](int i) {
+		if (parent[i] == i) { return i; }
+		parent[i] = find(parent[i]);
+		return parent[i];
+	};
+
+	auto merge = [&](int i, int j) {
+		parent[find(i)] = find(j);
+	};
 
 	// Navigation data
 	NavigationData data(IF);
 
-	// [Helper] retrieve vertices located along a given edge
+	// [Helper] Retrieve vertices located along a given edge
 	auto edge_vertices = [&](NavigationIndex idx0) {
 		NavigationIndex idx = index_from_face(IF, data, idx0.face, 0);
 		int lv;
@@ -285,22 +295,22 @@ bool instantiate_pattern_aux(
 	};
 
 	// [Helper] Stitch vertices from adjacent quads
-	int cnt = 0;
-	bool incompatible = false;
+	bool incompatible_num = false;
+	bool incompatible_pos = false;
 	auto remap_vertices = [&](NavigationIndex idx1, NavigationIndex idx2) {
 		assert(idx1.edge == idx2.edge);
 		if (idx1.vertex != idx2.vertex) { idx1 = switch_vertex(data, idx1); }
 		auto side1 = edge_vertices(idx1);
 		auto side2 = edge_vertices(idx2);
 		if (side1.size() != side2.size()) {
-			incompatible = true;
+			incompatible_num = true;
 			return;
 		}
 		if (tolerance >= 0) {
 			// Optionally check that positions are matching
 			for (int i = 0; i < (int) side1.size(); ++i) {
 				if ((V.row(side1[i]) - V.row(side2[i])).squaredNorm() > tolerance * tolerance) {
-					incompatible = true;
+					incompatible_pos = true;
 					return;
 				}
 			}
@@ -308,8 +318,7 @@ bool instantiate_pattern_aux(
 		for (int i = 0; i < (int) side1.size(); ++i) {
 			const int x1 = side1[i];
 			const int x2 = side2[i];
-			if (remap(x1) < 0) { remap(x1) = cnt++; }
-			remap(x2) = remap(x1);
+			merge(x1, x2);
 		}
 	};
 
@@ -324,12 +333,28 @@ bool instantiate_pattern_aux(
 			idx = next_around_face(data, idx);
 		}
 	}
-	// Assign ids to unmapped vertices
-	for (int v = 0; v < V.rows(); ++v) {
-		if (remap(v) < 0) { remap(v) = cnt++; }
+
+	// Assign ids to vertices based on their groups
+	Eigen::VectorXi ids(V.rows());
+	{
+		int cnt = 0;
+		ids.setConstant(-1);
+		for (int v = 0; v < V.rows(); ++v) {
+			if (find(v) == v) { ids(v) = cnt++; }
+		}
+		for (int v = 0; v < V.rows(); ++v) {
+			ids(v) = ids(find(v));
+		}
 	}
-	if (incompatible && vertex_id_map_ptr) {
-		std::cerr << "WARNING: Incompatible interface between adjacent patterns!" << std::endl;
+	if (vertex_id_map_ptr) {
+		if (incompatible_num) {
+			std::cerr << "WARNING: Incompatible number of vertices between adjacent patterns!" << std::endl;
+			return false;
+		}
+		if (incompatible_pos) {
+			std::cerr << "WARNING: Mismatched vertex positions between adjacent patterns!" << std::endl;
+			return false;
+		}
 	}
 
 	// Retrieve edges on the boundary of the original mesh
@@ -373,20 +398,20 @@ bool instantiate_pattern_aux(
 
 	// Remap vertices according to 'remap'
 	if (remap_duplicated_vertices) {
-		int num_remapped = remap.maxCoeff() + 1;
+		int num_remapped = ids.maxCoeff() + 1;
 		OV.resize(num_remapped, V.cols());
 		Eigen::VectorXi count(num_remapped);
 		OV.setZero();
 		count.setZero();
 		for (int v = 0; v < V.rows(); ++v) {
-			OV.row(remap(v)) += V.row(v);
-			count(remap(v))++;
+			OV.row(ids(v)) += V.row(v);
+			count(ids(v))++;
 		}
 		OV = OV.array().colwise() / count.array().cast<double>();
-		OF = F.unaryExpr([&](int v){ return remap(v); });
+		OF = F.unaryExpr([&](int v){ return ids(v); });
 		for (auto &e : boundary_edges) {
-			e.first = remap(e.first);
-			e.second = remap(e.second);
+			e.first = ids(e.first);
+			e.second = ids(e.second);
 		}
 		std::sort(boundary_edges.begin(), boundary_edges.end());
 		auto it = std::unique(boundary_edges.begin(), boundary_edges.end());
@@ -398,7 +423,7 @@ bool instantiate_pattern_aux(
 
 	// Assign optional output arguments
 	if (vertex_id_map_ptr) {
-		*vertex_id_map_ptr = remap;
+		*vertex_id_map_ptr = ids;
 	}
 	if (parent_face_ptr) {
 		*parent_face_ptr = parent_face;

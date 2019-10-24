@@ -62,6 +62,18 @@ include(MicroUtils)
 
 ################################################################################
 
+# Find out if we are on Ubuntu
+set(OS_IS_UBUNTU OFF)
+if(UNIX AND NOT APLE)
+    if(EXISTS "/etc/issue")
+        file(READ "/etc/issue" ETC_ISSUE)
+        string(REGEX MATCH "Debian|Ubuntu" DIST ${ETC_ISSUE})
+        if(DIST STREQUAL "Ubuntu")
+            set(OS_IS_UBUNTU ON)
+        endif()
+    endif()
+endif()
+
 # Microstructure options
 option(MICRO_COPY_HEADERS    "Copy headers into build directory; for debugging purposes"            OFF)
 option(MICRO_WITH_SANITIZERS "Enable sanitizers in compilation targets"                             OFF)
@@ -71,7 +83,7 @@ option(MICRO_WITH_TBB        "Compile with TBB"                                 
 option(MICRO_WITH_CERES      "Compile with Ceres"                                                   ON)
 option(MICRO_BUILD_TOOLS     "Build tools, e.g. voxel2mesh"                                         OFF)
 option(MICRO_BUILD_BINARIES  "Build executable programs" ${MICRO_TOPLEVEL_PROJECT})
-option(MICRO_BUILD_ON_TRAVIS "Are we building on Travis" OFF)
+option(MICRO_WITH_UBUNTU     "Enable hack around GCC bug on Ubuntu wtih wjacob/tbb 2017" ${OS_IS_UBUNTU})
 
 # Options for libigl modules
 option(LIBIGL_USE_STATIC_LIBRARY          "Use libigl as static library" OFF)

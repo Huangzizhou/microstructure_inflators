@@ -37,7 +37,10 @@ public:
     };
 
 public:
-    WireQuadMesh(const std::vector<MeshIO::IOVertex> &V, const std::vector<MeshIO::IOElement> &F, const nlohmann::json &params);
+    WireQuadMesh(
+        const std::vector<MeshIO::IOVertex> &V,
+        const std::vector<MeshIO::IOElement> &F,
+        const nlohmann::json &params);
 
     ThicknessType thicknessType() const { return m_thicknessType; }
 
@@ -58,6 +61,8 @@ public:
     BBox<Point3d> boundingBox() const { return m_bbox; }
 
     BilinearMap getBilinearMap(int i) const;
+
+    double getScalingFactor(int i) const;
 
     // Build the inflation graph for the whole quad mesh, stitching together adjacent nodes
     // (averaging stitched points' locations, thicknesses, and blending params).

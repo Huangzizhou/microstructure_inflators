@@ -33,7 +33,7 @@ endif()
 # While wjakob has been updated to TBB 2019 recently, it seems to hang Travis
 # at the linking stage for some reason, so we'll just use the upstream version
 # for now.
-if(MICRO_BUILD_ON_TRAVIS AND NOT TARGET tbb::tbb)
+if(MICRO_WITH_UBUNTU AND NOT TARGET tbb::tbb)
     micro_download_tbb()
     list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/tbb/cmake)
     include(TBBBuild)
@@ -94,6 +94,14 @@ if(NOT TARGET CGAL::CGAL)
     micro_download_cgal()
     set(CGAL_DIR ${MICRO_EXTERNAL}/cgal)
     find_package(CGAL CONFIG REQUIRED COMPONENTS PATHS ${CGAL_DIR} NO_DEFAULT_PATH)
+endif()
+
+# Nanoflann
+if(NOT TARGET nanoflann::nanoflann)
+    micro_download_nanoflann()
+    add_library(nanoflann INTERFACE)
+    add_library(nanoflann::nanoflann ALIAS nanoflann)
+    target_include_directories(nanoflann INTERFACE ${MICRO_EXTERNAL}/nanoflann/include)
 endif()
 
 # Accelerate framework
