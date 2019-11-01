@@ -187,11 +187,17 @@ if __name__== "__main__":
         experiments.append(e)
 
     num_experiments = len(experiments)
-    each_partition = int(num_experiments / args.total_partitions)
+    each_partition = num_experiments / args.total_partitions
+
+    print("Total number of experiments: " + str(num_experiments))
+    print("Average number of experiments per partition: " + str(each_partition))
 
     # Find which range of experiment indices we should run
     start = args.partition * each_partition
     stop_before = start + each_partition
+
+    start = int(start)
+    stop_before = int(stop_before)
 
     # Create table and leave it open
     partition_table = "table" + str(args.partition) + ".txt"
