@@ -151,6 +151,64 @@ def run_experiment(pattern, params, args):
             os.remove(simulation_log)
 
 
+def pca_experiments():
+    experiments = []
+
+    T = np.array([[0.7642, -0.6168,  -0.1791, 0,  0,  0,  0.0088,  0.0582,  0, 0, 0, 0, 0],
+                 [ 0.5219,  0.7625,  -0.3729, 0,  0,  0, -0.0118,  0.0829,  0, 0, 0, 0, 0],
+                 [-0.1915, -0.0777,  -0.2857, 0,  0,  0,  0.5980,  0.7198,  0, 0, 0, 0, 0]])
+
+    average = np.array([0.4389, 0.4323, 0.2274, 0.3000, 0.7000, 0.1250, 0.1547, 0.1950, 0.1500, 0.01, 0.01, 0.01, 0.01])
+
+    v1_range = [-0.5, 0.5]
+    v2_range = [-0.5, 0.6]
+    v3_range = [-0.3, 0.3]
+
+    p1_range = [0.15, 0.75]
+    p2_range = [0.15, 0.85]
+    p3_range = [0.05, 0.40]
+    p7_range = [0.01, 0.30]
+    p8_range = [0.01, 0.30]
+
+    n1 = 70
+    n2 = 70
+    n3 = 70
+
+    v1_values = np.linspace(v1_range[0], v1_range[1], n1)
+    v2_values = np.linspace(v2_range[0], v2_range[1], n2)
+    v3_values = np.linspace(v3_range[0], v3_range[1], n3)
+    for v1 in v1_values:
+        for v2 in v2_values:
+            for v3 in v3_values:
+                new_variables = np.array([v1, v2, v3])
+
+                e = new_variables.dot(T) + average
+
+                # Filter out parameters that don't make sense
+                if e[0] < p1_range[0] or e[0] > p1_range[1]:
+                    continue
+                if e[1] < p2_range[0] or e[1] > p2_range[1]:
+                    continue
+                if e[2] < p3_range[0] or e[2] > p3_range[1]:
+                    continue
+                if e[6] < p7_range[0] or e[6] > p7_range[1]:
+                    continue
+                if e[7] < p8_range[0] or e[7] > p8_range[1]:
+                    continue
+
+                #print(e)
+                experiments.append(e)
+
+
+    print("Total number of valid experiments: " + str(len(experiments)))
+
+    array_experiments = np.array(experiments)
+    print(np.min(array_experiments, axis=0))
+    print(np.max(array_experiments, axis=0))
+
+    return experiments
+
+
 if __name__== "__main__":
     parser = argparse.ArgumentParser(description='Sweep through different parameter sets of 3D topologies')
     parser.add_argument('topology', help='path to topology in which the sweep will be made')
@@ -159,6 +217,7 @@ if __name__== "__main__":
     parser.add_argument('--partition', type=int, default=0, help='partition of experiments to be run')
     parser.add_argument('--total-partitions', type=int, default=1, help='number of experiment partitions to be used')
     parser.add_argument('--material', default='Default.material', help='choose material')
+    parser.add_argument('--pca-experiments', action='store_true', help='run experiment with 3 new parameters obtained from PCA analysis')
     args = parser.parse_args()
 
     pattern = args.topology
@@ -169,22 +228,27 @@ if __name__== "__main__":
     pathname = os.path.dirname(sys.argv[0])
     script_directory = os.path.abspath(pathname)
 
-    parameters_values = []
 
-    # Read file, line by line, and add all values for each parameter
-    range_file = open(args.range_file, 'r')
-    float_pattern = re.compile(r'\-?\d+\.?\d*e?-?\d*')  # Compile a pattern to capture float values
+    if args.pca_experiments:
+        experiments = pca_experiments()
+    else:
+        parameters_values = []
 
-    range_content = range_file.readlines()
-    for l, line in enumerate(range_content):
-        p_values = [float(i) for i in float_pattern.findall(line)]  # Convert strings to float
+        # Read file, line by line, and add all values for each parameter
+        range_file = open(args.range_file, 'r')
+        float_pattern = re.compile(r'\-?\d+\.?\d*e?-?\d*')  # Compile a pattern to capture float values
 
-        parameters_values.append(np.array(p_values))
+        range_content = range_file.readlines()
+        for l, line in enumerate(range_content):
+            p_values = [float(i) for i in float_pattern.findall(line)]  # Convert strings to float
 
-    # Collecting all experiments
-    experiments = []
-    for e in itertools.product(*parameters_values):
-        experiments.append(e)
+            parameters_values.append(np.array(p_values))
+
+        # Collecting all experiments
+        experiments = []
+        for e in itertools.product(*parameters_values):
+            experiments.append(e)
+
 
     num_experiments = len(experiments)
     each_partition = num_experiments / args.total_partitions

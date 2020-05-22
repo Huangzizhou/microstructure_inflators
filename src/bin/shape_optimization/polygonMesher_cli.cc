@@ -56,7 +56,7 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
             ("remeshingRegion,r", po::value<string>(),     "file describing (non)remeshing regions")
             ("gridSize,g", po::value<size_t>(),            "grid size to be used in resampling")
             ("noneCurveCleanup,n",                         "do not clean up boundary of polygon")
-            ("collapseCleanup,n",                          "perform collapse clean up")
+            ("collapseCleanup,c",                          "perform collapse clean up")
             ;
 
     po::options_description cli_opts;
