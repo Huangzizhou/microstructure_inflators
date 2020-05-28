@@ -77,7 +77,7 @@ namespace ParametersMask {
                     maxCorner[i] = max_corner[i];
                 }
 
-                Future::make_unique<BBox<Point>>(minCorner, maxCorner);
+                newRegion = Future::make_unique<BBox<Point>>(minCorner, maxCorner);
             }
             if (box_percentage.size() > 0) {
                 // Find the bounding box
