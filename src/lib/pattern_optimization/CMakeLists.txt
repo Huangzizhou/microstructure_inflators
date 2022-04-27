@@ -24,6 +24,7 @@ set(SOURCES
 		objective_terms/SmoothingRegularization.hh
 		objective_terms/PeriodicSmoothingRegularization.hh
         objective_terms/ScaleInvariantSmoothingRegularization.hh
+		objective_terms/PeriodicScaleInvariantSmoothingRegularization.hh
 		constraints/Printability.hh
 		constraints/TensorFit.hh
 )

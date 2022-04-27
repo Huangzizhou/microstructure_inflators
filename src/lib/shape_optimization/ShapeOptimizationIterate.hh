@@ -61,7 +61,7 @@ namespace ShapeOptimization {
 
         using IterateBase::m_params;
 
-        static constexpr bool SIMPLIFIED_OUTPUT = true;
+        static constexpr bool SIMPLIFIED_OUTPUT = false;
 
         Iterate(Inflator<_N> &inflator, size_t nParams, const double *params, bool /*outputGradientInformation*/)
                 : IterateBase(inflator.isParametric()), m_inflator(inflator)
@@ -150,26 +150,26 @@ namespace ShapeOptimization {
 
             m_sim->setInternalElements(cell);
 
-            vector<CondPtr<_N> > bconds = readBoundaryConditions<_N>(m_boundaryConditionsPath,
-                                                                     m_sim->mesh().boundingBox(), m_noRigidMotion);
+            if (!m_boundaryConditionsPath.empty()) {
+                vector<CondPtr<_N> > bconds = readBoundaryConditions<_N>(m_boundaryConditionsPath,
+                                                                         m_sim->mesh().boundingBox(), m_noRigidMotion);
 
-            //MeshIO::save("debug.msh", mesh());
-
-            try {
-                m_nonPeriodicCellOps = NonPeriodicCellOperations<_Sim>::construct(*m_sim, bconds);
-            }
-            catch(std::exception &e) {
-                std::cerr << "Cell problem solve failed: " << e.what() << std::endl;
-                MeshIO::save("debug.msh", mesh());
-                std::cerr << "Wrote geometry to 'debug.msh'" << std::endl;
-                std::cerr << std::setprecision(19) << std::endl;
-                if (isParametric()) {
-                    std::cerr << "params:";
-                    for (size_t i = 0; i < m_params.size(); ++i) std::cerr << "\t" << m_params[i];
+                try {
+                    m_nonPeriodicCellOps = NonPeriodicCellOperations<_Sim>::construct(*m_sim, bconds);
                 }
-                std::cerr << std::endl;
-                BENCHMARK_STOP_TIMER_SECTION("Solve Laplace");
-                throw e;
+                catch (std::exception &e) {
+                    std::cerr << "Cell problem solve failed: " << e.what() << std::endl;
+                    MeshIO::save("debug.msh", mesh());
+                    std::cerr << "Wrote geometry to 'debug.msh'" << std::endl;
+                    std::cerr << std::setprecision(19) << std::endl;
+                    if (isParametric()) {
+                        std::cerr << "params:";
+                        for (size_t i = 0; i < m_params.size(); ++i) std::cerr << "\t" << m_params[i];
+                    }
+                    std::cerr << std::endl;
+                    BENCHMARK_STOP_TIMER_SECTION("Solve Laplace");
+                    throw e;
+                }
             }
 
             BENCHMARK_STOP_TIMER_SECTION("Solve iteration problems");

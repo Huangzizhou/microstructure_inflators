@@ -30,6 +30,7 @@
 
 #include <inflators/Inflator.hh>
 #include <inflators/MakeInflator.hh>
+#include <inflators/wrappers/ConstrainedInflator.hh>
 #include <pattern_optimization/PatternOptimizationJob.hh>
 
 #include <optimizers/BoundConstraints.hh>
@@ -39,13 +40,16 @@
 #include <optimizers/wrappers/ceres.hh>
 #include <optimizers/wrappers/gradient_descent.hh>
 #include <optimizers/wrappers/nlopt.hh>
+#include <optimizers/wrappers/dlib.hh>
 
 #include <shape_optimization/ShapeOptimizationIterate.hh>
+#include <shape_optimization/StressObjectiveTerm.hh>
+#include <shape_optimization/ParametersMask.hh>
 
 #include <pattern_optimization/objective_terms/ProximityRegularization.hh>
 #include <pattern_optimization/objective_terms/TargetVolume.hh>
-#include <shape_optimization/StressObjectiveTerm.hh>
-#include <shape_optimization/ParametersMask.hh>
+#include <pattern_optimization/objective_terms/SmoothingRegularization.hh>
+#include <pattern_optimization/objective_terms/ScaleInvariantSmoothingRegularization.hh>
 
 #include <pattern_optimization/constraints/Printability.hh>
 
@@ -55,7 +59,7 @@ namespace SO = ShapeOptimization;
 using json = nlohmann::json;
 using namespace std;
 
-void usage(int exitVal, const po::options_description &visible_opts) {
+[[noreturn]] void usage(int exitVal, const po::options_description &visible_opts) {
     cout << "Usage: ShapeOptimization_cli [options] job.opt" << endl;
     cout << visible_opts << endl;
     exit(exitVal);
@@ -66,8 +70,11 @@ map<string, std::function<void(ScalarField<Real> &, const PO::BoundConstraints &
                                PO::IterateManagerBase &, const PO::OptimizerConfig &, const string &)>>;
 
 OptimizerMap optimizers = {
-        {"slsqp",                optimize_nlopt_slsqp},
-        {"gradient_descent",     optimize_gd}
+        {"slsqp",                       optimize_nlopt_slsqp},
+        {"bfgs",                        optimize_dlib_bfgs},
+        {"custom_bfgs",                 optimize_dlib_custom_bfgs},
+        {"lbfgs",                       optimize_nlopt_lbfgs},
+        {"gradient_descent",            optimize_gd_smartstep}
 };
 
 po::variables_map parseCmdLine(int argc, const char *argv[])
@@ -82,10 +89,12 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description patternOptions;
     patternOptions.add_options()
             ("pattern,p",    po::value<string>(),                              "Pattern wire mesh (.obj|wire), or initial mesh for BoundaryPerturbationInflator")
+            ("inflator,i",   po::value<string>()->default_value("ConstrainedIsoinflator"), "Which inflator to use: ConstrainedIsoinflator (default), ConstrainedBoundaryPerturbation")
             ("params",       po::value<string>(),                              "Initial params (overrides those specified in job file).")
             ("paramsFile",   po::value<string>(),                              "Pattern parameters file")
             ("paramsOutFile",   po::value<string>(),                           "Final parameters file")
             ("paramsMask",   po::value<string>(),                              "parameters mask")
+            ("blendingPolySize", po::value<size_t>()->default_value(0),        "Number of coefficients in the polynomial used in KS (smooth min)")
             ;
 
     po::options_description simulationOptions;
@@ -106,6 +115,9 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     po::options_description meshingOptions;
     meshingOptions.add_options()
             ("meshingOptions,M",      po::value<string>(), "Meshing options configuration file")
+            ("polyBasedBlending",                          "blending based on polynomial function")
+            ("nonconvexBasedBlending",                     "blending based on polynomial nonconvex function")
+            ("piecewiseBasedBlending",                     "blending done splitting the blending region into multiple pieces")
             ;
 
     po::options_description optimizerOptions;
@@ -119,10 +131,14 @@ po::variables_map parseCmdLine(int argc, const char *argv[])
     objectiveOptions.add_options()
             ("pnorm,P",      po::value<double>()->default_value(1.0),         "pnorm used in the Lp stress measure")
             ("usePthRoot,R",                                                  "Use the true Lp norm for global worst case stress measure (applying pth root)")
-            ("stressWeight",    po::value<double>()->default_value(1.0),         "Weight for the Microscopic stress term of the objective")
+            ("stressWeight",    po::value<double>()->default_value(1.0),      "Weight for the Microscopic stress term of the objective")
+            ("stressNormalization",    po::value<double>(),                   "normalization to be used with the stress objective. If none, we normalize considering initial iteration stress")
             ("proximityRegularizationWeight", po::value<double>(),            "Use a quadratic proximity regularization term with the specified weight.")
+            ("smoothingRegularizationWeight", po::value<double>(),            "Use a smoothing regularization term for the boundary of the mesh with the specified weight.")
+            ("sismoothingRegularizationWeight", po::value<double>(),          "Use a scale invariant smoothing regularization term for the boundary of the mesh with the specified weight.")
             ("proximityRegularizationTarget", po::value<string>(),            "The target parameter values for the proximity regularization term (defaults to initial parameters.)")
-            ("volWeight,V", po::value<double>()->default_value(0.0),         "Weight for the JVol term of the objective")
+            ("targetVolWeight", po::value<double>()->default_value(0.0),      "Weight for the target volume term of the objective")
+            ("targetVol", po::value<double>(),                                "Define target volume")
             ;
 
     po::options_description constraintOptions;
@@ -200,32 +216,16 @@ typedef ScalarField<Real> SField;
 template<size_t _N, size_t _FEMDegree>
 void execute(po::variables_map &args, PO::Job<_N> *job)
 {
-    string inflator_name = "ConstrainedIsoinflator";
+    string inflator_name = args["inflator"].as<string>();
     string symmetry_string = "symmetry";
     string symmetry_name = _N == 2 ? "2d_non_periodic" : "non_periodic";
 
     args.insert(std::make_pair("symmetry", po::variable_value(symmetry_name, true)));
     args.insert(std::make_pair("vertexThickness", po::variable_value(true, true)));
+    args.insert(std::make_pair("nonPeriodic", po::variable_value(true, true)));
     po::notify(args);
 
     bool gradientValidationMode = args.count("validateGradientComponent");
-
-
-    auto paramsToString = [](vector<Real> params) -> string {
-        std::string result;
-
-        for (unsigned i=0; i<(params.size()-1); i++) {
-            result += std::to_string(params[i]) + string(", ");
-        }
-        result += std::to_string(params[params.size()-1]);
-
-        return result;
-    };
-
-    if (!args.count("params")) {
-        args.insert(std::make_pair("params", po::variable_value(paramsToString(job->initialParams), true)));
-    }
-
 
     // Deal with parameters mask
     auto paramsMaskToString = [](vector<bool> mask) -> string {
@@ -259,33 +259,6 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
         }
         return pvals;
     };
-
-    if (args.count("paramsMask")) {
-        job->paramsMask = parseParamsMask(args["paramsMask"].as<string>());
-    }
-    else {
-        if (!job->paramsMask.empty()) {
-            args.insert(std::make_pair("paramsMask", po::variable_value(paramsMaskToString(job->paramsMask), true)));
-        }
-        else {
-            std::cout << "Creating parameters' mask based on boundary conditions ..." << std::endl;
-            if (args.count("zeroPerturbationAreas") > 0)
-                job->paramsMask = ParametersMask::generateParametersMask(args["pattern"].as<string>(), args["params"].as<string>(), args["zeroPerturbationAreas"].as<string>());
-            else
-                job->paramsMask = ParametersMask::generateParametersMask(args["pattern"].as<string>(), args["params"].as<string>(), args["boundaryConditions"].as<string>());
-            args.insert(std::make_pair("paramsMask", po::variable_value(paramsMaskToString(job->paramsMask), true)));
-        }
-    }
-
-    auto infl_ptr = make_inflator<_N>(inflator_name, filterInflatorOptions(args), job->parameterConstraints);
-    auto &inflator = *infl_ptr;
-
-    typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh;
-    typedef LinearElasticity::Simulator<Mesh> Simulator;
-
-    // Set up simulators' (base) material
-    auto &mat = HMG<_N>::material;
-    if (args.count("material")) mat.setFromFile(args["material"].as<string>());
 
     // Parse parameters
     auto parseParams = [](string pstring) -> vector<Real> {
@@ -344,7 +317,88 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
         job->initialParams = params;
     }
 
-    SField params = job->validatedInitialParams(inflator);
+    auto paramsToString = [](vector<Real> params) -> string {
+        std::string result;
+
+        for (unsigned i=0; i<(params.size()-1); i++) {
+            result += std::to_string(params[i]) + string(", ");
+        }
+        result += std::to_string(params[params.size()-1]);
+
+        return result;
+    };
+
+    if (!args.count("params")) {
+        if (!job->initialParams.empty()) {
+            args.insert(std::make_pair("params", po::variable_value(paramsToString(job->initialParams), true)));
+        }
+    }
+
+    size_t blendingPolySize = args["blendingPolySize"].as<size_t>();
+    if (args.count("paramsMask")) {
+        job->paramsMask = parseParamsMask(args["paramsMask"].as<string>());
+    }
+    else {
+        if (!job->paramsMask.empty()) {
+            args.insert(std::make_pair("paramsMask", po::variable_value(paramsMaskToString(job->paramsMask), true)));
+        }
+        else {
+            if (args.count("zeroPerturbationAreas") > 0) {
+                std::cout << "Creating parameters' mask based on boundary conditions ..." << std::endl;
+                if (inflator_name.compare("ConstrainedIsoinflator") == 0) {
+                    job->paramsMask = ParametersMask::generateParametersMask(args["pattern"].as<string>(), job->initialParams,
+                                                                             args["zeroPerturbationAreas"].as<string>(), blendingPolySize);
+                }
+                else {
+                    job->paramsMask = ParametersMask::generateParametersMask<_N>(args["pattern"].as<string>(),
+                                                                                 args["zeroPerturbationAreas"].as<string>());
+                }
+                args.insert(std::make_pair("paramsMask", po::variable_value(paramsMaskToString(job->paramsMask), true)));
+            }
+            else {
+                if (args.count("boundaryConditions") > 0) {
+                    std::cout << "Creating parameters' mask based on boundary conditions ..." << std::endl;
+                    job->paramsMask = ParametersMask::generateParametersMask(args["pattern"].as<string>(),
+                                                                             job->initialParams,
+                                                                             args["boundaryConditions"].as<string>(),
+                                                                             blendingPolySize);
+                    args.insert(std::make_pair("paramsMask", po::variable_value(paramsMaskToString(job->paramsMask), true)));
+                }
+            }
+
+        }
+    }
+
+    auto infl_ptr = make_inflator<_N>(inflator_name, filterInflatorOptions(args), job->parameterConstraints);
+    auto &inflator = *infl_ptr;
+
+    // Saves reference to base inflator (the one not constrained)
+    Inflator<_N> * baseInflator = infl_ptr.get();
+    if (inflator_name.find("Constrained") != std::string::npos) {
+        ConstrainedInflator<_N> &constrainedInflator = dynamic_cast<ConstrainedInflator<_N> &>(inflator);
+        baseInflator = constrainedInflator.m_infl.get();
+    }
+
+    if (args.count("polyBasedBlending")) {
+        inflator.meshingOptions().jointBlendingFunction = JointBlendFunction::POLY_SYMMETRIC;
+    }
+
+    if (args.count("nonconvexBasedBlending")) {
+        inflator.meshingOptions().jointBlendingFunction = JointBlendFunction::POLY_NONCONVEX;
+    }
+
+    if (args.count("piecewiseBasedBlending")) {
+        inflator.meshingOptions().jointBlendingFunction = JointBlendFunction::POLY_PIECEWISE;
+    }
+
+    typedef LinearElasticity::Mesh<_N, _FEMDegree, HMG> Mesh;
+    typedef LinearElasticity::Simulator<Mesh> Simulator;
+
+    // Set up simulators' (base) material
+    auto &mat = HMG<_N>::material;
+    if (args.count("material")) mat.setFromFile(args["material"].as<string>());
+
+    SField params = job->validatedInitialParams(*baseInflator);
 
     PO::BoundConstraints * bdcs;
     bdcs = new PO::BoundConstraints(inflator, job->paramsMask, job->radiusBounds, job->translationBounds, job->blendingBounds, job->metaBounds,
@@ -354,51 +408,74 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
 
     using StressTermConfig        = PO::ObjectiveTerms::IFConfigMicroscopicStress<Simulator>;
     using PRegTermConfig          = PO::ObjectiveTerms::IFConfigProximityRegularization;
+    using SRegTermConfig          = PO::ObjectiveTerms::IFConfigSmoothingRegularization<Simulator>;
+    using SISRegTermConfig        = PO::ObjectiveTerms::IFConfigSISmoothingRegularization<Simulator>;
     using PConstraintConfig       = PO::   Constraints::IFConfigPrintability<Simulator>;
-    using VolumeTermConfig        = PO::ObjectiveTerms::IFConfigTargetVolume<Simulator>;
+    using TargetVolumeTermConfig   = PO::ObjectiveTerms::IFConfigTargetVolume<Simulator>;
     using BoundaryConditionsConfig = SO::IFConfigBoundaryConditions;
 
     auto ifactory = PO::make_iterate_factory<SO::Iterate<Simulator>,
             BoundaryConditionsConfig,
             StressTermConfig,
             PRegTermConfig,
-            VolumeTermConfig,
-    PConstraintConfig>(inflator, *bdcs, true);
+            TargetVolumeTermConfig,
+            PConstraintConfig,
+            SRegTermConfig,
+            SISRegTermConfig>(inflator, *bdcs, true);
 
     ////////////////////////////////////////////////////////////////////////////
     // Configure the objective terms
     ////////////////////////////////////////////////////////////////////////////
-    ifactory->StressTermConfig        ::enabled = args["stressWeight"].as<double>() != 0;
+    ifactory->StressTermConfig        ::enabled = args["stressWeight"].as<double>() > 0.0;
     ifactory->PRegTermConfig          ::enabled = args.count("proximityRegularizationWeight");
-    ifactory->VolumeTermConfig        ::enabled = args["volWeight"].as<double>() > 0;
+    ifactory->SRegTermConfig          ::enabled = args.count("smoothingRegularizationWeight");
+    ifactory->SISRegTermConfig        ::enabled = args.count("sismoothingRegularizationWeight");
+    ifactory->TargetVolumeTermConfig  ::enabled = args["targetVolWeight"].as<double>() > 0.0;
     ifactory->PConstraintConfig       ::enabled = false;
     ifactory->BoundaryConditionsConfig::enabled = true;
 
-    // Configure Stress Objective
-    // By default, an "Lp norm" objective is really the p^th power of the Lp norm.a
-    // To use the true "Lp norm", globalObjectiveRoot must be set to
-    // 2.0 * globalObjectivePNorm (since pointwise Stress is already squared (e.g. Frobenius) norm)
-    ifactory->StressTermConfig::weight = args["stressWeight"].as<double>();
-    Real pnorm = args["pnorm"].as<double>();
-    ifactory->StressTermConfig::globalObjectivePNorm = pnorm;
-    ifactory->StressTermConfig::globalObjectiveRoot  = args.count("usePthRoot") ? 2.0 * pnorm : 1.0;
+    if (args.count("boundaryConditions")) {
+        string bcondsPath = args["boundaryConditions"].as<string>();
+        ifactory->BoundaryConditionsConfig::boundaryConditionsPath = bcondsPath;
+    }
+    else if (ifactory->StressTermConfig::enabled)
+        throw std::runtime_error("No boundary conditions were provided, even though stress related energy are being used");
+
+    if (args["stressWeight"].as<double>() > 0.0) {
+        // Configure Stress Objective
+        // By default, an "Lp norm" objective is really the p^th power of the Lp norm.
+        // To use the true "Lp norm", globalObjectiveRoot must be set to
+        // 2.0 * globalObjectivePNorm (since pointwise Stress is already squared (e.g. Frobenius) norm)
+        ifactory->StressTermConfig::weight = args["stressWeight"].as<double>();
+        Real pnorm = args["pnorm"].as<double>();
+        ifactory->StressTermConfig::globalObjectivePNorm = pnorm;
+        ifactory->StressTermConfig::globalObjectiveRoot  = args.count("usePthRoot") ? 2.0 * pnorm : 1.0;
+    }
 
     if (args.count("PrintabilityConstraint")) {
         ifactory->PConstraintConfig::enabled = true;
     }
 
-    if (args["volWeight"].as<double>() > 0) {
-        if (job->targetVolume) {
-            ifactory->VolumeTermConfig::enabled = true;
-            ifactory->VolumeTermConfig::weight = args["volWeight"].as<double>();
-            ifactory->VolumeTermConfig::targetVolume = *(job->targetVolume);
+    if (args["targetVolWeight"].as<double>() > 0.0) {
+        if (args.count("targetVol") > 0.0) {
+            ifactory->TargetVolumeTermConfig::enabled = true;
+            ifactory->TargetVolumeTermConfig::weight = args["targetVolWeight"].as<double>();
+            ifactory->TargetVolumeTermConfig::targetVolume = args["targetVol"].as<double>();
+        }
+        else if (job->targetVolume) {
+            ifactory->TargetVolumeTermConfig::enabled = true;
+            ifactory->TargetVolumeTermConfig::weight = args["targetVolWeight"].as<double>();
+            ifactory->TargetVolumeTermConfig::targetVolume = *(job->targetVolume);
         }
     }
 
     if (args.count("proximityRegularizationWeight")) {
         ifactory->PRegTermConfig::enabled = true;
         ifactory->PRegTermConfig::weight = args["proximityRegularizationWeight"].as<double>();
-        ifactory->PRegTermConfig::targetParams = originalToOptimizedParameters(job->paramsMask, job->initialParams);
+        if (job->paramsMask.size() > 0)
+            ifactory->PRegTermConfig::targetParams = originalToOptimizedParameters(job->paramsMask, job->initialParams);
+        else
+            ifactory->PRegTermConfig::targetParams = job->initialParams;
         if (args.count("proximityRegularizationTarget")) {
             ifactory->PRegTermConfig::targetParams = parseParams(args["proximityRegularizationTarget"].as<string>());
             if (ifactory->PRegTermConfig::targetParams.size() != job->initialParams.size())
@@ -410,12 +487,15 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
         }
     }
 
-    if (args.count("boundaryConditions")) {
-        string bcondsPath = args["boundaryConditions"].as<string>();
-        ifactory->BoundaryConditionsConfig::boundaryConditionsPath = bcondsPath;
+    if (args.count("smoothingRegularizationWeight")) {
+        ifactory->SRegTermConfig::enabled = true;
+        ifactory->SRegTermConfig::weight = args["smoothingRegularizationWeight"].as<double>();
     }
-    else
-        throw std::runtime_error("No boundary conditions were provided");
+
+    if (args.count("sismoothingRegularizationWeight")) {
+        ifactory->SISRegTermConfig::enabled = true;
+        ifactory->SISRegTermConfig::weight = args["sismoothingRegularizationWeight"].as<double>();
+    }
 
     auto imanager = PO::make_iterate_manager(std::move(ifactory));
 
@@ -492,8 +572,11 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
     if (args.count("nIters")) oconfig.niters = args["nIters"].as<size_t>();
     oconfig.gd_step = args["step"].as<double>();
 
+    SField x = params;
+    if (job->paramsMask.size() > 0) {
+        x = originalToOptimizedParameters(job->paramsMask, params);
+    }
 
-    SField x = originalToOptimizedParameters(job->paramsMask, params);
 
     if (solver == "lbfgs") oconfig.lbfgs_memory = 10;
     optimizers.at(solver)(x, *bdcs, *imanager, oconfig, output);
@@ -503,7 +586,14 @@ void execute(po::variables_map &args, PO::Job<_N> *job)
     ////////////////////////////////////////////////////////////////////////////
     std::vector<Real> result(params.domainSize());
 
-    result = optimizedToOriginalParameters(job->paramsMask, x, params);
+    if (job->paramsMask.size() > 0) {
+        result = optimizedToOriginalParameters(job->paramsMask, x, params);
+    }
+    else {
+        // Simply copy answer to vector
+        for (size_t i=0; i < params.size(); i++)
+            result[i] = x[i];
+    }
 
     json output_json;
     if (inflator.isParametric()) {

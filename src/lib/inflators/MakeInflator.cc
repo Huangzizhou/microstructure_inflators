@@ -92,11 +92,11 @@ unique_ptr<InflatorBase> make_inflator(const string &name, po::variables_map opt
     else if (ci_string("BoundaryPerturbation") == name.c_str()) {
         std::vector<MeshIO::IOVertex>  inVertices;
         std::vector<MeshIO::IOElement> inElements;
-        auto type = MeshIO::load(extract_required<string>(opts, "pattern"),
-                                 inVertices, inElements);
+        auto type = MeshIO::load(extract_required<string>(opts, "pattern"), inVertices, inElements);
+        bool  nonPeriodic = extract_flag(opts, "nonPeriodic");
 
-        if      (type == MeshIO::MESH_TRI) infl = Future::make_unique<BoundaryPerturbationInflator<2>>(inVertices, inElements, 1e-10);
-        else if (type == MeshIO::MESH_TET) infl = Future::make_unique<BoundaryPerturbationInflator<3>>(inVertices, inElements, 1e-10);
+        if      (type == MeshIO::MESH_TRI) infl = Future::make_unique<BoundaryPerturbationInflator<2>>(inVertices, inElements, !nonPeriodic, 1e-10);
+        else if (type == MeshIO::MESH_TET) infl = Future::make_unique<BoundaryPerturbationInflator<3>>(inVertices, inElements, !nonPeriodic, 1e-10);
         else    throw std::runtime_error("Mesh must be triangle or tet.");
     }
     else if (ci_string("HexaPillars") == name.c_str()) {
@@ -180,6 +180,7 @@ po_vm filterInflatorOptions(const po_vm &opts) {
         "inflation_graph_radius",
         "params",
         "metaParams",
+        "nonPeriodic",
     };
     po_vm filtered;
     for (const string &key : keys)

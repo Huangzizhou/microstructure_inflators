@@ -63,6 +63,7 @@ std::unique_ptr<Inflator<N>> make_inflator(std::string name, po_vm options,
 //      "sub_algorithm"
 //      "ortho_cell"
 //      "inflation_dump_path"
+//      "nonPeriodic"
 po_vm filterInflatorOptions(const po_vm &options);
 
 #endif /* end of include guard: MAKEINFLATOR_HH */

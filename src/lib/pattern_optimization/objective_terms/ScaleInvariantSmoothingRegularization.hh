@@ -23,7 +23,7 @@ namespace PatternOptimization {
             static constexpr size_t N = _Sim::N;
 
             static SField computeSmoothingField(_Sim &simulator) {
-                // Computing adjancy list for each vertex
+                // Computing adjacency list for each vertex
                 std::vector<std::set<size_t>> adj(simulator.mesh().numVertices());
                 for (auto be : simulator.mesh().boundaryElements()) {
                     for (auto v1 : be.vertices()) {
@@ -197,6 +197,7 @@ namespace PatternOptimization {
 
             template<class _Iterate>
             ScaleInvariantSmoothingRegularizationTerm(_Iterate &it) : m_sim(it.simulator()) {
+                m_smoothingField = computeSmoothingField(it.simulator());
                 this->m_differential = computeDifferential(it.simulator());
             }
 
@@ -206,16 +207,30 @@ namespace PatternOptimization {
                 return result;
             }
 
-            virtual void writeFields(MSHFieldWriter &writer) const override { }
+            virtual void writeFields(MSHFieldWriter &writer) const override {
+                writer.addField("Scale Invariant Smoothing", m_smoothingField);
+
+                auto bdryVel = SDConversions::descent_from_diff_bdry(this->m_differential, m_sim);
+                VField xferBdryVel(m_sim.mesh().numVertices());
+                xferBdryVel.clear();
+                for (auto v : m_sim.mesh().vertices()) {
+                    auto bv = v.boundaryVertex();
+                    if (!bv) continue;
+                    xferBdryVel(v.index()) = bdryVel(bv.index());
+                }
+
+                writer.addField("SI Smoothing Steepest Descent BVel", xferBdryVel, DomainType::PER_NODE);
+            }
 
             virtual ~ScaleInvariantSmoothingRegularizationTerm() { }
         private:
+            SField m_smoothingField;
             _Sim &m_sim;
         };
 
         // Configuration to be applied by iterate factory
         template<class _Sim>
-        struct IFScaleInvariantConfigSmoothingRegularization: public IFConfig {
+        struct IFConfigSISmoothingRegularization: public IFConfig {
             template<class _Iterate>
             void configIterate(const std::unique_ptr<_Iterate> &it, ObjectiveTermNormalizations &normalizations) const {
                 auto sr = Future::make_unique<ScaleInvariantSmoothingRegularizationTerm<_Sim>>(*it);

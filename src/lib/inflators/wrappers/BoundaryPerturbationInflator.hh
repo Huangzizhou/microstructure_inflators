@@ -188,6 +188,28 @@ public:
     }
     virtual void setReflectiveInflator(bool /*use*/)  override { } // needed when inflator does not implement symmetry
 
+    virtual BBox<Vector3D> meshingCell() override {
+        Vector3D cell_min;
+        Vector3D cell_max;
+
+        if (m_isPeriodicMesh) {
+            cell_min.fill(-1.0);
+            cell_max.fill(1.0);
+        }
+        else {
+            cell_min.fill(std::numeric_limits<size_t>::min());
+            cell_max.fill(std::numeric_limits<size_t>::max());
+        }
+
+        if (N == 2) {
+            cell_min[2] = 0.0;
+            cell_max[2] = 0.0;
+        }
+
+        BBox<Vector3D> cell(cell_min, cell_max);
+        return cell;
+    }
+
     ////////////////////////////////////////////////////////////////////////////
     // Boundary perturbation-specific
     ////////////////////////////////////////////////////////////////////////////
