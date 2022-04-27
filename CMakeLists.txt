@@ -151,6 +151,7 @@ endif()
 if(MICRO_BUILD_TOOLS)
     add_subdirectory(tools/voxel2mesh)
     add_subdirectory(tools/rbf2mesh)
+    add_subdirectory(tools/clean_mesh)
 endif()
 
 if(MICRO_TOPLEVEL_PROJECT)
