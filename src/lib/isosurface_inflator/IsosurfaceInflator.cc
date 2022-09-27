@@ -17,8 +17,6 @@
 #include "Isometries.hh"
 #include "ShapeVelocityInterpolator.hh"
 
-#include <MeshFEM/LinearElasticity.hh>
-
 #include "IsosurfaceInflatorImpl.hh"
 
 #define DEBUG_EVALPTS 0

@@ -24,18 +24,50 @@ endfunction()
 ################################################################################
 
 ## MeshFEM
-function(micro_download_meshfem)
-    micro_download_project(MeshFEM
-        GIT_REPOSITORY git@github.com:geometryprocessing/MeshFEM.git
-        GIT_TAG        e0d91a50b194ba2d14a32af4fe3c16bd7f825897
-    )
-endfunction()
+# function(micro_download_meshfem)
+#     micro_download_project(MeshFEM
+#         GIT_REPOSITORY git@github.com:geometryprocessing/MeshFEM.git
+#         GIT_TAG        e0d91a50b194ba2d14a32af4fe3c16bd7f825897
+#     )
+# endfunction()
 
 ## Eigen
 function(micro_download_eigen)
     micro_download_project(eigen
         URL     https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.tar.gz
         URL_MD5 9e30f67e8531477de4117506fe44669b
+    )
+endfunction()
+
+## Json
+function(micro_download_json)
+    micro_download_project(json
+        URL      https://github.com/nlohmann/json/releases/download/v3.1.2/include.zip
+        URL_HASH SHA256=495362ee1b9d03d9526ba9ccf1b4a9c37691abe3a642ddbced13e5778c16660c
+    )
+endfunction()
+
+## Optional
+function(micro_download_optional)
+    micro_download_project(optional
+        URL     https://github.com/martinmoene/optional-lite/archive/v3.0.0.tar.gz
+        URL_MD5 a66541380c51c0d0a1e593cc2ca9fe8a
+    )
+endfunction()
+
+## Tinyexpr
+function(micro_download_tinyexpr)
+    micro_download_project(tinyexpr
+        GIT_REPOSITORY https://github.com/codeplea/tinyexpr.git
+        GIT_TAG        ffb0d41b13e5f8d318db95feb071c220c134fe70
+    )
+endfunction()
+
+## Triangle
+function(micro_download_triangle)
+    micro_download_project(triangle
+        GIT_REPOSITORY https://github.com/libigl/triangle.git
+        GIT_TAG        d6761dd691e2e1318c83bf7773fea88d9437464a
     )
 endfunction()
 

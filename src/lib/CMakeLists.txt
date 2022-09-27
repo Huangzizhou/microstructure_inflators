@@ -1,1 +1,2 @@
 add_subdirectory(isosurface_inflator)
+add_subdirectory(MeshFEM)

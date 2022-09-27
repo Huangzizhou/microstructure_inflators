@@ -74,12 +74,71 @@ if(NOT TARGET micro::tbb)
     add_library(micro::tbb ALIAS micro_tbb)
 endif()
 
-# MeshFEM library
-if(NOT TARGET MeshFEM)
-    micro_download_meshfem()
-    option(MESHFEM_WITH_CERES "Compile MeshFEM with Ceres" ${MICRO_WITH_CERES})
-    add_subdirectory(${MICRO_EXTERNAL}/MeshFEM MeshFEM)
+# C++11 threads
+find_package(Threads REQUIRED) # provides Threads::Threads
+
+# Boost library
+find_package(Boost 1.54 REQUIRED COMPONENTS filesystem system program_options QUIET)
+if(NOT TARGET micro::boost)
+    add_library(meshfem_boost INTERFACE)
+    if(TARGET Boost::filesystem AND TARGET Boost::system AND TARGET Boost::program_options)
+        target_link_libraries(meshfem_boost INTERFACE
+            Boost::filesystem
+            Boost::system
+            Boost::program_options)
+    else()
+        # When CMake and Boost versions are not in sync, imported targets may not be available... (sigh)
+        target_include_directories(meshfem_boost SYSTEM INTERFACE ${Boost_INCLUDE_DIRS})
+        target_link_libraries(meshfem_boost INTERFACE ${Boost_LIBRARIES})
+    endif()
+    add_library(micro::boost ALIAS meshfem_boost)
 endif()
+
+# json library
+if(NOT TARGET json::json)
+    add_library(meshfem_json INTERFACE)
+    micro_download_json()
+    target_include_directories(meshfem_json SYSTEM INTERFACE ${MICRO_EXTERNAL}/json)
+    target_include_directories(meshfem_json SYSTEM INTERFACE ${MICRO_EXTERNAL}/json/nlohmann)
+    add_library(json::json ALIAS meshfem_json)
+endif()
+
+# Optional library
+if(NOT TARGET optional::optional)
+    micro_download_optional()
+    add_library(optional_lite INTERFACE)
+    target_include_directories(optional_lite SYSTEM INTERFACE ${MICRO_EXTERNAL}/optional/include)
+    add_library(optional::optional ALIAS optional_lite)
+endif()
+
+# Triangle library
+if(NOT TARGET triangle::triangle)
+    micro_download_triangle()
+    add_subdirectory(${MICRO_EXTERNAL}/triangle triangle)
+    target_include_directories(triangle SYSTEM INTERFACE ${MICRO_EXTERNAL}/triangle)
+    add_library(triangle::triangle ALIAS triangle)
+endif()
+
+# TinyExpr library
+if(NOT TARGET tinyexpr::tinyexpr)
+    micro_download_tinyexpr()
+    add_library(meshfem_tinyexpr ${MICRO_EXTERNAL}/tinyexpr/tinyexpr.c)
+    target_include_directories(meshfem_tinyexpr SYSTEM PUBLIC ${MICRO_EXTERNAL}/tinyexpr)
+    add_library(tinyexpr::tinyexpr ALIAS meshfem_tinyexpr)
+endif()
+
+# Cholmod solver
+find_package(Cholmod REQUIRED) # provides cholmod::cholmod
+
+# UmfPack solver
+find_package(Umfpack REQUIRED) # provides umfpack::umfpack
+
+# MeshFEM library
+# if(NOT TARGET MeshFEM)
+#     micro_download_meshfem()
+#     option(MESHFEM_WITH_CERES "Compile MeshFEM with Ceres" ${MICRO_WITH_CERES})
+#     add_subdirectory(${MICRO_EXTERNAL}/MeshFEM MeshFEM)
+# endif()
 
 # CLI11 library
 if(NOT TARGET CLI11::CLI11)

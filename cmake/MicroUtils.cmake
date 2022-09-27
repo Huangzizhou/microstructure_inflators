@@ -8,7 +8,6 @@ function(micro_single_app name)
         add_executable(${name} ${name}.cc)
     endif()
     target_link_libraries(${name} ${ARGN})
-    target_link_libraries(${name} warnings::all)
 
     if(MICRO_WITH_SANITIZERS)
         add_sanitizers(${name})

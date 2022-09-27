@@ -79,7 +79,7 @@ micro_add_library(isosurface_inflator_cgal
 
 target_link_libraries(micro_isosurface_inflator_cgal
     PUBLIC
-        MeshFEM
+        micro_mesh_fem
         micro::tbb
     PRIVATE
         CGAL::CGAL
@@ -87,14 +87,13 @@ target_link_libraries(micro_isosurface_inflator_cgal
 
 target_link_libraries(micro_isosurface_inflator
     PUBLIC
-        MeshFEM
+        micro_mesh_fem
         micro::libigl
         micro::tbb
         nanoflann::nanoflann
     PRIVATE
         micro::isosurface_inflator_cgal
         micro::vcglib
-        warnings::all
 )
 
 if(MICRO_WITH_SANITIZERS)
