@@ -1,9 +1,0 @@
-{
-    "type": "orthotropic_material",
-    "young": [1.0, 2.0, 3.0],
-    "poisson": [0.6, 0.9,
-                0.9, 0.3,
-                0.3, 0.6],
-    "shear": [0.1, 0.2, 0.3],
-    "density": 1.0
-}

@@ -5,9 +5,6 @@
 set(SOURCES
         Algebra.hh
         BaseCellType.hh
-        BoundaryConditions.cc
-        BoundaryConditions.hh
-        BoundaryLaplacian.hh
         BoundaryMesh.hh
         CollisionGrid.hh
         ComponentMask.hh
@@ -18,12 +15,8 @@ set(SOURCES
         ElasticityTensor.hh
         EmbeddedElement.hh
         ExpressionVector.hh
-        FEMMesh.hh
-        FEMMesh.inl
         Fields.hh
         Flattening.hh
-        FrictionContactForceFunction.hh
-        FrictionFractureForceFunction.hh
         function_traits.hh
         Functions.hh
         Future.hh
@@ -60,7 +53,6 @@ set(SOURCES
         PeriodicBoundaryMatcher.hh
         PeriodicHomogenization.hh
         PerturbMesh.hh
-        Poisson.hh
         Simplex.hh
         SimplicialMesh.hh
         SimplicialMeshInterface.hh
@@ -68,14 +60,11 @@ set(SOURCES
         StringUtils.cc
         StringUtils.hh
         SymmetricMatrix.hh
-        SymmetricMatrixInterpolant.hh
         TemplateHacks.hh
         TensorProjection.hh
         TetMesh.hh
         TetMesh.inl
         Timer.hh
-		TrescaFrictionContactForceFunction.hh
-        TrescaFrictionFractureForceFunction.hh
         Triangulate.h
         TriMesh.hh
         TriMesh.inl
@@ -84,7 +73,6 @@ set(SOURCES
         UniformLaplacian.hh
         util.h
         utils.hh
-        VonMises.hh
 
         algorithms/get_element_components.hh
         algorithms/remove_if_index.hh

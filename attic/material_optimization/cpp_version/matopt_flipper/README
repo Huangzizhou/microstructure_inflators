@@ -1,3 +1,0 @@
-Scripts in this directory run material optimization, render and generate plots,
-and create the frames.js/directory.js files needed for Julian's javascript
-image flipper (which is available at http://julianpanetta.com/hg/flipper)
