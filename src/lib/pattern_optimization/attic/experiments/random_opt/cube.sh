@@ -1,1 +1,0 @@
-./make_jobs.sh cube cube_base.opt $MICRO_DIR/patterns/3D/cube.wire $MeshFEM/experiments/fit_validation/ProJet7000_2D.material 0 simple levenberg_marquardt $(timestamped_path.sh $SCRATCH/pattern_optimization/spaced/cube) 2 32 16 0

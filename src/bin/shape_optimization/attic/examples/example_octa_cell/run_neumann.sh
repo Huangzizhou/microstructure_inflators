@@ -1,1 +1,0 @@
-../../ShapeOptimization_cli -b neumann_thin.json -p octa_cell_cube.obj -m ../../../materials/B9Creator.material job.opt -M 2d_meshing_opts.opt --solver gradient_descent --pnorm 10 --usePthRoot --nIters 100 --step 0.001 -o iterations/it

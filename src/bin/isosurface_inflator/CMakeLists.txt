@@ -12,7 +12,6 @@ micro_single_app(stitch_cells_cli micro::isosurface_inflator CLI11::CLI11 json::
 set_target_properties(stitch_cells_cli PROPERTIES CXX_STANDARD 14)
 micro_single_app(VisualizeQuantities micro::isosurface_inflator)
 micro_single_app(VisualizeQuantities2D micro::isosurface_inflator)
-micro_single_app(PrintabilityCheck micro::isosurface_inflator micro::pattern_optimization)
 micro_single_app(PrintabilityConstraints micro::isosurface_inflator meshfem::boost)
 micro_single_app(SignedDistance_cli micro::isosurface_inflator meshfem::boost)
 micro_single_app(TestWireMesh micro::isosurface_inflator)
