@@ -4,7 +4,6 @@
 #include <isosurface_inflator/MidplaneMesher.hh>
 #include <isosurface_inflator/PaperVisualizationSDFunc.hh>
 #include <isosurface_inflator/SignedDistance.hh>
-//#include <Utilities/apply.hh>
 
 int main(int argc, const char *argv[]) {
     if (argc != 8) {
