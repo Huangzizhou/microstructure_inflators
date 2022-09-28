@@ -77,22 +77,22 @@ public:
                 writer.addField("svel " + std::to_string(p), vn, DomainType::PER_NODE);
             }
 
-#if 0
-            // Get interpolated velocities
-            using Mesh = LinearElasticity::Mesh<2, 1, LinearElasticity::HomogenousMaterialGetter<Materials::Constant>::template Getter>;
-            LinearElasticity::Simulator<Mesh> sim(elements, vertices);
-            const auto &mesh = sim.mesh();
-            ShapeVelocityInterpolator interpolator(sim);
-            VectorField<Real, 2> bvel(mesh.numBoundaryVertices());
-            for (size_t p = 0; p < normalShapeVelocities.size(); ++p) {
-                for (auto bv : mesh.boundaryVertices()) {
-                    size_t vi = bv.volumeVertex().index();
-                    bvel(bv.index()) = truncateFrom3D<Point2D>(vertexNormals.at(vi)) * normalShapeVelocities[p][vi];
-                }
-                auto vvel = interpolator.interpolate(sim, bvel);
-                writer.addField("vvel " + std::to_string(p), vvel, DomainType::PER_NODE);
-            }
-#endif
+// #if 0
+//             // Get interpolated velocities
+//             using Mesh = LinearElasticity::Mesh<2, 1, LinearElasticity::HomogenousMaterialGetter<Materials::Constant>::template Getter>;
+//             LinearElasticity::Simulator<Mesh> sim(elements, vertices);
+//             const auto &mesh = sim.mesh();
+//             ShapeVelocityInterpolator interpolator(sim);
+//             VectorField<Real, 2> bvel(mesh.numBoundaryVertices());
+//             for (size_t p = 0; p < normalShapeVelocities.size(); ++p) {
+//                 for (auto bv : mesh.boundaryVertices()) {
+//                     size_t vi = bv.volumeVertex().index();
+//                     bvel(bv.index()) = truncateFrom3D<Point2D>(vertexNormals.at(vi)) * normalShapeVelocities[p][vi];
+//                 }
+//                 auto vvel = interpolator.interpolate(sim, bvel);
+//                 writer.addField("vvel " + std::to_string(p), vvel, DomainType::PER_NODE);
+//             }
+// #endif
         }
     }
 

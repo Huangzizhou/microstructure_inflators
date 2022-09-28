@@ -1,7 +1,6 @@
 #include <isosurface_inflator/IsosurfaceInflator.hh>
 #include <isosurface_inflator/MeshingOptions.hh>
 #include <isosurface_inflator/IsosurfaceInflatorConfig.hh>
-#include <MeshFEM/MSHFieldWriter.hh>
 #include <MeshFEM/GlobalBenchmark.hh>
 #include <MeshFEM/Parallelism.hh>
 #include <boost/algorithm/string.hpp>

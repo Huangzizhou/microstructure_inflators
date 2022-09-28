@@ -15,7 +15,6 @@
 #include "WireMesh.hh"
 #include "PatternSignedDistance.hh"
 #include "Isometries.hh"
-#include "ShapeVelocityInterpolator.hh"
 
 #include "IsosurfaceInflatorImpl.hh"
 

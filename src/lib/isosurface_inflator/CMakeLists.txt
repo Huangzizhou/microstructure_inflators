@@ -40,7 +40,6 @@ set(SOURCES
         PostProcess.hh
         rasterize.cc
         rasterize.hh
-        ShapeVelocityInterpolator.hh
         SignedDistance.hh
         SignedDistanceRegion.hh
         SnapAndReflect.hh

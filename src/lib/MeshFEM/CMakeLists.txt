@@ -9,12 +9,6 @@ set(SOURCES
         CollisionGrid.hh
         ComponentMask.hh
         Concepts.hh
-        DenseCollisionGrid.hh
-        EdgeFields.cc
-        EdgeFields.hh
-        ElasticityTensor.hh
-        EmbeddedElement.hh
-        ExpressionVector.hh
         Fields.hh
         Flattening.hh
         function_traits.hh
@@ -24,44 +18,22 @@ set(SOURCES
         Geometry.hh
         GlobalBenchmark.cc
         GlobalBenchmark.hh
-        GridFunction.hh
-        HalfEdge.hh
-        HalfEdge.inl
-        HalfedgeDictionary.hh
-        InterpolantRestriction.hh
-        JSFieldWriter.hh
-        Laplacian.hh
-        LinearIndexer.hh
-        MassMatrix.hh
-        MaterialField.hh
-        MaterialOptimization.hh
-        Materials.cc
-        Materials.hh
         MeshDataTraits.hh
         MeshIO.cc
         MeshIO.hh
         MSHFieldParser.cc
         MSHFieldParser.hh
         MSHFieldWriter.hh
-		NonLinearElasticityFunction.hh
-		NormalContactForceFunction.hh
-        NormalFractureForceFunction.hh
         NTuple.hh
-        OneForm.hh
-        OrthotropicHomogenization.hh
         Parallelism.hh
         PeriodicBoundaryMatcher.hh
-        PeriodicHomogenization.hh
-        PerturbMesh.hh
         Simplex.hh
         SimplicialMesh.hh
         SimplicialMeshInterface.hh
-        SparseMatrices.hh
         StringUtils.cc
         StringUtils.hh
         SymmetricMatrix.hh
         TemplateHacks.hh
-        TensorProjection.hh
         TetMesh.hh
         TetMesh.inl
         Timer.hh
@@ -70,7 +42,6 @@ set(SOURCES
         TriMesh.inl
         Types.cc
         Types.hh
-        UniformLaplacian.hh
         util.h
         utils.hh
 
@@ -82,26 +53,16 @@ set(SOURCES
         filters/extrude.hh
         filters/gen_cursor.hh
         filters/gen_grid.hh
-        filters/hex_tet_subdiv.hh
-        filters/highlight_dangling_vertices.hh
         filters/merge_duplicate_vertices.hh
-        filters/quad_subdiv.hh
-        filters/quad_subdiv_high_aspect.hh
         filters/quad_tri_subdiv.hh
-        filters/quad_tri_subdiv_asymmetric.hh
         filters/reflect.hh
         filters/remove_dangling_vertices.hh
         filters/remove_small_components.hh
-        filters/reorient_negative_elements.hh
         filters/ResampleCurve.hh
-        filters/subdivide.hh
-        filters/voxels_to_simplices.hh
-        Handles/FEMMeshHandles.hh
         Handles/Handle.hh
         Handles/TetMeshHandles.hh
         Handles/TriMeshHandles.hh
         Utilities/apply.hh
-        Utilities/ci_string.hh
         Utilities/EdgeAccessAdaptor.hh
         Utilities/EdgeSoupAdaptor.hh
         Utilities/IteratorMap.hh

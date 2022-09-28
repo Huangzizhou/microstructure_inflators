@@ -21,7 +21,6 @@
 #include <MeshFEM/MSHFieldWriter.hh>
 #include <MeshFEM/TetMesh.hh>
 #include <MeshFEM/TriMesh.hh>
-#include <MeshFEM/DenseCollisionGrid.hh>
 #include <MeshFEM/Utilities/NDArray.hh>
 #include <MeshFEM/filters/merge_duplicate_vertices.hh>
 #include <MeshFEM/filters/extrude.hh>
