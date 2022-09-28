@@ -16,6 +16,3 @@ micro_single_app(PrintabilityConstraints micro::isosurface_inflator micro::boost
 micro_single_app(SignedDistance_cli micro::isosurface_inflator micro::boost)
 micro_single_app(TestWireMesh micro::isosurface_inflator)
 micro_single_app(TestStitchedWireMesh micro::isosurface_inflator)
-if(TARGET igl::core)
-	micro_single_app(lookup_and_stitch micro::isosurface_inflator igl::core micro::boost)
-endif()

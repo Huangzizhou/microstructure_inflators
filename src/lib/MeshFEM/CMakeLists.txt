@@ -14,7 +14,6 @@ set(SOURCES
         function_traits.hh
         Functions.hh
         Future.hh
-        GaussQuadrature.hh
         Geometry.hh
         GlobalBenchmark.cc
         GlobalBenchmark.hh
@@ -48,13 +47,8 @@ set(SOURCES
         algorithms/get_element_components.hh
         algorithms/remove_if_index.hh
         filters/CurveCleanup.hh
-        filters/extract_hole_boundaries.hh
         filters/extract_polygons.hh
-        filters/extrude.hh
-        filters/gen_cursor.hh
         filters/gen_grid.hh
-        filters/merge_duplicate_vertices.hh
-        filters/quad_tri_subdiv.hh
         filters/reflect.hh
         filters/remove_dangling_vertices.hh
         filters/remove_small_components.hh
@@ -86,9 +80,6 @@ target_link_libraries(micro_mesh_fem
         micro::tbb
         optional::optional
         triangle::triangle
-        tinyexpr::tinyexpr
-        cholmod::cholmod
-        umfpack::umfpack
 )
 
 if(MICRO_WITH_SANITIZERS)

@@ -119,20 +119,6 @@ if(NOT TARGET triangle::triangle)
     add_library(triangle::triangle ALIAS triangle)
 endif()
 
-# TinyExpr library
-if(NOT TARGET tinyexpr::tinyexpr)
-    micro_download_tinyexpr()
-    add_library(meshfem_tinyexpr ${MICRO_EXTERNAL}/tinyexpr/tinyexpr.c)
-    target_include_directories(meshfem_tinyexpr SYSTEM PUBLIC ${MICRO_EXTERNAL}/tinyexpr)
-    add_library(tinyexpr::tinyexpr ALIAS meshfem_tinyexpr)
-endif()
-
-# Cholmod solver
-find_package(Cholmod REQUIRED) # provides cholmod::cholmod
-
-# UmfPack solver
-find_package(Umfpack REQUIRED) # provides umfpack::umfpack
-
 # MeshFEM library
 # if(NOT TARGET MeshFEM)
 #     micro_download_meshfem()
