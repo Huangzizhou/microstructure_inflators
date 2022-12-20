@@ -94,6 +94,20 @@ if(NOT TARGET micro::boost)
     add_library(micro::boost ALIAS meshfem_boost)
 endif()
 
+# openvdb
+if(NOT TARGET openvdb)
+    micro_download_openvdb()
+    set(OPENVDB_BUILD_BINARIES OFF CACHE BOOL " " FORCE)
+    set(USE_BLOSC OFF CACHE BOOL " " FORCE)
+    set(OPENVDB_ENABLE_RPATH OFF CACHE BOOL " " FORCE)
+    set(USE_CCACHE OFF CACHE BOOL " " FORCE)
+    set(USE_PKGCONFIG OFF CACHE BOOL " " FORCE)
+    set(USE_EXR OFF CACHE BOOL " " FORCE)
+    set(USE_EXPLICIT_INSTANTIATION OFF CACHE BOOL " " FORCE)
+
+    add_subdirectory(${MICRO_EXTERNAL}/openvdb openvdb)
+endif()
+
 # json library
 if(NOT TARGET json::json)
     add_library(meshfem_json INTERFACE)

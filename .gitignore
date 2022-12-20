@@ -1,7 +1,7 @@
 # Extra directories
 .vscode/
 .idea/
-build/
+build*/
 cmake-build-*/
 data
 
@@ -20,3 +20,8 @@ data
 *.fls
 *.run.xml
 *-blx.bib
+
+# mesh
+*obj
+*mesh
+*msh

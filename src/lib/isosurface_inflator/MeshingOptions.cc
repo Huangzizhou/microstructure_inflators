@@ -40,19 +40,19 @@ void MeshingOptions::load(const nlohmann::json &config) {
     }
 
     // CGAL volume mesher options
-    domainErrorBound        = config["domainErrorBound"];
-    facetAngle              = config["facetAngle"];
-    facetSize               = config["facetSize"];
-    facetDistance           = config["facetDistance"];
-    cellSize                = config["cellSize"];
-    edgeSize                = config["edgeSize"];
-    cellRadiusEdgeRatio     = config["cellRadiusEdgeRatio"];
-    marchingSquaresGridSize = config["marchingSquaresGridSize"];
-    marchingCubesGridSize   = config["marchingCubesGridSize"];
+    domainErrorBound        = config.value("domainErrorBound",domainErrorBound);
+    facetAngle              = config.value("facetAngle",facetAngle);
+    facetSize               = config.value("facetSize",facetSize);
+    facetDistance           = config.value("facetDistance",facetDistance);
+    cellSize                = config.value("cellSize",cellSize);
+    edgeSize                = config.value("edgeSize",edgeSize);
+    cellRadiusEdgeRatio     = config.value("cellRadiusEdgeRatio",cellRadiusEdgeRatio);
+    marchingSquaresGridSize = config.value("marchingSquaresGridSize",marchingSquaresGridSize);
+    marchingCubesGridSize   = config.value("marchingCubesGridSize",marchingCubesGridSize);
 
     // 2D Mesher Options
-    maxArea               = config["maxArea"];
-    featureAngleThreshold = config["featureAngleThreshold"];
+    maxArea               = config.value("maxArea",maxArea);
+    featureAngleThreshold = config.value("featureAngleThreshold",featureAngleThreshold);
 
     // Optional flags
     forceMSGridSize = config.value("forceMSGridSize", forceMSGridSize);

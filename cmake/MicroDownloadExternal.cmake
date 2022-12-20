@@ -47,6 +47,14 @@ function(micro_download_json)
     )
 endfunction()
 
+## openvdb
+function(micro_download_openvdb)
+    micro_download_project(openvdb
+        GIT_REPOSITORY  https://github.com/AcademySoftwareFoundation/openvdb.git
+        GIT_TAG         a4d4c5fe63cfe5dc3c7cdcc6439474af02490d92
+    )
+endfunction()
+
 ## Optional
 function(micro_download_optional)
     micro_download_project(optional
