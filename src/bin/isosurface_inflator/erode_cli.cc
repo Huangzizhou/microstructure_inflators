@@ -13,6 +13,7 @@
 #include <openvdb/tools/Mask.h>
 #include <igl/readOBJ.h>
 #include <igl/writeOBJ.h>
+#include <igl/bounding_box_diagonal.h>
 
 #include <iostream>
 #include <cstdio>
@@ -100,10 +101,15 @@ double SignedVolumeOfTriangle(const Vec3s &p1, const Vec3s &p2, const Vec3s &p3)
 
 double compute_surface_mesh_volume(const std::vector<Vec3s> &V, const std::vector<Vec3I> &Tri)
 {
+    Vec3s center(0, 0, 0);
+    for (const auto &v : V)
+        center += v;
+    center /= V.size();
+    
     double vol = 0;
     for (const auto &f : Tri)
     {
-        vol += SignedVolumeOfTriangle(V[f(0)], V[f(1)], V[f(2)]);
+        vol += SignedVolumeOfTriangle(V[f(0)] - center, V[f(1)] - center, V[f(2)] - center);
     }
 
     return vol;
@@ -123,72 +129,134 @@ double volume_after_offset(const FloatGrid::Ptr &grid, const double radius, std:
     tools::volumeToMesh(*gridPtrCast<FloatGrid>(tmp_grid), Ve, Tri, Quad, 0, 0, true);
     clean_quads(Tri, Quad);
 
-    return abs(compute_surface_mesh_volume(Ve, Tri));
+    double vol = abs(compute_surface_mesh_volume(Ve, Tri));
+        
+    return vol;
 }
 
-void execute(const string &input, const string &output, const double volume_ratio) 
+void execute2(const string &input, const string &output, const double offset_size)
 {
     std::vector<Vec3s> V;
     std::vector<Vec3I> F;
     read_mesh(input, V, F);
-    const double initial_vol = abs(compute_surface_mesh_volume(V, F));
-    const double hole_vol = 1 - volume_ratio;
 
-    // mesh2ls
-    double voxel = 1e-2;
+    double half_diag;
+    {
+        Eigen::MatrixXd V_mat(V.size(), 3);
+        for (int i = 0; i < V.size(); i++)
+            for (int d = 0; d < 3; d++)
+                V_mat(i, d) = V[i](d);
+        half_diag = igl::bounding_box_diagonal(V_mat) / 2;
+    }
+
+    double voxel = 1e-1 * half_diag;
+    int halfWidth = std::max(5, (int)(offset_size / voxel / 2));
     math::Transform::Ptr xform(nullptr);
     xform = math::Transform::createLinearTransform(voxel);
-    FloatGrid::Ptr grid = tools::meshToLevelSet<FloatGrid>(*xform, V, F);
+    FloatGrid::Ptr grid = tools::meshToLevelSet<FloatGrid>(*xform, V, F, halfWidth);
+
+    volume_after_offset(grid, offset_size, V, F);
+    write_mesh(output, V, F, std::vector<Vec4I>());
+}
+
+void execute1(const string &input, const string &output, const double volume_ratio, bool keep_original, double min_width, double tol) 
+{
+    std::vector<Vec3s> V;
+    std::vector<Vec3I> F;
+    read_mesh(input, V, F);
+
+    double half_diag;
+    {
+        Eigen::MatrixXd V_mat(V.size(), 3);
+        for (int i = 0; i < V.size(); i++)
+            for (int d = 0; d < 3; d++)
+                V_mat(i, d) = V[i](d);
+        half_diag = igl::bounding_box_diagonal(V_mat) / 2;
+    }
+
+    const double initial_vol = abs(compute_surface_mesh_volume(V, F));
+    const double hole_vol = 1 - volume_ratio;
 
     // eroded mesh
     std::vector<Vec3s> Ve;
     std::vector<Vec3I> Tri;
-
-    double upper = 1;
-    double upper_vol = volume_after_offset(grid, upper, Ve, Tri) / initial_vol;
-    double lower = 0;
-    double lower_vol = volume_after_offset(grid, lower, Ve, Tri) / initial_vol;
-
-    while (upper_vol > hole_vol)
+    double voxel = 1e-1 * half_diag;
+    int halfWidth = 5;// std::max(5, (int)(min_width / voxel));
+    double current_vol;
+    while (voxel > 1e-3 * half_diag)
     {
-        upper *= 2;
-        upper_vol = volume_after_offset(grid, upper, Ve, Tri) / initial_vol;
-    }
+        math::Transform::Ptr xform(nullptr);
+        xform = math::Transform::createLinearTransform(voxel);
+        FloatGrid::Ptr grid = tools::meshToLevelSet<FloatGrid>(*xform, V, F, halfWidth);
 
-    assert(upper_vol <= hole_vol && lower_vol >= hole_vol);
+        double upper = 0.2 * half_diag;
+        double upper_vol = volume_after_offset(grid, upper, Ve, Tri) / initial_vol;
+        double lower = 0;
+        double lower_vol = volume_after_offset(grid, lower, Ve, Tri) / initial_vol;
 
-    double current = (lower + upper) / 2;
-    double current_vol = volume_after_offset(grid, current, Ve, Tri) / initial_vol;
-    while (abs(current_vol - hole_vol) > 1e-3 && abs(upper - lower) > 1e-8)
-    {
-        cout << "current radius interval: " << lower << " " << current << " " << upper << "\n";
-        cout << "current volume interval: " << lower_vol << " " << current_vol << " " << upper_vol << "\n";
-        if (current_vol > hole_vol)
+        while (upper_vol > hole_vol)
         {
-            lower = current;
-            lower_vol = current_vol;
+            upper *= 1.2;
+            upper_vol = volume_after_offset(grid, upper, Ve, Tri) / initial_vol;
+
+            cout << "current radius interval: " << upper << "\n";
+            cout << "current volume interval: " << upper_vol << "\n";
         }
+
+        assert(upper_vol <= hole_vol && lower_vol >= hole_vol);
+
+        double current = (lower + upper) / 2;
+        current_vol = volume_after_offset(grid, current, Ve, Tri) / initial_vol;
+        while (abs(current_vol - hole_vol) > tol && abs(upper - lower) > 1e-6 * half_diag)
+        {
+            if (current_vol > hole_vol)
+            {
+                lower = current;
+                lower_vol = current_vol;
+            }
+            else
+            {
+                upper = current;
+                upper_vol = current_vol;
+            }
+
+            current = (lower + upper) / 2;
+            current_vol = volume_after_offset(grid, current, Ve, Tri) / initial_vol;
+
+            cout << "current radius interval: " << lower << " " << current << " " << upper << "\n";
+            cout << "current volume interval: " << lower_vol << " " << current_vol << " " << upper_vol << "\n";
+
+            if (current_vol > lower_vol || current_vol < upper_vol)
+                break;
+        }
+
+        if (abs(current_vol - hole_vol) < tol)
+            break;
         else
         {
-            upper = current;
-            upper_vol = current_vol;
+            voxel /= 2;
+            halfWidth *= 2;
+            std::cout << current_vol << " doesn't satisfy volume requirement, refine voxel to " << voxel / half_diag << "\n";
         }
-
-        current = (lower + upper) / 2;
-        current_vol = volume_after_offset(grid, current, Ve, Tri) / initial_vol;
     }
+
+    if (abs(current_vol - hole_vol) > tol)
+        throw std::runtime_error("Doesn't satisfy volume requirement");
 
     // merge with original mesh
-    if (compute_surface_mesh_volume(V, F) * compute_surface_mesh_volume(Ve, Tri) >= 0)
-    {
-        std::cout << "Wrong orientation of eroded mesh!\n";
-    }
+    // if (compute_surface_mesh_volume(V, F) * compute_surface_mesh_volume(Ve, Tri) >= 0)
+    // {
+    //     std::cout << "Wrong orientation of eroded mesh!\n";
+    // }
     
-    for (auto &f : F)
-        for (int i = 0; i < 3; i++)
-            f(i) += Ve.size();
-    Ve.insert(Ve.end(), V.begin(), V.end());
-    Tri.insert(Tri.end(), F.begin(), F.end());
+    if (keep_original)
+    {
+        for (auto &f : F)
+            for (int i = 0; i < 3; i++)
+                f(i) += Ve.size();
+        Ve.insert(Ve.end(), V.begin(), V.end());
+        Tri.insert(Tri.end(), F.begin(), F.end());
+    }
 
     // save polygon mesh
     write_mesh(output, Ve, Tri, std::vector<Vec4I>());
@@ -215,9 +283,14 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
     p.add("output", 1);
     p.add("ratio", 1);
 
-    // Options visible in the help message.
     po::options_description visible_opts;
-    visible_opts.add_options()("help,h", "Produce this help message");
+    visible_opts.add_options()
+        ("enforce-offset", "enforce specified offset size instead of volume ratio")
+        ("keep-input-surface", "include the input surface in the output mesh")
+        ("min-width", po::value<double>()->default_value(0), "Minimum width of the structure with holes")
+        ("volume-tolerance", po::value<double>()->default_value(1e-2), "")
+        ("help,h", "Produce this help message")
+        ;
 
     po::options_description cli_opts;
     cli_opts.add(visible_opts).add(hidden_opts);
@@ -254,5 +327,8 @@ int main(int argc, char *argv[])
 
     auto &config = IsosurfaceInflatorConfig::get();
 
-    execute(args["input"].as<string>(), args["output"].as<string>(), args["ratio"].as<double>());
+    if (args.count("enforce-offset"))
+        execute2(args["input"].as<string>(), args["output"].as<string>(), args["ratio"].as<double>());
+    else
+        execute1(args["input"].as<string>(), args["output"].as<string>(), args["ratio"].as<double>(), args.count("keep-input-surface"), args["min-width"].as<double>(), args["volume-tolerance"].as<double>());
 }
