@@ -163,7 +163,7 @@ public:
                 radii.push_back(thicknesses[v_other]);
             }
             m_jointForVertex.emplace_back(
-                Future::make_unique<Joint<Real>>(centers, radii, m_blendingParams[u], blendMode, blendFunction, m_blendingPolyCoeffs[u]));
+                Future::make_unique<Joint<Real>>(centers, radii, m_blendingParams[u], blendMode));
         }
 
 #if VERTEX_SMOOTHNESS_MODULATION

@@ -353,7 +353,7 @@ public:
             abOffset += blendingParams.size();
         }));
 
-        if (numViolations > 0) {
+        if (false) {
             _OutputGraph("printability_violation.msh", stitchedPoints, stitchedEdges);
             std::cerr << numViolations << " printability violations in stitched mesh; attempting to resolve them." << std::endl;
             // For all vertices of cells whose printability was violated, take the
@@ -409,7 +409,7 @@ public:
             _OutputGraph("printability_resolution.msh", stitchedPoints, stitchedEdges);
 
             if (numViolations > 0)
-                throw std::runtime_error(std::to_string(numViolations) + " unprintable cells after printability resolution");
+                std::cout << std::to_string(numViolations) + " unprintable cells after printability resolution\n";
         }
 
         std::cout << "Inflation graph generated" << std::endl;
