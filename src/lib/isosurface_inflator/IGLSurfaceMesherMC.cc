@@ -1,4 +1,5 @@
 #include "IGLSurfaceMesherMC.hh"
+#include <MeshFEM/Parallelism.hh>
 
 #if HAS_LIBIGL
 #include <igl/copyleft/marching_cubes.h>

@@ -4,7 +4,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include <isosurface_inflator/StitchedWireMesh.hh>
 #include <isosurface_inflator/PatternSignedDistance.hh>
-#include <isosurface_inflator/MidplaneMesher.hh>
 #include <isosurface_inflator/IGLSurfaceMesherMC.hh>
 #include <CLI/CLI.hpp>
 #include <json.hpp>

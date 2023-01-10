@@ -3,7 +3,6 @@
 
 #include "MesherBase.hh"
 #include <MeshFEM/MeshIO.hh>
-#include <MeshFEM/Parallelism.hh>
 
 class IGLSurfaceMesherMC : public MesherBase {
 public:
