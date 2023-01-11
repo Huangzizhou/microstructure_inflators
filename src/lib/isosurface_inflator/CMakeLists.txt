@@ -52,6 +52,8 @@ set(SOURCES
         TriplyPeriodicMinimalShell.hh
         VCGSurfaceMesher.cc
         VCGSurfaceMesher.hh
+        VDBTools.cc
+        VDBTools.hh
         WireQuadMesh.cc
         WireQuadMesh.hh
         WireMesh.hh
@@ -90,6 +92,7 @@ target_link_libraries(micro_isosurface_inflator
         micro::libigl
         micro::tbb
         nanoflann::nanoflann
+        openvdb
     PRIVATE
         micro::isosurface_inflator_cgal
         micro::vcglib
