@@ -11,6 +11,7 @@
 #include <openvdb/tools/VolumeToMesh.h>
 #include <openvdb/tools/MultiResGrid.h>
 #include <openvdb/tools/Mask.h>
+#include <openvdb/tools/LevelSetMeasure.h>
 #include <igl/readOBJ.h>
 #include <igl/writeOBJ.h>
 #include <igl/bounding_box_diagonal.h>
@@ -130,8 +131,29 @@ double volume_after_offset(const FloatGrid::Ptr &grid, const double radius, std:
     clean_quads(Tri, Quad);
 
     double vol = abs(compute_surface_mesh_volume(Ve, Tri));
-        
     return vol;
+}
+
+double sdf_volume(const FloatGrid::Ptr &grid)
+{
+    if (grid->empty())
+        return 0.;
+    
+    tools::LevelSetMeasure<FloatGrid> measure(*gridPtrCast<FloatGrid>(grid));
+    return abs(measure.volume());
+}
+
+double volume_after_offset(const FloatGrid::Ptr &grid, const double radius)
+{
+    // erode
+    auto tmp_grid = grid->deepCopyGrid();
+    if (radius != 0)
+    {
+        std::unique_ptr<tools::LevelSetFilter<FloatGrid>> filter = std::make_unique<tools::LevelSetFilter<FloatGrid>>(*gridPtrCast<FloatGrid>(tmp_grid));
+        filter->offset(radius);
+    }
+
+    return sdf_volume(gridPtrCast<FloatGrid>(tmp_grid));
 }
 
 void execute2(const string &input, const string &output, const double offset_size)
@@ -177,17 +199,21 @@ void execute1(const string &input, const string &output, const double volume_rat
     const double initial_vol = abs(compute_surface_mesh_volume(V, F));
     const double hole_vol = 1 - volume_ratio;
 
+    std::cout << "target volume ratio: " << hole_vol << "\n";
+    std::cout << "half diag: " << half_diag << "\n";
+
     // eroded mesh
     std::vector<Vec3s> Ve;
     std::vector<Vec3I> Tri;
     double voxel = 1e-1 * half_diag;
     int halfWidth = 5;// std::max(5, (int)(min_width / voxel));
-    double current_vol;
+    double current_vol, current;
     while (voxel > 1e-3 * half_diag)
     {
         math::Transform::Ptr xform(nullptr);
         xform = math::Transform::createLinearTransform(voxel);
         FloatGrid::Ptr grid = tools::meshToLevelSet<FloatGrid>(*xform, V, F, halfWidth);
+        const double initial_vol = sdf_volume(grid);
 
         double upper = 0.2 * half_diag;
         double upper_vol = volume_after_offset(grid, upper, Ve, Tri) / initial_vol;
@@ -196,17 +222,26 @@ void execute1(const string &input, const string &output, const double volume_rat
 
         while (upper_vol > hole_vol)
         {
-            upper *= 1.2;
+            upper *= 1.5;
             upper_vol = volume_after_offset(grid, upper, Ve, Tri) / initial_vol;
 
             cout << "current radius interval: " << upper << "\n";
             cout << "current volume interval: " << upper_vol << "\n";
         }
 
+        // if (lower_vol > 1 || upper_vol < 0)
+        // {
+        //     voxel /= 2;
+        //     halfWidth *= 2;
+        //     std::cout << "Bounds doesn't satisfy volume requirement, refine voxel to " << voxel / half_diag << "\n";
+        //     continue;
+        // }
+
         assert(upper_vol <= hole_vol && lower_vol >= hole_vol);
 
-        double current = (lower + upper) / 2;
+        current = (lower + upper) / 2;
         current_vol = volume_after_offset(grid, current, Ve, Tri) / initial_vol;
+
         while (abs(current_vol - hole_vol) > tol && abs(upper - lower) > 1e-6 * half_diag)
         {
             if (current_vol > hole_vol)
@@ -230,12 +265,15 @@ void execute1(const string &input, const string &output, const double volume_rat
                 break;
         }
 
-        if (abs(current_vol - hole_vol) < tol)
+        if (abs(current_vol - hole_vol) <= tol)
+        {
+            // current_vol = volume_after_offset(grid, current, Ve, Tri) / initial_vol;
             break;
+        }
         else
         {
             voxel /= 2;
-            halfWidth *= 2;
+            halfWidth *= 1.5;
             std::cout << current_vol << " doesn't satisfy volume requirement, refine voxel to " << voxel / half_diag << "\n";
         }
     }
