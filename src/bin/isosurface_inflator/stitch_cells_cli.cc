@@ -260,28 +260,42 @@ int main(int argc, char * argv[]) {
     }
 
     /* remove top */
-{
-    Vec3f corner1(-5,-5,1);
-    Vec3f corner2(5,5,2);
-    openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
-    math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
-    auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
-    openvdb::tools::csgDifference(*grid, *tmp_grid);
-}{
-    Vec3f corner1(-5,-5,-5);
-    Vec3f corner2(0,5,5);
-    openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
-    math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
-    auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
-    openvdb::tools::csgDifference(*grid, *tmp_grid);
-}{
-    Vec3f corner1(-5,-5,-5);
-    Vec3f corner2(5,0,5);
-    openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
-    math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
-    auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
-    openvdb::tools::csgDifference(*grid, *tmp_grid);
-}
+// {
+//     Vec3f corner1(-5,-5,1);
+//     Vec3f corner2(5,5,5);
+//     openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
+//     math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
+//     auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
+//     openvdb::tools::csgDifference(*grid, *tmp_grid);
+// }{
+//     Vec3f corner1(-5,-5,-5);
+//     Vec3f corner2(0,5,5);
+//     openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
+//     math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
+//     auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
+//     openvdb::tools::csgDifference(*grid, *tmp_grid);
+// }{
+//     Vec3f corner1(-5,-5,-5);
+//     Vec3f corner2(5,0,5);
+//     openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
+//     math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
+//     auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
+//     openvdb::tools::csgDifference(*grid, *tmp_grid);
+// }{
+//     Vec3f corner1(-5,2,-5);
+//     Vec3f corner2(5,5,5);
+//     openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
+//     math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
+//     auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
+//     openvdb::tools::csgDifference(*grid, *tmp_grid);
+// }{
+//     Vec3f corner1(2,-5,-5);
+//     Vec3f corner2(5,5,5);
+//     openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
+//     math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
+//     auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
+//     openvdb::tools::csgDifference(*grid, *tmp_grid);
+// }
     /* sdf to mesh */
 
     // openvdb::tools::signedFloodFill(grid->tree());

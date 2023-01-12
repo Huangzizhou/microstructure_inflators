@@ -79,3 +79,10 @@ double signed_volume_of_triangle(const Vec3s &p1, const Vec3s &p2, const Vec3s &
 double compute_surface_mesh_volume(const std::vector<Vec3s> &V, const std::vector<Vec3I> &Tri);
 
 double volume_after_offset(const FloatGrid::Ptr &grid, const double radius, std::vector<Vec3s> &Ve, std::vector<Vec3I> &Tri);
+
+FloatGrid::Ptr createLevelSetCylinder(
+    const Eigen::Vector3d& bottom,
+    const Eigen::Vector3d& top,
+    const float radius = 1.0f,
+    const float voxelSize = 0.1f,
+    const float halfWidth = float(LEVEL_SET_HALF_WIDTH));

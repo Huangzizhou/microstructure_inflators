@@ -232,3 +232,65 @@ double volume_after_offset(const FloatGrid::Ptr &grid, const double radius, std:
         
     return vol;
 }
+
+FloatGrid::Ptr createLevelSetCylinder(
+    const Eigen::Vector3d& bottom,
+    const Eigen::Vector3d& top,
+    const float radius,
+    const float voxelSize,
+    const float halfWidth)
+{
+    Eigen::Vector3f bbox_min;
+    bbox_min << std::min(bottom(0),top(0)) - radius,std::min(bottom(1),top(1)) - radius,std::min(bottom(2),top(2)) - radius;
+    Eigen::Vector3f bbox_max;
+    bbox_max << std::max(bottom(0),top(0)) + radius,std::max(bottom(1),top(1)) + radius,std::max(bottom(2),top(2)) + radius;
+
+    Eigen::Vector3i bbox_int_min(floor(bbox_min(0) / voxelSize), floor(bbox_min(1) / voxelSize), floor(bbox_min(2) / voxelSize));
+    Eigen::Vector3i bbox_int_max(ceil(bbox_max(0) / voxelSize), ceil(bbox_max(1) / voxelSize), ceil(bbox_max(2) / voxelSize));
+
+    const float bg_value = halfWidth * voxelSize;
+    openvdb::FloatGrid::Ptr grid = openvdb::FloatGrid::create(bg_value);
+    grid->setTransform(math::Transform::createLinearTransform(voxelSize));
+    openvdb::FloatGrid::Accessor accessor = grid->getAccessor();
+
+    Eigen::Vector3d direct = top - bottom;
+    const double height = direct.norm();
+    direct /= height;
+
+    // Compute the signed distance from the surface of the sphere of each
+    // voxel within the bounding box and insert the value into the grid
+    // if it is smaller in magnitude than the background value.
+    openvdb::Coord ijk;
+    int &i = ijk[0], &j = ijk[1], &k = ijk[2];
+    for (i = bbox_int_min(0); i <= bbox_int_max(0); ++i) 
+    {
+        const float x = i * voxelSize;
+        for (j = bbox_int_min(1); j <= bbox_int_max(1); ++j) 
+        {
+            const float y = j * voxelSize;
+            for (k = bbox_int_min(2); k <= bbox_int_max(2); ++k) 
+            {
+                const float z = k * voxelSize;
+                Eigen::Vector3d pos = Eigen::Vector3d(x, y, z) - bottom;
+                const double alpha = pos.dot(direct);
+                // sdf of side surface
+                const float dist1 = (pos - alpha * direct).norm() - radius;
+                // sdf of top and bottom
+                const float dist2 = -std::min(alpha, height - alpha);
+
+                const float dist = std::max(dist1, dist2);
+                // Only insert distances that are smaller in magnitude than
+                // the background value.
+                if (abs(dist) > bg_value) continue;
+                // Set the distance for voxel (i,j,k).
+                accessor.setValue(ijk, dist);
+                // std::cout << "[" << i << "," << j << "," << k << "] " << dist << "\n";
+            }
+        }
+    }
+    // Propagate the outside/inside sign information from the narrow band
+    // throughout the grid.
+    openvdb::tools::signedFloodFill(grid->tree());
+
+    return grid;
+}

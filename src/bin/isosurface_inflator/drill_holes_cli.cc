@@ -6,6 +6,8 @@
 #include <json.hpp>
 #include <isosurface_inflator/VDBTools.hh>
 
+#include <openvdb/tools/Diagnostics.h>
+
 ////////////////////////////////////////////////////////////////////////////////
 
 using json = nlohmann::json;
@@ -56,8 +58,8 @@ FloatGrid::Ptr erode(const std::vector<Vec3s> &V, const std::vector<Vec3I> &F, c
             upper *= 1.5;
             upper_vol = volume_after_offset(grid, upper, Ve, Tri) / initial_vol;
 
-            cout << "current radius interval: " << upper << "\n";
-            cout << "current volume interval: " << upper_vol << "\n";
+            // cout << "current radius interval: " << upper << "\n";
+            // cout << "current volume interval: " << upper_vol << "\n";
         }
 
         assert(upper_vol <= hole_vol && lower_vol >= hole_vol);
@@ -80,8 +82,8 @@ FloatGrid::Ptr erode(const std::vector<Vec3s> &V, const std::vector<Vec3I> &F, c
             current = (lower + upper) / 2;
             current_vol = volume_after_offset(grid, current, Ve, Tri) / initial_vol;
 
-            cout << "current radius interval: " << lower << " " << current << " " << upper << "\n";
-            cout << "current volume interval: " << lower_vol << " " << current_vol << " " << upper_vol << "\n";
+            // cout << "current radius interval: " << lower << " " << current << " " << upper << "\n";
+            // cout << "current volume interval: " << lower_vol << " " << current_vol << " " << upper_vol << "\n";
 
             if (current_vol > lower_vol || current_vol < upper_vol)
                 break;
@@ -125,6 +127,7 @@ int main(int argc, char * argv[]) {
         std::string output = "out.obj";
         double gridSize = 0.1;
         int resolution = 50;
+        double tunnel = 0;
     } args;
 
     // Parse arguments
@@ -132,6 +135,7 @@ int main(int argc, char * argv[]) {
     app.add_option("volume,--vol", args.volume, "Volume mesh.")->required();
     app.add_option("patch,-p,--patch", args.patch_config, "Patch description (json file).")->required();
     app.add_option("--gridSize", args.gridSize, "Grid size.")->required();
+    app.add_option("-t,--tunnel", args.tunnel, "Tunnel size.")->required();
     app.add_option("-o,--output", args.output, "Output triangle mesh.");
     app.add_option("-r,--resolution", args.resolution, "Density field resolution.");
     try {
@@ -162,10 +166,10 @@ int main(int argc, char * argv[]) {
 
     Eigen::MatrixXd V;
     Eigen::MatrixXi T;
+    igl::readMSH(args.volume, V, T);
+
     std::vector<std::vector<int>> cell_tets(material_patterns.size());
     {
-        igl::readMSH(args.volume, V, T);
-        
         Eigen::MatrixXd centers;
         igl::barycenter(V, T, centers);
         centers /= args.gridSize;
@@ -180,7 +184,16 @@ int main(int argc, char * argv[]) {
         }
     }
 
-    FloatGrid::Ptr whole_grid = volmesh2sdf(V, T, 1. / args.resolution);
+    const float voxel = args.gridSize / args.resolution;
+    FloatGrid::Ptr whole_grid = volmesh2sdf(V, T, voxel);
+
+    // whole_grid = createLevelSetCylinder(Eigen::Vector3f(0.0f,0.5f,0.0f), Eigen::Vector3f(0.5f,0.0f,2), 0.3, voxel);
+
+    // center of internal voids
+    Eigen::MatrixXd centers;
+    centers.setZero(cell_tets.size(), 3);
+    Eigen::Matrix<bool, -1, 1> void_flags;
+    void_flags.setZero(cell_tets.size());
 
     for (auto const& it : material_patterns)
     {
@@ -198,11 +211,57 @@ int main(int argc, char * argv[]) {
 
         if (subF_openvdb.size() == 0)
             continue;
+        
+        if (it.second["ratio"] >= 0.99)
+            continue;
 
         auto grid = erode(subV_openvdb, subF_openvdb, it.second["ratio"], 1e-2, outV, outF);
-        math::Transform::Ptr xform = math::Transform::createLinearTransform(1. / args.resolution);
+        math::Transform::Ptr xform = math::Transform::createLinearTransform(voxel);
         grid = tools::meshToLevelSet<FloatGrid>(*xform, outV, outF, 3);
         openvdb::tools::csgDifference(*whole_grid, *grid);
+
+        for (const auto &p : outV)
+            for (int d = 0; d < 3; d++)
+                centers(it.second["i"], d) += p(d);
+        centers.row(it.second["i"]) /= outV.size();
+
+        void_flags[it.second["i"]] = true;
+
+        if (args.tunnel > 0)
+        {
+            if (!void_flags[it.second["i"]])
+                continue;
+
+            Eigen::Vector3i index;
+            for (int i = -1; i <= 1; i += 2)
+            {
+                for (int d = 0; d < 3; d++)
+                {
+                    index = it.first;
+                    index(d) += i;
+                    if (auto search = material_patterns.find(index); search != material_patterns.end())
+                    {
+                        if (search->second["i"] < it.second["i"] && void_flags[search->second["i"]])
+                        {
+                            auto grid = createLevelSetCylinder(centers.row(it.second["i"]), centers.row(search->second["i"]), args.tunnel, voxel);
+                            openvdb::tools::csgDifference(*whole_grid, *grid);
+
+                            // tools::Diagnose<FloatGrid> d(*whole_grid);
+                            // tools::CheckNan<FloatGrid> c;
+                            // std::string str = d.check(c);
+                            // if (!str.empty())
+                            // {
+                            //     grid = createLevelSetCylinder(centers.row(it.second["i"]), centers.row(search->second["i"]), args.tunnel, voxel);
+                            //     tools::Diagnose<FloatGrid> d(*grid);
+                            //     tools::CheckNan<FloatGrid> c;
+                            //     std::string str = d.check(c);
+                            //     throw std::runtime_error("cylinder grid error between " + std::to_string(it.second["i"].get<int>()) + " " + std::to_string(search->second["i"].get<int>()) + " : " + str);
+                            // }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     std::vector<Vec3s> Ve;
