@@ -233,6 +233,22 @@ double volume_after_offset(const FloatGrid::Ptr &grid, const double radius, std:
     return vol;
 }
 
+double cylinderSDF(
+    const Eigen::Vector3d& bottom,
+    const Eigen::Vector3d& top,
+    const float radius,
+    const Eigen::Vector3d& x)
+{
+    Eigen::Vector3d direct = top - bottom;
+    const double height = direct.norm();
+    direct /= height;
+
+    Eigen::Vector3d vec = x - bottom;
+    const double alpha = vec.dot(direct);
+    
+    return std::max(std::max(-alpha, alpha - height), (vec - alpha * direct).norm() - radius);
+}
+
 FloatGrid::Ptr createLevelSetCylinder(
     const Eigen::Vector3d& bottom,
     const Eigen::Vector3d& top,
@@ -253,9 +269,9 @@ FloatGrid::Ptr createLevelSetCylinder(
     grid->setTransform(math::Transform::createLinearTransform(voxelSize));
     openvdb::FloatGrid::Accessor accessor = grid->getAccessor();
 
-    Eigen::Vector3d direct = top - bottom;
-    const double height = direct.norm();
-    direct /= height;
+    // Eigen::Vector3d direct = top - bottom;
+    // const double height = direct.norm();
+    // direct /= height;
 
     // Compute the signed distance from the surface of the sphere of each
     // voxel within the bounding box and insert the value into the grid
@@ -271,14 +287,15 @@ FloatGrid::Ptr createLevelSetCylinder(
             for (k = bbox_int_min(2); k <= bbox_int_max(2); ++k) 
             {
                 const float z = k * voxelSize;
-                Eigen::Vector3d pos = Eigen::Vector3d(x, y, z) - bottom;
-                const double alpha = pos.dot(direct);
-                // sdf of side surface
-                const float dist1 = (pos - alpha * direct).norm() - radius;
-                // sdf of top and bottom
-                const float dist2 = -std::min(alpha, height - alpha);
+                // Eigen::Vector3d pos = Eigen::Vector3d(x, y, z) - bottom;
+                // const double alpha = pos.dot(direct);
+                // // sdf of side surface
+                // const float dist1 = (pos - alpha * direct).norm() - radius;
+                // // sdf of top and bottom
+                // const float dist2 = -std::min(alpha, height - alpha);
 
-                const float dist = std::max(dist1, dist2);
+                // const float dist = std::max(dist1, dist2);
+                const double dist = cylinderSDF(bottom, top, radius, Eigen::Vector3d(x, y, z));
                 // Only insert distances that are smaller in magnitude than
                 // the background value.
                 if (abs(dist) > bg_value) continue;

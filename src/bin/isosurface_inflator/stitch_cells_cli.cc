@@ -234,30 +234,30 @@ int main(int argc, char * argv[]) {
 
     /* create tunnels to remove internal materials after 3d printing */
     
-    double tunnel_size = 0.2;
-    for (auto const& it : material_patterns)
-    {
-        for (int i = -1; i <= 1; i+=1)
-        for (int d = 0; d < 3; d++)
-        {
-            if (d != 0 && i == 0)
-                continue;
-            Eigen::Vector3i id = it.first;
-            id[d] += i;
-            if (material_patterns.find(id) == material_patterns.end()) // need to create tunnel
-            {
-                Vec3f center(id(0) + 0.5,id(1) + 0.5,id(2) + 0.5);
-                Vec3f corner1 = center - tunnel_size / 2;
-                Vec3f corner2 = center + tunnel_size / 2;
-                corner1(d) = id(d);
-                corner2(d) = id(d) + 1;
-                openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
-                math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
-                auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
-                openvdb::tools::csgDifference(*grid, *tmp_grid);
-            }
-        }
-    }
+    // double tunnel_size = 0.2;
+    // for (auto const& it : material_patterns)
+    // {
+    //     for (int i = -1; i <= 1; i+=1)
+    //     for (int d = 0; d < 3; d++)
+    //     {
+    //         if (d != 0 && i == 0)
+    //             continue;
+    //         Eigen::Vector3i id = it.first;
+    //         id[d] += i;
+    //         if (material_patterns.find(id) == material_patterns.end()) // need to create tunnel
+    //         {
+    //             Vec3f center(id(0) + 0.5,id(1) + 0.5,id(2) + 0.5);
+    //             Vec3f corner1 = center - tunnel_size / 2;
+    //             Vec3f corner2 = center + tunnel_size / 2;
+    //             corner1(d) = id(d);
+    //             corner2(d) = id(d) + 1;
+    //             openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
+    //             math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
+    //             auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
+    //             openvdb::tools::csgDifference(*grid, *tmp_grid);
+    //         }
+    //     }
+    // }
 
     /* remove top */
 // {

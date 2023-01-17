@@ -34,8 +34,8 @@ endfunction()
 ## Eigen
 function(micro_download_eigen)
     micro_download_project(eigen
-        URL     https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.tar.gz
-        URL_MD5 9e30f67e8531477de4117506fe44669b
+        GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+        GIT_TAG tags/3.4.0
     )
 endfunction()
 

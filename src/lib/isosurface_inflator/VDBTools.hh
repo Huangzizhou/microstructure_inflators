@@ -48,6 +48,7 @@ template < typename DerivedC, typename DerivedD >
 void eigen_to_openvdb(const Eigen::Matrix<DerivedC, -1, -1> &mat, std::vector<openvdb::v10_0::math::Vec3<DerivedD>> &out)
 {
     assert(mat.cols() == 3);
+    out.clear();
     out.reserve(mat.rows());
     for (int i = 0; i < mat.rows(); i++)
         out.emplace_back(mat(i, 0), mat(i, 1), mat(i, 2));
@@ -79,6 +80,12 @@ double signed_volume_of_triangle(const Vec3s &p1, const Vec3s &p2, const Vec3s &
 double compute_surface_mesh_volume(const std::vector<Vec3s> &V, const std::vector<Vec3I> &Tri);
 
 double volume_after_offset(const FloatGrid::Ptr &grid, const double radius, std::vector<Vec3s> &Ve, std::vector<Vec3I> &Tri);
+
+double cylinderSDF(
+    const Eigen::Vector3d& bottom,
+    const Eigen::Vector3d& top,
+    const float radius,
+    const Eigen::Vector3d& x);
 
 FloatGrid::Ptr createLevelSetCylinder(
     const Eigen::Vector3d& bottom,
