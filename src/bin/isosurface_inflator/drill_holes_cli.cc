@@ -25,7 +25,7 @@ bool is_file_exist(const char *fileName)
     return infile.good();
 }
 
-FloatGrid::Ptr erode(const std::vector<Vec3s> &V, const std::vector<Vec3I> &F, const double volume_ratio, double tol, std::vector<Vec3s> &Ve, std::vector<Vec3I> &Tri) 
+FloatGrid::Ptr erode(const std::vector<Vec3s> &V, const std::vector<Vec3I> &F, const double volume_ratio, double tol, const double min_wall, std::vector<Vec3s> &Ve, std::vector<Vec3I> &Tri) 
 {
     // std::vector<Vec3s> V;
     // std::vector<Vec3I> F;
@@ -111,6 +111,12 @@ FloatGrid::Ptr erode(const std::vector<Vec3s> &V, const std::vector<Vec3I> &F, c
 
     if (abs(current_vol - hole_vol) > tol)
         throw std::runtime_error("Doesn't satisfy volume requirement");
+    
+    if (current < min_wall)
+    {
+        current = min_wall;
+        volume_after_offset(grid, current, Ve, Tri);
+    }
 
     std::unique_ptr<tools::LevelSetFilter<FloatGrid>> filter = std::make_unique<tools::LevelSetFilter<FloatGrid>>(*gridPtrCast<FloatGrid>(grid));
     filter->offset(current);
@@ -139,6 +145,10 @@ int main(int argc, char * argv[]) {
         int resolution = 50;
         double tunnel = 0;
         bool preserve_original_surface = false;
+        bool erode_from_volume_cell = false;
+        double min_wall = 0;
+        double final_adaptivity = 0;
+        bool export_boundary_cells = false;
     } args;
 
     // Parse arguments
@@ -146,11 +156,15 @@ int main(int argc, char * argv[]) {
     app.add_option("volume,--vol", args.volume, "Volume mesh.")->required();
     app.add_option("patch,-p,--patch", args.patch_config, "Patch description (json file).")->required();
     app.add_option("--gridSize", args.gridSize, "Grid size.")->required();
-    app.add_option("-t,--tunnel", args.tunnel, "Tunnel size.")->required();
+    app.add_option("-t,--tunnel", args.tunnel, "Tunnel size.");
     app.add_option("--surface", args.surface, "Surface mesh.");
+    app.add_option("--min-wall", args.min_wall, "Min width of walls.");
+    app.add_option("--final_adaptivity", args.final_adaptivity, "adaptivity of final mesh.");
     app.add_option("-o,--output", args.output, "Output triangle mesh.");
     app.add_option("-r,--resolution", args.resolution, "Density field resolution.");
     app.add_flag("--preserve-surface", args.preserve_original_surface, "Preserve original object surface");
+    app.add_flag("--render", args.export_boundary_cells, "For rendering");
+    app.add_flag("--erode-volume-cell", args.erode_from_volume_cell, "Erode the volume mesh instead of directly on sdf");
     try {
         app.parse(argc, argv);
     } catch (const CLI::ParseError &e) {
@@ -239,6 +253,25 @@ int main(int argc, char * argv[]) {
         std::vector<Vec3s> subV_openvdb, outV;
         std::vector<Vec3I> subF_openvdb, outF;
         // intersection of cube and volume
+        if (args.erode_from_volume_cell)
+        {
+            Eigen::MatrixXi tmpT(sub_ids.size(), 4);
+            Eigen::MatrixXi subF;
+            Eigen::MatrixXd subV;
+
+            for (int l = 0; l < sub_ids.size(); l++)
+                tmpT.row(l) = T.row(sub_ids[l]);
+
+            Eigen::MatrixXi F;
+            igl::boundary_facets(tmpT, F);
+
+            Eigen::VectorXi tmpI;
+            igl::remove_unreferenced(V, F, subV, subF, tmpI);
+
+            eigen_to_openvdb(subV, subV_openvdb);
+            eigen_to_openvdb(subF, subF_openvdb);
+        }
+        else
         {
             Vec3f center(it.first(0) + 0.5, it.first(1) + 0.5, it.first(2) + 0.5);
             FloatGrid::Ptr tmp_grid = openvdb::tools::createLevelSetCube<FloatGrid>(args.gridSize, args.gridSize * center, voxel);
@@ -251,10 +284,24 @@ int main(int argc, char * argv[]) {
         if (subF_openvdb.size() == 0)
             continue;
         
-        if (it.second["ratio"] >= 1 - 1e-5)
+        if (it.second["ratio"] >= 1 - 5e-2)
             continue;
 
-        erode(subV_openvdb, subF_openvdb, it.second["ratio"], 1e-2, outV, outF);
+        erode(subV_openvdb, subF_openvdb, it.second["ratio"], 1e-2, args.min_wall, outV, outF);
+
+        if (args.export_boundary_cells) {
+            static int render_id = 0;
+            auto render_v = subV_openvdb;
+            auto render_f = subF_openvdb;
+            for (const auto &x : outF)
+            {
+                Vec3I y = x + subV_openvdb.size();
+                render_f.push_back(y);
+            }
+            for (const auto &x : outV)
+                render_v.push_back(x);
+            write_mesh("render" + std::to_string(render_id++) + ".obj", render_v, render_f);
+        }
         
         for (const auto &p : outV)
             for (int d = 0; d < 3; d++)
@@ -364,7 +411,7 @@ int main(int argc, char * argv[]) {
             Eigen::Index minRow;
             double min = sqrD.minCoeff(&minRow);
 
-            auto grid = createLevelSetCylinder(center, C.row(minRow), args.tunnel, voxel); 
+            auto grid = createLevelSetCylinder(center.transpose(), C.row(minRow).transpose(), args.tunnel, voxel); 
             openvdb::tools::csgDifference(*whole_grid, *grid);
 
             Vec3f sphere_center(C(minRow,0),C(minRow,1),C(minRow,2));
@@ -375,7 +422,7 @@ int main(int argc, char * argv[]) {
 
     std::vector<Vec3s> Ve;
     std::vector<Vec3I> Tri;
-    sdf2mesh(whole_grid, Ve, Tri);
+    sdf2mesh(whole_grid, Ve, Tri, args.final_adaptivity);
 
     if (args.preserve_original_surface)
     {

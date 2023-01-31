@@ -71,7 +71,7 @@ FloatGrid::Ptr volmesh2sdf(const Eigen::MatrixXd& V, const Eigen::MatrixXi& T, c
 
 void clean_quads(std::vector<Vec3I> &Tri, std::vector<Vec4I> &Quad);
 
-void sdf2mesh(const FloatGrid::Ptr &grid, std::vector<Vec3s> &V, std::vector<Vec3I> &F);
+void sdf2mesh(const FloatGrid::Ptr &grid, std::vector<Vec3s> &V, std::vector<Vec3I> &F, double adaptivity = 0);
 
 void write_mesh(const std::string &output, const std::vector<Vec3s> &V, const std::vector<Vec3I> &Tri);
 

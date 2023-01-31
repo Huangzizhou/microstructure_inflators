@@ -75,6 +75,7 @@ int main(int argc, char * argv[]) {
         std::string output = "out.obj";
         double gridSize = 0.1;
         int resolution = 50;
+        double final_adaptivity = 0;
     } args;
 
     // Parse arguments
@@ -84,6 +85,8 @@ int main(int argc, char * argv[]) {
     app.add_option("--surface", args.object_surface, "Object surface.");
     app.add_option("-o,--output", args.output, "Output triangle mesh.");
     app.add_option("-r,--resolution", args.resolution, "Density field resolution.");
+    app.add_option("--final_adaptivity", args.final_adaptivity, "adaptivity of final mesh.");
+
     try {
         app.parse(argc, argv);
     } catch (const CLI::ParseError &e) {
@@ -305,7 +308,7 @@ int main(int argc, char * argv[]) {
     std::vector<Vec3s> Ve;
     std::vector<Vec3I> Tri;
     std::vector<Vec4I> Quad;
-    tools::volumeToMesh(*grid, Ve, Tri, Quad, 0, 0, true);
+    tools::volumeToMesh(*grid, Ve, Tri, Quad, 0, args.final_adaptivity, true);
     clean_quads(Tri, Quad);
     write_mesh(args.output, Ve, Tri);
 

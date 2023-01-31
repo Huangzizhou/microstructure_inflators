@@ -146,10 +146,10 @@ void clean_quads(std::vector<Vec3I> &Tri, std::vector<Vec4I> &Quad)
     Quad.clear();
 }
 
-void sdf2mesh(const FloatGrid::Ptr &grid, std::vector<Vec3s> &V, std::vector<Vec3I> &F)
+void sdf2mesh(const FloatGrid::Ptr &grid, std::vector<Vec3s> &V, std::vector<Vec3I> &F, double adaptivity)
 {
     std::vector<Vec4I> Quad;
-    tools::volumeToMesh(*grid, V, F, Quad, 0, 0, true);
+    tools::volumeToMesh(*grid, V, F, Quad, 0, adaptivity, true);
     clean_quads(F, Quad);
 }
 
