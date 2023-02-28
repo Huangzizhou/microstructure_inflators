@@ -86,17 +86,30 @@ target_link_libraries(micro_isosurface_inflator_cgal
         CGAL::CGAL
 )
 
-target_link_libraries(micro_isosurface_inflator
-    PUBLIC
-        micro_mesh_fem
-        micro::libigl
-        micro::tbb
-        nanoflann::nanoflann
-        openvdb
-    PRIVATE
-        micro::isosurface_inflator_cgal
-        micro::vcglib
-)
+if (MICRO_WITH_OPENVDB)
+    target_link_libraries(micro_isosurface_inflator
+        PUBLIC
+            micro_mesh_fem
+            micro::libigl
+            micro::tbb
+            nanoflann::nanoflann
+            openvdb
+        PRIVATE
+            micro::isosurface_inflator_cgal
+            micro::vcglib
+    )
+else()
+    target_link_libraries(micro_isosurface_inflator
+        PUBLIC
+            micro_mesh_fem
+            micro::libigl
+            micro::tbb
+            nanoflann::nanoflann
+        PRIVATE
+            micro::isosurface_inflator_cgal
+            micro::vcglib
+    )
+endif()
 
 if(MICRO_WITH_SANITIZERS)
     add_sanitizers(micro_isosurface_inflator_cgal)

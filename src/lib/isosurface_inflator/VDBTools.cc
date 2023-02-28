@@ -1,6 +1,8 @@
 #include "VDBTools.hh"
 #include <queue>
 
+#if MICRO_WITH_OPENVDB
+
 void read_mesh(const std::string &input, std::vector<Vec3s> &V, std::vector<Vec3I> &F)
 {
     Eigen::MatrixXd v;
@@ -311,3 +313,5 @@ FloatGrid::Ptr createLevelSetCylinder(
 
     return grid;
 }
+
+#endif

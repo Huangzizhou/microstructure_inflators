@@ -1,5 +1,7 @@
 #pragma once
 
+#if MICRO_WITH_OPENVDB
+
 #include <igl/readOBJ.h>
 #include <igl/readMSH.h>
 #include <igl/barycenter.h>
@@ -93,3 +95,5 @@ FloatGrid::Ptr createLevelSetCylinder(
     const float radius = 1.0f,
     const float voxelSize = 0.1f,
     const float halfWidth = float(LEVEL_SET_HALF_WIDTH));
+
+#endif
