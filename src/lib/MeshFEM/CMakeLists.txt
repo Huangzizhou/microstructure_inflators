@@ -32,7 +32,6 @@ set(SOURCES
         TriMesh.inl
         Types.cc
         util.h
-        utils.hh
 
         algorithms/get_element_components.hh
         algorithms/remove_if_index.hh
