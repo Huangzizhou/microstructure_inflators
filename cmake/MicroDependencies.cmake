@@ -201,7 +201,7 @@ endif()
 ################################################################################
 
 # libigl library
-if(NOT TARGET micro::libigl)
+if(NOT TARGET libigl)
     if(NOT TARGET igl::core)
         micro_download_libigl()
         find_package(LIBIGL QUIET)
@@ -210,9 +210,9 @@ if(NOT TARGET micro::libigl)
         add_library(micro_libigl INTERFACE)
         target_link_libraries(micro_libigl INTERFACE igl::core)
         target_compile_definitions(micro_libigl INTERFACE -DHAS_LIBIGL)
-        add_library(micro::libigl ALIAS micro_libigl)
+        add_library(libigl ALIAS micro_libigl)
     else()
-        add_library(micro::libigl INTERFACE IMPORTED)
+        add_library(libigl INTERFACE IMPORTED)
     endif()
 endif()
 

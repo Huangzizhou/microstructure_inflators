@@ -86,7 +86,7 @@ if (MICRO_WITH_OPENVDB)
     target_link_libraries(micro_isosurface_inflator
         PUBLIC
             micro_mesh_fem
-            micro::libigl
+            libigl
             TBB::tbb
             nanoflann::nanoflann
             openvdb
@@ -98,7 +98,7 @@ else()
     target_link_libraries(micro_isosurface_inflator
         PUBLIC
             micro_mesh_fem
-            micro::libigl
+            libigl
             TBB::tbb
             nanoflann::nanoflann
         PRIVATE
