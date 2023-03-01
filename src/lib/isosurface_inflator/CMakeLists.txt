@@ -81,7 +81,7 @@ micro_add_library(isosurface_inflator_cgal
 target_link_libraries(micro_isosurface_inflator_cgal
     PUBLIC
         micro_mesh_fem
-        micro::tbb
+        TBB::tbb
     PRIVATE
         CGAL::CGAL
 )
@@ -91,7 +91,7 @@ if (MICRO_WITH_OPENVDB)
         PUBLIC
             micro_mesh_fem
             micro::libigl
-            micro::tbb
+            TBB::tbb
             nanoflann::nanoflann
             openvdb
         PRIVATE
@@ -103,7 +103,7 @@ else()
         PUBLIC
             micro_mesh_fem
             micro::libigl
-            micro::tbb
+            TBB::tbb
             nanoflann::nanoflann
         PRIVATE
             micro::isosurface_inflator_cgal

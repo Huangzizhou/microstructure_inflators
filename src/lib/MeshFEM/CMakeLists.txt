@@ -77,7 +77,7 @@ target_link_libraries(micro_mesh_fem
         Threads::Threads
         Eigen3::Eigen
         json::json
-        micro::tbb
+        TBB::tbb
         optional::optional
         triangle::triangle
 )

@@ -62,17 +62,19 @@ if(NOT TARGET TBB::tbb)
     target_link_libraries(tbb_tbb INTERFACE tbb_static tbbmalloc_static)
     add_library(TBB::tbb ALIAS tbb_tbb)
 
+    target_compile_definitions(tbb_tbb INTERFACE -DMICRO_WITH_TBB)
+
     micro_target_hide_warnings(tbb_tbb tbb_static tbbmalloc_static)
 endif()
 
-if(NOT TARGET micro::tbb)
-    add_library(micro_tbb INTERFACE)
-    if(MICRO_WITH_TBB)
-        target_link_libraries(micro_tbb INTERFACE TBB::tbb)
-        target_compile_definitions(micro_tbb INTERFACE -DMICRO_WITH_TBB)
-    endif()
-    add_library(micro::tbb ALIAS micro_tbb)
-endif()
+# if(NOT TARGET micro::tbb)
+#     add_library(micro_tbb INTERFACE)
+#     if(MICRO_WITH_TBB)
+#         target_link_libraries(micro_tbb INTERFACE TBB::tbb)
+#         target_compile_definitions(micro_tbb INTERFACE -DMICRO_WITH_TBB)
+#     endif()
+#     add_library(micro::tbb ALIAS micro_tbb)
+# endif()
 
 # C++11 threads
 find_package(Threads REQUIRED) # provides Threads::Threads
