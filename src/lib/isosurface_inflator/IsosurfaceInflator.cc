@@ -11,6 +11,7 @@
 #include <MeshFEM/SimplicialMesh.hh>
 #include <MeshFEM/Future.hh>
 #include <MeshFEM/Utilities/apply.hh>
+#include <MeshFEM/Parallelism.hh>
 
 #include "WireMesh.hh"
 #include "PatternSignedDistance.hh"

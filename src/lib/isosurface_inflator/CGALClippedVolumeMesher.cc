@@ -17,6 +17,7 @@
 #include <CGAL/make_mesh_3.h>
 #include "EnableWarnings.hh"
 #include <vector>
+#include "SignedDistance.hh"
 
 // avoid verbose function and named parameters call
 using namespace CGAL::parameters;

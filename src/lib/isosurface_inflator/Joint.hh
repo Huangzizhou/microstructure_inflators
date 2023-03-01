@@ -17,8 +17,8 @@
 #include <MeshFEM/Future.hh>
 #include <stdexcept>
 
-enum class JointBlendMode { FULL, HULL, HULL_HALF_EDGE };
-enum class JointBlendFunction { EXPONENTIAL, POLY_SYMMETRIC, POLY_NONCONVEX, POLY_PIECEWISE };
+#include "JointCommon.hh"
+
 namespace SD = SignedDistance;
 
 template<typename Real>

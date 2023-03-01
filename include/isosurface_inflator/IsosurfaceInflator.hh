@@ -17,11 +17,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef ISOSURFACEINFLATOR_HH
 #define ISOSURFACEINFLATOR_HH
-#include "WireMesh.hh"
 #include "MeshingOptions.hh"
+#include "InflatorTypes.hh"
 #include <MeshFEM/MeshIO.hh>
 #include <MeshFEM/BaseCellType.hh>
-#include <MeshFEM/Parallelism.hh>
 #include <string>
 #include <vector>
 

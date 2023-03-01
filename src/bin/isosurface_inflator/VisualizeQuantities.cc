@@ -1,4 +1,4 @@
-#include <isosurface_inflator/InflatorTypes.hh>
+#include "InflatorTypes.hh"
 #include <isosurface_inflator/CGALClippedVolumeMesher.hh>
 #include <isosurface_inflator/IGLSurfaceMesherMC.hh>
 #include <isosurface_inflator/MidplaneMesher.hh>

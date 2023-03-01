@@ -18,16 +18,12 @@ set(SOURCES
         FuzzySign.hh
         IGLSurfaceMesherMC.cc
         IGLSurfaceMesherMC.hh
-        InflatorTypes.hh
         Isometries.hh
         IsosurfaceInflator.cc
-        IsosurfaceInflator.hh
-        IsosurfaceInflatorConfig.hh
         IsosurfaceInflatorImpl.hh
         Joint.hh
         MesherBase.hh
         MeshingOptions.cc
-        MeshingOptions.hh
         MidplaneMesher.cc
         MidplaneMesher.hh
         NodePositioners.hh

@@ -106,7 +106,7 @@ option(LIBIGL_WITH_TRIANGLE               "Use Triangle"                 ON)
 option(LIBIGL_WITH_VIEWER                 "Use OpenGL viewer"            ON)
 option(LIBIGL_WITH_XML                    "Use XML"                      OFF)
 
-option(SANITIZE_ADDRESS   "Sanitize Address"       ON)
+option(SANITIZE_ADDRESS   "Sanitize Address"       OFF)
 option(SANITIZE_MEMORY    "Sanitize Memory"        OFF)
 option(SANITIZE_THREAD    "Sanitize Thread"        OFF)
 option(SANITIZE_UNDEFINED "Sanitize Undefined"     OFF)
@@ -142,6 +142,8 @@ endif()
 ################################################################################
 # Subfolders
 ################################################################################
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/isosurface_inflator)
 
 add_subdirectory(src/lib)
 

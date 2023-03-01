@@ -1,7 +1,8 @@
 #ifndef MESHINGOPTIONS_HH
 #define MESHINGOPTIONS_HH
 
-#include "Joint.hh"
+#include "JointCommon.hh"
+#include <Eigen/Dense>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <cmath>

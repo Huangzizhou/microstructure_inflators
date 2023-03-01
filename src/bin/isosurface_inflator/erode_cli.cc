@@ -1,6 +1,6 @@
 #include <isosurface_inflator/WireMesh.hh>
 #include <isosurface_inflator/PatternSignedDistance.hh>
-#include <isosurface_inflator/IsosurfaceInflatorConfig.hh>
+#include "IsosurfaceInflatorConfig.hh"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
