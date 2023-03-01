@@ -12,7 +12,7 @@
 #ifndef TRIANGULATE_H
 #define TRIANGULATE_H
 
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 #include <MeshFEM/Utilities/EdgeAccessAdaptor.hh>
 #include <MeshFEM/Utilities/EdgeSoupAdaptor.hh>
 #include <MeshFEM/wrappers/meshfem_triangle.h>

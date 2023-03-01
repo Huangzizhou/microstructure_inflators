@@ -12,7 +12,7 @@
 #define GRAPHLINEMESHER_HH
 
 #include "MeshingOptions.hh"
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 
 template<class SignedDistanceFunction>
 class GraphLineMesher {

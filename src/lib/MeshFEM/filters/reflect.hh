@@ -2,7 +2,7 @@
 #define REFLECT_HH
 #include <ratio>
 #include <vector>
-#include <MeshFEM/Geometry.hh>
+#include "Geometry.hh"
 #include <MeshFEM/ComponentMask.hh>
 
 inline bool isEq(Real a, Real b, Real tol = 0) {

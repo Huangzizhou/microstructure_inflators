@@ -45,10 +45,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 #ifndef FUNCTIONS_HH
 #define FUNCTIONS_HH
-#include <MeshFEM/Types.hh>
+#include "Types.hh"
 #include <MeshFEM/Simplex.hh>
 #include <MeshFEM/function_traits.hh>
-#include <MeshFEM/TemplateHacks.hh>
+#include "TemplateHacks.hh"
 #include <MeshFEM/Future.hh>
 #include <MeshFEM/NTuple.hh>
 #include <vector>

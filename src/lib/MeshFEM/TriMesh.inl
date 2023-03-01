@@ -1,7 +1,7 @@
 #include <map>
 #include <stdexcept>
 #include <iostream>
-#include <MeshFEM/Geometry.hh>
+#include "Geometry.hh"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Constructor

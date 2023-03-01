@@ -1,5 +1,5 @@
 #include <MeshFEM/MSHFieldParser.hh>
-#include <MeshFEM/Types.hh>
+#include "Types.hh"
 #include <MeshFEM/StringUtils.hh>
 
 #include <iostream>

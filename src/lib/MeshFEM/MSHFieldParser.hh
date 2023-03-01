@@ -20,11 +20,11 @@
 #include <stdexcept>
 #include <Eigen/Dense>
 
-#include <MeshFEM/MeshIO.hh>
-#include <MeshFEM/Types.hh>
+#include "MeshIO.hh"
+#include "Types.hh"
 #include <MeshFEM/Functions.hh>
-#include <MeshFEM/Fields.hh>
-#include <MeshFEM/SymmetricMatrix.hh>
+#include "Fields.hh"
+#include "SymmetricMatrix.hh"
 
 // N: spatial dimension
 template<size_t N>

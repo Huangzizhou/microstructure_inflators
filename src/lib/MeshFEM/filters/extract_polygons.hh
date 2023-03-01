@@ -13,7 +13,7 @@
 #include <vector>
 #include <list>
 #include <queue>
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 #include <MeshFEM/Utilities/EdgeAccessAdaptor.hh>
 
 template<size_t N, class PointType, class EdgeType>

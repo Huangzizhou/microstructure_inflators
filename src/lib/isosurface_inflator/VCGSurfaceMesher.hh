@@ -13,7 +13,7 @@
 
 #include "MesherBase.hh"
 #include "SignedDistanceRegion.hh"
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 
 class VCGSurfaceMesher : public MesherBase {
 public:

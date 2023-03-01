@@ -144,6 +144,7 @@ endif()
 ################################################################################
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/isosurface_inflator)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/MeshFEM)
 
 add_subdirectory(src/lib)
 

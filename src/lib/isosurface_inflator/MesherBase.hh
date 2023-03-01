@@ -13,7 +13,7 @@
 
 #include "MeshingOptions.hh"
 #include "SignedDistanceRegion.hh"
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 
 class MesherBase {
 public:

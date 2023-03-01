@@ -2,7 +2,7 @@
 #define IGLSURFACEMESHERMC_HH
 
 #include "MesherBase.hh"
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 
 class IGLSurfaceMesherMC : public MesherBase {
 public:

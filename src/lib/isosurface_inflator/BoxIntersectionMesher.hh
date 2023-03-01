@@ -14,7 +14,7 @@
 
 #include "MesherBase.hh"
 #include "SignedDistanceRegion.hh"
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 
 class BoxIntersectionMesher : public MesherBase {
 public:

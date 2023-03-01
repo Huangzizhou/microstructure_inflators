@@ -24,7 +24,7 @@
 #include "NodePositioners.hh"
 #include "FuzzySign.hh"
 #include "AutomaticDifferentiation.hh"
-#include <MeshFEM/Geometry.hh>
+#include "Geometry.hh"
 #include <ratio>
 #include <vector>
 #include <memory>

@@ -13,10 +13,10 @@
 #define SNAPANDREFLECT_HH
 
 #include "Isometries.hh"
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 #include <MeshFEM/MSHFieldWriter.hh>
 #include <MeshFEM/PeriodicBoundaryMatcher.hh>
-#include <MeshFEM/Concepts.hh>
+#include "Concepts.hh"
 #include <vector>
 #include <queue>
 #include <ratio>

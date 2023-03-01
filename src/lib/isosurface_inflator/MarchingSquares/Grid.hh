@@ -38,7 +38,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include <Eigen/Dense>
 #include <algorithm>
-#include <MeshFEM/Geometry.hh>
+#include "Geometry.hh"
 #include <stdexcept>
 #ifndef GRID_HH
 #define GRID_HH

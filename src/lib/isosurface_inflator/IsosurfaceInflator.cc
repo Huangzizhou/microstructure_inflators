@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <map>
 
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 #include <MeshFEM/MSHFieldWriter.hh>
 #include <MeshFEM/SimplicialMesh.hh>
 #include <MeshFEM/Future.hh>

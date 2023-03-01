@@ -31,7 +31,7 @@
 #include <nonstd/optional.hpp>
 
 #include <MeshFEM/PeriodicBoundaryMatcher.hh>
-#include <MeshFEM/Geometry.hh>
+#include "Geometry.hh"
 
 bool isOutsideResamplingRegions(Point3D p, const std::vector<std::unique_ptr<Region<Point3D>>> &inRegions, const std::vector<std::unique_ptr<Region<Point3D>>> &outRegions) {
 

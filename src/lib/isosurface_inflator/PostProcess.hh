@@ -12,8 +12,8 @@
 #define POSTPROCESS_HH
 
 #include "IsosurfaceInflator.hh"
-#include <MeshFEM/MeshIO.hh>
-#include <MeshFEM/Geometry.hh>
+#include "MeshIO.hh"
+#include "Geometry.hh"
 #include <vector>
 
 // Postprocess: Snap to base cell and then reflect if necessary Compute vertex normals and normal

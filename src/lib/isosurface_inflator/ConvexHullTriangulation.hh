@@ -15,7 +15,7 @@
 #ifndef CONVEXHULLTRIANGULATION_HH
 #define CONVEXHULLTRIANGULATION_HH
 
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 
 #include <cassert>
 #include <sstream>

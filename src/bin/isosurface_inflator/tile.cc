@@ -15,7 +15,7 @@
 
 #include <MeshFEM/MSHFieldParser.hh>
 #include <MeshFEM/MSHFieldWriter.hh>
-#include <MeshFEM/Geometry.hh>
+#include "Geometry.hh"
 #include <MeshFEM/SimplicialMesh.hh>
 #include <MeshFEM/PeriodicBoundaryMatcher.hh>
 #include <boost/program_options.hpp>

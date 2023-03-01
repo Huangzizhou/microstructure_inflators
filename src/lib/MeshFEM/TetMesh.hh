@@ -84,8 +84,8 @@
 #include <vector>
 #include <cassert>
 
-#include <MeshFEM/Geometry.hh>
-#include <MeshFEM/Concepts.hh>
+#include "Geometry.hh"
+#include "Concepts.hh"
 #include <MeshFEM/BoundaryMesh.hh>
 #include <MeshFEM/Handles/TetMeshHandles.hh>
 #include <MeshFEM/SimplicialMeshInterface.hh>

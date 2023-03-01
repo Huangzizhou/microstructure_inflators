@@ -25,9 +25,9 @@
 #include "SignedDistance.hh"
 #include "AutomaticDifferentiation.hh"
 
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 #include <MeshFEM/MSHFieldWriter.hh>
-#include <MeshFEM/Geometry.hh>
+#include "Geometry.hh"
 
 #ifdef GROUND_TRUTH_DEBUGGING
 #include "DisableWarnings.hh"

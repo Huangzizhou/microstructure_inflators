@@ -13,7 +13,7 @@
 #define EDGEACCESSADAPTOR_HH
 
 #include <utility>
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 
 template<class EdgeType>
 struct EdgeAccessAdaptor {

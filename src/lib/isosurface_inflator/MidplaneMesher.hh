@@ -14,7 +14,7 @@
 
 #include "MesherBase.hh"
 #include "SignedDistanceRegion.hh"
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 #include <string>
 
 class MidplaneMesher : public MesherBase {

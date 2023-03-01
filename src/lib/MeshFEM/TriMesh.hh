@@ -38,7 +38,7 @@
 #include <vector>
 #include <cassert>
 
-#include <MeshFEM/Concepts.hh>
+#include "Concepts.hh"
 #include <MeshFEM/BoundaryMesh.hh>
 #include <MeshFEM/Handles/TriMeshHandles.hh>
 #include <MeshFEM/SimplicialMeshInterface.hh>

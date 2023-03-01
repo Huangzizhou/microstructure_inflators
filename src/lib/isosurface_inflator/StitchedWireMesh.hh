@@ -23,7 +23,7 @@
 #include "Symmetry.hh"
 #include "WireMesh.hh"
 #include <MeshFEM/Utilities/NDArray.hh>
-#include <MeshFEM/Geometry.hh>
+#include "Geometry.hh"
 #include <MeshFEM/function_traits.hh>
 #include <MeshFEM/PeriodicBoundaryMatcher.hh> // for FaceMembership
 #include <stdexcept>

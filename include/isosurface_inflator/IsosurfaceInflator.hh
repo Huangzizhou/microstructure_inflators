@@ -19,8 +19,8 @@
 #define ISOSURFACEINFLATOR_HH
 #include "MeshingOptions.hh"
 #include "InflatorTypes.hh"
-#include <MeshFEM/MeshIO.hh>
-#include <MeshFEM/BaseCellType.hh>
+#include "MeshIO.hh"
+#include "BaseCellType.hh"
 #include <string>
 #include <vector>
 

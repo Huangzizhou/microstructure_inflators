@@ -13,7 +13,7 @@
 #define BOUNDARYMESH_HH
 #include <type_traits>
 #include <MeshFEM/Handles/Handle.hh>
-#include <MeshFEM/TemplateHacks.hh>
+#include "TemplateHacks.hh"
 #include <MeshFEM/MeshDataTraits.hh>
 
 template<class _Mesh, size_t VolK = _Mesh::K, bool IsFemMesh = MeshDataTraits<_Mesh>::isFEMMesh>

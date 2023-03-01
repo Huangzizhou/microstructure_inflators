@@ -3,23 +3,16 @@
 ################################################################################
 
 set(SOURCES
-        Algebra.hh
-        BaseCellType.hh
         BoundaryMesh.hh
         CollisionGrid.hh
         ComponentMask.hh
-        Concepts.hh
-        Fields.hh
-        Flattening.hh
         function_traits.hh
         Functions.hh
         Future.hh
-        Geometry.hh
         GlobalBenchmark.cc
         GlobalBenchmark.hh
         MeshDataTraits.hh
         MeshIO.cc
-        MeshIO.hh
         MSHFieldParser.cc
         MSHFieldParser.hh
         MSHFieldWriter.hh
@@ -31,8 +24,6 @@ set(SOURCES
         SimplicialMeshInterface.hh
         StringUtils.cc
         StringUtils.hh
-        SymmetricMatrix.hh
-        TemplateHacks.hh
         TetMesh.hh
         TetMesh.inl
         Timer.hh
@@ -40,7 +31,6 @@ set(SOURCES
         TriMesh.hh
         TriMesh.inl
         Types.cc
-        Types.hh
         util.h
         utils.hh
 

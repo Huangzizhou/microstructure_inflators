@@ -21,7 +21,7 @@
 #include <queue>
 
 #include <MeshFEM/CollisionGrid.hh>
-#include <MeshFEM/Geometry.hh>
+#include "Geometry.hh"
 
 namespace PeriodicBoundaryMatcher {
 

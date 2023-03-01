@@ -17,7 +17,7 @@
 #include "InflatorTypes.hh"
 #include "Symmetry.hh"
 #include "AutomaticDifferentiation.hh"
-#include <MeshFEM/MeshIO.hh>
+#include "MeshIO.hh"
 #include <MeshFEM/Utilities/apply.hh>
 
 #include <vector>
