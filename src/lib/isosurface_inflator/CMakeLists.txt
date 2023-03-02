@@ -97,7 +97,7 @@ target_link_libraries(micro_isosurface_inflator
         nanoflann::nanoflann
         libigl
         TBB::tbb
-        json::json
+        nlohmann_json::nlohmann_json
     PRIVATE
         micro_mesh_fem
         micro::isosurface_inflator_cgal

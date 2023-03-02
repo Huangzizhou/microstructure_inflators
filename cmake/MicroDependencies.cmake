@@ -116,12 +116,12 @@ if (MICRO_WITH_OPENVDB)
 endif()
 
 # json library
-if(NOT TARGET json::json)
+if(NOT TARGET nlohmann_json::nlohmann_json)
     add_library(meshfem_json INTERFACE)
     micro_download_json()
     target_include_directories(meshfem_json SYSTEM INTERFACE ${MICRO_EXTERNAL}/json)
     target_include_directories(meshfem_json SYSTEM INTERFACE ${MICRO_EXTERNAL}/json/nlohmann)
-    add_library(json::json ALIAS meshfem_json)
+    add_library(nlohmann_json::nlohmann_json ALIAS meshfem_json)
 endif()
 
 # Optional library
