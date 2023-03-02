@@ -75,7 +75,7 @@ endfunction()
 function(micro_download_triangle)
     micro_download_project(triangle
         GIT_REPOSITORY https://github.com/Huangzizhou/triangle.git
-        GIT_TAG        5a3da4d5df705f21903fa533f0bda77e4d49a6f9
+        GIT_TAG        2b4152619d6db6ab957751e4de03faafaf53a198
     )
 endfunction()
 
