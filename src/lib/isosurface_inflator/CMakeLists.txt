@@ -63,7 +63,8 @@ set(SOURCES
 )
 
 micro_add_library(isosurface_inflator ${SOURCES})
-micro_copy_headers(isosurface_inflator ${SOURCES})
+# micro_copy_headers(isosurface_inflator ${SOURCES})
+target_include_directories(micro_isosurface_inflator PUBLIC ../isosurface_inflator)
 target_include_directories(micro_isosurface_inflator PRIVATE ../MeshFEM)
 target_include_directories(micro_isosurface_inflator PRIVATE MarchingSquares)
 
@@ -88,29 +89,21 @@ target_link_libraries(micro_isosurface_inflator_cgal
 if (MICRO_WITH_OPENVDB)
     target_link_libraries(micro_isosurface_inflator
         PUBLIC
-            nanoflann::nanoflann
-            libigl
-            TBB::tbb
             openvdb
-            json::json
-        PRIVATE
-            micro_mesh_fem
-            micro::isosurface_inflator_cgal
-            micro::vcglib
-    )
-else()
-    target_link_libraries(micro_isosurface_inflator
-        PUBLIC
-            nanoflann::nanoflann
-            libigl
-            TBB::tbb
-            json::json
-        PRIVATE
-            micro_mesh_fem
-            micro::isosurface_inflator_cgal
-            micro::vcglib
     )
 endif()
+target_link_libraries(micro_isosurface_inflator
+    PUBLIC
+        nanoflann::nanoflann
+        libigl
+        TBB::tbb
+        json::json
+    PRIVATE
+        micro_mesh_fem
+        micro::isosurface_inflator_cgal
+        micro::vcglib
+)
+
 
 if(MICRO_WITH_SANITIZERS)
     add_sanitizers(micro_isosurface_inflator_cgal)
