@@ -1,6 +1,6 @@
-#include <MeshFEM/MSHFieldParser.hh>
+#include "MSHFieldParser.hh"
 #include "Types.hh"
-#include <MeshFEM/StringUtils.hh>
+#include "StringUtils.hh"
 
 #include <iostream>
 #include <vector>

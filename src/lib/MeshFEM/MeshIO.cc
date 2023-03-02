@@ -1,9 +1,9 @@
 #include "MeshIO.hh"
-#include <MeshFEM/StringUtils.hh>
+#include "StringUtils.hh"
 #include <iostream>
 #include <deque>
 #include <limits>
-#include <MeshFEM/util.h>
+#include "util.h"
 
 using namespace std;
 

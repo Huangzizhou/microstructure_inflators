@@ -55,7 +55,7 @@ set(SOURCES
 )
 
 micro_add_library(mesh_fem ${SOURCES})
-# micro_copy_headers(mesh_fem ${SOURCES})
+micro_copy_headers(mesh_fem ${SOURCES})
 
 ################################################################################
 # Dependencies

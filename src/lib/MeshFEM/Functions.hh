@@ -46,11 +46,11 @@
 #ifndef FUNCTIONS_HH
 #define FUNCTIONS_HH
 #include "Types.hh"
-#include <MeshFEM/Simplex.hh>
-#include <MeshFEM/function_traits.hh>
+#include "Simplex.hh"
+#include "function_traits.hh"
 #include "TemplateHacks.hh"
-#include <MeshFEM/Future.hh>
-#include <MeshFEM/NTuple.hh>
+#include "Future.hh"
+#include "NTuple.hh"
 #include <vector>
 #include <array>
 #include <functional>

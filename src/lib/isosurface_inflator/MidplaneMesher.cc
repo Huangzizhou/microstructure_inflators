@@ -10,6 +10,8 @@
 #include <MeshFEM/PeriodicBoundaryMatcher.hh>
 #include <stdexcept>
 
+#include <MeshFEM/GlobalBenchmark.hh>
+
 #include <MeshFEM/Utilities/EdgeSoupAdaptor.hh>
 
 #include <nonstd/optional.hpp>

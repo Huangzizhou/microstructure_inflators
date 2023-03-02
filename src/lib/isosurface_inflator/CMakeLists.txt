@@ -63,12 +63,15 @@ set(SOURCES
 )
 
 micro_add_library(isosurface_inflator ${SOURCES})
-# micro_copy_headers(isosurface_inflator ${SOURCES})
+micro_copy_headers(isosurface_inflator ${SOURCES})
+target_include_directories(micro_isosurface_inflator PRIVATE ../MeshFEM)
+target_include_directories(micro_isosurface_inflator PRIVATE MarchingSquares)
 
 micro_add_library(isosurface_inflator_cgal
         CGALClippedVolumeMesher.cc
         ConvexHullTriangulation.cc
 )
+target_include_directories(micro_isosurface_inflator_cgal PRIVATE MarchingSquares)
 
 ################################################################################
 # Dependencies
@@ -76,8 +79,8 @@ micro_add_library(isosurface_inflator_cgal
 
 target_link_libraries(micro_isosurface_inflator_cgal
     PUBLIC
-        micro_mesh_fem
         TBB::tbb
+        micro_mesh_fem
     PRIVATE
         CGAL::CGAL
 )

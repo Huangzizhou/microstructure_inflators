@@ -22,7 +22,7 @@
 
 #include "MeshIO.hh"
 #include "Types.hh"
-#include <MeshFEM/Functions.hh>
+#include "Functions.hh"
 #include "Fields.hh"
 #include "SymmetricMatrix.hh"
 
