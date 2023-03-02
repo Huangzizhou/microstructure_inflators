@@ -89,6 +89,7 @@ if (MICRO_WITH_OPENVDB)
             libigl
             TBB::tbb
             openvdb
+            json::json
         PRIVATE
             micro_mesh_fem
             micro::isosurface_inflator_cgal
@@ -100,6 +101,7 @@ else()
             nanoflann::nanoflann
             libigl
             TBB::tbb
+            json::json
         PRIVATE
             micro_mesh_fem
             micro::isosurface_inflator_cgal
