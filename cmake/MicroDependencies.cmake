@@ -133,13 +133,13 @@ if(NOT TARGET optional::optional)
 endif()
 
 # Triangle library
-include(triangle)
-# if(NOT TARGET triangle::triangle)
-#     micro_download_triangle()
-#     add_subdirectory(${MICRO_EXTERNAL}/triangle triangle)
-#     target_include_directories(triangle SYSTEM INTERFACE ${MICRO_EXTERNAL}/triangle)
-#     add_library(triangle::triangle ALIAS triangle)
-# endif()
+# include(triangle)
+if(NOT TARGET triangle::triangle)
+    micro_download_triangle()
+    add_subdirectory(${MICRO_EXTERNAL}/triangle triangle)
+    target_include_directories(triangle SYSTEM INTERFACE ${MICRO_EXTERNAL}/triangle)
+    add_library(triangle::triangle ALIAS triangle)
+endif()
 
 # MeshFEM library
 # if(NOT TARGET MeshFEM)

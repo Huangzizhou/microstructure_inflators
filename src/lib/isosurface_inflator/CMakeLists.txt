@@ -63,7 +63,7 @@ set(SOURCES
 )
 
 micro_add_library(isosurface_inflator ${SOURCES})
-micro_copy_headers(isosurface_inflator ${SOURCES})
+# micro_copy_headers(isosurface_inflator ${SOURCES})
 
 micro_add_library(isosurface_inflator_cgal
         CGALClippedVolumeMesher.cc
