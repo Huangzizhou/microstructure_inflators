@@ -50,8 +50,8 @@ set(SOURCES
         VCGSurfaceMesher.hh
         VDBTools.cc
         VDBTools.hh
-        WireQuadMesh.cc
-        WireQuadMesh.hh
+        # WireQuadMesh.cc
+        # WireQuadMesh.hh
         WireMesh.hh
         WireMesh.inl
         quadfoam/jacobians.cpp
