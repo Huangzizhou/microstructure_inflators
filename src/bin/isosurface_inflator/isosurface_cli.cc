@@ -120,6 +120,16 @@ int main(int argc, char *argv[])
 
     double defaultThickness = args["defaultThickness"].as<double>();
 
+    std::cout << "number of parameters\n";
+    int a = 0, b = 0, c = 0;
+    for (int i = 0; i < inflator.numParams(); i++)
+    {
+        if (inflator.isPositionParam(i)) a++;
+        else if (inflator.isThicknessParam(i)) b++;
+        else if (inflator.isBlendingParam(i)) c++;
+    }
+    std::cout << a << "\t" << b << "\t" << c << "\n";
+
     vector<Real> params(inflator.defaultParameters(defaultThickness));
     if (args.count("params")) {
         // Split up params.
