@@ -437,9 +437,11 @@ int main(int argc, char * argv[]) {
         Eigen::VectorXi C, K;
         int nc = connected_components(adj, C, K);
 
+        // find one point on the outer surface
         Eigen::Index maxv;
         V.rowwise().squaredNorm().maxCoeff(&maxv);
 
+        // only keep internal faces, remove the outer surface
         std::vector<int> hole_faces;
         for (int i = 0; i < F.rows(); i++)
             if (C[maxv] != C[F(i, 0)])

@@ -21,6 +21,7 @@
 
 #include <MeshFEM/GlobalBenchmark.hh>
 #include <MeshFEM/StringUtils.hh>
+#include <MeshFEM/Parallelism.hh>
 
 #include <type_traits>
 

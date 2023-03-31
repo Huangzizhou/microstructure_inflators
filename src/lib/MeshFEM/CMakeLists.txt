@@ -66,7 +66,7 @@ target_link_libraries(micro_mesh_fem
         Threads::Threads
         Eigen3::Eigen
         nlohmann_json::nlohmann_json
-        TBB::tbb
+        micro_tbb
         optional::optional
         triangle::triangle
 )

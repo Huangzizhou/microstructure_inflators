@@ -33,18 +33,18 @@ endif()
 # While wjakob has been updated to TBB 2019 recently, it seems to hang Travis
 # at the linking stage for some reason, so we'll just use the upstream version
 # for now.
-if(MICRO_WITH_UBUNTU AND NOT TARGET TBB::tbb)
+if(MICRO_WITH_UBUNTU AND NOT TARGET tbb::tbb)
     micro_download_tbb()
     list(APPEND CMAKE_MODULE_PATH ${MICRO_EXTERNAL}/tbb/cmake)
     include(TBBBuild)
     tbb_build(TBB_ROOT ${MICRO_EXTERNAL}/tbb CONFIG_DIR TBB_DIR)
     find_package(TBB REQUIRED tbb tbbmalloc)
     add_library(tbb_tbb INTERFACE)
-    add_library(TBB::tbb ALIAS tbb_tbb)
+    add_library(tbb::tbb ALIAS tbb_tbb)
     target_link_libraries(tbb_tbb INTERFACE TBB::tbb TBB::tbbmalloc)
 endif()
 
-if(NOT TARGET TBB::tbb)
+if(NOT TARGET tbb::tbb)
     set(TBB_BUILD_STATIC ON CACHE BOOL " " FORCE)
     set(TBB_BUILD_SHARED OFF CACHE BOOL " " FORCE)
     set(TBB_BUILD_TBBMALLOC ON CACHE BOOL " " FORCE)
@@ -60,21 +60,19 @@ if(NOT TARGET TBB::tbb)
     add_library(tbb_tbb INTERFACE)
     target_include_directories(tbb_tbb SYSTEM INTERFACE ${MICRO_EXTERNAL}/tbb/include)
     target_link_libraries(tbb_tbb INTERFACE tbb_static tbbmalloc_static)
-    add_library(TBB::tbb ALIAS tbb_tbb)
-
-    target_compile_definitions(tbb_tbb INTERFACE -DMICRO_WITH_TBB)
+    add_library(tbb::tbb ALIAS tbb_tbb)
 
     micro_target_hide_warnings(tbb_tbb tbb_static tbbmalloc_static)
 endif()
 
-# if(NOT TARGET micro::tbb)
-#     add_library(micro_tbb INTERFACE)
-#     if(MICRO_WITH_TBB)
-#         target_link_libraries(micro_tbb INTERFACE TBB::tbb)
-#         target_compile_definitions(micro_tbb INTERFACE -DMICRO_WITH_TBB)
-#     endif()
-#     add_library(micro::tbb ALIAS micro_tbb)
-# endif()
+if(NOT TARGET micro::tbb)
+    add_library(micro_tbb INTERFACE)
+    if(MICRO_WITH_TBB)
+        target_link_libraries(micro_tbb INTERFACE tbb::tbb)
+        target_compile_definitions(micro_tbb INTERFACE -DMICRO_WITH_TBB)
+    endif()
+    add_library(micro::tbb ALIAS micro_tbb)
+endif()
 
 # C++11 threads
 find_package(Threads REQUIRED) # provides Threads::Threads

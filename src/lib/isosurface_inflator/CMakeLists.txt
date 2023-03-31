@@ -80,7 +80,7 @@ target_include_directories(micro_isosurface_inflator_cgal PRIVATE MarchingSquare
 
 target_link_libraries(micro_isosurface_inflator_cgal
     PUBLIC
-        TBB::tbb
+        micro_tbb
         micro_mesh_fem
     PRIVATE
         CGAL::CGAL
@@ -96,7 +96,7 @@ target_link_libraries(micro_isosurface_inflator
     PUBLIC
         nanoflann::nanoflann
         libigl
-        TBB::tbb
+        micro_tbb
         nlohmann_json::nlohmann_json
     PRIVATE
         micro_mesh_fem
