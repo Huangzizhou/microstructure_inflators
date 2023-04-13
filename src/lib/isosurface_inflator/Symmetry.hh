@@ -42,6 +42,7 @@ template<typename TOL = DEFAULT_TOL, size_t N = 3> struct NonPeriodic;
 template<typename TOL = DEFAULT_TOL> struct TriplyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct DoublyPeriodic;
 template<typename TOL = DEFAULT_TOL> struct Orthotropic;
+template<typename TOL = DEFAULT_TOL> struct Symmetric;
 template<typename TOL = DEFAULT_TOL> struct Diagonal;
 template<typename TOL = DEFAULT_TOL> struct Cubic;
 template<typename TOL = DEFAULT_TOL> struct Square;
@@ -57,6 +58,7 @@ template<typename TOL> struct SymmetryTraits<NonPeriodic<TOL, 3>> { template<typ
 template<typename TOL> struct SymmetryTraits<TriplyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<DoublyPeriodic<TOL>> { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Orthotropic<TOL>>    { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
+template<typename TOL> struct SymmetryTraits<Symmetric<TOL>>      { template<typename Real> using NodePositioner = BoxNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Diagonal<TOL>>       { template<typename Real> using NodePositioner = PrismNodePositioner<Real, TOL, true>; };
 template<typename TOL> struct SymmetryTraits<Cubic<TOL>>          { template<typename Real> using NodePositioner = TetNodePositioner  <Real, TOL>; };
 template<typename TOL> struct SymmetryTraits<Square<TOL>>         { template<typename Real> using NodePositioner = TetNodePositioner  <Real, TOL>; };
@@ -392,6 +394,77 @@ struct Diagonal : public DoublyPeriodic<TOL>, SymmetryCRTP<Diagonal<TOL>> {
                                  .compose(Isometry::permutation(Axis::X, Axis::Y))   // (swap x, y in reflected space, transform back)
                                  .compose(Isometry:: reflection(Axis::X)));
             }
+        }
+
+        return group;
+    }
+};
+
+// Base unit is the positive octant: [0, 1]^3
+// Symmetry group D_2h x Translations
+template<typename TOL>
+struct Symmetric : public TriplyPeriodic<TOL>, SymmetryCRTP<Symmetric<TOL>> {
+    typedef TOL Tolerance;
+    // Disambiguate CRTP instances
+    typedef SymmetryCRTP<Symmetric<TOL>> CRTP;
+    using CRTP::nodePositioner;
+    using CRTP::nodeType;
+
+    using TriplyPeriodic<TOL>::tolerance;
+
+    template<typename Real>
+    static BBox<Point3<Real>> representativeMeshCell() {
+        return BBox<Point3<Real>>(Point3<Real>(0, -1, -1),
+                                  Point3<Real>(1, 1, 1));
+    }
+
+    template<typename Real>
+    static Point3<Real> mapToBaseUnit(Point3<Real> p) {
+        p = TriplyPeriodic<TOL>::mapToBaseUnit(p);
+        for (size_t c = 0; c < 1; ++c)
+            if (p[c] < 0) p[c] = -p[c]; // std::abs is problematic for autodiff
+        return p;
+    }
+
+    template<typename Real>
+    static bool inBaseUnit(const Point3<Real> &p) {
+        return TriplyPeriodic<TOL>::inBaseUnit(p) &&
+                isPositive<TOL>(p[0]);
+    }
+
+    template<typename Real>
+    static bool inMeshingCell(const Point3<Real> &p) {
+        return inBaseUnit(p);
+    }
+
+    // All vertices in the orthotropic base unit are independent.
+    template<typename Real>
+    static Point3<Real> independentVertexPosition(Point3<Real> p) {
+        assert(inBaseUnit(p));
+        // if (isZero<TOL>(std::abs(p[0] - 1.0))) p[0] = -1.0;
+        if (isZero<TOL>(std::abs(p[1] - 1.0))) p[1] = -1.0;
+        if (isZero<TOL>(std::abs(p[2] - 1.0))) p[2] = -1.0;
+        return p;
+    }
+
+    static std::vector<Isometry> symmetryGroup() {
+        std::vector<Isometry> group;
+        std::vector<Isometry> parentGroup = TriplyPeriodic<TOL>::symmetryGroup();
+        for (const Isometry &p : parentGroup) {
+            group.push_back(p); // Identity reflection
+
+            // Single axis
+            group.push_back(p.compose(Isometry::reflection(Axis::X)));
+            // group.push_back(p.compose(Isometry::reflection(Axis::Y)));
+            // group.push_back(p.compose(Isometry::reflection(Axis::Z)));
+
+            // Double axis
+            // group.push_back(p.compose(Isometry::reflection(Axis::X)).compose(Isometry::reflection(Axis::Y)));
+            // group.push_back(p.compose(Isometry::reflection(Axis::X)).compose(Isometry::reflection(Axis::Z)));
+            // group.push_back(p.compose(Isometry::reflection(Axis::Y)).compose(Isometry::reflection(Axis::Z)));
+
+            // Triple axis
+            // group.push_back(p.compose(Isometry::reflection(Axis::X)).compose(Isometry::reflection(Axis::Y)).compose(Isometry::reflection(Axis::Z)));
         }
 
         return group;

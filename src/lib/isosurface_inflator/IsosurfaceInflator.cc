@@ -134,6 +134,7 @@ IsosurfaceInflator::IsosurfaceInflator(const string &type, bool vertexThickness,
     map<string, function<void()>> makeImplForSymmetry = {
         {"cubic",           [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Cubic<>         >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist, blendingPolySize); }},
         {"orthotropic",     [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Orthotropic<>   >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist, blendingPolySize); }},
+        {"symmetric",       [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Symmetric<>     >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist, blendingPolySize); }},
         {"diagonal",        [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::Diagonal<>      >>(wireMeshPath, std::move(mesher), inflationNeighborhoodEdgeDist, blendingPolySize); }},
         {"2d_non_periodic", [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::NonPeriodic<DEFAULT_TOL, 2>>>(wireMeshPath, std::move(mesher), 0, blendingPolySize); }},
         {"non_periodic",    [&]() { m_imp = new IsosurfaceInflatorImpl<WireMesh<Symmetry::NonPeriodic<DEFAULT_TOL, 3>>>(wireMeshPath, std::move(mesher), 0, blendingPolySize); }},

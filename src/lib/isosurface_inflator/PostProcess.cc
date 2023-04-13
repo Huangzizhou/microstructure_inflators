@@ -18,6 +18,7 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                  vector<vector<Real>>      &normalShapeVelocities,
                  vector<Point>             &vertexNormals,
                  const IsosurfaceInflator::Impl &inflator,
+                 size_t                    reflectDim,
                  bool                      meshedFullPeriodCell, // whether (vertices, elements) is already a mesh of the full period cell
                  bool                      requestFullPeriodCell,
                  const BBox<Point>         &meshCell,
@@ -326,7 +327,7 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
             vector<MeshIO::IOElement> reflectedElements;
             vector<size_t> vertexOrigin;
             vector<Isometry> vertexIsometry;
-            reflectXYZ(N, vertices, elements, onMinFace,
+            reflectXYZ(reflectDim, vertices, elements, onMinFace,
                        reflectedVertices, reflectedElements,
                        vertexOrigin, vertexIsometry);
 
@@ -382,6 +383,7 @@ template void postProcess<2, Eigen::Matrix<Real, 3, 1>>(
                  std::vector<std::vector<Real>>         &normalShapeVelocities,
                  std::vector<Eigen::Matrix<Real, 3, 1>> &vertexNormals,
                  const IsosurfaceInflator::Impl         &inflator,
+                 size_t                                  reflectDim,
                  bool                                    meshedFullPeriodCell,
                  bool                                    requestFullPeriodCell,
                  const BBox<Eigen::Matrix<Real, 3, 1>>  &meshCell,
@@ -395,6 +397,7 @@ template void postProcess<3, Eigen::Matrix<Real, 3, 1>>(
                  std::vector<std::vector<Real>>         &normalShapeVelocities,
                  std::vector<Eigen::Matrix<Real, 3, 1>> &vertexNormals,
                  const IsosurfaceInflator::Impl         &inflator,
+                 size_t                                  reflectDim,
                  bool                                    meshedFullPeriodCell,
                  bool                                    requestFullPeriodCell,
                  const BBox<Eigen::Matrix<Real, 3, 1>>  &meshCell,
