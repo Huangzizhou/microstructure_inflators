@@ -2,8 +2,8 @@
 #include <isosurface_inflator/PatternSignedDistance.hh>
 #include "IsosurfaceInflatorConfig.hh"
 
-#include <boost/algorithm/string.hpp>
-#include <boost/program_options.hpp>
+#include <CLI/CLI.hpp>
+#include <json.hpp>
 
 #include <openvdb/openvdb.h>
 #include <openvdb/tools/LevelSetFilter.h>
@@ -20,7 +20,6 @@
 #include <cstdio>
 #include <functional>
 
-namespace po = boost::program_options;
 using namespace std;
 using namespace openvdb;
 
@@ -302,71 +301,93 @@ void execute1(const string &input, const string &output, const double volume_rat
     // igl::writeOBJ(output, V, F);
 }
 
-void usage(int status, const po::options_description &visible_opts) {
-    cerr << "Usage: ./erode_cli input_mesh output_mesh volume_ratio" << endl;
-    cerr << "eg: ./erode_cli mesh.obj out.obj 0.4" << endl;
-    cout << visible_opts << endl;
-    exit(status);
-}
+// void usage(int status, const po::options_description &visible_opts) {
+//     cerr << "Usage: ./erode_cli input_mesh output_mesh volume_ratio" << endl;
+//     cerr << "eg: ./erode_cli mesh.obj out.obj 0.4" << endl;
+//     cout << visible_opts << endl;
+//     exit(status);
+// }
 
-po::variables_map parseCmdLine(int argc, char *argv[]) {
-    po::options_description hidden_opts("Hidden Arguments");
-    hidden_opts.add_options()
-        ("input" ,  po::value<string>(), "input mesh file")
-        ("output",  po::value<string>(), "output mesh file")
-        ("ratio" ,  po::value<double>(), "solid volume")
-        ;
-    po::positional_options_description p;
-    p.add("input", 1);
-    p.add("output", 1);
-    p.add("ratio", 1);
+// po::variables_map parseCmdLine(int argc, char *argv[]) {
+//     po::options_description hidden_opts("Hidden Arguments");
+//     hidden_opts.add_options()
+//         ("input" ,  po::value<string>(), "input mesh file")
+//         ("output",  po::value<string>(), "output mesh file")
+//         ("ratio" ,  po::value<double>(), "solid volume")
+//         ;
+//     po::positional_options_description p;
+//     p.add("input", 1);
+//     p.add("output", 1);
+//     p.add("ratio", 1);
 
-    po::options_description visible_opts;
-    visible_opts.add_options()
-        ("enforce-offset", "enforce specified offset size instead of volume ratio")
-        ("keep-input-surface", "include the input surface in the output mesh")
-        ("min-width", po::value<double>()->default_value(0), "Minimum width of the structure with holes")
-        ("volume-tolerance", po::value<double>()->default_value(1e-2), "")
-        ("help,h", "Produce this help message")
-        ;
+//     po::options_description visible_opts;
+//     visible_opts.add_options()
+//         ("enforce-offset", "enforce specified offset size instead of volume ratio")
+//         ("keep-input-surface", "include the input surface in the output mesh")
+//         ("min-width", po::value<double>()->default_value(0), "Minimum width of the structure with holes")
+//         ("volume-tolerance", po::value<double>()->default_value(1e-2), "")
+//         ("help,h", "Produce this help message")
+//         ;
 
-    po::options_description cli_opts;
-    cli_opts.add(visible_opts).add(hidden_opts);
+//     po::options_description cli_opts;
+//     cli_opts.add(visible_opts).add(hidden_opts);
 
-    po::variables_map vm;
+//     po::variables_map vm;
+//     try {
+//         po::store(po::command_line_parser(argc, argv).
+//                   options(cli_opts).positional(p).run(), vm);
+//         po::notify(vm);
+//     }
+//     catch (std::exception &e) {
+//         cerr << "Error: " << e.what() << endl << endl;
+//         usage(1, visible_opts);
+//     }
+
+//     bool fail = false;
+//     {
+//         auto ratio = vm["ratio"].as<double>();
+//         if (ratio <= 0 || ratio > 1) {
+//             cerr << "Error: invalid ratio " << ratio << endl;
+//             fail = true;
+//         }
+//     }
+
+//     if (fail)
+//         usage(1, visible_opts);
+
+//     return vm;
+// }
+
+int main(int argc, char * argv[]) {
+    // Default arguments
+    struct {
+        std::string input;
+        std::string output;
+        double ratio;
+        bool enforce_offset = false;
+        bool keep_input_surface = false;
+        double volume_tolerance = 1e-2;
+        double min_width = 0;
+    } args;
+
+    // Parse arguments
+    CLI::App app{"stitch_cells_cli"};
+    app.add_option("input", args.input, "")->required();
+    app.add_option("output", args.output, "")->required();
+    app.add_option("ratio", args.ratio, "")->required();
+    app.add_flag("--enforce-offset", args.enforce_offset, "");
+    app.add_flag("--keep-input-surface", args.keep_input_surface, "");
+    app.add_option("--min-width", args.min_width, "");
+    app.add_option("--volume-tolerance", args.volume_tolerance, "");
+
     try {
-        po::store(po::command_line_parser(argc, argv).
-                  options(cli_opts).positional(p).run(), vm);
-        po::notify(vm);
-    }
-    catch (std::exception &e) {
-        cerr << "Error: " << e.what() << endl << endl;
-        usage(1, visible_opts);
+        app.parse(argc, argv);
+    } catch (const CLI::ParseError &e) {
+        return app.exit(e);
     }
 
-    bool fail = false;
-    {
-        auto ratio = vm["ratio"].as<double>();
-        if (ratio <= 0 || ratio > 1) {
-            cerr << "Error: invalid ratio " << ratio << endl;
-            fail = true;
-        }
-    }
-
-    if (fail)
-        usage(1, visible_opts);
-
-    return vm;
-}
-
-int main(int argc, char *argv[])
-{
-    auto args = parseCmdLine(argc, argv);
-
-    auto &config = IsosurfaceInflatorConfig::get();
-
-    if (args.count("enforce-offset"))
-        execute2(args["input"].as<string>(), args["output"].as<string>(), args["ratio"].as<double>());
+    if (args.enforce_offset)
+        execute2(args.input, args.output, args.ratio);
     else
-        execute1(args["input"].as<string>(), args["output"].as<string>(), args["ratio"].as<double>(), args.count("keep-input-surface"), args["min-width"].as<double>(), args["volume-tolerance"].as<double>());
+        execute1(args.input, args.output, args.ratio, args.keep_input_surface, args.min_width, args.volume_tolerance);
 }
