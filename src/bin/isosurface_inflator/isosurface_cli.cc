@@ -1,4 +1,5 @@
 #include "IsosurfaceInflator.hh"
+#include <isosurface_inflator/IsosurfaceInflatorImpl.hh>
 #include "MeshingOptions.hh"
 #include "IsosurfaceInflatorConfig.hh"
 #include <MeshFEM/GlobalBenchmark.hh>
@@ -149,6 +150,16 @@ int main(int argc, char *argv[])
     else {
         cout << "Inflating default parameters: " << endl;
         for (Real p : params) cout << p << "\t";
+        cout << endl;
+
+        int thickness = 0, position = 0, blending = 0;
+        for (size_t i = 0; i < params.size(); i++)
+        {
+            thickness += inflator.m_imp->isThicknessParam(i);
+            position += inflator.m_imp->isPositionParam(i);
+            blending += inflator.m_imp->isBlendingParam(i);
+        }
+        cout << position << "\t" << thickness << "\t" << blending << "\t";
         cout << endl;
     }
 
