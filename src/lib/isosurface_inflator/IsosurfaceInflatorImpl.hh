@@ -61,8 +61,8 @@ public:
 
         // Determine if meshed domain is 2D or 3D and postprocess accordingly
         BBox<Point> bbox(vertices);
-        if (std::abs(bbox.dimensions()[2]) < 1e-8) postProcess<2>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions(), m_cheapPostProcessing, m_nonPeriodicity);
-        else                                       postProcess<3>(vertices, elements, normalShapeVelocities, vertexNormals, *this, !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions(), m_cheapPostProcessing, m_nonPeriodicity);
+        if (std::abs(bbox.dimensions()[2]) < 1e-8) postProcess<2>(vertices, elements, normalShapeVelocities, vertexNormals, *this, _reflectDim(2), !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions(), m_cheapPostProcessing, m_nonPeriodicity);
+        else                                       postProcess<3>(vertices, elements, normalShapeVelocities, vertexNormals, *this, _reflectDim(3), !_meshingOrthoCell(), generateFullPeriodCell, meshingCell(), meshingOptions(), m_cheapPostProcessing, m_nonPeriodicity);
 
         if (meshingOptions().debugSVelPath.size()) {
             MSHFieldWriter writer(meshingOptions().debugSVelPath, vertices, elements);
@@ -133,6 +133,8 @@ public:
     virtual bool _meshingFullPeriodCell() const = 0;
 
     virtual bool hasOrthotropicSymmetry() const = 0;
+
+    virtual size_t _reflectDim(size_t dim) const = 0;
 
     // The meshing cell box.
     virtual BBox<Point> meshingCell() const = 0;
@@ -248,8 +250,10 @@ public:
     // Note: when reflectiveInflator = false, the mesher generates the full
     // period cell.
     virtual bool _meshingOrthoCell() const override {
-        return std::is_base_of<Symmetry::Orthotropic<typename PatternSymmetry::Tolerance>,
-                               PatternSymmetry>::value
+        return (std::is_base_of<Symmetry::Orthotropic<typename PatternSymmetry::Tolerance>,
+                               PatternSymmetry>::value ||
+                std::is_base_of<Symmetry::Symmetric<typename PatternSymmetry::Tolerance>,
+                               PatternSymmetry>::value)
                && (reflectiveInflator || !generateFullPeriodCell);
     }
 
@@ -263,6 +267,14 @@ public:
         return !(std::is_same<PatternSymmetry, Symmetry::Diagonal<typename PatternSymmetry::Tolerance>>::value
               || std::is_same<PatternSymmetry, Symmetry::TriplyPeriodic<typename PatternSymmetry::Tolerance>>::value
               || std::is_same<PatternSymmetry, Symmetry::DoublyPeriodic<typename PatternSymmetry::Tolerance>>::value);
+    }
+
+    size_t _reflectDim(size_t dim) const override {
+        if (std::is_base_of<Symmetry::Symmetric<typename PatternSymmetry::Tolerance>,
+                               PatternSymmetry>::value)
+            return 1;
+        else
+            return dim;
     }
 
     // The meshing cell box.
