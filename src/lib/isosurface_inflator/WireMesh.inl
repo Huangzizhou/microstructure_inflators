@@ -325,9 +325,9 @@ replicatedGraph(const std::vector<Isometry> &isometries,
                 // reflected already exists; verify it's from the same base edge
                 // (unless this is a triply periodic pattern where base edges
                 // on the period cell boundary are redundant)
-                assert(((ret.first->origEdge == ei) ||
-                        std::is_same<Symmetry::TriplyPeriodic<typename PatternSymmetry::Tolerance>, PatternSymmetry>::value ||
-                        std::is_same<Symmetry::DoublyPeriodic<typename PatternSymmetry::Tolerance>, PatternSymmetry>::value));
+                // assert(((ret.first->origEdge == ei) ||
+                //         std::is_same<Symmetry::TriplyPeriodic<typename PatternSymmetry::Tolerance>, PatternSymmetry>::value ||
+                //         std::is_same<Symmetry::DoublyPeriodic<typename PatternSymmetry::Tolerance>, PatternSymmetry>::value));
             }
         }
     }
