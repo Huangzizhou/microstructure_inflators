@@ -8,6 +8,14 @@
 #include <CLI/CLI.hpp>
 #include <json.hpp>
 
+#include <openvdb/tools/SignedFloodFill.h>
+#include <openvdb/tools/LevelSetFilter.h>
+#include <openvdb/tools/LevelSetPlatonic.h>
+#include <openvdb/tools/MeshToVolume.h>
+#include <openvdb/tools/VolumeToMesh.h>
+#include <openvdb/tools/Composite.h>
+#include <openvdb/tools/LevelSetMeasure.h>
+
 #include <isosurface_inflator/VDBTools.hh>
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -207,17 +215,17 @@ int main(int argc, char * argv[]) {
 
         // Evaluate signed distances at each grid point
         Eigen::VectorXd signedDistances(nsamples);
-    #if MICRO_WITH_TBB
+    // #if MICRO_WITH_TBB
         tbb::parallel_for(tbb::blocked_range<size_t>(0, nsamples),
                 [&](const tbb::blocked_range<size_t> &r) {
                     for (size_t i = r.begin(); i < r.end(); ++i)
                         signedDistances(i) = sdf.signedDistance(sampleLocations.row(i));
                 }
             );
-    #else
-        for (size_t i = 0; i < nsamples; ++i)
-            signedDistances(i) = sdf.signedDistance(sampleLocations.row(i));
-    #endif
+    // #else
+    //     for (size_t i = 0; i < nsamples; ++i)
+    //         signedDistances(i) = sdf.signedDistance(sampleLocations.row(i));
+    // #endif
 
         int compressed = 0;
         Eigen::Vector3i offset = it.first * (resolution - 1);
@@ -263,14 +271,15 @@ int main(int argc, char * argv[]) {
     // }
 
     /* remove top */
+    // {
+    //     Vec3f corner1(0.3,-5,-5);
+    //     Vec3f corner2(5,5,5);
+    //     openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
+    //     math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
+    //     auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
+    //     openvdb::tools::csgDifference(*grid, *tmp_grid);
+    // }
 // {
-//     Vec3f corner1(-5,-5,1);
-//     Vec3f corner2(5,5,5);
-//     openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
-//     math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
-//     auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
-//     openvdb::tools::csgDifference(*grid, *tmp_grid);
-// }{
 //     Vec3f corner1(-5,-5,-5);
 //     Vec3f corner2(0,5,5);
 //     openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));

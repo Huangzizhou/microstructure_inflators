@@ -2,23 +2,10 @@
 
 #if MICRO_WITH_OPENVDB
 
-#include <igl/readOBJ.h>
-#include <igl/readMSH.h>
-#include <igl/barycenter.h>
-#include <igl/adjacency_matrix.h>
-#include <igl/writeOBJ.h>
-#include <igl/bounding_box_diagonal.h>
-#include <igl/remove_unreferenced.h>
-#include <igl/boundary_facets.h>
-
+#include <queue>
+#include <Eigen/Core>
+#include <Eigen/Sparse>
 #include <openvdb/openvdb.h>
-#include <openvdb/tools/SignedFloodFill.h>
-#include <openvdb/tools/LevelSetFilter.h>
-#include <openvdb/tools/LevelSetPlatonic.h>
-#include <openvdb/tools/MeshToVolume.h>
-#include <openvdb/tools/VolumeToMesh.h>
-#include <openvdb/tools/Composite.h>
-#include <openvdb/tools/LevelSetMeasure.h>
 
 using namespace openvdb;
 
@@ -44,7 +31,46 @@ template < typename DerivedC, typename DerivedK>
 int connected_components(
   const Eigen::SparseMatrix<int> & A,
   Eigen::PlainObjectBase<DerivedC> & C,
-  Eigen::PlainObjectBase<DerivedK> & K);
+  Eigen::PlainObjectBase<DerivedK> & K)
+{
+  typedef typename Eigen::SparseMatrix<int>::Index Index;
+  const auto m = A.rows();
+  assert(A.cols() == A.rows() && "A should be square");
+  // 1.1 sec
+  // m  means not yet visited
+  C.setConstant(m,1,m);
+  // Could use amortized dynamic array but didn't see real win.
+  K.setZero(m,1);
+  typename DerivedC::Scalar c = 0;
+  for(Eigen::Index f = 0;f<m;f++)
+  {
+    // already seen
+    if(C(f)<m) continue;
+    // start bfs
+    std::queue<Index> Q;
+    Q.push(f);
+    while(!Q.empty())
+    {
+      const Index g = Q.front();
+      Q.pop();
+      // already seen
+      if(C(g)<m) continue;
+      // see it
+      C(g) = c;
+      K(c)++;
+      for(typename Eigen::SparseMatrix<int>::InnerIterator it (A,g); it; ++it)
+      {
+        const Index n = it.index();
+        // already seen
+        if(C(n)<m) continue;
+        Q.push(n);
+      }
+    }
+    c++;
+  }
+  K.conservativeResize(c,1);
+  return c;
+}
 
 template < typename DerivedC, typename DerivedD >
 void eigen_to_openvdb(const Eigen::Matrix<DerivedC, -1, -1> &mat, std::vector<openvdb::v10_0::math::Vec3<DerivedD>> &out)

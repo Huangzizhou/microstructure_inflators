@@ -170,7 +170,7 @@ void execute2(const string &input, const string &output, const double offset_siz
         half_diag = igl::bounding_box_diagonal(V_mat) / 2;
     }
 
-    double voxel = 1e-1 * half_diag;
+    double voxel = 3e-2 * half_diag;
     int halfWidth = std::max(5, (int)(offset_size / voxel / 2));
     math::Transform::Ptr xform(nullptr);
     xform = math::Transform::createLinearTransform(voxel);
@@ -204,7 +204,7 @@ void execute1(const string &input, const string &output, const double volume_rat
     // eroded mesh
     std::vector<Vec3s> Ve;
     std::vector<Vec3I> Tri;
-    double voxel = 1e-1 * half_diag;
+    double voxel = 3e-2 * half_diag;
     int halfWidth = 5;// std::max(5, (int)(min_width / voxel));
     double current_vol, current;
     while (voxel > 1e-3 * half_diag)
@@ -371,7 +371,7 @@ int main(int argc, char * argv[]) {
     } args;
 
     // Parse arguments
-    CLI::App app{"stitch_cells_cli"};
+    CLI::App app{"erode_cli"};
     app.add_option("input", args.input, "")->required();
     app.add_option("output", args.output, "")->required();
     app.add_option("ratio", args.ratio, "")->required();

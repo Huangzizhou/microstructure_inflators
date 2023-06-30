@@ -8,6 +8,21 @@
 
 #include <openvdb/tools/Diagnostics.h>
 #include <openvdb/tools/LevelSetSphere.h>
+#include <openvdb/tools/SignedFloodFill.h>
+#include <openvdb/tools/LevelSetFilter.h>
+#include <openvdb/tools/LevelSetPlatonic.h>
+#include <openvdb/tools/MeshToVolume.h>
+#include <openvdb/tools/VolumeToMesh.h>
+#include <openvdb/tools/Composite.h>
+#include <openvdb/tools/LevelSetMeasure.h>
+
+#include <igl/readOBJ.h>
+#include <igl/readMSH.h>
+#include <igl/barycenter.h>
+#include <igl/adjacency_matrix.h>
+#include <igl/bounding_box_diagonal.h>
+#include <igl/remove_unreferenced.h>
+#include <igl/boundary_facets.h>
 
 #include <igl/point_mesh_squared_distance.h>
 
@@ -47,7 +62,7 @@ FloatGrid::Ptr erode(const std::vector<Vec3s> &V, const std::vector<Vec3I> &F, c
     // eroded mesh
     // std::vector<Vec3s> Ve;
     // std::vector<Vec3I> Tri;
-    double voxel = 1e-1 * half_diag;
+    double voxel = 1e-2 * half_diag;
     int halfWidth = 5;// std::max(5, (int)(min_width / voxel));
     double current;
     double current_vol;
@@ -243,105 +258,137 @@ int main(int argc, char * argv[]) {
     void_flags.setZero(cell_tets.size());
 
     std::vector<FloatGrid::Ptr> void_grids(material_patterns.size());
+    std::cout << "in total " << material_patterns.size() << "...\n";
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, material_patterns.size()),
+        [&](const tbb::blocked_range<size_t> &r) {
+            for (size_t i = r.begin(); i < r.end(); ++i)
+            {
+                for (auto const& it : material_patterns)
+                {
+                    if (it.second["i"] != i)
+                        continue;
+                    // const int i = it.second["i"];
+                    const auto& sub_ids = cell_tets[i];
+                    if (sub_ids.size() == 0 || it.second["internal"].get<bool>())
+                        continue;
+
+                    std::vector<Vec3s> outV;
+                    std::vector<Vec3I> outF;
+
+                    // intersection of cube and volume
+                    {
+                        std::vector<Vec3s> subV_openvdb;
+                        std::vector<Vec3I> subF_openvdb;
+
+                        if (args.erode_from_volume_cell)
+                        {
+                            Eigen::MatrixXi tmpT(sub_ids.size(), 4);
+                            Eigen::MatrixXi subF;
+                            Eigen::MatrixXd subV;
+
+                            for (int l = 0; l < sub_ids.size(); l++)
+                                tmpT.row(l) = T.row(sub_ids[l]);
+
+                            Eigen::MatrixXi F;
+                            igl::boundary_facets(tmpT, F);
+
+                            Eigen::VectorXi tmpI;
+                            igl::remove_unreferenced(V, F, subV, subF, tmpI);
+
+                            eigen_to_openvdb(subV, subV_openvdb);
+                            eigen_to_openvdb(subF, subF_openvdb);
+                        }
+                        else
+                        {
+                            Vec3f center(it.first(0) + 0.5, it.first(1) + 0.5, it.first(2) + 0.5);
+                            FloatGrid::Ptr tmp_grid = openvdb::tools::createLevelSetCube<FloatGrid>(args.gridSize, args.gridSize * center, voxel);
+                            FloatGrid::Ptr cell_grid = openvdb::tools::csgIntersectionCopy(*whole_grid, *tmp_grid);
+                            std::vector<Vec4I> Quad;
+                            tools::volumeToMesh(*gridPtrCast<FloatGrid>(cell_grid), subV_openvdb, subF_openvdb, Quad, 0, 0, true);
+                            clean_quads(subF_openvdb, Quad);
+                        }
+
+                        if (subF_openvdb.size() == 0)
+                            continue;
+                        
+                        if (it.second["ratio"] >= 1 - 2e-2)
+                            continue;
+
+                        erode(subV_openvdb, subF_openvdb, it.second["ratio"], 1e-2, args.min_wall, outV, outF);
+
+                        if (args.export_boundary_cells) {
+                            static int render_id = 0;
+                            auto render_v = subV_openvdb;
+                            auto render_f = subF_openvdb;
+                            for (const auto &x : outF)
+                            {
+                                Vec3I y = x + subV_openvdb.size();
+                                render_f.push_back(y);
+                            }
+                            for (const auto &x : outV)
+                                render_v.push_back(x);
+                            write_mesh("render" + std::to_string(render_id++) + ".obj", render_v, render_f);
+                        }
+                    }
+
+                    for (const auto &p : outV)
+                        for (int d = 0; d < 3; d++)
+                            centers(i, d) += p(d);
+                    centers.row(i) /= outV.size();
+                    
+                    if (outF.size() == 0)
+                    {
+                        void_flags[i] = false;
+                        continue;
+                    }
+
+                    if (args.tunnel > 0)
+                    {
+                        // check if the cell is large enough to hold a sphere, if not, ignore the void inside
+                        Eigen::MatrixXd outV_;
+                        Eigen::MatrixXi outF_;
+                        openvdb_to_eigen(outV, outV_);
+                        openvdb_to_eigen(outF, outF_);
+                        Eigen::VectorXd sqrD;
+                        Eigen::VectorXi I;
+                        Eigen::MatrixXd C;
+                        Eigen::MatrixXd center = centers.row(i);
+                        igl::point_mesh_squared_distance(center, outV_, outF_, sqrD, I, C);
+
+                        if (sqrt(sqrD.minCoeff()) <= args.tunnel + voxel)
+                        {
+                            void_flags[i] = false;
+                            continue;
+                        }
+
+                        void_flags[i] = true;
+                        void_grids[i] = tools::meshToLevelSet<FloatGrid>(*xform, outV, outF, 3);
+
+                        Vec3f center_(center(0),center(1),center(2));
+                        auto grid = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>((float)args.tunnel, center_, (float)voxel);
+                        openvdb::tools::csgUnion(*(void_grids[i]), *grid);
+                    }
+                    else
+                    {
+                        void_flags[i] = true;
+                        void_grids[i] = tools::meshToLevelSet<FloatGrid>(*xform, outV, outF, 3);
+                    }
+                }
+                std::cout << "erosion on " << i << " finished!\n";
+            }
+        }
+    );
     for (auto const& it : material_patterns)
     {
         const int i = it.second["i"];
         const auto& sub_ids = cell_tets[i];
-        if (sub_ids.size() == 0 || it.second["internal"].get<bool>())
-            continue;
-
-        std::vector<Vec3s> subV_openvdb, outV;
-        std::vector<Vec3I> subF_openvdb, outF;
-        // intersection of cube and volume
-        if (args.erode_from_volume_cell)
-        {
-            Eigen::MatrixXi tmpT(sub_ids.size(), 4);
-            Eigen::MatrixXi subF;
-            Eigen::MatrixXd subV;
-
-            for (int l = 0; l < sub_ids.size(); l++)
-                tmpT.row(l) = T.row(sub_ids[l]);
-
-            Eigen::MatrixXi F;
-            igl::boundary_facets(tmpT, F);
-
-            Eigen::VectorXi tmpI;
-            igl::remove_unreferenced(V, F, subV, subF, tmpI);
-
-            eigen_to_openvdb(subV, subV_openvdb);
-            eigen_to_openvdb(subF, subF_openvdb);
-        }
-        else
-        {
-            Vec3f center(it.first(0) + 0.5, it.first(1) + 0.5, it.first(2) + 0.5);
-            FloatGrid::Ptr tmp_grid = openvdb::tools::createLevelSetCube<FloatGrid>(args.gridSize, args.gridSize * center, voxel);
-            FloatGrid::Ptr cell_grid = openvdb::tools::csgIntersectionCopy(*whole_grid, *tmp_grid);
-            std::vector<Vec4I> Quad;
-            tools::volumeToMesh(*gridPtrCast<FloatGrid>(cell_grid), subV_openvdb, subF_openvdb, Quad, 0, 0, true);
-            clean_quads(subF_openvdb, Quad);
-        }
-
-        if (subF_openvdb.size() == 0)
+        
+        if (!void_flags[i])
             continue;
         
-        if (it.second["ratio"] >= 1 - 5e-2)
-            continue;
-
-        erode(subV_openvdb, subF_openvdb, it.second["ratio"], 1e-2, args.min_wall, outV, outF);
-
-        if (args.export_boundary_cells) {
-            static int render_id = 0;
-            auto render_v = subV_openvdb;
-            auto render_f = subF_openvdb;
-            for (const auto &x : outF)
-            {
-                Vec3I y = x + subV_openvdb.size();
-                render_f.push_back(y);
-            }
-            for (const auto &x : outV)
-                render_v.push_back(x);
-            write_mesh("render" + std::to_string(render_id++) + ".obj", render_v, render_f);
-        }
-        
-        for (const auto &p : outV)
-            for (int d = 0; d < 3; d++)
-                centers(i, d) += p(d);
-        centers.row(i) /= outV.size();
-
-        if (args.tunnel > 0)
-        {
-            // check if the cell is large enough to hold a sphere, if not, ignore the void inside
-            Eigen::MatrixXd outV_;
-            Eigen::MatrixXi outF_;
-            openvdb_to_eigen(outV, outV_);
-            openvdb_to_eigen(outF, outF_);
-            Eigen::VectorXd sqrD;
-            Eigen::VectorXi I;
-            Eigen::MatrixXd C;
-            Eigen::MatrixXd center = centers.row(i);
-            igl::point_mesh_squared_distance(center, outV_, outF_, sqrD, I, C);
-
-            if (sqrt(sqrD.minCoeff()) <= args.tunnel + voxel)
-            {
-                void_flags[i] = false;
-                continue;
-            }
-
-            void_flags[i] = true;
-            void_grids[i] = tools::meshToLevelSet<FloatGrid>(*xform, outV, outF, 3);
-
-            Vec3f center_(center(0),center(1),center(2));
-            auto grid = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>((float)args.tunnel, center_, (float)voxel);
-            openvdb::tools::csgUnion(*(void_grids[i]), *grid);
-        }
-        else
-        {
-            void_flags[i] = true;
-            void_grids[i] = tools::meshToLevelSet<FloatGrid>(*xform, outV, outF, 3);
-        }
         openvdb::tools::csgDifference(*whole_grid, *(void_grids[i]));
 
-        if (args.tunnel > 0 && void_flags[i])
+        if (args.tunnel > 0)
         {
             Eigen::Vector3i index;
             for (int k = -1; k <= 1; k += 2)
@@ -394,7 +441,7 @@ int main(int argc, char * argv[]) {
                             Eigen::Vector3d top = centers.row(i);
                             top(d) = (it.first(d) + 0.5 + 0.5 * k) * args.gridSize;
                             
-                            auto grid = createLevelSetCylinder(centers.row(i), top, args.tunnel, voxel); 
+                            auto grid = createLevelSetCylinder(centers.row(i), top, args.tunnel * 1.5, voxel); 
                             openvdb::tools::csgDifference(*whole_grid, *grid);
                         }
                     }
@@ -418,6 +465,8 @@ int main(int argc, char * argv[]) {
             grid = openvdb::tools::createLevelSetSphere<openvdb::FloatGrid>((float)args.tunnel, sphere_center, (float)voxel);
             openvdb::tools::csgDifference(*whole_grid, *grid);
         }
+    
+        std::cout << "drilling on " << i << " finished!\n";
     }
 
     std::vector<Vec3s> Ve;

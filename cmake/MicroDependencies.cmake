@@ -111,7 +111,8 @@ if (MICRO_WITH_OPENVDB)
         set(USE_EXPLICIT_INSTANTIATION OFF CACHE BOOL " " FORCE)
 
         add_subdirectory(${MICRO_EXTERNAL}/openvdb openvdb)
-        target_compile_definitions(openvdb INTERFACE -DMICRO_WITH_OPENVDB)
+        get_target_property(realTarget openvdb ALIASED_TARGET)
+        target_compile_definitions(${realTarget} INTERFACE -DMICRO_WITH_OPENVDB)
     endif()
 endif()
 
