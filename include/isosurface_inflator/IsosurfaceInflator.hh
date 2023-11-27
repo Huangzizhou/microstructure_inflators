@@ -34,7 +34,7 @@ public:
                        size_t inflationNeighborhoodEdgeDist = 2,
                        size_t blendingPolySize = 0);
 
-    void inflate(const std::vector<Real> &params);
+    void inflate(const std::vector<Real> &params, const Real offset);
     std::vector<Real> defaultParameters(Real thickness = 0.07) const;
 
     void rasterize(const std::vector<Real> &params, const std::string &resolution, const std::string &outPath);

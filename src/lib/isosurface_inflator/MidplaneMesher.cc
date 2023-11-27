@@ -262,7 +262,7 @@ mesh(const SignedDistanceRegion<3>  &sdf,
 
 #if SDF_DEBUG_OUT
     {
-        msquares.outputSignedDistanceField("sdf.msh", slice);
+        dumpSDF(sdf, "sdf.msh");
     }
 #endif
 
@@ -394,7 +394,7 @@ void computeCurvatureAdaptiveMinLen(const std::list<std::list<Point2D>> &polygon
 }
 
 void MidplaneMesher::dumpSDF(const SignedDistanceRegion<3>  &sdf,
-                             const std::string &path) {
+                             const std::string &path) const {
     auto bb = sdf.boundingBox();
     size_t gridSizeX = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[0]),
            gridSizeY = meshingOptions.msGridSizeFromMaxArea(bb.dimensions()[1]);

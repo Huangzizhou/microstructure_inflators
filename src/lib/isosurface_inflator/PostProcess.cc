@@ -24,7 +24,8 @@ void postProcess(vector<MeshIO::IOVertex>  &vertices,
                  const BBox<Point>         &meshCell,
                  const MeshingOptions      &opts,
                  bool cheapPostProcessing,
-                 bool nonPeriodicity) {
+                 bool nonPeriodicity,
+                 const Real offset) {
     const bool needsReflecting = requestFullPeriodCell && !meshedFullPeriodCell;
 
     BENCHMARK_START_TIMER_SECTION("postProcess");
@@ -389,7 +390,8 @@ template void postProcess<2, Eigen::Matrix<Real, 3, 1>>(
                  const BBox<Eigen::Matrix<Real, 3, 1>>  &meshCell,
                  const MeshingOptions                   &opts,
                  bool cheapPostProcessing,
-                 bool nonPeriodicity);
+                 bool nonPeriodicity,
+                 const Real offset);
 
 template void postProcess<3, Eigen::Matrix<Real, 3, 1>>(
                  std::vector<MeshIO::IOVertex>          &vertices,
@@ -403,4 +405,5 @@ template void postProcess<3, Eigen::Matrix<Real, 3, 1>>(
                  const BBox<Eigen::Matrix<Real, 3, 1>>  &meshCell,
                  const MeshingOptions                   &opts,
                  bool cheapPostProcessing,
-                 bool nonPeriodicity);
+                 bool nonPeriodicity,
+                 const Real offset);

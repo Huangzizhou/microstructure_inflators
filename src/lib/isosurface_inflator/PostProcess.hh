@@ -46,6 +46,7 @@ void postProcess(std::vector<MeshIO::IOVertex>  &vertices,
                  const BBox<Point>         &meshCell,
                  const MeshingOptions      &opts,
                  bool cheapPostProcessing,
-                 bool nonPeriodicity);
+                 bool nonPeriodicity,
+                 const Real offset);
 
 #endif /* end of include guard: POSTPROCESS_HH */

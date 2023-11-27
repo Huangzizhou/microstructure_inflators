@@ -37,7 +37,7 @@
 
 using namespace std;
 
-void IsosurfaceInflator::inflate(const vector<Real> &params) { m_imp->inflate(params); }
+void IsosurfaceInflator::inflate(const vector<Real> &params, const Real offset) { m_imp->inflate(params, offset); }
 void IsosurfaceInflator::dumpInflationGraph(const std::string &path, const std::vector<Real> &params) const { m_imp->dumpInflationGraph(path, params); }
 
 void IsosurfaceInflator::rasterize(const vector<Real> &params, const std::string &resolution, const std::string &outPath) { m_imp->rasterize(params, resolution, outPath); }

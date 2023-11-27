@@ -28,7 +28,7 @@ public:
     virtual void meshSlice(const SignedDistanceRegion<2> &sdf,
             std::vector<MeshIO::IOVertex> &vertices,
             std::vector<MeshIO::IOElement> &elements) const;
-    void dumpSDF(const SignedDistanceRegion<3> &sdf, const std::string &path);
+    void dumpSDF(const SignedDistanceRegion<3> &sdf, const std::string &path) const;
 
     std::string msPolygonPath;
 };

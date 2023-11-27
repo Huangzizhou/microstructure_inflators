@@ -65,11 +65,14 @@ public:
     }
 
     // Always support double type for compatibility with SignedDistanceRegion
-    virtual double signedDistance(const Point3D &p) const override { return stripAutoDiff(m_signedDistanceImpl(autodiffCast<Point3<Real>>(p))); }
+    virtual double signedDistance(const Point3D &p) const override 
+    { 
+        return stripAutoDiff(m_signedDistanceImpl(autodiffCast<Point3<Real>>(p), Real(this->offset))); 
+    }
 
     // Also support automatic differentiation types
     template<typename Real2, bool DebugDerivatives = false>
-    Real2 signedDistance(const Point3<Real2> &p) const { return m_signedDistanceImpl(p); }
+    Real2 signedDistance(const Point3<Real2> &p) const { return m_signedDistanceImpl(p, Real2(this->offset)); }
 
     size_t numParams() const { return m_wireMesh.numParams(); }
 
@@ -905,7 +908,13 @@ private:
     ////////////////////////////////////////////////////////////////////////////
     // Additional Real type to support automatic differentiation wrt. p only
     template<typename Real2, bool DebugDerivatives = false>
-    Real2 m_signedDistanceImpl(Point3<Real2> p) const {
+    Real2 m_signedDistanceImpl(Point3<Real2> p, Real2 offset) const {
+        for (int i = 0; i < 2; i++)
+        {
+            p(i) += offset;
+            if (p(i) > 1)
+                p(i) -= 2;
+        }
         p = m_jacobian * mapToBaseUnit(p);
 
         if (m_edgeGeometry.size() == 0) return 1.0;

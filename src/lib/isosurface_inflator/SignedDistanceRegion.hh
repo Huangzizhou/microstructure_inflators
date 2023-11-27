@@ -18,12 +18,13 @@
 template<size_t Dim>
 struct SignedDistanceRegion {
     using Real = double;
+    Real offset = 0;
     virtual const BBox<PointNd<Dim>> &boundingBox() const = 0;
     virtual double signedDistance(const PointNd<Dim> &p) const = 0;
 
     // Unless implemented more efficiently in derived class, implement
     // inside/outside test using the signed distance query
-    virtual bool isInside(const PointNd<Dim> &p) const { return signedDistance(p) <= 1.0; }
+    virtual bool isInside(const PointNd<Dim> &p) const { return signedDistance(p.array()) <= 1.0; }
 
     // When the CGAL mesher is used, the boundingSphere must contain the
     // geometry and be centered inside the object. This method should be

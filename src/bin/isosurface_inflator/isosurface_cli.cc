@@ -60,6 +60,7 @@ po::variables_map parseCmdLine(int argc, char *argv[]) {
                               ("nonconvexBasedBlending",                     "Blending based on polynomial nonconvex function")
                               ("piecewiseBasedBlending",                     "Blending done splitting the blending region into multiple pieces")
                               ("defaultThickness", po::value<double>()->default_value(0.07), "Set the default value for thickness parameters to be used in inflation")
+                              ("offset", po::value<double>()->default_value(0), "Offset periodic cell, not compatible with shape velocity")
                               ;
 
     po::options_description cli_opts;
@@ -171,6 +172,9 @@ int main(int argc, char *argv[])
     if (args.count("dumpBaseUnitGraph"))
         config.baseUnitGraphPath = args["dumpBaseUnitGraph"].as<string>();
 
+    // if (args["offset"].as<double>() != 0)
+    //     inflator.enableCheapPostprocess();
+
     if (args.count("mopts")) inflator.meshingOptions().load(args["mopts"].as<string>());
     if (args.count("disablePostprocessing")) inflator.disablePostprocess();
     if (args.count("cheapPostprocessing")) inflator.enableCheapPostprocess();
@@ -181,7 +185,7 @@ int main(int argc, char *argv[])
 
     if (args.count("outMSH")) {
         inflator.setGenerateFullPeriodCell(args.count("ortho_cell") == 0);
-        inflator.inflate(params);
+        inflator.inflate(params, args["offset"].as<double>());
 
         MeshIO::save(args["outMSH"].as<string>(), inflator.vertices(), inflator.elements());
 
