@@ -164,6 +164,7 @@ int main(int argc, char * argv[]) {
         double min_wall = 0;
         double final_adaptivity = 0;
         bool export_boundary_cells = false;
+        int max_threads = 32;
     } args;
 
     // Parse arguments
@@ -176,6 +177,7 @@ int main(int argc, char * argv[]) {
     app.add_option("--min-wall", args.min_wall, "Min width of walls.");
     app.add_option("--final_adaptivity", args.final_adaptivity, "adaptivity of final mesh.");
     app.add_option("-o,--output", args.output, "Output triangle mesh.");
+    app.add_option("--threads", args.max_threads, "Max number of threads in TBB.");
     app.add_option("-r,--resolution", args.resolution, "Density field resolution.");
     app.add_flag("--preserve-surface", args.preserve_original_surface, "Preserve original object surface");
     app.add_flag("--render", args.export_boundary_cells, "For rendering");
@@ -199,6 +201,7 @@ int main(int argc, char * argv[]) {
         return 0;
     }
 
+    std::vector<Eigen::Vector3i> id_to_coord;
     std::map<Eigen::Vector3i, json, myless> material_patterns;
     int i = 0;
     for (auto entry : patch)
@@ -207,6 +210,7 @@ int main(int argc, char * argv[]) {
         std::copy_n(entry["index"].begin(), 3, x.data());
         entry["i"] = i++;
         material_patterns[x] = entry;
+        id_to_coord.push_back(x);
     }
 
     Eigen::MatrixXd V, Vsurf;
@@ -259,17 +263,24 @@ int main(int argc, char * argv[]) {
 
     std::vector<FloatGrid::Ptr> void_grids(material_patterns.size());
     std::cout << "in total " << material_patterns.size() << "...\n";
+    tbb::task_arena limited_arena(args.max_threads);
+    limited_arena.execute([&]{ 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, material_patterns.size()),
         [&](const tbb::blocked_range<size_t> &r) {
             for (size_t i = r.begin(); i < r.end(); ++i)
             {
-                for (auto const& it : material_patterns)
+                // for (auto const& it : material_patterns)
+                if (material_patterns.find(id_to_coord[i]) == material_patterns.end())
+                    throw std::runtime_error("Invalid id!");
+                
+                const auto &it_first = id_to_coord[i];
+                const auto &it_second = material_patterns[it_first];
                 {
-                    if (it.second["i"] != i)
-                        continue;
-                    // const int i = it.second["i"];
+                    if (it_second["i"] != i)
+                        throw std::runtime_error("Inconsistent id!");
+                    // const int i = it_second["i"];
                     const auto& sub_ids = cell_tets[i];
-                    if (sub_ids.size() == 0 || it.second["internal"].get<bool>())
+                    if (sub_ids.size() == 0 || it_second["internal"].get<bool>())
                         continue;
 
                     std::vector<Vec3s> outV;
@@ -300,7 +311,7 @@ int main(int argc, char * argv[]) {
                         }
                         else
                         {
-                            Vec3f center(it.first(0) + 0.5, it.first(1) + 0.5, it.first(2) + 0.5);
+                            Vec3f center(it_first(0) + 0.5, it_first(1) + 0.5, it_first(2) + 0.5);
                             FloatGrid::Ptr tmp_grid = openvdb::tools::createLevelSetCube<FloatGrid>(args.gridSize, args.gridSize * center, voxel);
                             FloatGrid::Ptr cell_grid = openvdb::tools::csgIntersectionCopy(*whole_grid, *tmp_grid);
                             std::vector<Vec4I> Quad;
@@ -311,10 +322,10 @@ int main(int argc, char * argv[]) {
                         if (subF_openvdb.size() == 0)
                             continue;
                         
-                        if (it.second["ratio"] >= 1 - 2e-2)
+                        if (it_second["ratio"] >= 1 - 2e-2)
                             continue;
 
-                        erode(subV_openvdb, subF_openvdb, it.second["ratio"], 1e-2, args.min_wall, outV, outF);
+                        erode(subV_openvdb, subF_openvdb, it_second["ratio"], 1e-2, args.min_wall, outV, outF);
 
                         if (args.export_boundary_cells) {
                             static int render_id = 0;
@@ -374,10 +385,11 @@ int main(int argc, char * argv[]) {
                         void_grids[i] = tools::meshToLevelSet<FloatGrid>(*xform, outV, outF, 3);
                     }
                 }
-                std::cout << "erosion on " << i << " finished!\n";
+                std::cout << "erosion on [" << it_first.transpose() << "] finished!\n";
             }
         }
     );
+    });
     for (auto const& it : material_patterns)
     {
         const int i = it.second["i"];
