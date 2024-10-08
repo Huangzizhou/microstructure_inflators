@@ -2,8 +2,9 @@
 # General Informations
 ################################################################################
 
-cmake_minimum_required(VERSION 3.2)
 project(Microstructures)
+
+cmake_minimum_required(VERSION 3.18.0)
 
 # CMP0063: Honor visibility properties for all target types.
 if(POLICY CMP0063)
@@ -21,6 +22,9 @@ endif()
 
 set(MICRO_EXTERNAL ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+# General CMake utils
+include(inflator_cpm_cache)
 
 set(CMAKE_CXX_FLAGS_RELWITHASSERT        "-O3" CACHE STRING "Flags used during RelWithAssertions builds" FORCE)
 set(CMAKE_C_FLAGS_RELWITHASSERT          "-O3" CACHE STRING "Flags used during RelWithAssertions builds" FORCE)
