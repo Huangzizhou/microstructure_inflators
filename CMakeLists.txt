@@ -84,7 +84,7 @@ option(MICRO_COPY_HEADERS    "Copy headers into build directory; for debugging p
 option(MICRO_WITH_SANITIZERS "Enable sanitizers in compilation targets"                             OFF)
 option(MICRO_FAST_COMPILE    "Speed up compilation by excluding all targets from the default build" OFF)
 option(MICRO_WITH_COTIRE     "Use precompiled headers to speed up the build"                        OFF)
-option(MICRO_WITH_TBB        "Compile with TBB"                                                     ON)
+option(MICRO_WITH_TBB        "Compile with TBB"                                                     OFF)
 option(MICRO_WITH_CERES      "Compile with Ceres"                                                   ON)
 option(MICRO_BUILD_TOOLS     "Build tools, e.g. voxel2mesh"                                         OFF)
 option(MICRO_BUILD_BINARIES  "Build executable programs" ${MICRO_TOPLEVEL_PROJECT})
