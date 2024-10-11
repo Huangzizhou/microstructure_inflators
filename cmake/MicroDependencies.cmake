@@ -101,7 +101,7 @@ if(MICRO_BUILD_BINARIES)
 
     add_library(meshfem_boost INTERFACE)
 
-    foreach(a_lib filesystem system program_options)
+    foreach(a_lib filesystem system program_options config)
     target_link_libraries(meshfem_boost INTERFACE boost_${a_lib})
     endforeach()
 
