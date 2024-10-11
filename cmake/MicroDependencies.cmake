@@ -101,8 +101,12 @@ if(MICRO_BUILD_BINARIES)
 
     add_library(meshfem_boost INTERFACE)
 
-    foreach(a_lib filesystem system program_options config)
-    target_link_libraries(meshfem_boost INTERFACE boost_${a_lib})
+    foreach(a_lib ${BOOST_HEADER_ONLY_COMPONENTS_THAT_YOU_NEED})
+        target_link_libraries(meshfem_boost INTERFACE boost_${a_lib})
+    endforeach()
+
+    foreach(a_lib ${BOOST_NOT_HEADER_ONLY_COMPONENTS_THAT_YOU_NEED})
+        target_link_libraries(meshfem_boost INTERFACE Boost::${a_lib})
     endforeach()
 
     add_library(micro::boost ALIAS meshfem_boost)
