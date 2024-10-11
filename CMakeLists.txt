@@ -79,7 +79,7 @@ if(UNIX AND NOT APLE)
 endif()
 
 # Microstructure options
-option(MICRO_WITH_OPENVDB    "Use openvdb"                                                          ON)
+option(MICRO_WITH_OPENVDB    "Use openvdb"                                                          OFF)
 option(MICRO_COPY_HEADERS    "Copy headers into build directory; for debugging purposes"            OFF)
 option(MICRO_WITH_SANITIZERS "Enable sanitizers in compilation targets"                             OFF)
 option(MICRO_FAST_COMPILE    "Speed up compilation by excluding all targets from the default build" OFF)

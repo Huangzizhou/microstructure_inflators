@@ -105,8 +105,6 @@ if(MICRO_BUILD_BINARIES)
     target_link_libraries(meshfem_boost INTERFACE boost_${a_lib})
     endforeach()
 
-    target_link_libraries(${realTarget} PUBLIC boost_iostreams)
-
     add_library(micro::boost ALIAS meshfem_boost)
 endif()
 
