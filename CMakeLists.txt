@@ -42,6 +42,10 @@ mark_as_advanced(
     CMAKE_STATIC_LINKER_FLAGS_RELWITHASSERT
 )
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "No build type selected, default to RelWithAssert")
     set(CMAKE_BUILD_TYPE "RelWithAssert")
