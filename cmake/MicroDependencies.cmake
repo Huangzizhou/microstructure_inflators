@@ -25,6 +25,15 @@ if(NOT TARGET Eigen3::Eigen)
     add_library(Eigen3::Eigen ALIAS micro_eigen)
 endif()
 
+# openvdb
+if (MICRO_WITH_OPENVDB)
+    if(NOT TARGET openvdb)
+        include(openvdb)
+        get_target_property(realTarget openvdb ALIASED_TARGET)
+        target_compile_definitions(${realTarget} INTERFACE -DMICRO_WITH_OPENVDB)
+    endif()
+endif()
+
 # TBB library; must be brought in before MeshFEM to override! We need tbbmalloc,
 # which MeshFEM chooses not to build.
 # There are also some segfaults on shutdown with TBB 2017 (the version in wjakob's
@@ -81,39 +90,34 @@ find_package(Threads REQUIRED) # provides Threads::Threads
 
 # Boost library
 if(MICRO_BUILD_BINARIES)
-    find_package(Boost 1.54 REQUIRED COMPONENTS filesystem system program_options QUIET)
-    if(NOT TARGET micro::boost)
-        add_library(meshfem_boost INTERFACE)
-        if(TARGET Boost::filesystem AND TARGET Boost::system AND TARGET Boost::program_options)
-            target_link_libraries(meshfem_boost INTERFACE
-                Boost::filesystem
-                Boost::system
-                Boost::program_options)
-        else()
-            # When CMake and Boost versions are not in sync, imported targets may not be available... (sigh)
-            target_include_directories(meshfem_boost SYSTEM INTERFACE ${Boost_INCLUDE_DIRS})
-            target_link_libraries(meshfem_boost INTERFACE ${Boost_LIBRARIES})
-        endif()
-        add_library(micro::boost ALIAS meshfem_boost)
-    endif()
-endif()
+    # find_package(Boost 1.54 REQUIRED COMPONENTS filesystem system program_options QUIET)
+    # if(NOT TARGET micro::boost)
+    #     add_library(meshfem_boost INTERFACE)
+    #     if(TARGET Boost::filesystem AND TARGET Boost::system AND TARGET Boost::program_options)
+    #         target_link_libraries(meshfem_boost INTERFACE
+    #             Boost::filesystem
+    #             Boost::system
+    #             Boost::program_options)
+    #     else()
+    #         # When CMake and Boost versions are not in sync, imported targets may not be available... (sigh)
+    #         target_include_directories(meshfem_boost SYSTEM INTERFACE ${Boost_INCLUDE_DIRS})
+    #         target_link_libraries(meshfem_boost INTERFACE ${Boost_LIBRARIES})
+    #     endif()
+    #     add_library(micro::boost ALIAS meshfem_boost)
+    # endif()
+    include(boost)
 
-# openvdb
-if (MICRO_WITH_OPENVDB)
-    if(NOT TARGET openvdb)
-        micro_download_openvdb()
-        set(OPENVDB_BUILD_BINARIES OFF CACHE BOOL " " FORCE)
-        set(USE_BLOSC OFF CACHE BOOL " " FORCE)
-        set(OPENVDB_ENABLE_RPATH OFF CACHE BOOL " " FORCE)
-        set(USE_CCACHE OFF CACHE BOOL " " FORCE)
-        set(USE_PKGCONFIG OFF CACHE BOOL " " FORCE)
-        set(USE_EXR OFF CACHE BOOL " " FORCE)
-        set(USE_EXPLICIT_INSTANTIATION OFF CACHE BOOL " " FORCE)
+    # ignore_package(Boost 1.71.0)
+    set(Boost_ROOT "")
+    set(Boost_INCLUDE_DIRS "")
+    set(Boost_LIBRARIES "")
 
-        add_subdirectory(${MICRO_EXTERNAL}/openvdb openvdb)
-        get_target_property(realTarget openvdb ALIASED_TARGET)
-        target_compile_definitions(${realTarget} INTERFACE -DMICRO_WITH_OPENVDB)
-    endif()
+    # Prefer Config mode before Module mode to prevent lib from loading its own FindXXX.cmake
+    set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
+
+    add_library(meshfem_boost INTERFACE)
+    target_link_libraries(meshfem_boost INTERFACE Boost::boost)
+    add_library(micro::boost ALIAS meshfem_boost)
 endif()
 
 # json library

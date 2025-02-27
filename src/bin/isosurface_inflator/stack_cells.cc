@@ -79,18 +79,22 @@ int main(int argc, char * argv[]) {
     // Default arguments
     struct {
         std::string patch_config;
-        std::string object_surface = "";
         std::string output = "out.obj";
         double gridSize = 0.1;
         int resolution = 50;
         double final_adaptivity = 0;
+        // int xrange = 1;
+        // int yrange = 1;
+        // int zrange = 1;
     } args;
 
     // Parse arguments
-    CLI::App app{"stitch_cells_cli"};
+    CLI::App app{"stack_cells"};
     app.add_option("patch,-p,--patch", args.patch_config, "Patch description (json file).")->required();
     app.add_option("--gridSize", args.gridSize, "Grid size.")->required();
-    app.add_option("--surface", args.object_surface, "Object surface.");
+    // app.add_option("-x,--xrange", args.xrange, "Grid span in X direction.")->required();
+    // app.add_option("-y,--yrange", args.yrange, "Grid span in Y direction.")->required();
+    // app.add_option("-z,--zrange", args.zrange, "Grid span in Z direction.")->required();
     app.add_option("-o,--output", args.output, "Output triangle mesh.");
     app.add_option("-r,--resolution", args.resolution, "Density field resolution.");
     app.add_option("--final_adaptivity", args.final_adaptivity, "adaptivity of final mesh.");
@@ -127,24 +131,25 @@ int main(int argc, char * argv[]) {
 
     /* create sdf with internal microstructure cells empty */
 
-    FloatGrid::Ptr surf_grid;
-    {
-        // math::Transform::Ptr xform = math::Transform::createLinearTransform(args.gridSize / (resolution - 1));
-        // surf_grid = tools::meshToLevelSet<FloatGrid>(*xform, SV, SF, 3);
-        surf_grid = mesh2sdf(args.object_surface, args.gridSize / (resolution - 1));
+    const double bg_val = 3.0 / resolution;
 
-        for (auto const& it : material_patterns)
-        {
-            Eigen::Vector3i id = it.first;
-            Vec3f center(id(0) + 0.5,id(1) + 0.5,id(2) + 0.5);
-            auto tmp_grid = openvdb::tools::createLevelSetCube<FloatGrid>((resolution - 1), center * (resolution - 1), 1);
-            openvdb::tools::csgDifference(*surf_grid, *tmp_grid);
-        }
-    }
+    FloatGrid::Ptr surf_grid = openvdb::FloatGrid::create(bg_val);
+    // {
+    //     // math::Transform::Ptr xform = math::Transform::createLinearTransform(args.gridSize / (resolution - 1));
+    //     // surf_grid = tools::meshToLevelSet<FloatGrid>(*xform, SV, SF, 3);
+    //     surf_grid = mesh2sdf(args.object_surface, args.gridSize / (resolution - 1));
+
+    //     for (auto const& it : material_patterns)
+    //     {
+    //         Eigen::Vector3i id = it.first;
+    //         Vec3f center(id(0) + 0.5,id(1) + 0.5,id(2) + 0.5);
+    //         auto tmp_grid = openvdb::tools::createLevelSetCube<FloatGrid>((resolution - 1), center * (resolution - 1), 1);
+    //         openvdb::tools::csgDifference(*surf_grid, *tmp_grid);
+    //     }
+    // }
 
     /* create sdf for internal microstructure cells */
 
-    const double bg_val = 3.0 / resolution;
     openvdb::FloatGrid::Ptr grid = openvdb::FloatGrid::create(bg_val);
     grid->setTransform(math::Transform::createLinearTransform(args.gridSize / (resolution - 1)));
     openvdb::FloatGrid::Accessor accessor = grid->getAccessor();
@@ -243,33 +248,6 @@ int main(int argc, char * argv[]) {
 
     openvdb::tools::csgUnion(*grid, *surf_grid);
 
-    /* create tunnels to remove internal materials after 3d printing */
-    
-    // double tunnel_size = 0.2;
-    // for (auto const& it : material_patterns)
-    // {
-    //     for (int i = -1; i <= 1; i+=1)
-    //     for (int d = 0; d < 3; d++)
-    //     {
-    //         if (d != 0 && i == 0)
-    //             continue;
-    //         Eigen::Vector3i id = it.first;
-    //         id[d] += i;
-    //         if (material_patterns.find(id) == material_patterns.end()) // need to create tunnel
-    //         {
-    //             Vec3f center(id(0) + 0.5,id(1) + 0.5,id(2) + 0.5);
-    //             Vec3f corner1 = center - tunnel_size / 2;
-    //             Vec3f corner2 = center + tunnel_size / 2;
-    //             corner1(d) = id(d);
-    //             corner2(d) = id(d) + 1;
-    //             openvdb::math::BBox<Vec3f> bbox(corner1 * (resolution - 1), corner2 * (resolution - 1));
-    //             math::Transform::Ptr xform = math::Transform::createLinearTransform(1);
-    //             auto tmp_grid = openvdb::tools::createLevelSetBox<FloatGrid>(bbox, *xform);
-    //             openvdb::tools::csgDifference(*grid, *tmp_grid);
-    //         }
-    //     }
-    // }
-
     /* sdf to mesh */
 
     // openvdb::tools::signedFloodFill(grid->tree());
@@ -282,12 +260,6 @@ int main(int argc, char * argv[]) {
     tools::volumeToMesh(*grid, Ve, Tri, Quad, 0, args.final_adaptivity, true);
     clean_quads(Tri, Quad);
     write_mesh(args.output, Ve, Tri);
-
-    // openvdb::io::File file(args.output);
-    // openvdb::GridPtrVec(grids);
-    // grids.push_back(grid);
-    // file.write(grids);
-    // file.close();
 
     return 0;
 }
