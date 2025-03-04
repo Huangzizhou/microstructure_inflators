@@ -88,38 +88,6 @@ endif()
 # C++11 threads
 find_package(Threads REQUIRED) # provides Threads::Threads
 
-# Boost library
-if(MICRO_BUILD_BINARIES)
-    # find_package(Boost 1.54 REQUIRED COMPONENTS filesystem system program_options QUIET)
-    # if(NOT TARGET micro::boost)
-    #     add_library(meshfem_boost INTERFACE)
-    #     if(TARGET Boost::filesystem AND TARGET Boost::system AND TARGET Boost::program_options)
-    #         target_link_libraries(meshfem_boost INTERFACE
-    #             Boost::filesystem
-    #             Boost::system
-    #             Boost::program_options)
-    #     else()
-    #         # When CMake and Boost versions are not in sync, imported targets may not be available... (sigh)
-    #         target_include_directories(meshfem_boost SYSTEM INTERFACE ${Boost_INCLUDE_DIRS})
-    #         target_link_libraries(meshfem_boost INTERFACE ${Boost_LIBRARIES})
-    #     endif()
-    #     add_library(micro::boost ALIAS meshfem_boost)
-    # endif()
-    include(boost)
-
-    # ignore_package(Boost 1.71.0)
-    set(Boost_ROOT "")
-    set(Boost_INCLUDE_DIRS "")
-    set(Boost_LIBRARIES "")
-
-    # Prefer Config mode before Module mode to prevent lib from loading its own FindXXX.cmake
-    set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
-
-    add_library(meshfem_boost INTERFACE)
-    target_link_libraries(meshfem_boost INTERFACE Boost::boost)
-    add_library(micro::boost ALIAS meshfem_boost)
-endif()
-
 # json library
 if(NOT TARGET nlohmann_json::nlohmann_json)
     add_library(meshfem_json INTERFACE)
@@ -168,6 +136,25 @@ if(NOT TARGET CGAL::CGAL)
     micro_download_cgal()
     set(CGAL_DIR ${MICRO_EXTERNAL}/cgal)
     find_package(CGAL CONFIG REQUIRED COMPONENTS PATHS ${CGAL_DIR} NO_DEFAULT_PATH)
+endif()
+
+# Boost library
+if(MICRO_BUILD_BINARIES)
+    find_package(Boost 1.54 REQUIRED COMPONENTS filesystem system program_options QUIET)
+    if(NOT TARGET micro::boost)
+        add_library(meshfem_boost INTERFACE)
+        if(TARGET Boost::filesystem AND TARGET Boost::system AND TARGET Boost::program_options)
+            target_link_libraries(meshfem_boost INTERFACE
+                Boost::filesystem
+                Boost::system
+                Boost::program_options)
+        else()
+            # When CMake and Boost versions are not in sync, imported targets may not be available... (sigh)
+            target_include_directories(meshfem_boost SYSTEM INTERFACE ${Boost_INCLUDE_DIRS})
+            target_link_libraries(meshfem_boost INTERFACE ${Boost_LIBRARIES})
+        endif()
+        add_library(micro::boost ALIAS meshfem_boost)
+    endif()
 endif()
 
 # Nanoflann
