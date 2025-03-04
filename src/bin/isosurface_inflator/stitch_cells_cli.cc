@@ -127,11 +127,16 @@ int main(int argc, char * argv[]) {
 
     /* create sdf with internal microstructure cells empty */
 
+    const double bg_val = 3.0 / resolution;
+
     FloatGrid::Ptr surf_grid;
     {
         // math::Transform::Ptr xform = math::Transform::createLinearTransform(args.gridSize / (resolution - 1));
         // surf_grid = tools::meshToLevelSet<FloatGrid>(*xform, SV, SF, 3);
-        surf_grid = mesh2sdf(args.object_surface, args.gridSize / (resolution - 1));
+        if (args.object_surface)
+            surf_grid = mesh2sdf(args.object_surface, args.gridSize / (resolution - 1));
+        else
+            surf_grid = openvdb::FloatGrid::create(bg_val);
 
         for (auto const& it : material_patterns)
         {
@@ -144,7 +149,6 @@ int main(int argc, char * argv[]) {
 
     /* create sdf for internal microstructure cells */
 
-    const double bg_val = 3.0 / resolution;
     openvdb::FloatGrid::Ptr grid = openvdb::FloatGrid::create(bg_val);
     grid->setTransform(math::Transform::createLinearTransform(args.gridSize / (resolution - 1)));
     openvdb::FloatGrid::Accessor accessor = grid->getAccessor();
