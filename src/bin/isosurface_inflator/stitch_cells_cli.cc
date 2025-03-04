@@ -133,7 +133,7 @@ int main(int argc, char * argv[]) {
     {
         // math::Transform::Ptr xform = math::Transform::createLinearTransform(args.gridSize / (resolution - 1));
         // surf_grid = tools::meshToLevelSet<FloatGrid>(*xform, SV, SF, 3);
-        if (args.object_surface)
+        if (args.object_surface != "")
             surf_grid = mesh2sdf(args.object_surface, args.gridSize / (resolution - 1));
         else
             surf_grid = openvdb::FloatGrid::create(bg_val);
